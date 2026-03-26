@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import Combine
+import ServiceManagement
 
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -162,6 +163,34 @@ final class AppSettings: ObservableObject {
         return HotkeyManager.displayString(keyCode: kc, carbonModifiers: mods)
     }
 
+    // MARK: - Launch at login
+
+    @Published var launchAtLogin: Bool {
+        didSet {
+            UserDefaults.standard.set(launchAtLogin, forKey: Keys.launchAtLogin)
+            updateLoginItem()
+        }
+    }
+
+    /// Whether the first-launch autostart prompt has been shown.
+    var hasShownAutoStartPrompt: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.autoStartPromptShown) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.autoStartPromptShown) }
+    }
+
+    func updateLoginItem() {
+        let svc = SMAppService.mainApp
+        do {
+            if launchAtLogin {
+                try svc.register()
+            } else {
+                try svc.unregister()
+            }
+        } catch {
+            // Silently ignore — user can toggle again
+        }
+    }
+
     // MARK: - Keys
 
     private enum Keys {
@@ -173,6 +202,8 @@ final class AppSettings: ObservableObject {
         static let videoDimensions = "unifi.videoDimensions"
         static let hotkeyCode     = "unifi.hotkeyCode"
         static let hotkeyMods     = "unifi.hotkeyMods"
+        static let launchAtLogin  = "unifi.launchAtLogin"
+        static let autoStartPromptShown = "unifi.autoStartPromptShown"
     }
 
     private init() {
@@ -180,5 +211,6 @@ final class AppSettings: ObservableObject {
         apiKey       = UserDefaults.standard.string(forKey: Keys.apiKey) ?? ""
         let stored = UserDefaults.standard.object(forKey: Keys.usePlainRtsp)
         usePlainRtsp = stored != nil ? UserDefaults.standard.bool(forKey: Keys.usePlainRtsp) : true
+        launchAtLogin = UserDefaults.standard.bool(forKey: Keys.launchAtLogin)
     }
 }

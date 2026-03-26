@@ -18,7 +18,7 @@ struct SettingsView: View {
                     .foregroundColor(.accentColor)
                 Text("QuickProtect")
                     .font(.title2.bold())
-                Text("v0.1")
+                Text("v0.2")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -47,6 +47,12 @@ struct SettingsView: View {
                         LabeledContent("Stream protocol") {
                             Toggle("Use plain RTSP (port 7447)", isOn: $settings.usePlainRtsp)
                                 .help("Enable if streams fail due to TLS certificate errors.")
+                        }
+                    }
+
+                    Section("General") {
+                        LabeledContent("Startup") {
+                            Toggle("Launch at login", isOn: $settings.launchAtLogin)
                         }
                     }
 
@@ -153,7 +159,7 @@ struct SettingsView: View {
             .animation(.easeInOut, value: testResult?.message)
             .padding(16)
         }
-        .frame(minWidth: 620, maxWidth: 700, minHeight: 400, maxHeight: 480)
+        .frame(minWidth: 620, maxWidth: 700, minHeight: 480, maxHeight: 560)
         .background(hotkeyRecorderOverlay)
     }
 

@@ -19,6 +19,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
         }
+        promptAutoStartIfNeeded()
+    }
+
+    private func promptAutoStartIfNeeded() {
+        let s = AppSettings.shared
+        guard !s.hasShownAutoStartPrompt else { return }
+        s.hasShownAutoStartPrompt = true
+
+        let alert = NSAlert()
+        alert.messageText = "Start QuickProtect at Login?"
+        alert.informativeText = "QuickProtect can start automatically when you log in so your cameras are always one click away."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Enable")
+        alert.addButton(withTitle: "Not Now")
+
+        // Show as a floating alert (app is .accessory so there's no dock icon)
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        NSApp.setActivationPolicy(.accessory)
+
+        if response == .alertFirstButtonReturn {
+            s.launchAtLogin = true
+        }
     }
 
     func setupGlobalHotkey() {
@@ -186,7 +210,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let win = NSWindow(contentViewController: NSHostingController(rootView: view))
             win.title = "QuickProtect – Settings"
             win.styleMask = [.titled, .closable]
-            win.setContentSize(NSSize(width: 660, height: 440))
+            win.setContentSize(NSSize(width: 660, height: 520))
             win.isReleasedWhenClosed = false
             settingsWindow = win
             NotificationCenter.default.addObserver(
