@@ -1,0 +1,206 @@
+import AppKit
+import SwiftUI
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+
+    private var statusItem: NSStatusItem?
+    private var panel: NSPanel?
+    private var settingsWindow: NSWindow?
+    private var clickMonitor: Any?
+
+    let service = ProtectService()
+
+    // MARK: - Lifecycle
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        setupStatusBar()
+        setupGlobalHotkey()
+        let s = AppSettings.shared
+        if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
+            Task { await service.fetchCameras() }
+        }
+    }
+
+    func setupGlobalHotkey() {
+        HotkeyManager.shared.onHotkey = { [weak self] in
+            self?.togglePanel()
+        }
+        HotkeyManager.shared.registerFromSettings()
+    }
+
+    // MARK: - Status bar
+
+    private func setupStatusBar() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        guard let button = statusItem?.button else { return }
+        button.image = NSImage(systemSymbolName: "video.fill", accessibilityDescription: "QuickProtect")
+        button.action = #selector(handleStatusBarClick)
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.target = self
+    }
+
+    // MARK: - Click handling
+
+    @objc private func handleStatusBarClick(_ sender: NSStatusBarButton) {
+        guard let event = NSApp.currentEvent else { return }
+        if event.type == .rightMouseUp {
+            showContextMenu()
+        } else {
+            togglePanel()
+        }
+    }
+
+    @objc private func togglePanel() {
+        if let p = panel, p.isVisible {
+            closePanel()
+        } else {
+            showPanel()
+        }
+    }
+
+    private func showContextMenu() {
+        closePanel()
+
+        let menu = NSMenu()
+
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettingsFromMenu), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
+
+        let quitItem = NSMenuItem(title: "Quit QuickProtect", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(quitItem)
+
+        statusItem?.menu = menu
+        statusItem?.button?.performClick(nil)
+        statusItem?.menu = nil
+    }
+
+    @objc private func openSettingsFromMenu() {
+        openSettings()
+    }
+
+    // MARK: - Camera panel (resizable, anchored to status bar)
+
+    private func showPanel() {
+        guard let button = statusItem?.button else { return }
+
+        if panel == nil {
+            let size = savedPanelSize()
+            let content = PopoverContentView(service: service) { [weak self] in
+                self?.openSettings()
+            }
+            let hostingController = NSHostingController(rootView: content)
+
+            let p = NSPanel(
+                contentRect: NSRect(origin: .zero, size: size),
+                styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
+                backing: .buffered,
+                defer: false
+            )
+            p.titlebarAppearsTransparent = true
+            p.titleVisibility = .hidden
+            p.isMovableByWindowBackground = false
+            p.level = .popUpMenu
+            p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            p.isOpaque = false
+            p.backgroundColor = NSColor(white: 0.07, alpha: 0.98)
+            p.contentViewController = hostingController
+            p.delegate = self
+            p.minSize = NSSize(width: 400, height: 300)
+            panel = p
+        }
+
+        // Restore saved size (may differ from creation size if panel was reused)
+        let size = savedPanelSize()
+        panel?.setContentSize(size)
+
+        // Position below the status bar button, clamped to screen
+        let buttonRect = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
+        let panelSize = panel!.frame.size
+        var x = buttonRect.midX - panelSize.width / 2
+        let y = buttonRect.minY - panelSize.height - 4
+        if let screen = NSScreen.main {
+            let sf = screen.visibleFrame
+            x = max(sf.minX + 4, min(x, sf.maxX - panelSize.width - 4))
+        }
+        panel?.setFrameOrigin(NSPoint(x: x, y: y))
+
+        service.isPopoverOpen = true
+        panel?.makeKeyAndOrderFront(nil)
+
+        // Close on outside click
+        if clickMonitor == nil {
+            clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+                self?.closePanel()
+            }
+        }
+
+        Task { await service.fetchCameras() }
+    }
+
+    private func closePanel() {
+        service.isPopoverOpen = false
+        panel?.orderOut(nil)
+        // Destroy the hosting controller so SwiftUI tears down CameraCells
+        // and their RTSPClients disconnect. Recreated in showPanel().
+        panel?.contentViewController = nil
+        panel = nil
+        if let monitor = clickMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickMonitor = nil
+        }
+    }
+
+    private func savedPanelSize() -> NSSize {
+        if let saved = AppSettings.shared.panelSize() { return saved }
+        // Default: ~25% of screen area with 16:10 aspect ratio
+        guard let screen = NSScreen.main else { return NSSize(width: 640, height: 400) }
+        let screenArea = screen.visibleFrame.width * screen.visibleFrame.height
+        let panelArea = screenArea * 0.25
+        let w = sqrt(panelArea * 16.0 / 10.0).rounded()
+        let h = (w * 10.0 / 16.0).rounded()
+        return NSSize(width: min(w, 1400), height: min(h, 900))
+    }
+
+    // MARK: - NSWindowDelegate
+
+    func windowDidResize(_ notification: Notification) {
+        guard let win = notification.object as? NSPanel, win === panel else { return }
+        AppSettings.shared.setPanelSize(win.frame.size)
+    }
+
+    func windowDidClose(_ notification: Notification) {
+        if let win = notification.object as? NSPanel, win === panel {
+            closePanel()
+        }
+    }
+
+    // MARK: - Settings window
+
+    func openSettings() {
+        closePanel()
+        if settingsWindow == nil {
+            let view = SettingsView(service: service)
+            let win = NSWindow(contentViewController: NSHostingController(rootView: view))
+            win.title = "QuickProtect – Settings"
+            win.styleMask = [.titled, .closable]
+            win.setContentSize(NSSize(width: 660, height: 440))
+            win.isReleasedWhenClosed = false
+            settingsWindow = win
+            NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: win,
+                queue: .main
+            ) { [weak self] _ in
+                self?.settingsWindow = nil
+                NSApp.setActivationPolicy(.accessory)
+            }
+        }
+        NSApp.setActivationPolicy(.regular)
+        settingsWindow?.center()
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}

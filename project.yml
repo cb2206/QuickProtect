@@ -1,0 +1,48 @@
+name: QuickProtect
+options:
+  minimumXcodeGenVersion: "2.35"
+  deploymentTarget:
+    macOS: "13.0"
+  defaultConfig: Debug
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    PRODUCT_NAME: QuickProtect
+    PRODUCT_BUNDLE_IDENTIFIER: com.cb.quickprotect
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    ENABLE_HARDENED_RUNTIME: YES
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  QuickProtect:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+
+    sources:
+      - path: QuickProtect
+        excludes:
+          - "**/*.md"
+
+    info:
+      path: QuickProtect/Info.plist
+
+    entitlements:
+      path: QuickProtect/QuickProtect.entitlements
+
+    settings:
+      base:
+        INFOPLIST_FILE: QuickProtect/Info.plist
+        CODE_SIGN_ENTITLEMENTS: QuickProtect/QuickProtect.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+      configs:
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+
+    dependencies:
+      - sdk: AVFoundation.framework
+      - sdk: AVKit.framework
+      - sdk: Network.framework
