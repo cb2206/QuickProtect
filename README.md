@@ -62,6 +62,47 @@ swiftc \
   QuickProtect/**/*.swift
 ```
 
+## Installing an Unsigned App
+
+QuickProtect is not signed with an Apple Developer certificate. When you first open it, macOS will block it with a message like *"QuickProtect can't be opened because Apple cannot check it for malicious software."*
+
+To allow it:
+
+1. Open **System Settings** → **Privacy & Security**
+2. Scroll down to the **Security** section
+3. You'll see *"QuickProtect" was blocked to protect your Mac* with an **Open Anyway** button
+4. Click **Open Anyway** and confirm
+
+You only need to do this once. After that, QuickProtect will open normally.
+
+## Remote Access
+
+UniFi Protect does not expose public cloud APIs for video streaming. The official remote method (WebRTC via protect.ui.com) has no public API for third-party apps. This means QuickProtect requires network access to your controller's local IP.
+
+To use QuickProtect when you're away from home, connect to your home network first using a VPN:
+
+### Option 1: Tailscale (Recommended)
+
+[Tailscale](https://tailscale.com/) is a zero-config WireGuard VPN that creates a private network between your devices.
+
+1. Install Tailscale on your Mac and on a device on your home network (e.g., your UniFi gateway, a Raspberry Pi, or any always-on machine)
+2. Enable [subnet routing](https://tailscale.com/kb/1019/subnets) to expose your home LAN (e.g., `10.0.1.0/24`)
+3. Connect to Tailscale on your Mac — your controller's local IP is now reachable
+4. QuickProtect works as if you were at home
+
+### Option 2: UniFi Teleport
+
+If you have a UniFi Gateway, [Teleport](https://help.ui.com/hc/en-us/articles/5246403561495-UniFi-Gateway-Teleport-VPN) is a built-in WireGuard VPN:
+
+1. In the UniFi console, go to **Settings** → **Teleport & VPN** → **Teleport**
+2. Generate an invitation link and open it on your Mac (via the [WiFiman](https://apps.apple.com/app/wifiman/id1385561119) app)
+3. Once connected, your controller's local IP is reachable
+4. QuickProtect works as if you were at home
+
+### Other VPNs
+
+Any VPN solution that gives you access to your home LAN will work — WireGuard, OpenVPN, ZeroTier, etc. Just ensure the controller's IP is routable through the VPN tunnel.
+
 ## How It Works
 
 QuickProtect connects to your UniFi Protect controller using the Integration API (`/proxy/protect/integration/v1/`). It authenticates with an API key and creates on-demand RTSP sessions for each camera.
