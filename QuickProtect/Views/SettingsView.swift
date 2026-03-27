@@ -4,6 +4,7 @@ import Carbon
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject var service: ProtectService
+    @ObservedObject var updateChecker: UpdateChecker
 
     @State private var isTesting = false
     @State private var testResult: TestResult?
@@ -18,9 +19,6 @@ struct SettingsView: View {
                     .foregroundColor(.accentColor)
                 Text("QuickProtect")
                     .font(.title2.bold())
-                Text("v0.2")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
             .padding([.top, .horizontal], 20)
             .padding(.bottom, 14)
@@ -53,6 +51,35 @@ struct SettingsView: View {
                     Section("General") {
                         LabeledContent("Startup") {
                             Toggle("Launch at login", isOn: $settings.launchAtLogin)
+                        }
+                    }
+
+                    Section("Updates") {
+                        LabeledContent("Version") {
+                            HStack(spacing: 8) {
+                                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                                if updateChecker.updateAvailable {
+                                    Text("v\(updateChecker.latestVersion) available")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                        }
+                        LabeledContent("") {
+                            HStack(spacing: 8) {
+                                if updateChecker.updateAvailable {
+                                    Button("Download Update") {
+                                        updateChecker.openReleasePage()
+                                    }
+                                }
+                                Button("Check for Updates") {
+                                    updateChecker.checkForUpdate()
+                                }
+                                .disabled(updateChecker.isChecking)
+                                if updateChecker.isChecking {
+                                    ProgressView().scaleEffect(0.6)
+                                }
+                            }
                         }
                     }
 
@@ -159,7 +186,7 @@ struct SettingsView: View {
             .animation(.easeInOut, value: testResult?.message)
             .padding(16)
         }
-        .frame(minWidth: 620, maxWidth: 700, minHeight: 480, maxHeight: 560)
+        .frame(minWidth: 620, maxWidth: 700, minHeight: 540, maxHeight: 620)
         .background(hotkeyRecorderOverlay)
     }
 

@@ -1,6 +1,10 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    static let closeCameraPanel = Notification.Name("closeCameraPanel")
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var statusItem: NSStatusItem?
@@ -9,17 +13,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var clickMonitor: Any?
 
     let service = ProtectService()
+    let updateChecker = UpdateChecker()
 
     // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusBar()
         setupGlobalHotkey()
+        NotificationCenter.default.addObserver(forName: .closeCameraPanel, object: nil, queue: .main) { [weak self] _ in
+            self?.closePanel()
+        }
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
         }
         promptAutoStartIfNeeded()
+        updateChecker.startPeriodicChecks()
     }
 
     private func promptAutoStartIfNeeded() {
@@ -206,7 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func openSettings() {
         closePanel()
         if settingsWindow == nil {
-            let view = SettingsView(service: service)
+            let view = SettingsView(service: service, updateChecker: updateChecker)
             let win = NSWindow(contentViewController: NSHostingController(rootView: view))
             win.title = "QuickProtect – Settings"
             win.styleMask = [.titled, .closable]

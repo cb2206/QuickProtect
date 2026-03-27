@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import AppKit
 
 // MARK: - Grid
 
@@ -191,6 +192,7 @@ struct CameraCell: View {
                 AppSettings.shared.cacheVideoDimensions(dims, for: camera.id)
             }
         }
+        .onTapGesture { openInProtect() }
         .contextMenu { sizeMenu }
     }
 
@@ -198,6 +200,10 @@ struct CameraCell: View {
 
     @ViewBuilder
     private var sizeMenu: some View {
+        Button { openInProtect() } label: {
+            Label("Open in Protect", systemImage: "safari")
+        }
+        Divider()
         let current = AppSettings.shared.cameraSize(for: camera.id)
         Button { setSize(.small) } label: {
             Label("Small", systemImage: current == .small ? "checkmark" : "")
@@ -219,6 +225,14 @@ struct CameraCell: View {
         } label: {
             Label("Hide Camera", systemImage: "eye.slash")
         }
+    }
+
+    private func openInProtect() {
+        let ip = AppSettings.shared.ipAddress
+        guard !ip.isEmpty,
+              let url = URL(string: "https://\(ip)/protect/dashboard/all/sidepanel/device/\(camera.id)") else { return }
+        NotificationCenter.default.post(name: .closeCameraPanel, object: nil)
+        NSWorkspace.shared.open(url)
     }
 
     private func setSize(_ size: AppSettings.CameraSize?) {
