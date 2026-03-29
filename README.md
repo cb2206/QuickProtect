@@ -4,6 +4,8 @@ A lightweight macOS status bar app for viewing live camera feeds from a UniFi Pr
 
 Click the camera icon in your menu bar to instantly see all your cameras in a resizable popover — no browser or UniFi Protect app needed.
 
+![QuickProtect](screenshots/quickprotect.png)
+
 ## Features
 
 - **Live RTSP streaming** via a custom RTSP/RTP client built on Network.framework (no AVFoundation RTSP dependency)
