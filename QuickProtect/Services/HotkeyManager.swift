@@ -79,7 +79,7 @@ final class HotkeyManager {
         return parts.joined()
     }
 
-    private static func keyName(for keyCode: UInt32) -> String {
+    static func keyName(for keyCode: UInt32) -> String {
         let names: [UInt32: String] = [
             0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X",
             8: "C", 9: "V", 11: "B", 12: "Q", 13: "W", 14: "E", 15: "R",
