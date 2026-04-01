@@ -66,20 +66,7 @@ struct SettingsView: View {
                             }
                         }
                         LabeledContent("") {
-                            HStack(spacing: 8) {
-                                if updateChecker.updateAvailable {
-                                    Button("Download Update") {
-                                        updateChecker.openReleasePage()
-                                    }
-                                }
-                                Button("Check for Updates") {
-                                    updateChecker.checkForUpdate()
-                                }
-                                .disabled(updateChecker.isChecking)
-                                if updateChecker.isChecking {
-                                    ProgressView().scaleEffect(0.6)
-                                }
-                            }
+                            updateActions
                         }
                     }
 
@@ -188,6 +175,73 @@ struct SettingsView: View {
         }
         .frame(minWidth: 620, maxWidth: 700, minHeight: 540, maxHeight: 620)
         .background(hotkeyRecorderOverlay)
+    }
+
+    // MARK: - Update actions
+
+    @ViewBuilder
+    private var updateActions: some View {
+        switch updateChecker.updateState {
+        case .idle:
+            HStack(spacing: 8) {
+                if updateChecker.updateAvailable {
+                    Button("Install Update") {
+                        updateChecker.downloadAndInstall()
+                    }
+                }
+                Button("Check for Updates") {
+                    updateChecker.checkForUpdate()
+                }
+                .disabled(updateChecker.isChecking)
+                if updateChecker.isChecking {
+                    ProgressView().scaleEffect(0.6)
+                }
+            }
+
+        case .downloading(let progress):
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    ProgressView(value: progress)
+                        .frame(width: 140)
+                    Text("\(Int(progress * 100))%")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(width: 32, alignment: .trailing)
+                    Button("Cancel") {
+                        updateChecker.cancelDownload()
+                    }
+                    .font(.caption)
+                }
+                Text("Downloading update…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+        case .installing:
+            HStack(spacing: 8) {
+                ProgressView().scaleEffect(0.7)
+                Text("Installing update…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+        case .error(let message):
+            VStack(alignment: .leading, spacing: 4) {
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .lineLimit(2)
+                HStack(spacing: 8) {
+                    Button("Retry") {
+                        updateChecker.downloadAndInstall()
+                    }
+                    Button("Dismiss") {
+                        updateChecker.updateState = .idle
+                    }
+                    .font(.caption)
+                }
+            }
+        }
     }
 
     // MARK: - Hotkey recorder

@@ -11,31 +11,49 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **Live RTSP streaming** via a custom RTSP/RTP client built on Network.framework (no AVFoundation RTSP dependency)
 - **H.265 (HEVC) and H.264** codec support, including multi-slice encoding (e.g. G4 Doorbell Pro)
 - **Automatic aspect ratio detection** — wide cameras like the G6 180 display at their native ratio
+- **Single-click focus** — click any camera to view it fullscreen within the popover
+- **Display fullscreen** — press **F**, **Space**, or the expand button to fill your entire screen with a camera feed; press **F**, **Space**, or **Escape** to return
+- **Zoom and pan** — pinch-to-zoom and two-finger pan on trackpad, scroll wheel zoom on mouse; pan is clamped to video edges
+- **Double-click to open in Protect** — double-click any feed to jump straight to that camera in the UniFi Protect web UI
 - **Resizable camera feeds** — right-click any camera to set Small / Medium / Large sizing
 - **Drag-and-drop reordering** — arrange cameras however you want
 - **Hide cameras** — hide feeds you don't need via right-click or Settings
 - **Resizable popover** — drag to resize; size is saved per display
 - **Per-display layouts** — different camera arrangements and popover sizes on your laptop vs. external monitor
 - **Global keyboard shortcut** — toggle the popover from anywhere, configurable in Settings
+- **Auto-update** — checks for updates on launch and daily; downloads, installs, and restarts automatically from GitHub releases
+- **Launch at login** — optional, with a first-run prompt; toggle in Settings
 - **Self-signed TLS support** — connects to controllers using self-signed certificates without system-wide trust changes
 - **Closes on outside click** — click anywhere outside the popover to dismiss it
 
 ## Requirements
 
-- macOS 13.0 or later
+- macOS 13.0 or later (Apple Silicon)
 - A UniFi Protect controller with the [Integration API](https://developers.ui.com/protect-api/) enabled
 - An API key generated from the controller's settings
 
+## Install
+
+Download the latest DMG from [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), open it, and drag QuickProtect to Applications.
+
 ## Setup
 
-1. Build and run the app (see [Building](#building))
-2. Click the camera icon in the menu bar
-3. Right-click the icon or click the gear icon to open **Settings**
-4. Enter your controller's **IP address** and **API key**
-5. Click **Test Connection** to verify
-6. Close settings — your cameras will appear in the popover
+1. Click the camera icon in the menu bar
+2. Click the gear icon to open **Settings**
+3. Enter your controller's **IP address** and **API key**
+4. Click **Test Connection** to verify
+5. Close settings — your cameras will appear in the popover
 
-## Building
+## Keyboard Shortcuts
+
+| Key | Context | Action |
+|-----|---------|--------|
+| **F** / **Space** | Popover focus | Toggle display fullscreen |
+| **Escape** | Display fullscreen | Return to popover focus |
+| **Escape** | Popover focus | Return to grid view |
+| Custom shortcut | Anywhere | Toggle popover (configurable in Settings) |
+
+## Building from Source
 
 The project uses [XcodeGen](https://github.com/yonaskolb/xcodegen) to generate the Xcode project.
 
@@ -58,7 +76,7 @@ swiftc \
   -target arm64-apple-macos13.0 \
   -framework AppKit -framework SwiftUI -framework AVFoundation \
   -framework CoreMedia -framework Network -framework Security \
-  -framework Combine -framework Carbon \
+  -framework Combine -framework Carbon -framework ServiceManagement \
   -o QuickProtect \
   QuickProtect/*.swift \
   QuickProtect/**/*.swift
@@ -114,8 +132,9 @@ Since macOS 13+ dropped AVFoundation support for RTSP URLs, QuickProtect include
 1. Opens a TLS connection via `NWConnection` with per-connection certificate verification bypass
 2. Runs the RTSP state machine (OPTIONS → DESCRIBE → SETUP → PLAY)
 3. Parses RTP interleaved framing and reassembles H.264/H.265 NAL units
-4. Groups NAL units into access units using the RTP marker bit (required for multi-slice cameras)
+4. Groups NAL units into access units using the RTP marker bit (required for multi-slice cameras like the G4 Doorbell Pro)
 5. Feeds AVCC-formatted data into `AVSampleBufferDisplayLayer` for hardware-accelerated decoding
+6. All RTP processing runs on a dedicated serial queue (~18% CPU for 6 simultaneous streams, 0% when popover is closed)
 
 ## License
 
