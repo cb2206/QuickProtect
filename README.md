@@ -82,6 +82,20 @@ swiftc \
   QuickProtect/**/*.swift
 ```
 
+## Running Tests
+
+```bash
+# Via Xcode (requires Xcode.app)
+xcodebuild test -project QuickProtect.xcodeproj -scheme QuickProtect -destination 'platform=macOS'
+
+# Standalone (no Xcode needed)
+swiftc -sdk $(xcrun --show-sdk-path) -target arm64-apple-macos13.0 -parse-as-library \
+  -o /tmp/QuickProtectTests QuickProtect/Services/RTPParser.swift QuickProtectTests/TestRunner.swift \
+  && /tmp/QuickProtectTests
+```
+
+61 tests cover RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, version comparison, grid layout, and hotkey management.
+
 ## Installing an Unsigned App
 
 QuickProtect is not signed with an Apple Developer certificate. When you first open it, macOS will block it with a message like *"QuickProtect can't be opened because Apple cannot check it for malicious software."*
