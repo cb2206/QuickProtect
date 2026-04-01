@@ -4,7 +4,7 @@ options:
   deploymentTarget:
     macOS: "13.0"
   defaultConfig: Debug
-  xcodeVersion: "15.0"
+  xcodeVersion: "16.0"
 
 settings:
   base:
@@ -14,6 +14,16 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
+
+schemes:
+  QuickProtect:
+    build:
+      targets:
+        QuickProtect: all
+        QuickProtectTests: [test]
+    test:
+      targets:
+        - QuickProtectTests
 
 targets:
   QuickProtect:
@@ -46,3 +56,31 @@ targets:
       - sdk: AVFoundation.framework
       - sdk: AVKit.framework
       - sdk: Network.framework
+      - sdk: Security.framework
+      - sdk: Carbon.framework
+      - sdk: ServiceManagement.framework
+
+  QuickProtectTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "13.0"
+
+    sources:
+      - path: QuickProtectTests
+        excludes:
+          - "**/*.md"
+          - TestRunner.swift
+      # Include testable source files directly (no BUNDLE_LOADER needed)
+      - path: QuickProtect/Services/RTPParser.swift
+      - path: QuickProtect/Services/HotkeyManager.swift
+      - path: QuickProtect/Models/AppSettings.swift
+      - path: QuickProtect/Models/Camera.swift
+
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_MODULE_NAME: QuickProtectTests
+
+    dependencies:
+      - sdk: Carbon.framework
+      - sdk: ServiceManagement.framework
