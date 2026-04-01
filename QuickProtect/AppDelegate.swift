@@ -11,6 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var panel: NSPanel?
     private var settingsWindow: NSWindow?
     private var clickMonitor: Any?
+    private var savedPanelFrame: NSRect?
+    private var savedPanelLevel: NSWindow.Level?
+    private(set) var isInTrueFullscreen = false
 
     let service = ProtectService()
     let updateChecker = UpdateChecker()
@@ -22,6 +25,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupGlobalHotkey()
         NotificationCenter.default.addObserver(forName: .closeCameraPanel, object: nil, queue: .main) { [weak self] _ in
             self?.closePanel()
+        }
+        NotificationCenter.default.addObserver(forName: .enterTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
+            self?.enterPanelFullscreen()
+        }
+        NotificationCenter.default.addObserver(forName: .exitTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
+            self?.exitPanelFullscreen()
         }
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
@@ -208,6 +217,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let win = notification.object as? NSPanel, win === panel {
             closePanel()
         }
+    }
+
+    // MARK: - True fullscreen (panel resize — no layer re-parenting needed)
+
+    private func enterPanelFullscreen() {
+        guard let panel = panel, let screen = panel.screen ?? NSScreen.main else { return }
+        guard !isInTrueFullscreen else { return }
+
+        savedPanelFrame = panel.frame
+        savedPanelLevel = panel.level
+        isInTrueFullscreen = true
+
+        // Remove title bar and go borderless fullscreen
+        panel.styleMask = [.borderless, .nonactivatingPanel]
+        panel.level = .screenSaver
+        panel.backgroundColor = .black
+        panel.hasShadow = false
+        panel.setFrame(screen.frame, display: true, animate: true)
+    }
+
+    private func exitPanelFullscreen() {
+        guard let panel = panel, isInTrueFullscreen else { return }
+        isInTrueFullscreen = false
+
+        // Restore original panel style
+        panel.styleMask = [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView]
+        panel.level = savedPanelLevel ?? .floating
+        panel.hasShadow = true
+        if let frame = savedPanelFrame {
+            panel.setFrame(frame, display: true, animate: true)
+        }
+        savedPanelFrame = nil
     }
 
     // MARK: - Settings window

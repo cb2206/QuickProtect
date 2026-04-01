@@ -2,11 +2,17 @@ import SwiftUI
 import AVFoundation
 import AppKit
 
+extension Notification.Name {
+    static let enterTrueFullscreen = Notification.Name("enterTrueFullscreen")
+    static let exitTrueFullscreen  = Notification.Name("exitTrueFullscreen")
+}
+
 // MARK: - Grid
 
 struct CameraGridView: View {
     @ObservedObject var service: ProtectService
     @State private var dragCameraId: String?
+    @State private var focusedCameraId: String?
 
     /// 4 logical columns; cameras span 1, 2, or 4 based on their size setting.
     private let columnCount = 4
@@ -65,30 +71,42 @@ struct CameraGridView: View {
             let totalWidth = geo.size.width - spacing * 2
             let colWidth = (totalWidth - spacing * CGFloat(columnCount - 1)) / CGFloat(columnCount)
 
-            ScrollView {
-                VStack(spacing: spacing) {
-                    let rows = packRows(cameras: orderedCameras, colWidth: colWidth)
-                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                        HStack(spacing: spacing) {
-                            ForEach(row, id: \.camera.id) { item in
-                                CameraCell(camera: item.camera, service: service, span: item.span)
-                                    .frame(width: cellWidth(span: item.span, colWidth: colWidth))
-                                    .opacity(dragCameraId == item.camera.id ? 0.4 : 1)
-                                    .onDrag {
-                                        dragCameraId = item.camera.id
-                                        return NSItemProvider(object: item.camera.id as NSString)
-                                    }
-                                    .onDrop(of: [.text], delegate: CameraDropDelegate(
-                                        targetId: item.camera.id,
-                                        cameras: orderedCameras,
-                                        dragCameraId: $dragCameraId,
-                                        service: service
-                                    ))
+            if let focusedId = focusedCameraId,
+               let camera = orderedCameras.first(where: { $0.id == focusedId }) {
+                // Fullscreen: single camera filling the popover
+                CameraCell(camera: camera, service: service, span: columnCount,
+                           focusedCameraId: $focusedCameraId)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(spacing)
+                    .transition(.opacity)
+            } else {
+                ScrollView {
+                    VStack(spacing: spacing) {
+                        let rows = packRows(cameras: orderedCameras, colWidth: colWidth)
+                        ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                            HStack(spacing: spacing) {
+                                ForEach(row, id: \.camera.id) { item in
+                                    CameraCell(camera: item.camera, service: service, span: item.span,
+                                               focusedCameraId: $focusedCameraId)
+                                        .frame(width: cellWidth(span: item.span, colWidth: colWidth))
+                                        .opacity(dragCameraId == item.camera.id ? 0.4 : 1)
+                                        .onDrag {
+                                            dragCameraId = item.camera.id
+                                            return NSItemProvider(object: item.camera.id as NSString)
+                                        }
+                                        .onDrop(of: [.text], delegate: CameraDropDelegate(
+                                            targetId: item.camera.id,
+                                            cameras: orderedCameras,
+                                            dragCameraId: $dragCameraId,
+                                            service: service
+                                        ))
+                                }
                             }
                         }
                     }
+                    .padding(spacing)
                 }
-                .padding(spacing)
+                .transition(.opacity)
             }
         }
     }
@@ -140,13 +158,24 @@ struct CameraCell: View {
     let camera: Camera
     let service: ProtectService
     let span: Int
+    @Binding var focusedCameraId: String?
 
     @StateObject private var rtspClient = RTSPClient()
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
     @State private var isHovered = false
 
+    // Zoom & pan (only active when focused)
+    @State private var zoomScale: CGFloat = 1.0
+    @State private var panOffset: CGSize = .zero
+    @State private var lastPanOffset: CGSize = .zero
+    @State private var keyMonitor: Any?
+    @State private var globalKeyMonitor: Any?
+    @State private var cellSize: CGSize = .zero       // for pan clamping
+
     enum Mode { case connecting, playing, failed }
+
+    private var isFocused: Bool { focusedCameraId == camera.id }
 
     /// Aspect ratio: live stream dims > cached dims > 16:9 fallback.
     private var aspectRatio: CGFloat {
@@ -159,25 +188,95 @@ struct CameraCell: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            ProtectStreamView(displayLayer: rtspClient.displayLayer)
-                .background(Color(white: 0.12))
+            // Stream view: use .resizeAspect when focused to preserve full frame
+            GeometryReader { geo in
+                ProtectStreamView(
+                    displayLayer: rtspClient.displayLayer,
+                    videoGravity: isFocused ? .resizeAspect : .resizeAspectFill,
+                    onZoom: isFocused ? { delta in
+                        let newScale = zoomScale + delta
+                        zoomScale = max(1.0, min(8.0, newScale))
+                        if zoomScale <= 1.0 { panOffset = .zero; lastPanOffset = .zero }
+                    } : nil,
+                    onPan: isFocused ? { dx, dy in
+                        guard zoomScale > 1.0 else { return }
+                        let maxPanX = cellSize.width * (zoomScale - 1) / 2
+                        let maxPanY = cellSize.height * (zoomScale - 1) / 2
+                        let newX = lastPanOffset.width + dx
+                        let newY = lastPanOffset.height - dy
+                        panOffset = CGSize(
+                            width: max(-maxPanX, min(maxPanX, newX)),
+                            height: max(-maxPanY, min(maxPanY, newY))
+                        )
+                        lastPanOffset = panOffset
+                    } : nil,
+                    onKeyPress: isFocused ? { keyCode in
+                        if keyCode == 3 || keyCode == 49 { toggleTrueFullscreen() }    // F or Space
+                        else if keyCode == 53 { handleEscape() }      // Escape
+                    } : nil
+                )
+                    .scaleEffect(isFocused ? zoomScale : 1.0)
+                    .offset(x: isFocused ? panOffset.width : 0,
+                            y: isFocused ? panOffset.height : 0)
+                    .onAppear { cellSize = geo.size }
+                    .onChange(of: geo.size) { cellSize = $0 }
+            }
+            .background(Color(white: 0.05))
 
             if mode != .playing {
                 stateOverlay
             }
 
             nameBadge
+
+            if isFocused {
+                // Controls overlay (top-right)
+                VStack {
+                    HStack {
+                        Spacer()
+                        // Fullscreen button
+                        Button {
+                            toggleTrueFullscreen()
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .padding(6)
+                                .background(.black.opacity(0.4))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Fullscreen (F)")
+
+                        // Close button
+                        Button {
+                            exitFocus()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundStyle(.white.opacity(0.8), .black.opacity(0.4))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(8)
+                    Spacer()
+                }
+            }
         }
-        .aspectRatio(aspectRatio, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .aspectRatio(isFocused ? nil : aspectRatio, contentMode: .fit)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: isFocused ? 0 : 4))
         .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(isHovered ? Color.white.opacity(0.25) : Color.clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: isFocused ? 0 : 4)
+                .stroke(isHovered && !isFocused ? Color.white.opacity(0.25) : Color.clear, lineWidth: 1)
         )
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
         .onAppear(perform: startStream)
-        .onDisappear(perform: stopStream)
+        .onDisappear {
+            stopStream()
+            removeKeyMonitor()
+        }
         .onChange(of: service.isPopoverOpen) { open in
             if open { startStream() } else { stopStream() }
         }
@@ -192,8 +291,91 @@ struct CameraCell: View {
                 AppSettings.shared.cacheVideoDimensions(dims, for: camera.id)
             }
         }
-        .onTapGesture { openInProtect() }
+        .onChange(of: focusedCameraId) { newId in
+            if newId == camera.id {
+                installKeyMonitor()
+            } else {
+                removeKeyMonitor()
+                zoomScale = 1.0
+                panOffset = .zero
+                lastPanOffset = .zero
+            }
+        }
+        .onTapGesture(count: 2) { openInProtect() }
+        .onTapGesture(count: 1) {
+            if isFocused {
+                exitFocus()
+            } else {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    focusedCameraId = camera.id
+                }
+                // Activate app so keyboard events reach our panel
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
         .contextMenu { sizeMenu }
+    }
+
+    // MARK: - Focus management
+
+    private func exitFocus() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            focusedCameraId = nil
+        }
+    }
+
+    // MARK: - F key → true fullscreen
+
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+
+        // Local monitor — fallback for when DisplayLayerHostView doesn't have focus
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+            guard focusedCameraId == camera.id else { return event }
+            if event.keyCode == 3 || event.keyCode == 49 { toggleTrueFullscreen(); return nil }
+            if event.keyCode == 53 { handleEscape(); return nil }
+            return event
+        }
+
+        // Global monitor — captures events when app isn't active
+        // (needed because popover uses .nonactivatingPanel)
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [self] event in
+            guard focusedCameraId == camera.id else { return }
+            if event.keyCode == 3 || event.keyCode == 49 { DispatchQueue.main.async { toggleTrueFullscreen() } }
+            if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
+        }
+    }
+
+    private func removeKeyMonitor() {
+        if let m = keyMonitor {
+            NSEvent.removeMonitor(m)
+            keyMonitor = nil
+        }
+        if let m = globalKeyMonitor {
+            NSEvent.removeMonitor(m)
+            globalKeyMonitor = nil
+        }
+    }
+
+    private func toggleTrueFullscreen() {
+        // Access AppDelegate to check current state
+        let appDelegate = NSApp.delegate as? AppDelegate
+        if appDelegate?.isInTrueFullscreen == true {
+            NotificationCenter.default.post(name: .exitTrueFullscreen, object: nil)
+        } else {
+            NotificationCenter.default.post(name: .enterTrueFullscreen, object: nil)
+        }
+    }
+
+    private func handleEscape() {
+        let appDelegate = NSApp.delegate as? AppDelegate
+        if appDelegate?.isInTrueFullscreen == true {
+            // Exit true fullscreen first, stay in popover focus
+            NotificationCenter.default.post(name: .exitTrueFullscreen, object: nil)
+        } else {
+            // Exit popover focus
+            exitFocus()
+        }
     }
 
     // MARK: - Size context menu
