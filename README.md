@@ -150,6 +150,12 @@ Since macOS 13+ dropped AVFoundation support for RTSP URLs, QuickProtect include
 5. Feeds AVCC-formatted data into `AVSampleBufferDisplayLayer` for hardware-accelerated decoding
 6. All RTP processing runs on a dedicated serial queue (~18% CPU for 6 simultaneous streams, 0% when popover is closed)
 
+## Support
+
+If you find QuickProtect useful, consider buying me a coffee:
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/cb2206)
+
 ## License
 
 MIT
