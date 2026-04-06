@@ -12,6 +12,11 @@ final class ProtectService: NSObject, ObservableObject {
 
     private let settings = AppSettings.shared
 
+    /// Camera IDs that have an active server-side RTSP stream allocation.
+    /// Used to send DELETE requests on cleanup, preventing stale sessions from
+    /// accumulating on the UDM when the panel is closed or the app quits.
+    private var activeStreamCameraIds: Set<String> = []
+
     // MARK: - Fetch camera list
 
     func fetchCameras() async {
@@ -73,7 +78,33 @@ final class ProtectService: NSObject, ObservableObject {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let rtspsString = json["medium"] as? String else { return nil }
 
+        activeStreamCameraIds.insert(camera.id)
         return toPlayableURL(rtspsString)
+    }
+
+    // MARK: - RTSP stream cleanup
+
+    /// Sends DELETE requests for all server-side stream allocations.
+    /// Call when the panel closes to prevent stale sessions accumulating on the UDM.
+    func cleanupStreams() {
+        let ids = activeStreamCameraIds
+        activeStreamCameraIds.removeAll()
+        for id in ids {
+            deleteRtspStream(for: id)
+        }
+    }
+
+    /// Fire-and-forget DELETE to release a server-side RTSP stream allocation.
+    private func deleteRtspStream(for cameraId: String) {
+        guard let url = makeURL(
+            path: "proxy/protect/integration/v1/cameras/\(cameraId)/rtsps-stream"
+        ) else { return }
+
+        var request = URLRequest(url: url, timeoutInterval: 5)
+        request.httpMethod = "DELETE"
+        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+
+        Task { _ = try? await tlsSession.data(for: request) }
     }
 
     /// Returns the rtsps:// URL with ?enableSrtp stripped.

@@ -114,7 +114,10 @@ struct CameraGridView: View {
             .scrollDisabled(hasFocus)
         }
         .onChange(of: service.isPopoverOpen) { open in
-            if !open { clientManager.disconnectAll() }
+            if !open {
+                clientManager.disconnectAll()
+                service.cleanupStreams()
+            }
         }
     }
 
