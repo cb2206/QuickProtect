@@ -169,6 +169,19 @@ struct SettingsView: View {
                         .foregroundColor(result.color)
                         .transition(.opacity)
                 }
+
+                Button {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/cb2206/QuickProtect")!)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "link")
+                        Text("GitHub")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Open QuickProtect on GitHub")
             }
             .animation(.easeInOut, value: testResult?.message)
             .padding(16)
