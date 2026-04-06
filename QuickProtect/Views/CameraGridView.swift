@@ -11,6 +11,7 @@ extension Notification.Name {
 
 struct CameraGridView: View {
     @ObservedObject var service: ProtectService
+    @StateObject private var clientManager = RTSPClientManager()
     @State private var dragCameraId: String?
     @State private var focusedCameraId: String?
 
@@ -70,44 +71,50 @@ struct CameraGridView: View {
         GeometryReader { geo in
             let totalWidth = geo.size.width - spacing * 2
             let colWidth = (totalWidth - spacing * CGFloat(columnCount - 1)) / CGFloat(columnCount)
+            let hasFocus = focusedCameraId != nil
 
-            if let focusedId = focusedCameraId,
-               let camera = orderedCameras.first(where: { $0.id == focusedId }) {
-                // Fullscreen: single camera filling the popover
-                CameraCell(camera: camera, service: service, span: columnCount,
-                           focusedCameraId: $focusedCameraId)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(spacing)
-                    .transition(.opacity)
-            } else {
-                ScrollView {
-                    VStack(spacing: spacing) {
-                        let rows = packRows(cameras: orderedCameras, colWidth: colWidth)
-                        ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                            HStack(spacing: spacing) {
-                                ForEach(row, id: \.camera.id) { item in
-                                    CameraCell(camera: item.camera, service: service, span: item.span,
-                                               focusedCameraId: $focusedCameraId)
-                                        .frame(width: cellWidth(span: item.span, colWidth: colWidth))
-                                        .opacity(dragCameraId == item.camera.id ? 0.4 : 1)
-                                        .onDrag {
-                                            dragCameraId = item.camera.id
-                                            return NSItemProvider(object: item.camera.id as NSString)
-                                        }
-                                        .onDrop(of: [.text], delegate: CameraDropDelegate(
-                                            targetId: item.camera.id,
-                                            cameras: orderedCameras,
-                                            dragCameraId: $dragCameraId,
-                                            service: service
-                                        ))
-                                }
+            // Single ScrollView — cells are resized in place rather than destroyed/
+            // recreated, so the AVSampleBufferDisplayLayer never needs reparenting.
+            ScrollView {
+                VStack(spacing: hasFocus ? 0 : spacing) {
+                    let rows = packRows(cameras: orderedCameras, colWidth: colWidth)
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                        let rowHasFocused = row.contains { focusedCameraId == $0.camera.id }
+                        HStack(spacing: hasFocus ? 0 : spacing) {
+                            ForEach(row, id: \.camera.id) { item in
+                                let isFocused = focusedCameraId == item.camera.id
+                                let isHidden = hasFocus && !isFocused
+                                CameraCell(camera: item.camera, service: service, span: item.span,
+                                           focusedCameraId: $focusedCameraId,
+                                           clientManager: clientManager)
+                                    .frame(
+                                        width:  isFocused ? geo.size.width  : (isHidden ? 0 : cellWidth(span: item.span, colWidth: colWidth)),
+                                        height: isFocused ? geo.size.height : (isHidden ? 0 : nil)
+                                    )
+                                    .opacity(isHidden ? 0 : 1)
+                                    .allowsHitTesting(!isHidden)
+                                    .onDrag {
+                                        dragCameraId = item.camera.id
+                                        return NSItemProvider(object: item.camera.id as NSString)
+                                    }
+                                    .onDrop(of: [.text], delegate: CameraDropDelegate(
+                                        targetId: item.camera.id,
+                                        cameras: orderedCameras,
+                                        dragCameraId: $dragCameraId,
+                                        service: service
+                                    ))
                             }
                         }
+                        .frame(height: hasFocus && !rowHasFocused ? 0 : nil)
+                        .clipped()
                     }
-                    .padding(spacing)
                 }
-                .transition(.opacity)
+                .padding(hasFocus ? 0 : spacing)
             }
+            .scrollDisabled(hasFocus)
+        }
+        .onChange(of: service.isPopoverOpen) { open in
+            if !open { clientManager.disconnectAll() }
         }
     }
 
@@ -160,7 +167,7 @@ struct CameraCell: View {
     let span: Int
     @Binding var focusedCameraId: String?
 
-    @StateObject private var rtspClient = RTSPClient()
+    @ObservedObject private var rtspClient: RTSPClient
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
     @State private var isHovered = false
@@ -174,6 +181,15 @@ struct CameraCell: View {
     @State private var cellSize: CGSize = .zero       // for pan clamping
 
     enum Mode { case connecting, playing, failed }
+
+    init(camera: Camera, service: ProtectService, span: Int,
+         focusedCameraId: Binding<String?>, clientManager: RTSPClientManager) {
+        self.camera = camera
+        self.service = service
+        self.span = span
+        self._focusedCameraId = focusedCameraId
+        self._rtspClient = ObservedObject(wrappedValue: clientManager.client(for: camera.id))
+    }
 
     private var isFocused: Bool { focusedCameraId == camera.id }
 
@@ -272,13 +288,29 @@ struct CameraCell: View {
         )
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovered)
-        .onAppear(perform: startStream)
+        .onAppear {
+            if rtspClient.isConnected {
+                mode = .playing
+            } else if rtspClient.error != nil {
+                mode = .failed
+            } else {
+                startStream()
+            }
+            if isFocused { installKeyMonitor() }
+        }
         .onDisappear {
-            stopStream()
+            streamTask?.cancel()
+            streamTask = nil
             removeKeyMonitor()
         }
         .onChange(of: service.isPopoverOpen) { open in
-            if open { startStream() } else { stopStream() }
+            if open {
+                startStream()
+            } else {
+                streamTask?.cancel()
+                streamTask = nil
+                mode = .connecting
+            }
         }
         .onChange(of: rtspClient.isConnected) { connected in
             if connected { mode = .playing }
@@ -462,6 +494,7 @@ struct CameraCell: View {
     // MARK: - Stream lifecycle
 
     private func startStream() {
+        if rtspClient.isConnected { mode = .playing; return }
         guard streamTask == nil else { return }
         guard service.isPopoverOpen, camera.isOnline else {
             mode = camera.isOnline ? .connecting : .failed

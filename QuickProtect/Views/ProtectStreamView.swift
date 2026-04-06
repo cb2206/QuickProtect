@@ -54,6 +54,11 @@ final class DisplayLayerHostView: NSView {
     var onPan: ((CGFloat, CGFloat) -> Void)?
     var onKeyPress: ((UInt16) -> Void)?
 
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        layer?.sublayers?.forEach { $0.frame = CGRect(origin: .zero, size: newSize) }
+    }
+
     override func layout() {
         super.layout()
         layer?.sublayers?.forEach { $0.frame = bounds }
