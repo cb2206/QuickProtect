@@ -48,6 +48,24 @@ struct SettingsView: View {
                         }
                     }
 
+                    Section("PTZ Control (optional)") {
+                        LabeledContent("Username") {
+                            TextField("Local admin username", text: $settings.username)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 200)
+                        }
+
+                        LabeledContent("Password") {
+                            SecureField("Password", text: $settings.password)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 200)
+                        }
+
+                        Text("Required for PTZ camera control. Uses the classic Protect API with local account credentials.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
                     Section("General") {
                         LabeledContent("Startup") {
                             Toggle("Launch at login", isOn: $settings.launchAtLogin)

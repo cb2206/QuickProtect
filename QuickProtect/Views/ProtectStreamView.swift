@@ -14,6 +14,7 @@ struct ProtectStreamView: NSViewRepresentable {
     var onZoom: ((CGFloat) -> Void)? = nil
     var onPan: ((CGFloat, CGFloat) -> Void)? = nil
     var onKeyPress: ((UInt16) -> Void)? = nil
+    var onKeyUp: ((UInt16) -> Void)? = nil
 
     func makeNSView(context: Context) -> DisplayLayerHostView {
         let view = DisplayLayerHostView()
@@ -21,6 +22,7 @@ struct ProtectStreamView: NSViewRepresentable {
         view.onZoom = onZoom
         view.onPan = onPan
         view.onKeyPress = onKeyPress
+        view.onKeyUp = onKeyUp
         displayLayer.videoGravity = videoGravity
         view.layer?.addSublayer(displayLayer)
         displayLayer.frame = view.bounds
@@ -31,6 +33,7 @@ struct ProtectStreamView: NSViewRepresentable {
         nsView.onZoom = onZoom
         nsView.onPan = onPan
         nsView.onKeyPress = onKeyPress
+        nsView.onKeyUp = onKeyUp
         displayLayer.videoGravity = videoGravity
 
         // Re-parent the layer if it was somehow detached
@@ -53,6 +56,7 @@ final class DisplayLayerHostView: NSView {
     var onZoom: ((CGFloat) -> Void)?
     var onPan: ((CGFloat, CGFloat) -> Void)?
     var onKeyPress: ((UInt16) -> Void)?
+    var onKeyUp: ((UInt16) -> Void)?
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
@@ -83,12 +87,20 @@ final class DisplayLayerHostView: NSView {
         onZoom?(event.magnification) ?? super.magnify(with: event)
     }
 
-    // F / Escape keys
+    // F / Escape keys + PTZ
     override func keyDown(with event: NSEvent) {
         if let handler = onKeyPress {
             handler(event.keyCode)
         } else {
             super.keyDown(with: event)
+        }
+    }
+
+    override func keyUp(with event: NSEvent) {
+        if let handler = onKeyUp {
+            handler(event.keyCode)
+        } else {
+            super.keyUp(with: event)
         }
     }
 }

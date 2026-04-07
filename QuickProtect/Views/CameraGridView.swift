@@ -232,6 +232,7 @@ struct CameraCell: View {
                     onKeyPress: isFocused ? { keyCode in
                         if keyCode == 3 || keyCode == 49 { toggleTrueFullscreen() }    // F or Space
                         else if keyCode == 53 { handleEscape() }      // Escape
+                        // PTZ keys are handled by the NSEvent monitors (keyDown + keyUp)
                     } : nil
                 )
                     .scaleEffect(isFocused ? zoomScale : 1.0)
@@ -365,19 +366,30 @@ struct CameraCell: View {
         guard keyMonitor == nil else { return }
 
         // Local monitor — fallback for when DisplayLayerHostView doesn't have focus
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [self] event in
             guard focusedCameraId == camera.id else { return event }
+            if event.type == .keyUp {
+                return handlePtzKeyUp(event.keyCode) ? nil : event
+            }
+            // keyDown
             if event.keyCode == 3 || event.keyCode == 49 { toggleTrueFullscreen(); return nil }
             if event.keyCode == 53 { handleEscape(); return nil }
+            if event.isARepeat, isPtzKey(event.keyCode) { return nil } // consume repeats
+            if handlePtzKeyDown(event.keyCode) { return nil }
             return event
         }
 
         // Global monitor — captures events when app isn't active
-        // (needed because popover uses .nonactivatingPanel)
-        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [self] event in
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .keyUp]) { [self] event in
             guard focusedCameraId == camera.id else { return }
+            if event.type == .keyUp {
+                _ = handlePtzKeyUp(event.keyCode)
+                return
+            }
+            // keyDown
             if event.keyCode == 3 || event.keyCode == 49 { DispatchQueue.main.async { toggleTrueFullscreen() } }
             if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
+            if !event.isARepeat { _ = handlePtzKeyDown(event.keyCode) }
         }
     }
 
@@ -411,6 +423,32 @@ struct CameraCell: View {
             // Exit popover focus
             exitFocus()
         }
+    }
+
+    // MARK: - PTZ key handling
+
+    private func isPtzKey(_ keyCode: UInt16) -> Bool {
+        [123, 124, 125, 126].contains(keyCode)
+    }
+
+    /// Key-down: start repeating PTZ movement in the pressed direction.
+    private func handlePtzKeyDown(_ keyCode: UInt16) -> Bool {
+        guard !AppSettings.shared.username.isEmpty else { return false }
+        switch keyCode {
+        case 123: service.ptzStartMove(cameraId: camera.id, pan: -1)    // Left
+        case 124: service.ptzStartMove(cameraId: camera.id, pan:  1)    // Right
+        case 126: service.ptzStartMove(cameraId: camera.id, tilt:  1)   // Up
+        case 125: service.ptzStartMove(cameraId: camera.id, tilt: -1)   // Down
+        default:  return false
+        }
+        return true
+    }
+
+    /// Key-up: stop PTZ movement immediately.
+    private func handlePtzKeyUp(_ keyCode: UInt16) -> Bool {
+        guard !AppSettings.shared.username.isEmpty, isPtzKey(keyCode) else { return false }
+        service.ptzStop(cameraId: camera.id)
+        return true
     }
 
     // MARK: - Size context menu
@@ -536,6 +574,11 @@ struct CameraCell: View {
         HStack(spacing: 4) {
             if !camera.isOnline {
                 Circle().fill(Color.red).frame(width: 6, height: 6)
+            }
+            if camera.isPtz {
+                Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                    .font(.system(size: 9))
+                    .foregroundColor(.white.opacity(0.7))
             }
             Text(camera.name)
                 .font(.system(size: 11, weight: .semibold))

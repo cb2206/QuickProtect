@@ -18,6 +18,16 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(usePlainRtsp, forKey: Keys.usePlainRtsp) }
     }
 
+    /// Username for classic API auth (required for PTZ control).
+    @Published var username: String {
+        didSet { UserDefaults.standard.set(username, forKey: Keys.username) }
+    }
+
+    /// Password for classic API auth (required for PTZ control).
+    @Published var password: String {
+        didSet { UserDefaults.standard.set(password, forKey: Keys.password) }
+    }
+
     // MARK: - Display identification
 
     /// Stable display key derived from CGDirectDisplayID.
@@ -202,6 +212,8 @@ final class AppSettings: ObservableObject {
         static let videoDimensions = "unifi.videoDimensions"
         static let hotkeyCode     = "unifi.hotkeyCode"
         static let hotkeyMods     = "unifi.hotkeyMods"
+        static let username       = "unifi.username"
+        static let password       = "unifi.password"
         static let launchAtLogin  = "unifi.launchAtLogin"
         static let autoStartPromptShown = "unifi.autoStartPromptShown"
     }
@@ -211,6 +223,8 @@ final class AppSettings: ObservableObject {
         apiKey       = UserDefaults.standard.string(forKey: Keys.apiKey) ?? ""
         let stored = UserDefaults.standard.object(forKey: Keys.usePlainRtsp)
         usePlainRtsp = stored != nil ? UserDefaults.standard.bool(forKey: Keys.usePlainRtsp) : true
+        username     = UserDefaults.standard.string(forKey: Keys.username) ?? ""
+        password     = UserDefaults.standard.string(forKey: Keys.password) ?? ""
         launchAtLogin = UserDefaults.standard.bool(forKey: Keys.launchAtLogin)
     }
 }

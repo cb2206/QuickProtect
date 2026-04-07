@@ -63,7 +63,21 @@ final class RTSPClient: ObservableObject {
 
     // MARK: - Public API (called from main thread)
 
+    static func log(_ msg: String) { dbg(msg) }
+    private static func dbg(_ msg: String) {
+        let line = "\(Date()) \(msg)\n"
+        let path = "/tmp/quickprotect_debug.log"
+        if let fh = FileHandle(forWritingAtPath: path) {
+            fh.seekToEndOfFile()
+            fh.write(Data(line.utf8))
+            fh.closeFile()
+        } else {
+            FileManager.default.createFile(atPath: path, contents: Data(line.utf8))
+        }
+    }
+
     func connect(to url: URL) {
+        Self.dbg("[RTSP] connect called: \(url)")
         queue.async { [self] in
             disconnectOnQueue()
             currentURL       = url
@@ -107,10 +121,12 @@ final class RTSPClient: ObservableObject {
                 guard let self else { return }
                 self.queue.async {
                     guard conn === self.connection else { return }
+                    Self.dbg("[RTSP] NWConnection state: \(state)")
                     switch state {
                     case .ready:
                         self.sendOptions()
                     case .failed(let e):
+                        Self.dbg("[RTSP] Connection FAILED: \(e.localizedDescription)")
                         DispatchQueue.main.async { self.error = e.localizedDescription }
                     case .cancelled:
                         DispatchQueue.main.async { self.isConnected = false }
@@ -160,6 +176,7 @@ final class RTSPClient: ObservableObject {
                 self.processBuffer()
             }
             if let e = err {
+                Self.dbg("[RTSP] Receive error: \(e.localizedDescription)")
                 DispatchQueue.main.async { self.error = e.localizedDescription }
             } else if !isComplete {
                 self.scheduleReceive(conn: conn)
