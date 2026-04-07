@@ -15,6 +15,15 @@ struct CameraGridView: View {
     @State private var dragCameraId: String?
     @State private var focusedCameraId: String?
 
+    /// On appear, restore the last focused camera so reopening the panel
+    /// picks up where the user left off.
+    private func restoreFocus() {
+        if let saved = service.lastFocusedCameraId,
+           orderedCameras.contains(where: { $0.id == saved }) {
+            focusedCameraId = saved
+        }
+    }
+
     /// 4 logical columns; cameras span 1, 2, or 4 based on their size setting.
     private let columnCount = 4
     private let spacing: CGFloat = 3
@@ -112,6 +121,10 @@ struct CameraGridView: View {
                 .padding(hasFocus ? 0 : spacing)
             }
             .scrollDisabled(hasFocus)
+        }
+        .onAppear { restoreFocus() }
+        .onChange(of: focusedCameraId) { newId in
+            service.lastFocusedCameraId = newId
         }
         .onChange(of: service.isPopoverOpen) { open in
             if !open {

@@ -9,6 +9,8 @@ final class ProtectService: NSObject, ObservableObject {
     @Published var errorMessage: String?
     /// Set by AppDelegate when the popover opens/closes so cells can pause players.
     @Published var isPopoverOpen = false
+    /// Remembers which camera was focused so it can be restored when the panel reopens.
+    var lastFocusedCameraId: String?
 
     private let settings = AppSettings.shared
 
