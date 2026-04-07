@@ -29,6 +29,45 @@ struct SettingsView: View {
             HStack(alignment: .top, spacing: 0) {
                 // Left: connection + shortcut settings
                 Form {
+                    Section("General") {
+                        LabeledContent("Startup") {
+                            Toggle("Launch at login", isOn: $settings.launchAtLogin)
+                        }
+
+                        LabeledContent("Toggle panel") {
+                            HStack(spacing: 8) {
+                                Text(isRecordingHotkey ? "Press shortcut…" : settings.hotkeyDisplayString)
+                                    .foregroundColor(isRecordingHotkey ? .accentColor : .primary)
+                                    .frame(width: 120, alignment: .leading)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .fill(isRecordingHotkey
+                                                  ? Color.accentColor.opacity(0.15)
+                                                  : Color(nsColor: .controlBackgroundColor))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(isRecordingHotkey ? Color.accentColor : Color.gray.opacity(0.3))
+                                    )
+
+                                Button(isRecordingHotkey ? "Cancel" : "Record") {
+                                    isRecordingHotkey.toggle()
+                                }
+                                .font(.caption)
+
+                                if settings.globalHotkey() != nil {
+                                    Button("Clear") {
+                                        settings.clearGlobalHotkey()
+                                        HotkeyManager.shared.unregister()
+                                    }
+                                    .font(.caption)
+                                }
+                            }
+                        }
+                    }
+
                     Section("Connection") {
                         LabeledContent("Controller IP") {
                             TextField("192.168.1.1", text: $settings.ipAddress)
@@ -66,12 +105,6 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    Section("General") {
-                        LabeledContent("Startup") {
-                            Toggle("Launch at login", isOn: $settings.launchAtLogin)
-                        }
-                    }
-
                     Section("Updates") {
                         LabeledContent("Version") {
                             HStack(spacing: 8) {
@@ -85,41 +118,6 @@ struct SettingsView: View {
                         }
                         LabeledContent("") {
                             updateActions
-                        }
-                    }
-
-                    Section("Global Shortcut") {
-                        LabeledContent("Toggle panel") {
-                            HStack(spacing: 8) {
-                                Text(isRecordingHotkey ? "Press shortcut…" : settings.hotkeyDisplayString)
-                                    .foregroundColor(isRecordingHotkey ? .accentColor : .primary)
-                                    .frame(width: 120, alignment: .leading)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 5)
-                                            .fill(isRecordingHotkey
-                                                  ? Color.accentColor.opacity(0.15)
-                                                  : Color(nsColor: .controlBackgroundColor))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 5)
-                                            .stroke(isRecordingHotkey ? Color.accentColor : Color.gray.opacity(0.3))
-                                    )
-
-                                Button(isRecordingHotkey ? "Cancel" : "Record") {
-                                    isRecordingHotkey.toggle()
-                                }
-                                .font(.caption)
-
-                                if settings.globalHotkey() != nil {
-                                    Button("Clear") {
-                                        settings.clearGlobalHotkey()
-                                        HotkeyManager.shared.unregister()
-                                    }
-                                    .font(.caption)
-                                }
-                            }
                         }
                     }
                 }
