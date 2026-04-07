@@ -83,6 +83,7 @@ func runAllTests() {
     SDPTests()
     VersionComparisonTests()
     GridLayoutTests()
+    CameraModelRunnerTests()
 
     print("\n" + String(repeating: "─", count: 50))
     print("Results: \(passedTests)/\(totalTests) passed, \(failedTests) failed")
@@ -433,6 +434,74 @@ func GridLayoutTests() {
     test("pan clamp within range") {
         let maxPan = 200.0
         try expectEqual(max(-maxPan, min(maxPan, 50.0)), 50.0)
+    }
+}
+
+// MARK: - Camera Model
+
+func CameraModelRunnerTests() {
+    suite("Camera Model Decoding")
+
+    test("Integration API shape (no featureFlags)") {
+        let json = """
+        {"id":"cam1","name":"Front Door","state":"CONNECTED","channels":[]}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expectEqual(cam.id, "cam1")
+        try expectEqual(cam.name, "Front Door")
+        try expect(cam.isOnline)
+        try expect(!cam.isPtz)
+    }
+
+    test("PTZ camera via featureFlags.isPtz") {
+        let json = """
+        {"id":"ptz1","name":"Backyard","state":"CONNECTED","channels":[],
+         "featureFlags":{"isPtz":true,"canOpticalZoom":false}}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expect(cam.isPtz, "isPtz should be true")
+    }
+
+    test("canOpticalZoom sets isPtz") {
+        let json = """
+        {"id":"oz1","name":"Garage","state":"CONNECTED","channels":[],
+         "featureFlags":{"isPtz":false,"canOpticalZoom":true}}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expect(cam.isPtz, "canOpticalZoom should set isPtz")
+    }
+
+    test("missing state defaults to UNKNOWN") {
+        let json = """
+        {"id":"x","name":"Test"}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expectEqual(cam.state, "UNKNOWN")
+        try expect(!cam.isOnline)
+    }
+
+    test("channel decoding and primaryRtspAlias") {
+        let json = """
+        {"id":"ch1","name":"C","state":"CONNECTED","channels":[
+          {"id":0,"name":"High","rtspAlias":"abc","isRtspEnabled":true},
+          {"id":1,"name":"Med","rtspAlias":"def","isRtspEnabled":false}
+        ]}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expectEqual(cam.channels.count, 2)
+        try expectEqual(cam.primaryRtspAlias, "abc")
+    }
+
+    test("encode excludes featureFlags") {
+        let json = """
+        {"id":"e1","name":"Enc","state":"CONNECTED","channels":[],
+         "featureFlags":{"isPtz":true,"canOpticalZoom":true}}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expect(cam.isPtz)
+        let encoded = try JSONEncoder().encode(cam)
+        let dict = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        try expectNil(dict["featureFlags"] as? [String: Any])
     }
 }
 
