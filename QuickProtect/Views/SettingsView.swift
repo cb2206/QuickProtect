@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var isTesting = false
     @State private var testResult: TestResult?
     @State private var isRecordingHotkey = false
+    @State private var showApiKey = false
+    @State private var showPassword = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -34,7 +36,7 @@ struct SettingsView: View {
                             Toggle("Launch at login", isOn: $settings.launchAtLogin)
                         }
 
-                        LabeledContent("Toggle panel") {
+                        LabeledContent("Global Shortcut") {
                             HStack(spacing: 8) {
                                 Text(isRecordingHotkey ? "Press shortcut…" : settings.hotkeyDisplayString)
                                     .foregroundColor(isRecordingHotkey ? .accentColor : .primary)
@@ -69,16 +71,31 @@ struct SettingsView: View {
                     }
 
                     Section("Connection") {
-                        LabeledContent("Controller IP") {
-                            TextField("192.168.1.1", text: $settings.ipAddress)
-                                .textFieldStyle(.roundedBorder)
+                        LabeledContent("Controller IP Address") {
+                            PastableTextField(text: $settings.ipAddress, placeholder: "")
                                 .frame(width: 200)
                         }
 
                         LabeledContent("API Key") {
-                            SecureField("Paste your API key here", text: $settings.apiKey)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 200)
+                            HStack(spacing: 4) {
+                                if showApiKey {
+                                    PastableTextField(text: $settings.apiKey, placeholder: "")
+                                        .frame(width: 176)
+                                } else {
+                                    PastableSecureField(text: $settings.apiKey, placeholder: "")
+                                        .frame(width: 176)
+                                }
+                                Button {
+                                    showApiKey.toggle()
+                                } label: {
+                                    Image(systemName: showApiKey ? "eye.slash" : "eye")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(showApiKey ? "Hide API key" : "Show API key")
+                            }
+                            .frame(width: 200)
                         }
 
                         LabeledContent("Stream protocol") {
@@ -88,16 +105,31 @@ struct SettingsView: View {
                     }
 
                     Section("PTZ Control (optional)") {
-                        LabeledContent("Username") {
-                            TextField("Local admin username", text: $settings.username)
-                                .textFieldStyle(.roundedBorder)
+                        LabeledContent("Local Admin Username") {
+                            PastableTextField(text: $settings.username, placeholder: "")
                                 .frame(width: 200)
                         }
 
                         LabeledContent("Password") {
-                            SecureField("Password", text: $settings.password)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 200)
+                            HStack(spacing: 4) {
+                                if showPassword {
+                                    PastableTextField(text: $settings.password, placeholder: "")
+                                        .frame(width: 176)
+                                } else {
+                                    PastableSecureField(text: $settings.password, placeholder: "")
+                                        .frame(width: 176)
+                                }
+                                Button {
+                                    showPassword.toggle()
+                                } label: {
+                                    Image(systemName: showPassword ? "eye.slash" : "eye")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(showPassword ? "Hide password" : "Show password")
+                            }
+                            .frame(width: 200)
                         }
 
                         Text("Required for PTZ camera control. Uses the classic Protect API with local account credentials.")
@@ -316,6 +348,70 @@ struct SettingsView: View {
         let message: String
         let icon: String
         let color: Color
+    }
+}
+
+// MARK: - Pastable text fields (NSTextField-backed for proper Cmd+V support)
+
+/// Regular text field that supports copy/paste in panels/popovers.
+struct PastableTextField: NSViewRepresentable {
+    @Binding var text: String
+    var placeholder: String = ""
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField()
+        field.placeholderString = placeholder
+        field.stringValue = text
+        field.isBordered = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
+        field.delegate = context.coordinator
+        return field
+    }
+
+    func updateNSView(_ nsView: NSTextField, context: Context) {
+        if nsView.stringValue != text { nsView.stringValue = text }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var text: Binding<String>
+        init(text: Binding<String>) { self.text = text }
+        func controlTextDidChange(_ obj: Notification) {
+            if let field = obj.object as? NSTextField { text.wrappedValue = field.stringValue }
+        }
+    }
+}
+
+/// Secure text field that supports copy/paste in panels/popovers.
+struct PastableSecureField: NSViewRepresentable {
+    @Binding var text: String
+    var placeholder: String = ""
+
+    func makeNSView(context: Context) -> NSSecureTextField {
+        let field = NSSecureTextField()
+        field.placeholderString = placeholder
+        field.stringValue = text
+        field.isBordered = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
+        field.delegate = context.coordinator
+        return field
+    }
+
+    func updateNSView(_ nsView: NSSecureTextField, context: Context) {
+        if nsView.stringValue != text { nsView.stringValue = text }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var text: Binding<String>
+        init(text: Binding<String>) { self.text = text }
+        func controlTextDidChange(_ obj: Notification) {
+            if let field = obj.object as? NSTextField { text.wrappedValue = field.stringValue }
+        }
     }
 }
 
