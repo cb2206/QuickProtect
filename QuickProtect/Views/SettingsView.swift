@@ -1,324 +1,229 @@
 import SwiftUI
 import Carbon
 
+// MARK: - Tabs
+
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case general    = "General"
+    case connection = "Connection"
+    case ptz        = "PTZ"
+    case cameras    = "Cameras"
+    case shortcuts  = "Shortcuts"
+    case updates    = "Updates"
+    case about      = "About"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .general:    return "gearshape"
+        case .connection: return "link"
+        case .ptz:        return "scope"
+        case .cameras:    return "square.grid.2x2"
+        case .shortcuts:  return "keyboard"
+        case .updates:    return "arrow.down.circle"
+        case .about:      return "info.circle"
+        }
+    }
+}
+
+// MARK: - Root
+
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject var service: ProtectService
     @ObservedObject var updateChecker: UpdateChecker
 
+    @State private var tab: SettingsTab = .connection
     @State private var isTesting = false
     @State private var testResult: TestResult?
     @State private var isRecordingHotkey = false
     @State private var showApiKey = false
     @State private var showPassword = false
 
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                Image(systemName: "video.fill")
-                    .font(.title2)
-                    .foregroundColor(.accentColor)
-                Text("QuickProtect")
-                    .font(.title2.bold())
-            }
-            .padding([.top, .horizontal], 20)
-            .padding(.bottom, 14)
-
-            Divider()
-
-            // Two-column layout: settings on left, camera list on right
-            HStack(alignment: .top, spacing: 0) {
-                // Left: connection + shortcut settings
-                Form {
-                    Section("General") {
-                        LabeledContent("Startup") {
-                            Toggle("Launch at login", isOn: $settings.launchAtLogin)
-                        }
-
-                        LabeledContent("Global Shortcut") {
-                            HStack(spacing: 8) {
-                                Text(isRecordingHotkey ? "Press shortcut…" : settings.hotkeyDisplayString)
-                                    .foregroundColor(isRecordingHotkey ? .accentColor : .primary)
-                                    .frame(width: 120, alignment: .leading)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 5)
-                                            .fill(isRecordingHotkey
-                                                  ? Color.accentColor.opacity(0.15)
-                                                  : Color(nsColor: .controlBackgroundColor))
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 5)
-                                            .stroke(isRecordingHotkey ? Color.accentColor : Color.gray.opacity(0.3))
-                                    )
-
-                                Button(isRecordingHotkey ? "Cancel" : "Record") {
-                                    isRecordingHotkey.toggle()
-                                }
-                                .font(.caption)
-
-                                if settings.globalHotkey() != nil {
-                                    Button("Clear") {
-                                        settings.clearGlobalHotkey()
-                                        HotkeyManager.shared.unregister()
-                                    }
-                                    .font(.caption)
-                                }
-                            }
-                        }
-                    }
-
-                    Section("Connection") {
-                        LabeledContent("Controller IP Address") {
-                            PastableTextField(text: $settings.ipAddress, placeholder: "")
-                                .frame(width: 200)
-                        }
-
-                        LabeledContent("API Key") {
-                            HStack(spacing: 4) {
-                                if showApiKey {
-                                    PastableTextField(text: $settings.apiKey, placeholder: "")
-                                        .frame(width: 176)
-                                } else {
-                                    PastableSecureField(text: $settings.apiKey, placeholder: "")
-                                        .frame(width: 176)
-                                }
-                                Button {
-                                    showApiKey.toggle()
-                                } label: {
-                                    Image(systemName: showApiKey ? "eye.slash" : "eye")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .help(showApiKey ? "Hide API key" : "Show API key")
-                            }
-                            .frame(width: 200)
-                        }
-
-                        LabeledContent("Stream protocol") {
-                            Toggle("Use plain RTSP (port 7447)", isOn: $settings.usePlainRtsp)
-                                .help("Enable if streams fail due to TLS certificate errors.")
-                        }
-                    }
-
-                    Section("PTZ Control (optional)") {
-                        LabeledContent("Local Admin Username") {
-                            PastableTextField(text: $settings.username, placeholder: "")
-                                .frame(width: 200)
-                        }
-
-                        LabeledContent("Password") {
-                            HStack(spacing: 4) {
-                                if showPassword {
-                                    PastableTextField(text: $settings.password, placeholder: "")
-                                        .frame(width: 176)
-                                } else {
-                                    PastableSecureField(text: $settings.password, placeholder: "")
-                                        .frame(width: 176)
-                                }
-                                Button {
-                                    showPassword.toggle()
-                                } label: {
-                                    Image(systemName: showPassword ? "eye.slash" : "eye")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .help(showPassword ? "Hide password" : "Show password")
-                            }
-                            .frame(width: 200)
-                        }
-
-                        Text("Required for PTZ camera control. Uses the classic Protect API with local account credentials.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Section("Updates") {
-                        LabeledContent("Version") {
-                            HStack(spacing: 8) {
-                                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
-                                if updateChecker.updateAvailable {
-                                    Text("v\(updateChecker.latestVersion) available")
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                }
-                            }
-                        }
-                        LabeledContent("") {
-                            updateActions
-                        }
-                    }
-                }
-                .formStyle(.grouped)
-                .frame(minWidth: 380)
-
-                // Right: camera visibility list
-                if !service.cameras.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Cameras")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .textCase(.uppercase)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 18)
-                            .padding(.bottom, 8)
-
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 2) {
-                                ForEach(service.cameras) { camera in
-                                    Toggle(isOn: Binding(
-                                        get: { !settings.isHidden(camera.id) },
-                                        set: { settings.setHidden(!$0, for: camera.id) }
-                                    )) {
-                                        HStack(spacing: 6) {
-                                            Circle()
-                                                .fill(camera.isOnline ? Color.green : Color.red)
-                                                .frame(width: 7, height: 7)
-                                            Text(camera.name)
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                    .toggleStyle(.checkbox)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 3)
-                                }
-                            }
-                        }
-                    }
-                    .frame(width: 200)
-                    .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
-                }
-            }
-
-            Divider()
-
-            // Footer / test button
-            HStack {
-                Button {
-                    runTest()
-                } label: {
-                    Label("Test Connection", systemImage: "network")
-                }
-                .disabled(isTesting || settings.ipAddress.isEmpty || settings.apiKey.isEmpty)
-
-                if isTesting {
-                    ProgressView().scaleEffect(0.7).padding(.leading, 4)
-                }
-
-                Spacer()
-
-                if let result = testResult {
-                    Label(result.message, systemImage: result.icon)
-                        .font(.caption)
-                        .foregroundColor(result.color)
-                        .transition(.opacity)
-                }
-
-                Button {
-                    NSWorkspace.shared.open(URL(string: "https://github.com/cb2206/QuickProtect")!)
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "link")
-                        Text("GitHub")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Open QuickProtect on GitHub")
-            }
-            .animation(.easeInOut, value: testResult?.message)
-            .padding(16)
+        HStack(spacing: 0) {
+            sidebar
+            detailPane
         }
-        .frame(minWidth: 620, maxWidth: 700, minHeight: 540, maxHeight: 620)
+        .frame(minWidth: 760, idealWidth: 820, minHeight: 540, idealHeight: 600)
+        .background(palette.popoverBg)
+        .accentColor(Color(hex: settings.accentColorHex))
+        .preferredColorScheme(settings.appearance.preferredColorScheme)
         .background(hotkeyRecorderOverlay)
     }
 
-    // MARK: - Update actions
+    // MARK: - Sidebar
 
-    @ViewBuilder
-    private var updateActions: some View {
-        switch updateChecker.updateState {
-        case .idle:
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
-                if updateChecker.updateAvailable {
-                    Button("Install Update") {
-                        updateChecker.downloadAndInstall()
+                AuroraBrandMark(size: 16, color: Color(hex: settings.accentColorHex))
+                Text("QuickProtect")
+                    .font(.system(size: 14, weight: .semibold))
+                    .tracking(-0.2)
+                    .foregroundColor(palette.text)
+            }
+            .padding(.horizontal, 10)
+            .padding(.bottom, 14)
+
+            ForEach(SettingsTab.allCases) { t in
+                AuroraSidebarItem(
+                    systemImage: t.systemImage,
+                    title: t.rawValue,
+                    selected: tab == t,
+                    action: { tab = t }
+                )
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 10).padding(.vertical, 14)
+        .frame(width: 200)
+        .background(
+            ZStack {
+                VisualEffectBackground(material: .sidebar, blending: .behindWindow)
+                palette.chrome.opacity(0.4)
+            }
+        )
+        .overlay(AuroraHairline(color: palette.divider).frame(maxHeight: .infinity), alignment: .trailing)
+    }
+
+    // MARK: - Detail pane
+
+    private var detailPane: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Text(tab.rawValue)
+                    .font(.system(size: 15, weight: .semibold))
+                    .tracking(-0.2)
+                    .foregroundColor(palette.text)
+                Spacer()
+                AuroraStatusBadge(
+                    connected: service.errorMessage == nil && !service.cameras.isEmpty,
+                    text: service.errorMessage == nil ? "Connected" : "Disconnected"
+                )
+            }
+            .padding(.horizontal, 22).frame(height: 52)
+            AuroraHairline(color: palette.divider)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    switch tab {
+                    case .connection: connectionTab
+                    default:          placeholderTab
                     }
                 }
-                Button("Check for Updates") {
-                    updateChecker.checkForUpdate()
+                .padding(22)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: - Tabs
+
+    private var connectionTab: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AuroraSettingsSection("Controller") {
+                AuroraSettingsRow("IP Address", hint: "Local IP of your UniFi Protect controller") {
+                    PastableTextField(text: $settings.ipAddress, placeholder: "10.0.1.1")
+                        .frame(width: 260)
                 }
-                .disabled(updateChecker.isChecking)
-                if updateChecker.isChecking {
-                    ProgressView().scaleEffect(0.6)
+                AuroraSettingsRow("API Key", hint: "Integration API key from controller settings") {
+                    HStack(spacing: 6) {
+                        Group {
+                            if showApiKey {
+                                PastableTextField(text: $settings.apiKey, placeholder: "")
+                            } else {
+                                PastableSecureField(text: $settings.apiKey, placeholder: "")
+                            }
+                        }
+                        .frame(width: 234)
+                        Button {
+                            showApiKey.toggle()
+                        } label: {
+                            Image(systemName: showApiKey ? "eye.slash" : "eye")
+                                .font(.system(size: 13))
+                                .foregroundColor(palette.subtext)
+                        }
+                        .buttonStyle(.plain)
+                        .help(showApiKey ? "Hide API key" : "Show API key")
+                    }
+                }
+                AuroraSettingsRow("Stream protocol") {
+                    AuroraSegmented(
+                        options: [("RTSPS (TLS)", false), ("RTSP (7447)", true)],
+                        selection: $settings.usePlainRtsp
+                    )
+                }
+                AuroraSettingsRow(isLast: true) {
+                    HStack(spacing: 10) {
+                        AuroraPrimaryButton(
+                            title: "Test Connection",
+                            disabled: isTesting || settings.ipAddress.isEmpty || settings.apiKey.isEmpty,
+                            action: runTest
+                        )
+                        if isTesting {
+                            ProgressView().scaleEffect(0.6)
+                        }
+                        if let result = testResult {
+                            HStack(spacing: 5) {
+                                Image(systemName: result.icon)
+                                Text(result.message)
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundColor(result.color)
+                            .transition(.opacity)
+                        }
+                    }
                 }
             }
 
-        case .downloading(let progress):
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    ProgressView(value: progress)
-                        .frame(width: 140)
-                    Text("\(Int(progress * 100))%")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(width: 32, alignment: .trailing)
-                    Button("Cancel") {
-                        updateChecker.cancelDownload()
-                    }
-                    .font(.caption)
+            AuroraSettingsSection("Appearance") {
+                AuroraSettingsRow("Theme") {
+                    AuroraSegmented(
+                        options: [
+                            ("Auto",  AppSettings.Appearance.auto),
+                            ("Light", AppSettings.Appearance.light),
+                            ("Dark",  AppSettings.Appearance.dark)
+                        ],
+                        selection: $settings.appearance
+                    )
                 }
-                Text("Downloading update…")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-        case .installing:
-            HStack(spacing: 8) {
-                ProgressView().scaleEffect(0.7)
-                Text("Installing update…")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-        case .error(let message):
-            VStack(alignment: .leading, spacing: 4) {
-                Text(message)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .lineLimit(2)
-                HStack(spacing: 8) {
-                    Button("Retry") {
-                        updateChecker.downloadAndInstall()
+                AuroraSettingsRow("Accent", isLast: true) {
+                    HStack(spacing: 8) {
+                        ForEach(AuroraAccent.swatches, id: \.self) { hex in
+                            AccentSwatch(hex: hex, selected: settings.accentColorHex == hex) {
+                                settings.accentColorHex = hex
+                            }
+                        }
                     }
-                    Button("Dismiss") {
-                        updateChecker.updateState = .idle
-                    }
-                    .font(.caption)
                 }
             }
         }
     }
 
-    // MARK: - Hotkey recorder
+    private var placeholderTab: some View {
+        Text("Coming soon.")
+            .font(.system(size: 12))
+            .foregroundColor(palette.subtext)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-    /// Invisible overlay that captures the next key press when recording.
+    // MARK: - Hotkey recorder overlay (invisible key-capture)
+
+    @ViewBuilder
     private var hotkeyRecorderOverlay: some View {
-        Group {
-            if isRecordingHotkey {
-                HotkeyRecorderView { keyCode, modifiers in
-                    let carbonMods = HotkeyManager.carbonModifiers(from: modifiers)
-                    settings.setGlobalHotkey(keyCode: UInt32(keyCode), carbonModifiers: carbonMods)
-                    HotkeyManager.shared.register(keyCode: UInt32(keyCode), carbonModifiers: carbonMods)
-                    isRecordingHotkey = false
-                } onCancel: {
-                    isRecordingHotkey = false
-                }
+        if isRecordingHotkey {
+            HotkeyRecorderView { keyCode, modifiers in
+                let carbonMods = HotkeyManager.carbonModifiers(from: modifiers)
+                settings.setGlobalHotkey(keyCode: UInt32(keyCode), carbonModifiers: carbonMods)
+                HotkeyManager.shared.register(keyCode: UInt32(keyCode), carbonModifiers: carbonMods)
+                isRecordingHotkey = false
+            } onCancel: {
+                isRecordingHotkey = false
             }
         }
     }
@@ -336,9 +241,9 @@ struct SettingsView: View {
             } else {
                 let n = service.cameras.count
                 testResult = TestResult(
-                    message: "Connected – \(n) camera\(n == 1 ? "" : "s") found",
+                    message: "Connected · \(n) camera\(n == 1 ? "" : "s") found",
                     icon: "checkmark.circle.fill",
-                    color: .green
+                    color: AuroraTokens.statusGreenDark
                 )
             }
         }
@@ -348,6 +253,33 @@ struct SettingsView: View {
         let message: String
         let icon: String
         let color: Color
+    }
+}
+
+// MARK: - Accent swatch
+
+private struct AccentSwatch: View {
+    let hex: String
+    let selected: Bool
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Button(action: action) {
+            Circle()
+                .fill(Color(hex: hex))
+                .frame(width: 18, height: 18)
+                .overlay(
+                    Circle()
+                        .stroke(Color(hex: hex),
+                                lineWidth: selected ? 1.5 : 0)
+                        .padding(-3.5)
+                )
+                .padding(3)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

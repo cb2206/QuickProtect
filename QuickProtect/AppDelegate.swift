@@ -260,7 +260,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let win = NSWindow(contentViewController: NSHostingController(rootView: view))
             win.title = "QuickProtect – Settings"
             win.styleMask = [.titled, .closable]
-            win.setContentSize(NSSize(width: 660, height: 520))
+            win.setContentSize(NSSize(width: 820, height: 600))
             win.isReleasedWhenClosed = false
             settingsWindow = win
             NotificationCenter.default.addObserver(
