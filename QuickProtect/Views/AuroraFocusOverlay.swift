@@ -193,6 +193,112 @@ private struct DpadButton: View {
     }
 }
 
+// MARK: - True-fullscreen HUD
+
+struct AuroraFullscreenHUD: View {
+    let cameraName: String
+    let isPtz: Bool
+    let now: Date
+    let visible: Bool
+
+    private static let clockFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            livePill
+                .padding(24)
+            VStack {
+                Spacer()
+                bottomPill
+                    .padding(.bottom, 24)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .opacity(visible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.25), value: visible)
+    }
+
+    private var livePill: some View {
+        HStack(spacing: 7) {
+            AuroraRecDot(size: 6)
+            Text("LIVE")
+                .font(.system(size: 11, weight: .medium))
+                .tracking(0.3)
+                .foregroundStyle(.white)
+            Text(Self.clockFormatter.string(from: now))
+                .font(.system(size: 11))
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.55))
+        }
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(
+            ZStack {
+                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
+                Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.65)
+            }
+        )
+        .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
+        .clipShape(Capsule())
+    }
+
+    private var bottomPill: some View {
+        HStack(spacing: 10) {
+            AuroraRecDot(size: 6)
+            Text(cameraName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+            if isPtz {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("PTZ")
+                        .font(.system(size: 10, weight: .bold))
+                        .tracking(0.4)
+                }
+                .foregroundStyle(Color(red: 96/255, green: 165/255, blue: 250/255))
+                .padding(.horizontal, 7).padding(.vertical, 2)
+                .background(Capsule().fill(Color(red: 10/255, green: 132/255, blue: 255/255).opacity(0.22)))
+            }
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
+            KbdKey("F"); Text("exit fullscreen").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+            KbdKey("⎋"); Text("back to popover").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(
+            ZStack {
+                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
+                Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.7)
+            }
+        )
+        .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
+        .clipShape(Capsule())
+    }
+
+    private struct KbdKey: View {
+        let label: String
+        init(_ label: String) { self.label = label }
+        var body: some View {
+            Text(label)
+                .font(.system(size: 10.5, design: .monospaced))
+                .foregroundStyle(.white)
+                .frame(minWidth: 14)
+                .padding(.horizontal, 6).padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.white.opacity(0.18), lineWidth: 0.5)
+                        )
+                )
+        }
+    }
+}
+
 // MARK: - Shortcut hints
 
 struct AuroraFocusHints: View {

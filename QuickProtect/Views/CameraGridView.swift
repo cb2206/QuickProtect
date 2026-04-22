@@ -229,6 +229,10 @@ struct CameraCell: View {
     @State private var focusFillMode: Bool = false    // aspect button toggle
     @State private var clockTick: Date = Date()
     @State private var clockTimer: Timer?
+    @State private var isTrueFullscreen = false
+    @State private var hudVisible = true
+    @State private var hudHideWorkItem: DispatchWorkItem?
+    @State private var mouseMonitor: Any?
 
     enum Mode { case connecting, playing, failed }
 
@@ -299,7 +303,16 @@ struct CameraCell: View {
             }
 
             if isFocused {
-                focusOverlay
+                if isTrueFullscreen {
+                    AuroraFullscreenHUD(
+                        cameraName: camera.name,
+                        isPtz: camera.isPtz,
+                        now: clockTick,
+                        visible: hudVisible
+                    )
+                } else {
+                    focusOverlay
+                }
             }
         }
         .aspectRatio(isFocused ? nil : aspectRatio, contentMode: .fit)
@@ -320,6 +333,8 @@ struct CameraCell: View {
             streamTask = nil
             removeKeyMonitor()
             stopClockTimer()
+            removeMouseMonitor()
+            hudHideWorkItem?.cancel()
         }
         .onChange(of: service.isPopoverOpen) { open in
             if open {
@@ -348,11 +363,27 @@ struct CameraCell: View {
             } else {
                 removeKeyMonitor()
                 stopClockTimer()
+                removeMouseMonitor()
+                hudHideWorkItem?.cancel()
+                isTrueFullscreen = false
+                hudVisible = true
                 zoomScale = 1.0
                 panOffset = .zero
                 lastPanOffset = .zero
                 focusFillMode = false
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .enterTrueFullscreen)) { _ in
+            guard isFocused else { return }
+            isTrueFullscreen = true
+            installMouseMonitor()
+            bumpHud()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .exitTrueFullscreen)) { _ in
+            isTrueFullscreen = false
+            removeMouseMonitor()
+            hudHideWorkItem?.cancel()
+            hudVisible = true
         }
         .onTapGesture(count: 2) { openInProtect() }
         .onTapGesture(count: 1) {
@@ -670,6 +701,31 @@ struct CameraCell: View {
     private func stopClockTimer() {
         clockTimer?.invalidate()
         clockTimer = nil
+    }
+
+    // MARK: - HUD auto-hide on cursor idle
+
+    private func installMouseMonitor() {
+        guard mouseMonitor == nil else { return }
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { event in
+            bumpHud()
+            return event
+        }
+    }
+
+    private func removeMouseMonitor() {
+        if let m = mouseMonitor {
+            NSEvent.removeMonitor(m)
+            mouseMonitor = nil
+        }
+    }
+
+    private func bumpHud() {
+        hudVisible = true
+        hudHideWorkItem?.cancel()
+        let item = DispatchWorkItem { hudVisible = false }
+        hudHideWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: item)
     }
 
     // MARK: - Name badge (Aurora hairline pill)
