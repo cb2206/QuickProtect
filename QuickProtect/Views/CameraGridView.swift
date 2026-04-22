@@ -446,30 +446,47 @@ struct CameraCell: View {
 
     @ViewBuilder
     private var sizeMenu: some View {
+        Button {
+            if focusedCameraId != camera.id {
+                withAnimation(.easeInOut(duration: 0.3)) { focusedCameraId = camera.id }
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NotificationCenter.default.post(name: .enterTrueFullscreen, object: nil)
+            }
+        } label: {
+            Label("View fullscreen", systemImage: "play.fill")
+        }
         Button { openInProtect() } label: {
-            Label("Open in Protect", systemImage: "safari")
+            Label("Open in Protect", systemImage: "arrow.up.forward.square")
         }
+        .keyboardShortcut(.return, modifiers: .command)
+
         Divider()
+
         let current = AppSettings.shared.cameraSize(for: camera.id)
-        Button { setSize(.small) } label: {
-            Label("Small", systemImage: current == .small ? "checkmark" : "")
+        Section("Size") {
+            Button { setSize(.small) } label: {
+                Label("Small",  systemImage: current == .small  ? "checkmark" : "")
+            }
+            Button { setSize(.medium) } label: {
+                Label("Medium", systemImage: (current == .medium || current == nil) ? "checkmark" : "")
+            }
+            Button { setSize(.large) } label: {
+                Label("Large",  systemImage: current == .large  ? "checkmark" : "")
+            }
         }
-        Button { setSize(.medium) } label: {
-            Label("Medium", systemImage: current == .medium || current == nil ? "checkmark" : "")
-        }
-        Button { setSize(.large) } label: {
-            Label("Large", systemImage: current == .large ? "checkmark" : "")
-        }
+
         Divider()
-        Button { setSize(nil) } label: {
-            Text("Reset to Auto")
-        }
-        Divider()
+
         Button {
             AppSettings.shared.setHidden(true, for: camera.id)
             service.objectWillChange.send()
         } label: {
-            Label("Hide Camera", systemImage: "eye.slash")
+            Label("Hide this camera", systemImage: "eye.slash")
+        }
+        Button { setSize(nil) } label: {
+            Label("Reset size to Auto", systemImage: "arrow.counterclockwise")
         }
     }
 
