@@ -11,6 +11,7 @@ extension Notification.Name {
 
 struct CameraGridView: View {
     @ObservedObject var service: ProtectService
+    var searchQuery: String = ""
     @StateObject private var clientManager = RTSPClientManager()
     @State private var dragCameraId: String?
     @State private var focusedCameraId: String?
@@ -73,7 +74,10 @@ struct CameraGridView: View {
 
     private var orderedCameras: [Camera] {
         let visible = AppSettings.shared.visibleCameras(service.cameras)
-        return AppSettings.shared.orderedCameras(visible)
+        let ordered = AppSettings.shared.orderedCameras(visible)
+        let q = searchQuery.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return ordered }
+        return ordered.filter { $0.name.localizedCaseInsensitiveContains(q) }
     }
 
     private var cameraGrid: some View {
