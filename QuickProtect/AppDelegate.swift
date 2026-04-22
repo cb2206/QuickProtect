@@ -75,10 +75,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func setupStatusBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         guard let button = statusItem?.button else { return }
-        button.image = NSImage(systemSymbolName: "video.fill", accessibilityDescription: "QuickProtect")
+        let img = Self.makeApertureTemplate(size: 18)
+        img.accessibilityDescription = "QuickProtect"
+        button.image = img
         button.action = #selector(handleStatusBarClick)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.target = self
+    }
+
+    /// Draws the Aurora aperture mark (outer ring + quick-shutter top arc + inner lens)
+    /// as a template NSImage so the system tints it for light/dark menu bars.
+    private static func makeApertureTemplate(size: CGFloat) -> NSImage {
+        let img = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            NSColor.black.setStroke()
+            NSColor.black.setFill()
+            let inset = max(1.0, size * 0.10)
+            let bounds = rect.insetBy(dx: inset, dy: inset)
+            let line = max(1.0, size * 0.10)
+
+            // Outer ring
+            let ring = NSBezierPath(ovalIn: bounds)
+            ring.lineWidth = line
+            ring.stroke()
+
+            // Inner lens (filled)
+            let lensR = bounds.width * 0.22
+            let center = NSPoint(x: bounds.midX, y: bounds.midY)
+            let lens = NSBezierPath(ovalIn: NSRect(
+                x: center.x - lensR, y: center.y - lensR,
+                width: lensR * 2, height: lensR * 2
+            ))
+            lens.fill()
+
+            // Top-right quick-shutter arc (thicker stroke)
+            let arc = NSBezierPath()
+            arc.lineWidth = line * 1.7
+            arc.lineCapStyle = .round
+            arc.appendArc(
+                withCenter: center,
+                radius: bounds.width / 2,
+                startAngle: 90,   // top
+                endAngle: 40,     // sweeps to upper-right
+                clockwise: true
+            )
+            arc.stroke()
+            return true
+        }
+        img.isTemplate = true
+        return img
     }
 
     // MARK: - Click handling
