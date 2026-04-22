@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
     private var settingsWindow: NSWindow?
+    private var onboardingWindow: NSWindow?
     private var clickMonitor: Any?
     private var savedPanelFrame: NSRect?
     private var savedPanelLevel: NSWindow.Level?
@@ -36,7 +37,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
         }
-        promptAutoStartIfNeeded()
+        if !s.hasCompletedOnboarding {
+            showOnboarding()
+        } else {
+            promptAutoStartIfNeeded()
+        }
         updateChecker.startPeriodicChecks()
     }
 
@@ -293,6 +298,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.setFrame(frame, display: true, animate: true)
         }
         savedPanelFrame = nil
+    }
+
+    // MARK: - Onboarding window
+
+    private func showOnboarding() {
+        guard onboardingWindow == nil else { return }
+        let view = OnboardingView(service: service) { [weak self] in
+            AppSettings.shared.hasCompletedOnboarding = true
+            AppSettings.shared.hasShownAutoStartPrompt = true  // replace legacy alert
+            self?.onboardingWindow?.close()
+        }
+        let win = NSWindow(contentViewController: NSHostingController(rootView: view))
+        win.title = "QuickProtect"
+        win.styleMask = [.titled, .closable, .fullSizeContentView]
+        win.titlebarAppearsTransparent = true
+        win.titleVisibility = .hidden
+        win.setContentSize(NSSize(width: 720, height: 540))
+        win.isReleasedWhenClosed = false
+        win.center()
+        onboardingWindow = win
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: win,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onboardingWindow = nil
+            NSApp.setActivationPolicy(.accessory)
+        }
+        NSApp.setActivationPolicy(.regular)
+        win.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     // MARK: - Settings window
