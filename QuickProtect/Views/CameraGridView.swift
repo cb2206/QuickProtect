@@ -27,11 +27,13 @@ struct CameraGridView: View {
 
     /// 4 logical columns; cameras span 1, 2, or 4 based on their size setting.
     private let columnCount = 4
-    private let spacing: CGFloat = 3
+    private let spacing: CGFloat = 2
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
 
     var body: some View {
         ZStack {
-            Color(white: 0.07).ignoresSafeArea()
+            palette.gridBg.ignoresSafeArea()
             if service.isLoading {
                 loadingView
             } else if let error = service.errorMessage {
@@ -190,7 +192,6 @@ struct CameraCell: View {
     @ObservedObject private var rtspClient: RTSPClient
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
-    @State private var isHovered = false
 
     // Zoom & pan (only active when focused)
     @State private var zoomScale: CGFloat = 1.0
@@ -303,12 +304,6 @@ struct CameraCell: View {
         .aspectRatio(isFocused ? nil : aspectRatio, contentMode: .fit)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: isFocused ? 0 : 4))
-        .overlay(
-            RoundedRectangle(cornerRadius: isFocused ? 0 : 4)
-                .stroke(isHovered && !isFocused ? Color.white.opacity(0.25) : Color.clear, lineWidth: 1)
-        )
-        .onHover { isHovered = $0 }
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
         .onAppear {
             if rtspClient.isConnected {
                 mode = .playing
@@ -585,27 +580,50 @@ struct CameraCell: View {
         mode = .connecting
     }
 
-    // MARK: - Name badge
+    // MARK: - Name badge (Aurora hairline pill)
 
     private var nameBadge: some View {
-        HStack(spacing: 4) {
-            if !camera.isOnline {
-                Circle().fill(Color.red).frame(width: 6, height: 6)
-            }
-            if camera.isPtz {
-                Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-                    .font(.system(size: 9))
-                    .foregroundColor(.white.opacity(0.7))
+        HStack(spacing: 6) {
+            if camera.isOnline && mode == .playing {
+                AuroraRecDot(size: 5)
+            } else if !camera.isOnline {
+                Circle().fill(AuroraTokens.statusOrange).frame(width: 5, height: 5)
             }
             Text(camera.name)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: span >= 4 ? 12 : 11, weight: .medium))
                 .foregroundColor(.white)
+                .tracking(-0.1)
                 .lineLimit(1)
+            if camera.isPtz {
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                        .font(.system(size: 9, weight: .medium))
+                    Text("PTZ").font(.system(size: 10, weight: .medium))
+                }
+                .foregroundColor(.white.opacity(0.75))
+                .padding(.leading, 4)
+                .overlay(
+                    Rectangle()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(width: 0.5)
+                        .padding(.vertical, 2),
+                    alignment: .leading
+                )
+            }
         }
-        .padding(.horizontal, 7).padding(.vertical, 4)
-        .background(.black.opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: 3))
-        .padding(6)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(
+            ZStack {
+                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
+                Color.black.opacity(0.55)
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 5))
+        .padding(8)
     }
 }
 
