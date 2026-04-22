@@ -112,8 +112,13 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     switch tab {
+                    case .general:    generalTab
                     case .connection: connectionTab
-                    default:          placeholderTab
+                    case .ptz:        ptzTab
+                    case .cameras:    camerasTab
+                    case .shortcuts:  shortcutsTab
+                    case .updates:    updatesTab
+                    case .about:      aboutTab
                     }
                 }
                 .padding(22)
@@ -205,11 +210,255 @@ struct SettingsView: View {
         }
     }
 
-    private var placeholderTab: some View {
-        Text("Coming soon.")
-            .font(.system(size: 12))
-            .foregroundColor(palette.subtext)
-            .frame(maxWidth: .infinity, alignment: .leading)
+    // MARK: General
+
+    private var generalTab: some View {
+        AuroraSettingsSection("Startup") {
+            AuroraSettingsRow(
+                "Launch at login",
+                hint: "Automatically start QuickProtect when you log in.",
+                isLast: true
+            ) {
+                Toggle("", isOn: $settings.launchAtLogin)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+        }
+    }
+
+    // MARK: PTZ
+
+    private var ptzTab: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AuroraSettingsSection("Classic API credentials") {
+                AuroraSettingsRow(
+                    "Username",
+                    hint: "Local admin account on the Protect controller."
+                ) {
+                    PastableTextField(text: $settings.username, placeholder: "")
+                        .frame(width: 260)
+                }
+                AuroraSettingsRow(
+                    "Password",
+                    isLast: true
+                ) {
+                    HStack(spacing: 6) {
+                        Group {
+                            if showPassword {
+                                PastableTextField(text: $settings.password, placeholder: "")
+                            } else {
+                                PastableSecureField(text: $settings.password, placeholder: "")
+                            }
+                        }
+                        .frame(width: 234)
+                        Button { showPassword.toggle() } label: {
+                            Image(systemName: showPassword ? "eye.slash" : "eye")
+                                .font(.system(size: 13))
+                                .foregroundColor(palette.subtext)
+                        }
+                        .buttonStyle(.plain)
+                        .help(showPassword ? "Hide password" : "Show password")
+                    }
+                }
+            }
+            Text("PTZ control uses the classic Protect API, which requires a local account. The Integration API (API Key) does not expose PTZ endpoints.")
+                .font(.system(size: 11))
+                .foregroundColor(palette.subtext)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: Cameras
+
+    private var camerasTab: some View {
+        AuroraSettingsSection {
+            if service.cameras.isEmpty {
+                AuroraSettingsRow(isLast: true) {
+                    Text("No cameras discovered yet. Run Test Connection on the Connection tab.")
+                        .font(.system(size: 12))
+                        .foregroundColor(palette.subtext)
+                }
+            } else {
+                let cams = settings.orderedCameras(service.cameras)
+                ForEach(Array(cams.enumerated()), id: \.element.id) { idx, cam in
+                    CameraRow(
+                        camera: cam,
+                        size: settings.cameraSize(for: cam.id),
+                        hidden: settings.isHidden(cam.id),
+                        isLast: idx == cams.count - 1,
+                        onSize: { s in
+                            settings.setCameraSize(s, for: cam.id)
+                            service.objectWillChange.send()
+                        },
+                        onHide: { h in
+                            settings.setHidden(h, for: cam.id)
+                            service.objectWillChange.send()
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: Shortcuts
+
+    private var shortcutsTab: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AuroraSettingsSection("Global") {
+                AuroraSettingsRow(
+                    "Toggle popover",
+                    hint: "Show or hide the camera grid from anywhere.",
+                    isLast: true
+                ) {
+                    HStack(spacing: 10) {
+                        Text(isRecordingHotkey ? "Press shortcut…" : settings.hotkeyDisplayString)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(isRecordingHotkey ? Color.accentColor : Color.accentColor)
+                            .padding(.horizontal, 10).padding(.vertical, 3)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(colorScheme == .dark ? Color.black.opacity(0.3) : .white)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.accentColor.opacity(isRecordingHotkey ? 1 : 0.4),
+                                            lineWidth: 0.5)
+                            )
+                        AuroraSecondaryButton(title: isRecordingHotkey ? "Cancel" : "Change") {
+                            isRecordingHotkey.toggle()
+                        }
+                        if settings.globalHotkey() != nil {
+                            AuroraSecondaryButton(title: "Clear") {
+                                settings.clearGlobalHotkey()
+                                HotkeyManager.shared.unregister()
+                            }
+                        }
+                    }
+                }
+            }
+            AuroraSettingsSection("In the popover") {
+                let rows: [(String, String)] = [
+                    ("Focus camera",        "Click"),
+                    ("Display fullscreen",  "F  ·  Space"),
+                    ("Exit / back",         "Esc"),
+                    ("Pan & tilt (PTZ)",    "← → ↑ ↓"),
+                    ("Open in Protect",     "Double-click"),
+                    ("Zoom in feed",        "⌘+scroll"),
+                ]
+                ForEach(Array(rows.enumerated()), id: \.offset) { idx, r in
+                    AuroraSettingsRow(isLast: idx == rows.count - 1) {
+                        HStack {
+                            Text(r.0)
+                                .font(.system(size: 12.5))
+                                .foregroundColor(palette.text)
+                            Spacer()
+                            Text(r.1)
+                                .font(.system(size: 11.5, design: .monospaced))
+                                .foregroundColor(palette.subtext)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Updates
+
+    private var updatesTab: some View {
+        AuroraSettingsSection("Version") {
+            AuroraSettingsRow("Installed") {
+                HStack(spacing: 8) {
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                        .font(.system(size: 12))
+                        .foregroundColor(palette.text)
+                    if updateChecker.updateAvailable {
+                        Text("v\(updateChecker.latestVersion) available")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(AuroraTokens.statusOrange)
+                    }
+                }
+            }
+            AuroraSettingsRow(isLast: true) {
+                updateActions
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var updateActions: some View {
+        switch updateChecker.updateState {
+        case .idle:
+            HStack(spacing: 10) {
+                if updateChecker.updateAvailable {
+                    AuroraPrimaryButton(title: "Install Update") {
+                        updateChecker.downloadAndInstall()
+                    }
+                }
+                AuroraSecondaryButton(
+                    title: updateChecker.isChecking ? "Checking…" : "Check for Updates"
+                ) {
+                    updateChecker.checkForUpdate()
+                }
+                if updateChecker.isChecking {
+                    ProgressView().scaleEffect(0.6)
+                }
+            }
+        case .downloading(let progress):
+            HStack(spacing: 8) {
+                ProgressView(value: progress).frame(width: 160)
+                Text("\(Int(progress * 100))%")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(palette.subtext)
+                AuroraSecondaryButton(title: "Cancel") { updateChecker.cancelDownload() }
+            }
+        case .installing:
+            HStack(spacing: 8) {
+                ProgressView().scaleEffect(0.6)
+                Text("Installing update…")
+                    .font(.system(size: 11))
+                    .foregroundColor(palette.subtext)
+            }
+        case .error(let message):
+            VStack(alignment: .leading, spacing: 6) {
+                Text(message)
+                    .font(.system(size: 11))
+                    .foregroundColor(AuroraTokens.statusRed)
+                    .lineLimit(3)
+                HStack(spacing: 8) {
+                    AuroraPrimaryButton(title: "Retry") { updateChecker.downloadAndInstall() }
+                    AuroraSecondaryButton(title: "Dismiss") { updateChecker.updateState = .idle }
+                }
+            }
+        }
+    }
+
+    // MARK: About
+
+    private var aboutTab: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 14) {
+                AuroraBrandMark(size: 44, color: Color(hex: settings.accentColorHex))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("QuickProtect")
+                        .font(.system(size: 20, weight: .semibold))
+                        .tracking(-0.3)
+                        .foregroundColor(palette.text)
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                        .font(.system(size: 12))
+                        .monospacedDigit()
+                        .foregroundColor(palette.subtext)
+                }
+            }
+            Text("Menu-bar status app for UniFi Protect. Live camera feeds, one click away.")
+                .font(.system(size: 12))
+                .foregroundColor(palette.subtext)
+                .frame(maxWidth: 420, alignment: .leading)
+            AuroraSecondaryButton(title: "View on GitHub") {
+                if let url = URL(string: "https://github.com/cb2206/QuickProtect") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        }
     }
 
     // MARK: - Hotkey recorder overlay (invisible key-capture)
@@ -377,6 +626,65 @@ struct HotkeyRecorderView: NSViewRepresentable {
             let mods = event.modifierFlags.intersection([.command, .control, .option, .shift])
             guard !mods.isEmpty else { return }
             onRecord?(event.keyCode, mods)
+        }
+    }
+}
+
+// MARK: - Cameras tab row
+
+private struct CameraRow: View {
+    let camera: Camera
+    let size: AppSettings.CameraSize?
+    let hidden: Bool
+    let isLast: Bool
+    let onSize: (AppSettings.CameraSize?) -> Void
+    let onHide: (Bool) -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(camera.isOnline ? AuroraTokens.statusGreenDark : AuroraTokens.statusOrange)
+                    .frame(width: 7, height: 7)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(camera.name)
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(palette.text)
+                            .lineLimit(1)
+                        if camera.isPtz {
+                            Text("PTZ")
+                                .font(.system(size: 9.5, weight: .semibold))
+                                .tracking(0.3)
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .foregroundColor(Color.accentColor)
+                                .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+                        }
+                    }
+                    Text(camera.isOnline ? "Connected" : "Offline")
+                        .font(.system(size: 11))
+                        .foregroundColor(palette.subtext)
+                }
+                Spacer()
+                AuroraSegmented(
+                    options: [
+                        ("Auto", nil as AppSettings.CameraSize?),
+                        ("S",    .small),
+                        ("M",    .medium),
+                        ("L",    .large)
+                    ],
+                    selection: Binding(get: { size }, set: onSize)
+                )
+                Toggle("", isOn: Binding(get: { !hidden }, set: { onHide(!$0) }))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .help(hidden ? "Show in grid" : "Hide from grid")
+            }
+            .padding(.horizontal, 14).padding(.vertical, 9)
+            if !isLast { AuroraHairline(color: palette.divider) }
         }
     }
 }
