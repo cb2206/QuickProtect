@@ -182,6 +182,25 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    // MARK: - Appearance (Aurora UI)
+
+    enum Appearance: Int, CaseIterable { case auto = 0, light = 1, dark = 2 }
+
+    @Published var appearance: Appearance {
+        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: Keys.appearance) }
+    }
+
+    /// Hex string (without '#') for the user's chosen accent color.
+    /// Defaults to system blue (0a84ff).
+    @Published var accentColorHex: String {
+        didSet { UserDefaults.standard.set(accentColorHex, forKey: Keys.accentColorHex) }
+    }
+
+    /// Whether the first-run onboarding has been completed / skipped.
+    @Published var hasCompletedOnboarding: Bool {
+        didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
+    }
+
     /// Whether the first-launch autostart prompt has been shown.
     var hasShownAutoStartPrompt: Bool {
         get { UserDefaults.standard.bool(forKey: Keys.autoStartPromptShown) }
@@ -216,6 +235,9 @@ final class AppSettings: ObservableObject {
         static let password       = "unifi.password"
         static let launchAtLogin  = "unifi.launchAtLogin"
         static let autoStartPromptShown = "unifi.autoStartPromptShown"
+        static let appearance     = "unifi.appearance"
+        static let accentColorHex = "unifi.accentColorHex"
+        static let hasCompletedOnboarding = "unifi.hasCompletedOnboarding"
     }
 
     private init() {
@@ -226,5 +248,9 @@ final class AppSettings: ObservableObject {
         username     = UserDefaults.standard.string(forKey: Keys.username) ?? ""
         password     = UserDefaults.standard.string(forKey: Keys.password) ?? ""
         launchAtLogin = UserDefaults.standard.bool(forKey: Keys.launchAtLogin)
+        let raw = UserDefaults.standard.object(forKey: Keys.appearance) as? Int
+        appearance = Appearance(rawValue: raw ?? 0) ?? .auto
+        accentColorHex = UserDefaults.standard.string(forKey: Keys.accentColorHex) ?? "0a84ff"
+        hasCompletedOnboarding = UserDefaults.standard.bool(forKey: Keys.hasCompletedOnboarding)
     }
 }
