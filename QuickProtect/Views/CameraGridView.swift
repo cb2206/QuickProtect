@@ -200,6 +200,9 @@ struct CameraCell: View {
     @State private var keyMonitor: Any?
     @State private var globalKeyMonitor: Any?
     @State private var cellSize: CGSize = .zero       // for pan clamping
+    @State private var focusFillMode: Bool = false    // aspect button toggle
+    @State private var clockTick: Date = Date()
+    @State private var clockTimer: Timer?
 
     enum Mode { case connecting, playing, failed }
 
@@ -229,7 +232,7 @@ struct CameraCell: View {
             GeometryReader { geo in
                 ProtectStreamView(
                     displayLayer: rtspClient.displayLayer,
-                    videoGravity: isFocused ? .resizeAspect : .resizeAspectFill,
+                    videoGravity: isFocused ? (focusFillMode ? .resizeAspectFill : .resizeAspect) : .resizeAspectFill,
                     onZoom: isFocused ? { delta in
                         let newScale = zoomScale + delta
                         zoomScale = max(1.0, min(8.0, newScale))
@@ -265,40 +268,12 @@ struct CameraCell: View {
                 stateOverlay
             }
 
-            nameBadge
+            if !isFocused {
+                nameBadge
+            }
 
             if isFocused {
-                // Controls overlay (top-right)
-                VStack {
-                    HStack {
-                        Spacer()
-                        // Fullscreen button
-                        Button {
-                            toggleTrueFullscreen()
-                        } label: {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.8))
-                                .padding(6)
-                                .background(.black.opacity(0.4))
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Fullscreen (F)")
-
-                        // Close button
-                        Button {
-                            exitFocus()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 22))
-                                .foregroundStyle(.white.opacity(0.8), .black.opacity(0.4))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(8)
-                    Spacer()
-                }
+                focusOverlay
             }
         }
         .aspectRatio(isFocused ? nil : aspectRatio, contentMode: .fit)
@@ -312,12 +287,13 @@ struct CameraCell: View {
             } else {
                 startStream()
             }
-            if isFocused { installKeyMonitor() }
+            if isFocused { installKeyMonitor(); startClockTimer() }
         }
         .onDisappear {
             streamTask?.cancel()
             streamTask = nil
             removeKeyMonitor()
+            stopClockTimer()
         }
         .onChange(of: service.isPopoverOpen) { open in
             if open {
@@ -342,11 +318,14 @@ struct CameraCell: View {
         .onChange(of: focusedCameraId) { newId in
             if newId == camera.id {
                 installKeyMonitor()
+                startClockTimer()
             } else {
                 removeKeyMonitor()
+                stopClockTimer()
                 zoomScale = 1.0
                 panOffset = .zero
                 lastPanOffset = .zero
+                focusFillMode = false
             }
         }
         .onTapGesture(count: 2) { openInProtect() }
@@ -578,6 +557,61 @@ struct CameraCell: View {
         streamTask = nil
         rtspClient.disconnect()
         mode = .connecting
+    }
+
+    // MARK: - Focus overlay (Aurora top bar + PTZ d-pad + kbd hints)
+
+    @ViewBuilder
+    private var focusOverlay: some View {
+        VStack(spacing: 0) {
+            AuroraFocusTopBar(
+                cameraName: camera.name,
+                isPtz: camera.isPtz,
+                fillMode: $focusFillMode,
+                now: clockTick,
+                onBack: { exitFocus() },
+                onToggleFullscreen: { toggleTrueFullscreen() }
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+
+            Spacer(minLength: 0)
+
+            HStack(alignment: .bottom) {
+                AuroraFocusHints(showPtzHint: camera.isPtz)
+                    .padding(.leading, 12).padding(.bottom, 12)
+                Spacer()
+                if camera.isPtz && !AppSettings.shared.username.isEmpty {
+                    AuroraPtzDpad(
+                        onPress: { dir in dpadPress(dir) },
+                        onRelease: { service.ptzStop(cameraId: camera.id) }
+                    )
+                    .padding(.trailing, 24).padding(.bottom, 70)
+                }
+            }
+        }
+    }
+
+    private func dpadPress(_ dir: AuroraPtzDpad.Direction) {
+        switch dir {
+        case .up:    service.ptzStartMove(cameraId: camera.id, tilt:  1)
+        case .down:  service.ptzStartMove(cameraId: camera.id, tilt: -1)
+        case .left:  service.ptzStartMove(cameraId: camera.id, pan:  -1)
+        case .right: service.ptzStartMove(cameraId: camera.id, pan:   1)
+        }
+    }
+
+    private func startClockTimer() {
+        stopClockTimer()
+        clockTick = Date()
+        clockTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            clockTick = Date()
+        }
+    }
+
+    private func stopClockTimer() {
+        clockTimer?.invalidate()
+        clockTimer = nil
     }
 
     // MARK: - Name badge (Aurora hairline pill)
