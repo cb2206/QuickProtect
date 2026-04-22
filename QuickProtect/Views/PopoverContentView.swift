@@ -14,7 +14,7 @@ struct PopoverContentView: View {
         VStack(spacing: 0) {
             header
             AuroraHairline(color: palette.chromeBorder)
-            CameraGridView(service: service, searchQuery: searchQuery)
+            CameraGridView(service: service, searchQuery: searchQuery, onOpenSettings: openSettings)
         }
         .background(palette.popoverBg)
         .accentColor(Color(hex: settings.accentColorHex))

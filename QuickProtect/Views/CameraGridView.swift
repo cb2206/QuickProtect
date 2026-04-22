@@ -12,9 +12,11 @@ extension Notification.Name {
 struct CameraGridView: View {
     @ObservedObject var service: ProtectService
     var searchQuery: String = ""
+    var onOpenSettings: () -> Void = {}
     @StateObject private var clientManager = RTSPClientManager()
     @State private var dragCameraId: String?
     @State private var focusedCameraId: String?
+    @State private var lastRetryAt: Date?
 
     /// On appear, restore the last focused camera so reopening the panel
     /// picks up where the user left off.
@@ -49,27 +51,51 @@ struct CameraGridView: View {
 
     private var loadingView: some View {
         VStack(spacing: 12) {
-            ProgressView().scaleEffect(1.2).tint(.white)
-            Text("Connecting…").foregroundColor(.secondary)
+            ProgressView().scaleEffect(1.2).tint(palette.text)
+            Text("Connecting…").foregroundColor(palette.subtext)
         }
     }
 
     private func errorView(_ message: String) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 40)).foregroundColor(.yellow)
-            Text(message)
-                .multilineTextAlignment(.center).foregroundColor(.white)
-                .frame(maxWidth: 380)
-        }.padding()
+        AuroraStateCard(
+            tone: .warning,
+            systemImage: "exclamationmark.circle",
+            title: "Can't reach controller",
+            message: message,
+            primary: ("Retry", { lastRetryAt = Date(); Task { await service.fetchCameras() } }),
+            secondary: ("Open Settings", onOpenSettings),
+            footer: lastRetryAt.map { "Last try: \(Self.relativeAgo(from: $0))" }
+        )
+        .padding(24)
     }
 
     private var emptyView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "video.slash.fill").font(.system(size: 40)).foregroundColor(.gray)
-            Text("No cameras found.\nCheck settings and refresh.")
-                .multilineTextAlignment(.center).foregroundColor(.secondary)
-        }
+        AuroraStateCard(
+            tone: .neutral,
+            systemImage: "video.slash",
+            title: "No cameras yet",
+            message: "Connected, but no cameras came back. Adopt one in the Protect app, then refresh.",
+            primary: ("Refresh", { Task { await service.fetchCameras() } }),
+            secondary: ("Open in Protect", openProtectDashboard),
+            footer: nil
+        )
+        .padding(24)
+    }
+
+    private func openProtectDashboard() {
+        let ip = AppSettings.shared.ipAddress
+        guard !ip.isEmpty, let url = URL(string: "https://\(ip)/protect") else { return }
+        NotificationCenter.default.post(name: .closeCameraPanel, object: nil)
+        NSWorkspace.shared.open(url)
+    }
+
+    private static func relativeAgo(from date: Date) -> String {
+        let secs = Int(max(0, Date().timeIntervalSince(date)))
+        if secs < 2 { return "just now" }
+        if secs < 60 { return "\(secs) sec ago" }
+        let mins = secs / 60
+        if mins < 60 { return "\(mins) min ago" }
+        return DateFormatter.localizedString(from: date, dateStyle: .none, timeStyle: .short)
     }
 
     // MARK: - Row-packed grid layout
@@ -525,19 +551,34 @@ struct CameraCell: View {
     }
 
     private var offlinePlaceholder: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "wifi.slash").font(.title2).foregroundColor(.gray)
-            Text("Offline").font(.caption).foregroundColor(.gray)
+        VStack(spacing: 6) {
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 18))
+                .foregroundColor(AuroraTokens.statusOrange)
+            Text("Offline")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.35))
     }
 
     private var failedPlaceholder: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "video.slash").font(.title2).foregroundColor(.gray)
-            Text("No stream").font(.caption).foregroundColor(.gray)
+        VStack(spacing: 6) {
+            Image(systemName: "xmark.octagon")
+                .font(.system(size: 18))
+                .foregroundColor(AuroraTokens.statusRed)
+            Text("Stream unavailable")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white)
+            Button("Reconnect") { startStream() }
+                .buttonStyle(AuroraStatePillButtonStyle(primary: true))
+            Text("RTSP · no media")
+                .font(.system(size: 9.5, design: .monospaced))
+                .foregroundColor(.white.opacity(0.55))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.45))
     }
 
     // MARK: - Stream lifecycle
