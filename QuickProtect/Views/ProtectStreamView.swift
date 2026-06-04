@@ -8,7 +8,9 @@ import AppKit
 struct ProtectStreamView: NSViewRepresentable {
     let displayLayer: AVSampleBufferDisplayLayer
     var videoGravity: AVLayerVideoGravity = .resizeAspectFill
-    var reparentTrigger: Bool = false
+    /// Bumping this forces `updateNSView` to run, which re-attaches the display
+    /// layer if it fell out of the view tree (e.g. after returning from focus).
+    var reattachNonce: Int = 0
 
     // Gesture callbacks (nil = not focused, events pass through)
     var onZoom: ((CGFloat) -> Void)? = nil
@@ -24,7 +26,9 @@ struct ProtectStreamView: NSViewRepresentable {
         view.onKeyPress = onKeyPress
         view.onKeyUp = onKeyUp
         displayLayer.videoGravity = videoGravity
-        view.layer?.addSublayer(displayLayer)
+        // Hand the host view a reference so it can re-attach the layer on every
+        // layout pass — see DisplayLayerHostView.layout().
+        view.managedLayer = displayLayer
         displayLayer.frame = view.bounds
         return view
     }
@@ -36,10 +40,10 @@ struct ProtectStreamView: NSViewRepresentable {
         nsView.onKeyUp = onKeyUp
         displayLayer.videoGravity = videoGravity
 
-        // Re-parent the layer if it was somehow detached
-        if displayLayer.superlayer !== nsView.layer {
-            nsView.layer?.addSublayer(displayLayer)
-        }
+        // Re-parent the layer if it was somehow detached (e.g. after a focus
+        // resize moved/dropped it from the layer tree).
+        nsView.managedLayer = displayLayer
+        nsView.reattachManagedLayerIfNeeded()
         displayLayer.frame = nsView.bounds
 
         // Become first responder when focused (needed for keyDown)
@@ -58,13 +62,31 @@ final class DisplayLayerHostView: NSView {
     var onKeyPress: ((UInt16) -> Void)?
     var onKeyUp: ((UInt16) -> Void)?
 
+    /// The display layer this view hosts. Tracked so it can be re-attached if it
+    /// ever falls out of the layer tree (which leaves the stream showing black).
+    weak var managedLayer: AVSampleBufferDisplayLayer? {
+        didSet { reattachManagedLayerIfNeeded() }
+    }
+
+    /// Re-adds the managed display layer if it isn't currently our sublayer.
+    /// Returning from a focused view resizes this host; if the layer became
+    /// detached during that transition the stream goes black until it's
+    /// re-parented — doing it here (and in layout) lets it self-heal.
+    func reattachManagedLayerIfNeeded() {
+        guard let dl = managedLayer, dl.superlayer !== layer else { return }
+        layer?.addSublayer(dl)
+        dl.frame = bounds
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
+        reattachManagedLayerIfNeeded()
         layer?.sublayers?.forEach { $0.frame = CGRect(origin: .zero, size: newSize) }
     }
 
     override func layout() {
         super.layout()
+        reattachManagedLayerIfNeeded()
         layer?.sublayers?.forEach { $0.frame = bounds }
     }
 

@@ -22,6 +22,18 @@
 	<string>1</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Christian Bartels. All rights reserved.</string>
+	<!-- Shown when macOS 15+ prompts for local-network access (the controller
+	     lives on the user's LAN). -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>QuickProtect connects to your UniFi Protect controller on your local network to list cameras and stream video.</string>
+	<!-- Declares the app uses only standard/exempt encryption (HTTPS/TLS), so
+	     App Store Connect won't ask the export-compliance question on each upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

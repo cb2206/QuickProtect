@@ -13,6 +13,8 @@ struct OnboardingView: View {
     @State private var showPassword = false
     @State private var isTesting = false
     @State private var testResult: TestResult?
+    @State private var isTestingPtz = false
+    @State private var ptzTestResult: TestResult?
 
     private struct TestResult: Equatable {
         let connected: Bool
@@ -206,6 +208,20 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                 }
             }
+            HStack(spacing: 10) {
+                AuroraSecondaryButton(title: "Test Connection", action: runPtzTest)
+                    .disabled(isTestingPtz || settings.ipAddress.isEmpty
+                              || settings.username.isEmpty || settings.password.isEmpty)
+                if isTestingPtz { ProgressView().scaleEffect(0.6) }
+                if let result = ptzTestResult {
+                    HStack(spacing: 5) {
+                        Image(systemName: result.connected ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        Text(result.message).font(.system(size: 12))
+                    }
+                    .foregroundColor(result.connected ? AuroraTokens.statusGreenDark : AuroraTokens.statusRed)
+                }
+            }
+            .padding(.top, 8)
         }
     }
 
@@ -292,6 +308,21 @@ struct OnboardingView: View {
                 let n = service.cameras.count
                 testResult = TestResult(connected: true,
                                         message: "Connected — \(n) camera\(n == 1 ? "" : "s") found")
+            }
+        }
+    }
+
+    private func runPtzTest() {
+        isTestingPtz = true
+        ptzTestResult = nil
+        Task {
+            let ok = await service.classicLogin()
+            isTestingPtz = false
+            if ok {
+                ptzTestResult = TestResult(connected: true, message: "Signed in — PTZ control ready")
+            } else {
+                ptzTestResult = TestResult(connected: false,
+                                           message: "Login failed — check username and password")
             }
         }
     }

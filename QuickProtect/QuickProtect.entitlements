@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+	<!-- Required for the Mac App Store. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Outgoing connections: HTTPS to the UniFi Protect controller and
+	     RTSP/RTSPS camera streams. The app is a pure network client; no
+	     incoming-connection (server) entitlement is needed. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+</dict>
 </plist>

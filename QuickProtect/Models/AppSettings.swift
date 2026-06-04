@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import Combine
 import ServiceManagement
+import Security
 
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -10,8 +11,9 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(ipAddress, forKey: Keys.ipAddress) }
     }
 
+    /// Integration API key. Sensitive — stored in the Keychain, not UserDefaults.
     @Published var apiKey: String {
-        didSet { UserDefaults.standard.set(apiKey, forKey: Keys.apiKey) }
+        didSet { KeychainStore.set(apiKey, account: Keys.apiKey) }
     }
 
     @Published var usePlainRtsp: Bool {
@@ -19,13 +21,15 @@ final class AppSettings: ObservableObject {
     }
 
     /// Username for classic API auth (required for PTZ control).
+    /// Sensitive — stored in the Keychain, not UserDefaults.
     @Published var username: String {
-        didSet { UserDefaults.standard.set(username, forKey: Keys.username) }
+        didSet { KeychainStore.set(username, account: Keys.username) }
     }
 
     /// Password for classic API auth (required for PTZ control).
+    /// Sensitive — stored in the Keychain, not UserDefaults.
     @Published var password: String {
-        didSet { UserDefaults.standard.set(password, forKey: Keys.password) }
+        didSet { KeychainStore.set(password, account: Keys.password) }
     }
 
     // MARK: - Display identification
@@ -131,6 +135,21 @@ final class AppSettings: ObservableObject {
         cameras.filter { !isHidden($0.id) }
     }
 
+    // MARK: - Per-camera fill mode (fit vs. fill the focus frame)
+
+    /// User's fit/fill choice for a focused camera. `true` = fill (crop to frame),
+    /// `false` = fit (whole image). `nil` = never set → caller defaults to fit.
+    func cameraFillMode(for id: String) -> Bool? {
+        let dict = UserDefaults.standard.dictionary(forKey: Keys.cameraFillModes) as? [String: Bool]
+        return dict?[id]
+    }
+
+    func setCameraFillMode(_ fill: Bool, for id: String) {
+        var dict = (UserDefaults.standard.dictionary(forKey: Keys.cameraFillModes) as? [String: Bool]) ?? [:]
+        dict[id] = fill
+        UserDefaults.standard.set(dict, forKey: Keys.cameraFillModes)
+    }
+
     // MARK: - Cached video dimensions (for stable initial layout)
 
     func cachedAspectRatio(for cameraId: String) -> CGFloat? {
@@ -201,6 +220,12 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
     }
 
+    /// Whether the focus-view overlay help (keyboard-shortcut hints) and the
+    /// on-screen PTZ d-pad are shown. Defaults to on.
+    @Published var showFocusOverlayControls: Bool {
+        didSet { UserDefaults.standard.set(showFocusOverlayControls, forKey: Keys.showFocusOverlayControls) }
+    }
+
     /// Whether the first-launch autostart prompt has been shown.
     var hasShownAutoStartPrompt: Bool {
         get { UserDefaults.standard.bool(forKey: Keys.autoStartPromptShown) }
@@ -229,6 +254,7 @@ final class AppSettings: ObservableObject {
         static let perDisplay     = "unifi.perDisplay"
         static let hiddenCameras  = "unifi.hiddenCameras"
         static let videoDimensions = "unifi.videoDimensions"
+        static let cameraFillModes = "unifi.cameraFillModes"
         static let hotkeyCode     = "unifi.hotkeyCode"
         static let hotkeyMods     = "unifi.hotkeyMods"
         static let username       = "unifi.username"
@@ -238,19 +264,88 @@ final class AppSettings: ObservableObject {
         static let appearance     = "unifi.appearance"
         static let accentColorHex = "unifi.accentColorHex"
         static let hasCompletedOnboarding = "unifi.hasCompletedOnboarding"
+        static let showFocusOverlayControls = "unifi.showFocusOverlayControls"
+    }
+
+    /// Loads a sensitive value from the Keychain. On first run after upgrading,
+    /// migrates any plaintext value still living in UserDefaults into the Keychain
+    /// and clears the old copy.
+    private static func loadSecret(_ account: String) -> String {
+        if let value = KeychainStore.get(account) { return value }
+        if let legacy = UserDefaults.standard.string(forKey: account), !legacy.isEmpty {
+            KeychainStore.set(legacy, account: account)
+            UserDefaults.standard.removeObject(forKey: account)
+            return legacy
+        }
+        return ""
     }
 
     private init() {
         ipAddress    = UserDefaults.standard.string(forKey: Keys.ipAddress) ?? ""
-        apiKey       = UserDefaults.standard.string(forKey: Keys.apiKey) ?? ""
+        apiKey       = Self.loadSecret(Keys.apiKey)
         let stored = UserDefaults.standard.object(forKey: Keys.usePlainRtsp)
         usePlainRtsp = stored != nil ? UserDefaults.standard.bool(forKey: Keys.usePlainRtsp) : true
-        username     = UserDefaults.standard.string(forKey: Keys.username) ?? ""
-        password     = UserDefaults.standard.string(forKey: Keys.password) ?? ""
+        username     = Self.loadSecret(Keys.username)
+        password     = Self.loadSecret(Keys.password)
         launchAtLogin = UserDefaults.standard.bool(forKey: Keys.launchAtLogin)
         let raw = UserDefaults.standard.object(forKey: Keys.appearance) as? Int
         appearance = Appearance(rawValue: raw ?? 0) ?? .auto
         accentColorHex = UserDefaults.standard.string(forKey: Keys.accentColorHex) ?? "0a84ff"
         hasCompletedOnboarding = UserDefaults.standard.bool(forKey: Keys.hasCompletedOnboarding)
+        let showControls = UserDefaults.standard.object(forKey: Keys.showFocusOverlayControls)
+        showFocusOverlayControls = showControls != nil
+            ? UserDefaults.standard.bool(forKey: Keys.showFocusOverlayControls)
+            : true
+    }
+}
+
+// MARK: - Keychain
+
+/// Thin wrapper over the macOS Keychain for storing sensitive strings
+/// (Integration API key, classic-API username/password) as generic password
+/// items, so credentials are no longer kept in plaintext UserDefaults.
+enum KeychainStore {
+    private static let service = "com.cb.quickprotect"
+
+    private static func baseQuery(_ account: String) -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+    }
+
+    static func get(_ account: String) -> String? {
+        var query = baseQuery(account)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data,
+              let string = String(data: data, encoding: .utf8) else { return nil }
+        return string
+    }
+
+    /// Stores `value` for `account`. An empty string removes the item entirely.
+    static func set(_ value: String, account: String) {
+        guard !value.isEmpty else { remove(account); return }
+
+        let data = Data(value.utf8)
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+        ]
+
+        let status = SecItemUpdate(baseQuery(account) as CFDictionary, attributes as CFDictionary)
+        if status == errSecItemNotFound {
+            var insert = baseQuery(account)
+            insert.merge(attributes) { _, new in new }
+            SecItemAdd(insert as CFDictionary, nil)
+        }
+    }
+
+    static func remove(_ account: String) {
+        SecItemDelete(baseQuery(account) as CFDictionary)
     }
 }

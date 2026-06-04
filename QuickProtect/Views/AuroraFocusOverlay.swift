@@ -20,8 +20,7 @@ struct AuroraFocusTopBar: View {
         HStack(spacing: 10) {
             Button(action: onBack) {
                 HStack(spacing: 5) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 10, weight: .semibold))
+                    AuroraEscKey()
                     Text("Grid")
                         .font(.system(size: 12, weight: .medium))
                 }
@@ -71,12 +70,12 @@ struct AuroraFocusTopBar: View {
         .background(
             ZStack {
                 VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.6)
+                Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.8)
             }
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -87,6 +86,24 @@ private struct AuroraFocusBarDivider: View {
         Rectangle()
             .fill(Color.white.opacity(0.15))
             .frame(width: 0.5, height: 14)
+    }
+}
+
+/// Small keyboard-style "esc" cap used on the focus top bar's back button.
+private struct AuroraEscKey: View {
+    var body: some View {
+        Text("esc")
+            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5).padding(.vertical, 1.5)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.white.opacity(0.12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 0.5)
+                    )
+            )
     }
 }
 
@@ -119,19 +136,23 @@ struct AuroraFocusIconButton: View {
 struct AuroraPtzDpad: View {
     let onPress: (Direction) -> Void
     let onRelease: () -> Void
+    /// Direction currently driven by the keyboard, so the matching arrow lights up.
+    var activeDirection: Direction? = nil
 
     enum Direction { case up, down, left, right }
 
     var body: some View {
         ZStack {
+            // Partially transparent backing so the pad stays legible over any
+            // camera image, while still letting the scene show through.
             Circle()
-                .fill(Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.45))
-                .overlay(
-                    Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                )
+                .fill(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.55))
                 .background(
                     VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
                         .clipShape(Circle())
+                )
+                .overlay(
+                    Circle().stroke(Color.white.opacity(0.14), lineWidth: 0.5)
                 )
 
             // Center dot
@@ -143,17 +164,25 @@ struct AuroraPtzDpad: View {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
                     Color.clear
-                    DpadButton(systemName: "chevron.up", onPress: { onPress(.up) }, onRelease: onRelease)
+                    DpadButton(systemName: "chevron.up", help: "Tilt up",
+                               isActive: activeDirection == .up,
+                               onPress: { onPress(.up) }, onRelease: onRelease)
                     Color.clear
                 }
                 HStack(spacing: 0) {
-                    DpadButton(systemName: "chevron.left", onPress: { onPress(.left) }, onRelease: onRelease)
+                    DpadButton(systemName: "chevron.left", help: "Pan left",
+                               isActive: activeDirection == .left,
+                               onPress: { onPress(.left) }, onRelease: onRelease)
                     Color.clear
-                    DpadButton(systemName: "chevron.right", onPress: { onPress(.right) }, onRelease: onRelease)
+                    DpadButton(systemName: "chevron.right", help: "Pan right",
+                               isActive: activeDirection == .right,
+                               onPress: { onPress(.right) }, onRelease: onRelease)
                 }
                 HStack(spacing: 0) {
                     Color.clear
-                    DpadButton(systemName: "chevron.down", onPress: { onPress(.down) }, onRelease: onRelease)
+                    DpadButton(systemName: "chevron.down", help: "Tilt down",
+                               isActive: activeDirection == .down,
+                               onPress: { onPress(.down) }, onRelease: onRelease)
                     Color.clear
                 }
             }
@@ -165,16 +194,26 @@ struct AuroraPtzDpad: View {
 
 private struct DpadButton: View {
     let systemName: String
+    let help: String
+    let isActive: Bool
     let onPress: () -> Void
     let onRelease: () -> Void
     @State private var isPressed = false
 
+    private var lit: Bool { isPressed || isActive }
+
     var body: some View {
         Image(systemName: systemName)
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(isPressed ? 1.0 : 0.85))
+            .foregroundStyle(Color.white.opacity(lit ? 1.0 : 0.85))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                Circle()
+                    .fill(Color.white.opacity(lit ? 0.18 : 0))
+                    .padding(2)
+            )
             .contentShape(Rectangle())
+            .help(help)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in
@@ -265,7 +304,7 @@ struct AuroraFullscreenHUD: View {
             }
             Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
             KbdKey("F"); Text("exit fullscreen").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
-            KbdKey("⎋"); Text("back to popover").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+            KbdKey("esc"); Text("back to popover").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .background(
@@ -307,14 +346,26 @@ struct AuroraFocusHints: View {
     var body: some View {
         HStack(spacing: 14) {
             Hint(keys: ["F"], label: "Fullscreen")
-            Hint(keys: ["␣"], label: "Fullscreen")
-            Hint(keys: ["⎋"], label: "Back")
+            Hint(keys: ["esc"], label: "Back")
             if showPtzHint {
                 Hint(keys: ["←", "→", "↑", "↓"], label: "Pan / tilt")
             }
         }
         .font(.system(size: 10.5))
-        .foregroundStyle(Color.white.opacity(0.65))
+        .foregroundStyle(Color.white.opacity(0.8))
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        // Partially transparent backing so the labels stay readable over any scene.
+        .background(
+            ZStack {
+                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
+                Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.55)
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private struct Hint: View {

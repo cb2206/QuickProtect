@@ -7,6 +7,20 @@ extension Notification.Name {
     static let exitTrueFullscreen  = Notification.Name("exitTrueFullscreen")
 }
 
+private extension View {
+    /// Applies `.aspectRatio` only when `apply` is true, otherwise leaves the
+    /// view to fill whatever frame its parent proposes. Avoids the nil-ratio
+    /// pitfall where SwiftUI derives the ratio from content's ideal size.
+    @ViewBuilder
+    func conditionalAspectRatio(_ ratio: CGFloat?, contentMode: ContentMode, when apply: Bool) -> some View {
+        if apply {
+            self.aspectRatio(ratio, contentMode: contentMode)
+        } else {
+            self
+        }
+    }
+}
+
 // MARK: - Grid
 
 struct CameraGridView: View {
@@ -154,9 +168,10 @@ struct CameraGridView: View {
             }
             .scrollDisabled(hasFocus)
         }
-        .onAppear { restoreFocus() }
+        .onAppear { restoreFocus(); service.isFocusMode = focusedCameraId != nil }
         .onChange(of: focusedCameraId) { newId in
             service.lastFocusedCameraId = newId
+            service.isFocusMode = newId != nil
         }
         .onChange(of: service.isPopoverOpen) { open in
             if !open {
@@ -226,7 +241,9 @@ struct CameraCell: View {
     @State private var keyMonitor: Any?
     @State private var globalKeyMonitor: Any?
     @State private var cellSize: CGSize = .zero       // for pan clamping
-    @State private var focusFillMode: Bool = false    // aspect button toggle
+    @State private var focusFillMode: Bool = false    // fit/fill toggle; loaded per-camera on focus (default: fit)
+    @State private var ptzActiveDirection: AuroraPtzDpad.Direction?  // lit arrow on the d-pad
+    @State private var reattachNonce = 0               // bump to re-attach the display layer
     @State private var clockTick: Date = Date()
     @State private var clockTimer: Timer?
     @State private var isTrueFullscreen = false
@@ -263,6 +280,7 @@ struct CameraCell: View {
                 ProtectStreamView(
                     displayLayer: rtspClient.displayLayer,
                     videoGravity: isFocused ? (focusFillMode ? .resizeAspectFill : .resizeAspect) : .resizeAspectFill,
+                    reattachNonce: reattachNonce,
                     onZoom: isFocused ? { delta in
                         let newScale = zoomScale + delta
                         zoomScale = max(1.0, min(8.0, newScale))
@@ -281,8 +299,8 @@ struct CameraCell: View {
                         lastPanOffset = panOffset
                     } : nil,
                     onKeyPress: isFocused ? { keyCode in
-                        if keyCode == 3 || keyCode == 49 { toggleTrueFullscreen() }    // F or Space
-                        else if keyCode == 53 { handleEscape() }      // Escape
+                        if keyCode == 3 { toggleTrueFullscreen() }     // F
+                        else if keyCode == 53 { handleEscape() }       // Escape
                         // PTZ keys are handled by the NSEvent monitors (keyDown + keyUp)
                     } : nil
                 )
@@ -315,7 +333,12 @@ struct CameraCell: View {
                 }
             }
         }
-        .aspectRatio(isFocused ? nil : aspectRatio, contentMode: .fit)
+        // When focused the parent supplies an explicit full-screen frame, so the
+        // cell must fill it. Applying .aspectRatio here — even with a nil ratio —
+        // re-derives the size from the content's ideal dimensions (a GeometryReader
+        // reports 10×10), collapsing the picture to a tiny centered box. Only
+        // constrain the aspect ratio in the grid, where height is unspecified.
+        .conditionalAspectRatio(aspectRatio, contentMode: .fit, when: !isFocused)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: isFocused ? 0 : 4))
         .onAppear {
@@ -326,7 +349,10 @@ struct CameraCell: View {
             } else {
                 startStream()
             }
-            if isFocused { installKeyMonitor(); startClockTimer() }
+            if isFocused {
+                focusFillMode = AppSettings.shared.cameraFillMode(for: camera.id) ?? false
+                installKeyMonitor(); startClockTimer()
+            }
         }
         .onDisappear {
             streamTask?.cancel()
@@ -358,6 +384,8 @@ struct CameraCell: View {
         }
         .onChange(of: focusedCameraId) { newId in
             if newId == camera.id {
+                // Restore the saved fit/fill choice; new cameras default to fit.
+                focusFillMode = AppSettings.shared.cameraFillMode(for: camera.id) ?? false
                 installKeyMonitor()
                 startClockTimer()
             } else {
@@ -370,8 +398,18 @@ struct CameraCell: View {
                 zoomScale = 1.0
                 panOffset = .zero
                 lastPanOffset = .zero
-                focusFillMode = false
+                ptzActiveDirection = nil
+                // Returning to the grid resizes this cell; the shared display
+                // layer can fall out of the view tree and render black. Nudge a
+                // re-attach after the transition settles (mirrors what the
+                // toolbar Refresh did manually).
+                scheduleReattach()
             }
+        }
+        .onChange(of: focusFillMode) { newValue in
+            // Persist the user's fit/fill choice per camera while focused.
+            guard isFocused else { return }
+            AppSettings.shared.setCameraFillMode(newValue, for: camera.id)
         }
         .onReceive(NotificationCenter.default.publisher(for: .enterTrueFullscreen)) { _ in
             guard isFocused else { return }
@@ -408,6 +446,17 @@ struct CameraCell: View {
         }
     }
 
+    /// Bumps `reattachNonce` a few times after the focus-exit transition so the
+    /// stream view re-attaches its display layer once the cell has settled back
+    /// into the grid. Without this the previously-focused tile can stay black.
+    private func scheduleReattach() {
+        for delay in [0.35, 0.7, 1.2] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                reattachNonce &+= 1
+            }
+        }
+    }
+
     // MARK: - F key → true fullscreen
 
     private func installKeyMonitor() {
@@ -420,7 +469,7 @@ struct CameraCell: View {
                 return handlePtzKeyUp(event.keyCode) ? nil : event
             }
             // keyDown
-            if event.keyCode == 3 || event.keyCode == 49 { toggleTrueFullscreen(); return nil }
+            if event.keyCode == 3 { toggleTrueFullscreen(); return nil }    // F
             if event.keyCode == 53 { handleEscape(); return nil }
             if event.isARepeat, isPtzKey(event.keyCode) { return nil } // consume repeats
             if handlePtzKeyDown(event.keyCode) { return nil }
@@ -435,7 +484,7 @@ struct CameraCell: View {
                 return
             }
             // keyDown
-            if event.keyCode == 3 || event.keyCode == 49 { DispatchQueue.main.async { toggleTrueFullscreen() } }
+            if event.keyCode == 3 { DispatchQueue.main.async { toggleTrueFullscreen() } }    // F
             if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
             if !event.isARepeat { _ = handlePtzKeyDown(event.keyCode) }
         }
@@ -480,22 +529,24 @@ struct CameraCell: View {
     }
 
     /// Key-down: start repeating PTZ movement in the pressed direction.
+    /// Also lights up the matching arrow on the on-screen d-pad.
     private func handlePtzKeyDown(_ keyCode: UInt16) -> Bool {
         guard !AppSettings.shared.username.isEmpty else { return false }
         switch keyCode {
-        case 123: service.ptzStartMove(cameraId: camera.id, pan: -1)    // Left
-        case 124: service.ptzStartMove(cameraId: camera.id, pan:  1)    // Right
-        case 126: service.ptzStartMove(cameraId: camera.id, tilt:  1)   // Up
-        case 125: service.ptzStartMove(cameraId: camera.id, tilt: -1)   // Down
+        case 123: service.ptzStartMove(cameraId: camera.id, pan: -1); ptzActiveDirection = .left    // Left
+        case 124: service.ptzStartMove(cameraId: camera.id, pan:  1); ptzActiveDirection = .right   // Right
+        case 126: service.ptzStartMove(cameraId: camera.id, tilt:  1); ptzActiveDirection = .up     // Up
+        case 125: service.ptzStartMove(cameraId: camera.id, tilt: -1); ptzActiveDirection = .down   // Down
         default:  return false
         }
         return true
     }
 
-    /// Key-up: stop PTZ movement immediately.
+    /// Key-up: stop PTZ movement immediately and clear the lit arrow.
     private func handlePtzKeyUp(_ keyCode: UInt16) -> Bool {
         guard !AppSettings.shared.username.isEmpty, isPtzKey(keyCode) else { return false }
         service.ptzStop(cameraId: camera.id)
+        ptzActiveDirection = nil
         return true
     }
 
@@ -667,27 +718,41 @@ struct CameraCell: View {
             Spacer(minLength: 0)
 
             HStack(alignment: .bottom) {
-                AuroraFocusHints(showPtzHint: camera.isPtz)
-                    .padding(.leading, 12).padding(.bottom, 12)
+                if showOverlayControls {
+                    AuroraFocusHints(showPtzHint: camera.isPtz)
+                        .padding(.leading, 12).padding(.bottom, 12)
+                }
                 Spacer()
-                if camera.isPtz && !AppSettings.shared.username.isEmpty {
+                if showOverlayControls && camera.isPtz && !AppSettings.shared.username.isEmpty {
                     AuroraPtzDpad(
                         onPress: { dir in dpadPress(dir) },
-                        onRelease: { service.ptzStop(cameraId: camera.id) }
+                        onRelease: { dpadRelease() },
+                        activeDirection: ptzActiveDirection
                     )
-                    .padding(.trailing, 24).padding(.bottom, 70)
+                    .padding(.trailing, 16).padding(.bottom, 16)
                 }
             }
         }
     }
 
+    /// User toggle: show the keyboard-shortcut hints and on-screen PTZ d-pad.
+    private var showOverlayControls: Bool {
+        AppSettings.shared.showFocusOverlayControls
+    }
+
     private func dpadPress(_ dir: AuroraPtzDpad.Direction) {
+        ptzActiveDirection = dir
         switch dir {
         case .up:    service.ptzStartMove(cameraId: camera.id, tilt:  1)
         case .down:  service.ptzStartMove(cameraId: camera.id, tilt: -1)
         case .left:  service.ptzStartMove(cameraId: camera.id, pan:  -1)
         case .right: service.ptzStartMove(cameraId: camera.id, pan:   1)
         }
+    }
+
+    private func dpadRelease() {
+        service.ptzStop(cameraId: camera.id)
+        ptzActiveDirection = nil
     }
 
     private func startClockTimer() {

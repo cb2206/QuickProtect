@@ -11,6 +11,9 @@ final class ProtectService: NSObject, ObservableObject {
     @Published var isPopoverOpen = false
     /// Remembers which camera was focused so it can be restored when the panel reopens.
     var lastFocusedCameraId: String?
+    /// True while a camera is focused (single-camera view). Drives the popover
+    /// header swap so the camera's own top bar replaces the grid header.
+    @Published var isFocusMode = false
 
     private let settings = AppSettings.shared
 
@@ -25,7 +28,9 @@ final class ProtectService: NSObject, ObservableObject {
     /// TOKEN cookie captured from classic API login response. Manually set on requests
     /// because a fresh HTTPCookieStorage instance may not auto-accept cookies.
     private var tokenCookie: String?
-    private var isClassicLoggedIn = false
+    /// Whether the classic API login succeeded. Drives the PTZ connection status
+    /// pill in Settings. Updated on the main actor since it's observed by SwiftUI.
+    @Published private(set) var isClassicLoggedIn = false
 
     // MARK: - Fetch camera list
 
@@ -155,7 +160,7 @@ final class ProtectService: NSObject, ObservableObject {
               let http = resp as? HTTPURLResponse,
               (200...299).contains(http.statusCode) else {
             RTSPClient.log("[PTZ] classicLogin FAILED")
-            isClassicLoggedIn = false
+            await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil
             return false
@@ -174,7 +179,7 @@ final class ProtectService: NSObject, ObservableObject {
             tokenCookie = cookies.first(where: { $0.name == "TOKEN" })?.value
         }
 
-        isClassicLoggedIn = true
+        await setClassicLoggedIn(true)
         RTSPClient.log("[PTZ] classicLogin OK, csrf=\(csrfToken?.prefix(12) ?? "nil"), token=\(tokenCookie != nil ? "yes(\(tokenCookie!.prefix(12))...)" : "nil")")
         return true
     }
@@ -217,7 +222,8 @@ final class ProtectService: NSObject, ObservableObject {
     /// Starts repeating relative moves at max step size. Call `ptzStop` on key-up.
     func ptzStartMove(cameraId: String, pan: Double = 0, tilt: Double = 0) {
         ptzStopTimer()
-        let step = 4095.0  // max allowed value
+        // Half of the 4095 max — a single key tap should nudge, not lurch.
+        let step = 2048.0
         RTSPClient.log("[PTZ] startMove cam=\(cameraId) pan=\(pan) tilt=\(tilt)")
 
         sendPtzRelative(cameraId: cameraId, pan: pan * step, tilt: tilt * step)
@@ -274,10 +280,15 @@ final class ProtectService: NSObject, ObservableObject {
         let respBody = result.flatMap { String(data: $0.0, encoding: .utf8) } ?? "nil"
         RTSPClient.log("[PTZ] sendMove HTTP \(status): \(respBody.prefix(200))")
         if status == 401 {
-            isClassicLoggedIn = false
+            await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil
         }
+    }
+
+    /// Updates the observed login flag on the main actor (SwiftUI requirement).
+    private func setClassicLoggedIn(_ value: Bool) async {
+        await MainActor.run { self.isClassicLoggedIn = value }
     }
 
     /// Returns the rtsps:// URL with ?enableSrtp stripped.

@@ -66,7 +66,10 @@ final class RTSPClient: ObservableObject {
     static func log(_ msg: String) { dbg(msg) }
     private static func dbg(_ msg: String) {
         let line = "\(Date()) \(msg)\n"
-        let path = "/tmp/quickprotect_debug.log"
+        // NSTemporaryDirectory() resolves to the app's sandbox container temp
+        // dir under the App Sandbox, and /private/tmp otherwise — writable in
+        // both, unlike a hard-coded /tmp path which the sandbox blocks.
+        let path = (NSTemporaryDirectory() as NSString).appendingPathComponent("quickprotect_debug.log")
         if let fh = FileHandle(forWritingAtPath: path) {
             fh.seekToEndOfFile()
             fh.write(Data(line.utf8))

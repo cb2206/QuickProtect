@@ -12,8 +12,11 @@ struct PopoverContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            AuroraHairline(color: palette.chromeBorder)
+            // When a camera is focused, its own top bar replaces this grid header.
+            if !service.isFocusMode {
+                header
+                AuroraHairline(color: palette.chromeBorder)
+            }
             CameraGridView(service: service, searchQuery: searchQuery, onOpenSettings: openSettings)
         }
         .background(palette.popoverBg)
@@ -95,7 +98,18 @@ struct PopoverContentView: View {
                 .font(.system(size: 10, weight: .medium))
             AuroraSearchField(text: $searchQuery, placeholder: "Search cameras")
                 .frame(width: 100)
+            if !searchQuery.isEmpty {
+                Button { searchQuery = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(palette.subtext)
+                .help("Clear search")
+                .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.12), value: searchQuery.isEmpty)
         .padding(.horizontal, 9).padding(.vertical, 4)
         .foregroundColor(palette.subtext)
         .background(

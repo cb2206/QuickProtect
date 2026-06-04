@@ -14,6 +14,7 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: K2LM9FSU6C
 
 schemes:
   QuickProtect:

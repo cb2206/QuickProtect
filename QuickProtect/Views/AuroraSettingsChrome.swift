@@ -42,16 +42,22 @@ struct AuroraSettingsRow<Content: View>: View {
     let label: String?
     let hint: String?
     let isLast: Bool
+    /// When true the label/hint column stretches to fill the row and the content
+    /// is pinned to the trailing edge. Use for compact controls (toggles) so the
+    /// explanation text has the full row width and doesn't wrap prematurely.
+    let labelExpands: Bool
     @ViewBuilder let content: () -> Content
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
 
     init(_ label: String? = nil, hint: String? = nil, isLast: Bool = false,
+         labelExpands: Bool = false,
          @ViewBuilder content: @escaping () -> Content) {
         self.label = label
         self.hint = hint
         self.isLast = isLast
+        self.labelExpands = labelExpands
         self.content = content
     }
 
@@ -59,7 +65,7 @@ struct AuroraSettingsRow<Content: View>: View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 if let label {
-                    VStack(alignment: .leading, spacing: 2) {
+                    let column = VStack(alignment: .leading, spacing: 2) {
                         Text(label)
                             .font(.system(size: 12.5, weight: .medium))
                             .foregroundColor(palette.text)
@@ -70,9 +76,17 @@ struct AuroraSettingsRow<Content: View>: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                    .frame(width: 150, alignment: .leading)
+                    if labelExpands {
+                        column.frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        column.frame(width: 150, alignment: .leading)
+                    }
                 }
-                content().frame(maxWidth: .infinity, alignment: .leading)
+                if labelExpands {
+                    content()
+                } else {
+                    content().frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
             if !isLast { AuroraHairline(color: palette.divider) }

@@ -1,6 +1,22 @@
 import Foundation
 import AppKit
 
+/// Identifies how this build was distributed.
+///
+/// The built-in self-updater (download DMG → swap bundle → relaunch) only
+/// applies to the directly-distributed GitHub build. Mac App Store builds
+/// are updated by the App Store itself, and Apple forbids apps that ship
+/// their own download/install update mechanism (App Store Review Guideline
+/// 2.4.5 / 3.2.2). When the app is delivered through the App Store, macOS
+/// places a `_MASReceipt/receipt` file inside the bundle; its presence is a
+/// reliable runtime signal that the self-updater must stay hidden and idle.
+enum AppDistribution {
+    static var isAppStore: Bool {
+        guard let receiptURL = Bundle.main.appStoreReceiptURL else { return false }
+        return FileManager.default.fileExists(atPath: receiptURL.path)
+    }
+}
+
 final class UpdateChecker: NSObject, ObservableObject {
 
     // MARK: - Published state
@@ -39,6 +55,8 @@ final class UpdateChecker: NSObject, ObservableObject {
     // MARK: - Periodic checks
 
     func startPeriodicChecks() {
+        // App Store builds are updated by the App Store; never self-check.
+        guard !AppDistribution.isAppStore else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             self?.checkForUpdate()
         }

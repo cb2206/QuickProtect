@@ -14,6 +14,12 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Tabs shown in the sidebar. The self-update tab is omitted from App
+    /// Store builds, which are updated by the App Store itself.
+    static var visibleCases: [SettingsTab] {
+        allCases.filter { !($0 == .updates && AppDistribution.isAppStore) }
+    }
+
     var systemImage: String {
         switch self {
         case .general:    return "gearshape"
@@ -37,6 +43,8 @@ struct SettingsView: View {
     @State private var tab: SettingsTab = .connection
     @State private var isTesting = false
     @State private var testResult: TestResult?
+    @State private var isTestingPtz = false
+    @State private var ptzTestResult: TestResult?
     @State private var isRecordingHotkey = false
     @State private var showApiKey = false
     @State private var showPassword = false
@@ -70,7 +78,7 @@ struct SettingsView: View {
             .padding(.horizontal, 10)
             .padding(.bottom, 14)
 
-            ForEach(SettingsTab.allCases) { t in
+            ForEach(SettingsTab.visibleCases) { t in
                 AuroraSidebarItem(
                     systemImage: t.systemImage,
                     title: t.rawValue,
@@ -101,10 +109,7 @@ struct SettingsView: View {
                     .tracking(-0.2)
                     .foregroundColor(palette.text)
                 Spacer()
-                AuroraStatusBadge(
-                    connected: service.errorMessage == nil && !service.cameras.isEmpty,
-                    text: service.errorMessage == nil ? "Connected" : "Disconnected"
-                )
+                headerStatusBadge
             }
             .padding(.horizontal, 22).frame(height: 52)
             AuroraHairline(color: palette.divider)
@@ -125,6 +130,26 @@ struct SettingsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// Header pill. On the PTZ tab it reflects the classic-API login state;
+    /// everywhere else it reflects the Integration API connection.
+    @ViewBuilder
+    private var headerStatusBadge: some View {
+        if tab == .ptz {
+            let configured = !settings.username.isEmpty && !settings.password.isEmpty
+            AuroraStatusBadge(
+                connected: service.isClassicLoggedIn,
+                text: service.isClassicLoggedIn
+                    ? "Connected"
+                    : (configured ? "Not verified" : "Not configured")
+            )
+        } else {
+            AuroraStatusBadge(
+                connected: service.errorMessage == nil && !service.cameras.isEmpty,
+                text: service.errorMessage == nil ? "Connected" : "Disconnected"
+            )
+        }
     }
 
     // MARK: - Tabs
@@ -185,6 +210,38 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: General
+
+    private var generalTab: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            AuroraSettingsSection("Startup") {
+                AuroraSettingsRow(
+                    "Launch at login",
+                    hint: "Automatically start QuickProtect when you log in.",
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    Toggle("", isOn: $settings.launchAtLogin)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+            }
+
+            AuroraSettingsSection("Focus view") {
+                AuroraSettingsRow(
+                    "Show overlay controls",
+                    hint: "Display the keyboard-shortcut hints and the on-screen PTZ pad when a camera is in focus.",
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    Toggle("", isOn: $settings.showFocusOverlayControls)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+            }
 
             AuroraSettingsSection("Appearance") {
                 AuroraSettingsRow("Theme") {
@@ -210,22 +267,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: General
-
-    private var generalTab: some View {
-        AuroraSettingsSection("Startup") {
-            AuroraSettingsRow(
-                "Launch at login",
-                hint: "Automatically start QuickProtect when you log in.",
-                isLast: true
-            ) {
-                Toggle("", isOn: $settings.launchAtLogin)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-            }
-        }
-    }
-
     // MARK: PTZ
 
     private var ptzTab: some View {
@@ -238,10 +279,7 @@ struct SettingsView: View {
                     PastableTextField(text: $settings.username, placeholder: "")
                         .frame(width: 260)
                 }
-                AuroraSettingsRow(
-                    "Password",
-                    isLast: true
-                ) {
+                AuroraSettingsRow("Password") {
                     HStack(spacing: 6) {
                         Group {
                             if showPassword {
@@ -258,6 +296,28 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                         .help(showPassword ? "Hide password" : "Show password")
+                    }
+                }
+                AuroraSettingsRow(isLast: true) {
+                    HStack(spacing: 10) {
+                        AuroraPrimaryButton(
+                            title: "Test Connection",
+                            disabled: isTestingPtz || settings.ipAddress.isEmpty
+                                || settings.username.isEmpty || settings.password.isEmpty,
+                            action: runPtzTest
+                        )
+                        if isTestingPtz {
+                            ProgressView().scaleEffect(0.6)
+                        }
+                        if let result = ptzTestResult {
+                            HStack(spacing: 5) {
+                                Image(systemName: result.icon)
+                                Text(result.message)
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundColor(result.color)
+                            .transition(.opacity)
+                        }
                     }
                 }
             }
@@ -306,7 +366,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             AuroraSettingsSection("Global") {
                 AuroraSettingsRow(
-                    "Toggle popover",
+                    "Toggle QuickProtect",
                     hint: "Show or hide the camera grid from anywhere.",
                     isLast: true
                 ) {
@@ -336,7 +396,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            AuroraSettingsSection("In the popover") {
+            AuroraSettingsSection("Within QuickProtect") {
                 let rows: [(String, String)] = [
                     ("Focus camera",        "Click"),
                     ("Display fullscreen",  "F  ·  Space"),
@@ -365,21 +425,38 @@ struct SettingsView: View {
     // MARK: Updates
 
     private var updatesTab: some View {
-        AuroraSettingsSection("Version") {
-            AuroraSettingsRow("Installed") {
-                HStack(spacing: 8) {
-                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
-                        .font(.system(size: 12))
-                        .foregroundColor(palette.text)
-                    if updateChecker.updateAvailable {
-                        Text("v\(updateChecker.latestVersion) available")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(AuroraTokens.statusOrange)
+        VStack(alignment: .leading, spacing: 18) {
+            AuroraSettingsSection("Version") {
+                AuroraSettingsRow("Installed") {
+                    HStack(spacing: 8) {
+                        Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                            .font(.system(size: 12))
+                            .foregroundColor(palette.text)
+                        if updateChecker.updateAvailable {
+                            Text("v\(updateChecker.latestVersion) available")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(AuroraTokens.statusOrange)
+                        }
                     }
                 }
+                AuroraSettingsRow(isLast: true) {
+                    updateActions
+                }
             }
-            AuroraSettingsRow(isLast: true) {
-                updateActions
+
+            AuroraSettingsSection("Source") {
+                AuroraSettingsRow(
+                    "GitHub",
+                    hint: "View the project source and releases.",
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    AuroraSecondaryButton(title: "View on GitHub") {
+                        if let url = URL(string: "https://github.com/cb2206/QuickProtect") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
             }
         }
     }
@@ -453,11 +530,6 @@ struct SettingsView: View {
                 .font(.system(size: 12))
                 .foregroundColor(palette.subtext)
                 .frame(maxWidth: 420, alignment: .leading)
-            AuroraSecondaryButton(title: "View on GitHub") {
-                if let url = URL(string: "https://github.com/cb2206/QuickProtect") {
-                    NSWorkspace.shared.open(url)
-                }
-            }
         }
     }
 
@@ -493,6 +565,28 @@ struct SettingsView: View {
                     message: "Connected · \(n) camera\(n == 1 ? "" : "s") found",
                     icon: "checkmark.circle.fill",
                     color: AuroraTokens.statusGreenDark
+                )
+            }
+        }
+    }
+
+    private func runPtzTest() {
+        isTestingPtz = true
+        ptzTestResult = nil
+        Task {
+            let ok = await service.classicLogin()
+            isTestingPtz = false
+            if ok {
+                ptzTestResult = TestResult(
+                    message: "Signed in · PTZ control ready",
+                    icon: "checkmark.circle.fill",
+                    color: AuroraTokens.statusGreenDark
+                )
+            } else {
+                ptzTestResult = TestResult(
+                    message: "Login failed — check the username and password",
+                    icon: "xmark.circle.fill",
+                    color: .red
                 )
             }
         }
@@ -534,13 +628,44 @@ private struct AccentSwatch: View {
 
 // MARK: - Pastable text fields (NSTextField-backed for proper Cmd+V support)
 
+/// Routes the standard editing key equivalents (⌘X/⌘C/⌘V/⌘A/⌘Z) to the field
+/// editor. A menu-bar (`.accessory`) app has no Edit menu, so these shortcuts
+/// would otherwise be dropped and only the context-menu items would work.
+private func handleEditingKeyEquivalent(_ event: NSEvent, from sender: NSControl) -> Bool {
+    guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+          let key = event.charactersIgnoringModifiers?.lowercased() else { return false }
+    let action: Selector
+    switch key {
+    case "x": action = #selector(NSText.cut(_:))
+    case "c": action = #selector(NSText.copy(_:))
+    case "v": action = #selector(NSText.paste(_:))
+    case "a": action = #selector(NSText.selectAll(_:))
+    case "z": action = Selector(("undo:"))
+    default:  return false
+    }
+    // Dispatch through the responder chain to the first responder (field editor).
+    return NSApp.sendAction(action, to: nil, from: sender)
+}
+
+final class EditableTextField: NSTextField {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        handleEditingKeyEquivalent(event, from: self) || super.performKeyEquivalent(with: event)
+    }
+}
+
+final class EditableSecureTextField: NSSecureTextField {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        handleEditingKeyEquivalent(event, from: self) || super.performKeyEquivalent(with: event)
+    }
+}
+
 /// Regular text field that supports copy/paste in panels/popovers.
 struct PastableTextField: NSViewRepresentable {
     @Binding var text: String
     var placeholder: String = ""
 
     func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField()
+        let field = EditableTextField()
         field.placeholderString = placeholder
         field.stringValue = text
         field.isBordered = true
@@ -571,7 +696,7 @@ struct PastableSecureField: NSViewRepresentable {
     var placeholder: String = ""
 
     func makeNSView(context: Context) -> NSSecureTextField {
-        let field = NSSecureTextField()
+        let field = EditableSecureTextField()
         field.placeholderString = placeholder
         field.stringValue = text
         field.isBordered = true
