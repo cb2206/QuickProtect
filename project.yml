@@ -39,9 +39,29 @@ targets:
 
     info:
       path: QuickProtect/Info.plist
+      properties:
+        # Menu-bar agent: no Dock icon, no main window.
+        LSUIElement: true
+        CFBundleIconFile: QuickProtect
+        CFBundleShortVersionString: "0.5"
+        CFBundleVersion: "1"
+        # Required for the Mac App Store.
+        LSApplicationCategoryType: public.app-category.utilities
+        NSHumanReadableCopyright: "Copyright © 2026 Christian Bartels. All rights reserved."
+        # Shown when macOS 15+ prompts for local-network access.
+        NSLocalNetworkUsageDescription: "QuickProtect connects to your UniFi Protect controller on your local network to list cameras and stream video."
+        # Declares only standard/exempt encryption (HTTPS/TLS) is used.
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
 
     entitlements:
       path: QuickProtect/QuickProtect.entitlements
+      properties:
+        # Required for the Mac App Store.
+        com.apple.security.app-sandbox: true
+        # Outgoing connections: HTTPS to the controller + RTSP/RTSPS streams.
+        com.apple.security.network.client: true
 
     settings:
       base:

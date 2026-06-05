@@ -3,41 +3,37 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconFile</key>
 	<string>QuickProtect</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.cb.quickprotect</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>QuickProtect</string>
-	<key>CFBundleIconFile</key>
-	<string>QuickProtect</string>
+	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.5</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.utilities</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 Christian Bartels. All rights reserved.</string>
-	<!-- Shown when macOS 15+ prompts for local-network access (the controller
-	     lives on the user's LAN). -->
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>QuickProtect connects to your UniFi Protect controller on your local network to list cameras and stream video.</string>
-	<!-- Declares the app uses only standard/exempt encryption (HTTPS/TLS), so
-	     App Store Connect won't ask the export-compliance question on each upload. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSUIElement</key>
+	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Christian Bartels. All rights reserved.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>QuickProtect connects to your UniFi Protect controller on your local network to list cameras and stream video.</string>
 </dict>
 </plist>
