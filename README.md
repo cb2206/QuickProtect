@@ -4,7 +4,7 @@ A lightweight macOS status bar app for viewing live camera feeds from a UniFi Pr
 
 Click the camera icon in your menu bar to instantly see all your cameras in a resizable popover — no browser or UniFi Protect app needed.
 
-![QuickProtect](screenshots/quickprotect.png)
+![QuickProtect](screenshots/appstore-1.png)
 
 ## Features
 
@@ -15,6 +15,7 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **Display fullscreen** — press **F**, **Space**, or the expand button to fill your entire screen with a camera feed; press **F**, **Space**, or **Escape** to return
 - **PTZ camera control** — pan and tilt PTZ cameras (e.g. G6 PTZ) with arrow keys while viewing a focused feed; hold to move continuously, release to stop
 - **Zoom and pan** — pinch-to-zoom and two-finger pan on trackpad, scroll wheel zoom on mouse; pan is clamped to video edges
+- **Fit or fill** — toggle a focused feed between fitting the whole image and filling the frame (crop to edges); the choice is remembered per camera
 - **Double-click to open in Protect** — double-click any feed to jump straight to that camera in the UniFi Protect web UI
 - **Resizable camera feeds** — right-click any camera to set Small / Medium / Large sizing
 - **Drag-and-drop reordering** — arrange cameras however you want
@@ -22,9 +23,12 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **Resizable popover** — drag to resize; size is saved per display
 - **Per-display layouts** — different camera arrangements and popover sizes on your laptop vs. external monitor
 - **Global keyboard shortcut** — toggle the popover from anywhere, configurable in Settings
+- **Light & dark themes** — follow the system appearance or pin Light/Dark, plus a choice of accent colors
+- **First-run onboarding** — a short guided setup walks you through connecting on first launch
 - **Auto-update** — checks for updates on launch and daily; downloads, installs, and restarts automatically from GitHub releases
 - **Launch at login** — optional, with a first-run prompt; toggle in Settings
 - **Self-signed TLS support** — connects to controllers using self-signed certificates without system-wide trust changes
+- **Credentials in the Keychain** — your API key and PTZ admin login are stored in the macOS Keychain, not in plaintext preferences
 - **Remembers focused camera** — reopen the popover and it picks up where you left off
 - **Closes on outside click** — click anywhere outside the popover to dismiss it
 
@@ -51,7 +55,7 @@ Download the latest DMG from [GitHub Releases](https://github.com/cb2206/QuickPr
 
 To control PTZ cameras (e.g. G6 PTZ) with arrow keys:
 
-1. Open **Settings** → **PTZ Control**
+1. Open **Settings** → **PTZ**
 2. Enter a **local admin username** and **password** for your controller
 3. PTZ-capable cameras will show a directional icon (↔) on their name badge
 
@@ -109,7 +113,7 @@ swiftc -sdk $(xcrun --show-sdk-path) -target arm64-apple-macos13.0 -parse-as-lib
   && /tmp/QuickProtectTests
 ```
 
-70+ tests cover RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), version comparison, grid layout, and hotkey management.
+75+ tests cover RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), version comparison, grid layout, hotkey management, and Aurora accent-color parsing and appearance settings.
 
 ## Installing an Unsigned App
 
@@ -154,7 +158,7 @@ Any VPN solution that gives you access to your home LAN will work — WireGuard,
 
 ## How It Works
 
-QuickProtect connects to your UniFi Protect controller using the Integration API (`/proxy/protect/integration/v1/`). It authenticates with an API key and creates on-demand RTSP sessions for each camera. For PTZ control, it additionally authenticates with the classic Protect API using local admin credentials and sends repeating relative move commands via the `/cameras/{id}/move` endpoint.
+QuickProtect connects to your UniFi Protect controller using the Integration API (`/proxy/protect/integration/v1/`). It authenticates with an API key and creates on-demand RTSP sessions for each camera. For PTZ control, it additionally authenticates with the classic Protect API using local admin credentials and sends repeating relative move commands via the `/cameras/{id}/move` endpoint. The API key and PTZ admin credentials are stored in the macOS Keychain (an existing plaintext copy from an older version is migrated automatically on first launch).
 
 Since macOS 13+ dropped AVFoundation support for RTSP URLs, QuickProtect includes a custom RTSP/RTP client that:
 
