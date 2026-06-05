@@ -43,7 +43,7 @@ targets:
         # Menu-bar agent: no Dock icon, no main window.
         LSUIElement: true
         CFBundleIconFile: QuickProtect
-        CFBundleShortVersionString: "0.5"
+        CFBundleShortVersionString: "0.6"
         CFBundleVersion: "1"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
