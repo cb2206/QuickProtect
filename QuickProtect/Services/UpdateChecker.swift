@@ -12,6 +12,15 @@ import AppKit
 /// reliable runtime signal that the self-updater must stay hidden and idle.
 enum AppDistribution {
     static var isAppStore: Bool {
+        // Demo override: force App Store presentation (hides the self-update tab
+        // and disables update checks) without a real receipt — used for App
+        // Store review screen recordings. This can only force the value TRUE,
+        // never disable genuine App Store detection, so it is safe to ship.
+        //   Enable:  defaults write com.cb.quickprotect QPForceAppStore -bool YES
+        //   Disable: defaults delete com.cb.quickprotect QPForceAppStore
+        if UserDefaults.standard.bool(forKey: "QPForceAppStore") { return true }
+        if ProcessInfo.processInfo.environment["QUICKPROTECT_FORCE_APPSTORE"] == "1" { return true }
+
         guard let receiptURL = Bundle.main.appStoreReceiptURL else { return false }
         return FileManager.default.fileExists(atPath: receiptURL.path)
     }
