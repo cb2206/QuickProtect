@@ -173,4 +173,4 @@ If you find QuickProtect useful, consider buying me a coffee:
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE) — Copyright (c) 2026 Christian Bartels.

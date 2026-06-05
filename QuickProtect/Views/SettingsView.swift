@@ -530,6 +530,28 @@ struct SettingsView: View {
                 .font(.system(size: 12))
                 .foregroundColor(palette.subtext)
                 .frame(maxWidth: 420, alignment: .leading)
+
+            AuroraSettingsSection("Legal") {
+                AuroraSettingsRow(
+                    "License",
+                    hint: "© 2026 Christian Bartels · Released under the MIT License.",
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    HStack(spacing: 10) {
+                        AuroraSecondaryButton(title: "View License") {
+                            if let url = URL(string: "https://github.com/cb2206/QuickProtect/blob/main/LICENSE") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                        AuroraSecondaryButton(title: "View on GitHub") {
+                            if let url = URL(string: "https://github.com/cb2206/QuickProtect") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
