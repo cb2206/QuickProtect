@@ -287,7 +287,7 @@ struct CameraCell: View {
                         guard zoomScale > 1.0 else { return }
                         let maxPanX = cellSize.width * (zoomScale - 1) / 2
                         let maxPanY = cellSize.height * (zoomScale - 1) / 2
-                        let newX = lastPanOffset.width + dx
+                        let newX = lastPanOffset.width - dx
                         let newY = lastPanOffset.height - dy
                         panOffset = CGSize(
                             width: max(-maxPanX, min(maxPanX, newX)),
