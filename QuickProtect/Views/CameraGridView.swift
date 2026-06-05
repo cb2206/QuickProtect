@@ -7,20 +7,6 @@ extension Notification.Name {
     static let exitTrueFullscreen  = Notification.Name("exitTrueFullscreen")
 }
 
-private extension View {
-    /// Applies `.aspectRatio` only when `apply` is true, otherwise leaves the
-    /// view to fill whatever frame its parent proposes. Avoids the nil-ratio
-    /// pitfall where SwiftUI derives the ratio from content's ideal size.
-    @ViewBuilder
-    func conditionalAspectRatio(_ ratio: CGFloat?, contentMode: ContentMode, when apply: Bool) -> some View {
-        if apply {
-            self.aspectRatio(ratio, contentMode: contentMode)
-        } else {
-            self
-        }
-    }
-}
-
 // MARK: - Grid
 
 struct CameraGridView: View {
@@ -139,14 +125,20 @@ struct CameraGridView: View {
                             ForEach(row, id: \.camera.id) { item in
                                 let isFocused = focusedCameraId == item.camera.id
                                 let isHidden = hasFocus && !isFocused
+                                let loadOrder = orderedCameras.firstIndex { $0.id == item.camera.id } ?? 0
                                 CameraCell(camera: item.camera, service: service, span: item.span,
                                            focusedCameraId: $focusedCameraId,
-                                           clientManager: clientManager)
+                                           clientManager: clientManager, loadOrder: loadOrder)
+                                    // Fade non-focused cells out faster than the frame
+                                    // collapse so the eye locks onto the growing tile
+                                    // instead of watching the whole grid implode. The
+                                    // frame (below) stays on the ambient focus spring.
+                                    .opacity(isHidden ? 0 : 1)
+                                    .animation(.easeOut(duration: 0.18), value: isHidden)
                                     .frame(
                                         width:  isFocused ? geo.size.width  : (isHidden ? 0 : cellWidth(span: item.span, colWidth: colWidth)),
-                                        height: isFocused ? geo.size.height : (isHidden ? 0 : nil)
+                                        height: isFocused ? geo.size.height : (isHidden ? 0 : cellWidth(span: item.span, colWidth: colWidth) / gridAspect(for: item.camera))
                                     )
-                                    .opacity(isHidden ? 0 : 1)
                                     .allowsHitTesting(!isHidden)
                                     .onDrag {
                                         dragCameraId = item.camera.id
@@ -183,6 +175,14 @@ struct CameraGridView: View {
 
     private func cellWidth(span: Int, colWidth: CGFloat) -> CGFloat {
         CGFloat(span) * colWidth + CGFloat(span - 1) * spacing
+    }
+
+    /// Aspect ratio used to size a grid cell's height. Uses the per-camera cached
+    /// stream dimensions (populated on first connect, persisted across launches),
+    /// falling back to 16:9. Kept here — rather than relying on the cell's own
+    /// `.aspectRatio` — so the cell can keep a stable explicit frame.
+    private func gridAspect(for camera: Camera) -> CGFloat {
+        AppSettings.shared.cachedAspectRatio(for: camera.id) ?? (16.0 / 9.0)
     }
 
     private struct RowItem {
@@ -228,6 +228,7 @@ struct CameraCell: View {
     let camera: Camera
     let service: ProtectService
     let span: Int
+    let loadOrder: Int
     @Binding var focusedCameraId: String?
 
     @ObservedObject private var rtspClient: RTSPClient
@@ -253,25 +254,21 @@ struct CameraCell: View {
 
     enum Mode { case connecting, playing, failed }
 
+    /// Grid ↔ focus expansion. A spring settles more naturally than easeInOut;
+    /// a high damping fraction keeps it from overshooting (no bounce on video).
+    static let focusAnimation: Animation = .spring(response: 0.40, dampingFraction: 0.86)
+
     init(camera: Camera, service: ProtectService, span: Int,
-         focusedCameraId: Binding<String?>, clientManager: RTSPClientManager) {
+         focusedCameraId: Binding<String?>, clientManager: RTSPClientManager, loadOrder: Int) {
         self.camera = camera
         self.service = service
         self.span = span
+        self.loadOrder = loadOrder
         self._focusedCameraId = focusedCameraId
         self._rtspClient = ObservedObject(wrappedValue: clientManager.client(for: camera.id))
     }
 
     private var isFocused: Bool { focusedCameraId == camera.id }
-
-    /// Aspect ratio: live stream dims > cached dims > 16:9 fallback.
-    private var aspectRatio: CGFloat {
-        let dims = rtspClient.videoDimensions
-        if dims.width > 0 && dims.height > 0 {
-            return dims.width / dims.height
-        }
-        return AppSettings.shared.cachedAspectRatio(for: camera.id) ?? (16.0 / 9.0)
-    }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -314,6 +311,7 @@ struct CameraCell: View {
 
             if mode != .playing {
                 stateOverlay
+                    .transition(.opacity)
             }
 
             if !isFocused {
@@ -328,21 +326,24 @@ struct CameraCell: View {
                         now: clockTick,
                         visible: hudVisible
                     )
+                    .transition(.opacity)
                 } else {
                     focusOverlay
+                        .transition(.opacity)
                 }
             }
         }
-        // When focused the parent supplies an explicit full-screen frame, so the
-        // cell must fill it. Applying .aspectRatio here — even with a nil ratio —
-        // re-derives the size from the content's ideal dimensions (a GeometryReader
-        // reports 10×10), collapsing the picture to a tiny centered box. Only
-        // constrain the aspect ratio in the grid, where height is unspecified.
-        .conditionalAspectRatio(aspectRatio, contentMode: .fit, when: !isFocused)
+        // The parent always supplies an explicit width AND height (grid cells get
+        // an aspect-shaped frame; focus gets the full geometry), so this view never
+        // toggles an .aspectRatio modifier. That keeps its structural identity
+        // stable across the grid↔focus transition — no subtree teardown (which
+        // reparents the display layer → black flash) and no GeometryReader
+        // ideal-size collapse (the "tiny box that zooms back" on exit). The video
+        // layer's gravity handles fit/fill inside the fixed frame.
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: isFocused ? 0 : 4))
         .onAppear {
-            if rtspClient.isConnected {
+            if rtspClient.hasFrame {
                 mode = .playing
             } else if rtspClient.error != nil {
                 mode = .failed
@@ -371,8 +372,10 @@ struct CameraCell: View {
                 mode = .connecting
             }
         }
-        .onChange(of: rtspClient.isConnected) { connected in
-            if connected { mode = .playing }
+        .onChange(of: rtspClient.hasFrame) { ready in
+            // Reveal the picture only once a real frame exists, fading the
+            // connecting overlay out so video doesn't pop in over black.
+            if ready { withAnimation(.easeOut(duration: 0.25)) { mode = .playing } }
         }
         .onChange(of: rtspClient.error) { err in
             if err != nil { mode = .failed }
@@ -413,12 +416,13 @@ struct CameraCell: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .enterTrueFullscreen)) { _ in
             guard isFocused else { return }
-            isTrueFullscreen = true
+            // Crossfade the focus chrome → fullscreen HUD over the panel resize.
+            withAnimation(.easeInOut(duration: 0.3)) { isTrueFullscreen = true }
             installMouseMonitor()
             bumpHud()
         }
         .onReceive(NotificationCenter.default.publisher(for: .exitTrueFullscreen)) { _ in
-            isTrueFullscreen = false
+            withAnimation(.easeInOut(duration: 0.3)) { isTrueFullscreen = false }
             removeMouseMonitor()
             hudHideWorkItem?.cancel()
             hudVisible = true
@@ -428,7 +432,7 @@ struct CameraCell: View {
             if isFocused {
                 exitFocus()
             } else {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(Self.focusAnimation) {
                     focusedCameraId = camera.id
                 }
                 // Activate app so keyboard events reach our panel
@@ -441,7 +445,7 @@ struct CameraCell: View {
     // MARK: - Focus management
 
     private func exitFocus() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Self.focusAnimation) {
             focusedCameraId = nil
         }
     }
@@ -666,7 +670,7 @@ struct CameraCell: View {
     // MARK: - Stream lifecycle
 
     private func startStream() {
-        if rtspClient.isConnected { mode = .playing; return }
+        if rtspClient.hasFrame { mode = .playing; return }
         guard streamTask == nil else { return }
         guard service.isPopoverOpen, camera.isOnline else {
             mode = camera.isOnline ? .connecting : .failed
@@ -674,7 +678,10 @@ struct CameraCell: View {
         }
         mode = .connecting
 
-        let stagger = UInt64(abs(camera.id.hashValue) % 7) * 260_000_000
+        // Stagger connects by grid position so tiles light up as a calm
+        // top-left → bottom-right cascade rather than a random scatter. Cap the
+        // delay so large grids don't leave the last tiles waiting too long.
+        let stagger = UInt64(min(loadOrder, 12)) * 90_000_000
 
         streamTask = Task {
             try? await Task.sleep(nanoseconds: stagger)

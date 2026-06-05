@@ -38,7 +38,18 @@ struct ProtectStreamView: NSViewRepresentable {
         nsView.onPan = onPan
         nsView.onKeyPress = onKeyPress
         nsView.onKeyUp = onKeyUp
-        displayLayer.videoGravity = videoGravity
+
+        // Cross-dissolve when the framing changes (grid .resizeAspectFill →
+        // focus .resizeAspect, or the fit/fill toggle). Switching gravity is
+        // otherwise an instant reflow that pops letterbox bars in/out mid-zoom.
+        if displayLayer.videoGravity != videoGravity {
+            let fade = CATransition()
+            fade.type = .fade
+            fade.duration = 0.28
+            fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            displayLayer.add(fade, forKey: "videoGravity")
+            displayLayer.videoGravity = videoGravity
+        }
 
         // Re-parent the layer if it was somehow detached (e.g. after a focus
         // resize moved/dropped it from the layer tree).
@@ -78,16 +89,29 @@ final class DisplayLayerHostView: NSView {
         dl.frame = bounds
     }
 
+    /// Resize sublayers to `frame` with implicit animations disabled. During an
+    /// animated focus resize the host view's bounds change every tick; without
+    /// this the display layer runs its own implicit (~0.25s) frame animation and
+    /// lags behind the view, exposing the dark backing behind the video — the
+    /// "black flash." Snapping it each pass keeps the picture glued to the view.
+    private func syncSublayerFrames(to frame: CGRect) {
+        guard let sublayers = layer?.sublayers else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        sublayers.forEach { $0.frame = frame }
+        CATransaction.commit()
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         reattachManagedLayerIfNeeded()
-        layer?.sublayers?.forEach { $0.frame = CGRect(origin: .zero, size: newSize) }
+        syncSublayerFrames(to: CGRect(origin: .zero, size: newSize))
     }
 
     override func layout() {
         super.layout()
         reattachManagedLayerIfNeeded()
-        layer?.sublayers?.forEach { $0.frame = bounds }
+        syncSublayerFrames(to: bounds)
     }
 
     override var acceptsFirstResponder: Bool { true }

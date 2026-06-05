@@ -283,7 +283,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.level = .screenSaver
         panel.backgroundColor = .black
         panel.hasShadow = false
-        panel.setFrame(screen.frame, display: true, animate: true)
+        Self.animatePanelFrame(panel, to: screen.frame)
+    }
+
+    /// Resize the panel with a soft ease-out that approximates the SwiftUI
+    /// `.spring` used for grid↔focus, so the focus→fullscreen step feels like a
+    /// continuation of the same motion rather than a different animation engine.
+    private static func animatePanelFrame(_ panel: NSPanel, to frame: NSRect) {
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.42
+            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+            panel.animator().setFrame(frame, display: true)
+        }
     }
 
     private func exitPanelFullscreen() {
@@ -295,7 +306,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.level = savedPanelLevel ?? .floating
         panel.hasShadow = true
         if let frame = savedPanelFrame {
-            panel.setFrame(frame, display: true, animate: true)
+            Self.animatePanelFrame(panel, to: frame)
         }
         savedPanelFrame = nil
     }

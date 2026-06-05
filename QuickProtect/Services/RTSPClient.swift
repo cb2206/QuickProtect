@@ -13,6 +13,10 @@ final class RTSPClient: ObservableObject {
 
     @Published var displayLayer = AVSampleBufferDisplayLayer()
     @Published var isConnected  = false
+    /// True once the first frame has actually been enqueued for display.
+    /// `isConnected` flips at RTP setup — before any picture exists — so the UI
+    /// keys its "now showing video" state off this instead to avoid a black gap.
+    @Published var hasFrame     = false
     @Published var error: String?
     @Published var videoDimensions: CGSize = .zero
 
@@ -45,6 +49,7 @@ final class RTSPClient: ObservableObject {
     private var h264PPS: [UInt8]?
 
     private var pendingNALs: [[UInt8]] = []
+    private var hasFrameSignalled = false   // queue-only: gates the one-shot hasFrame publish
 
     // MARK: - Init
 
@@ -81,6 +86,7 @@ final class RTSPClient: ObservableObject {
 
     func connect(to url: URL) {
         Self.dbg("[RTSP] connect called: \(url)")
+        DispatchQueue.main.async { self.hasFrame = false }
         queue.async { [self] in
             disconnectOnQueue()
             currentURL       = url
@@ -100,6 +106,7 @@ final class RTSPClient: ObservableObject {
             pendingNALs      = []
             sequenceNumber   = 0
             formatDescription = nil
+            hasFrameSignalled = false
 
             guard let host = url.host,
                   let rawPort = url.port,
@@ -164,6 +171,7 @@ final class RTSPClient: ObservableObject {
         displayLayer.flush()
         DispatchQueue.main.async { [self] in
             isConnected = false
+            hasFrame    = false
             error = nil
         }
     }
@@ -564,6 +572,10 @@ final class RTSPClient: ObservableObject {
             }
             if displayLayer.status == .failed { displayLayer.flush() }
             displayLayer.enqueue(sb)
+            if !hasFrameSignalled {
+                hasFrameSignalled = true
+                DispatchQueue.main.async { self.hasFrame = true }
+            }
         }
     }
 
