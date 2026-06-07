@@ -1,0 +1,24 @@
+QuickProtect zet je UniFi Protect-camera's op één klik afstand — direct in de menubalk van je Mac.
+
+Klik op het menubalksymbool om al je camera's in een live raster te zien. Klik op een camera om die te focussen, dubbelklik om die in Protect te openen en druk op F voor volledig scherm. PTZ-camera's pan en kantel je met de pijltoetsen of het bedieningspaneel op het scherm.
+
+QuickProtect communiceert rechtstreeks met je controller op je lokale netwerk via RTSP/RTSPS. Geen cloud, geen account, geen tracking — je video verlaat nooit je netwerk.
+
+FUNCTIES
+• Live cameraraster in je menubalk
+• Focus en volledig scherm met één klik
+• PTZ-bediening met het toetsenbord of een paneel op het scherm
+• Zoomen en pannen binnen een beeld
+• Schaalbaar venster, camera's herschikken door slepen
+• Formaat en zichtbaarheid per camera
+• Lichte, donkere en automatische thema's met accentkleuren
+• Globale sneltoets om het raster te tonen of te verbergen
+• Starten bij inloggen
+• Gratis en open source (MIT)
+
+VEREISTEN
+• Een UniFi Protect-controller op je lokale netwerk
+• Een integratie-API-sleutel van je controller (voor de cameralijst en live streams)
+• Een lokaal beheerdersaccount — optioneel, alleen nodig voor PTZ-bediening
+
+QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd door Ubiquiti Inc. UniFi en UniFi Protect zijn handelsmerken van Ubiquiti Inc.

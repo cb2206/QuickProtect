@@ -16,3 +16,10 @@ DerivedData/
 *.xcuserdata/
 .claude/
 .build/
+
+# Fastlane secrets & generated output
+fastlane/.env
+*.p8
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/

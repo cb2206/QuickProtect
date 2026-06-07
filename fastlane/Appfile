@@ -1,0 +1,6 @@
+app_identifier("com.cb.quickprotect")
+team_id("K2LM9FSU6C") # Apple Developer portal team
+
+# Auth is via App Store Connect API key (see fastlane/.env), so no apple_id /
+# interactive login is needed. Uncomment only if you fall back to Apple ID auth.
+# apple_id("christian@thebartels.de")

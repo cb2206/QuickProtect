@@ -1,0 +1,24 @@
+QuickProtect pone tus cámaras UniFi Protect a un clic, directamente en la barra de menús de tu Mac.
+
+Haz clic en el icono de la barra de menús para ver todas tus cámaras en una cuadrícula en vivo. Haz clic en una cámara para enfocarla, doble clic para abrirla en Protect y pulsa F para pantalla completa. Con las cámaras PTZ, gira e inclina con las teclas de flecha o el panel en pantalla.
+
+QuickProtect se comunica directamente con tu controlador en tu red local mediante RTSP/RTSPS. Sin nube, sin cuenta, sin rastreo: tu vídeo nunca sale de tu red.
+
+FUNCIONES
+• Cuadrícula de cámaras en vivo en la barra de menús
+• Enfoque y pantalla completa con un clic
+• Control PTZ con el teclado o un panel en pantalla
+• Zoom y desplazamiento dentro de una transmisión
+• Ventana redimensionable, reordena las cámaras arrastrando
+• Tamaño y ocultación por cámara
+• Temas claro, oscuro y automático con colores de acento
+• Atajo de teclado global para mostrar u ocultar la cuadrícula
+• Abrir al iniciar sesión
+• Gratis y de código abierto (MIT)
+
+REQUISITOS
+• Un controlador UniFi Protect en tu red local
+• Una clave de la API de integración de tu controlador (para la lista de cámaras y las transmisiones en vivo)
+• Una cuenta de administrador local: opcional, solo necesaria para el control PTZ
+
+QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni respaldada por ella. UniFi y UniFi Protect son marcas de Ubiquiti Inc.

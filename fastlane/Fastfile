@@ -1,0 +1,195 @@
+# QuickProtect — App Store Connect pipeline
+#
+# Auth: App Store Connect API key, read from fastlane/.env (gitignored).
+# Required env vars: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH  (see .env.example)
+#
+# Common usage:
+#   fastlane mac metadata   # push all 7 localized listings (no binary) — safe anytime
+#   fastlane mac build      # archive Release + export an App Store .pkg
+#   fastlane mac release    # build + upload binary + metadata + submit for review
+
+default_platform(:mac)
+opt_out_usage
+
+APP_IDENTIFIER = "com.cb.quickprotect"
+SCHEME = "QuickProtect"
+PKG_PATH = "build/fastlane/QuickProtect.pkg"
+
+def asc_api_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    key_filepath: ENV.fetch("ASC_KEY_PATH"),
+    duration: 1200,
+    in_house: false
+  )
+end
+
+# Authenticate the Spaceship Connect API client (for direct model calls).
+def connect_token
+  Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    filepath: File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+  )
+end
+
+ACTIVE_REVIEW_STATES = %w[WAITING_FOR_REVIEW READY_FOR_REVIEW UNRESOLVED_ISSUES IN_REVIEW].freeze
+
+platform :mac do
+  desc "Read-only: verify API auth and print current App Store version states"
+  lane :auth_check do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("Authenticated, but app #{APP_IDENTIFIER} not found on this account") unless app
+    UI.success("Auth OK — #{app.name} (id #{app.id})")
+    app.get_app_store_versions.each do |v|
+      UI.message("  version #{v.version_string} — state: #{v.app_store_state}")
+    end
+  end
+
+  desc "Read-only: show version states + recent build processing status"
+  lane :status do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.success("#{app.name} (id #{app.id})")
+    UI.header("App Store versions")
+    app.get_app_store_versions.each do |v|
+      UI.message("  #{v.version_string} — #{v.app_store_state} [id #{v.id}, #{v.platform}, created #{v.created_date}]")
+    end
+    UI.header("Recent builds")
+    Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 5).each do |b|
+      UI.message("  build #{b.version} (app v#{b.app_version}) — #{b.processing_state}")
+    end
+  end
+
+  desc "Remove the current version from App Store review (frees the slot to ship a new version)"
+  lane :cancel_review do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    active = app.get_review_submissions.find { |s| ACTIVE_REVIEW_STATES.include?(s.state) }
+    if active.nil?
+      UI.message("No active review submission — nothing to cancel.")
+      next
+    end
+    UI.important("Canceling review submission (state: #{active.state})…")
+    active.cancel_submission
+    # Wait until the version returns to an editable state.
+    20.times do
+      v = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::MAC_OS)
+      if v
+        UI.success("Review canceled — version #{v.version_string} is now editable (#{v.app_store_state}).")
+        break
+      end
+      sleep(3)
+    end
+  end
+
+  desc "Ship 1.1: set version to 1.1, push all localized metadata, attach build 2, and submit for review"
+  lane :submit_v11 do
+    sh("cd .. && python3 scripts/gen_appstore_metadata.py")
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      app_version: "1.1",
+      build_number: "2",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,           # you press "Release" once approved
+      force: true,
+      run_precheck_before_submit: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+
+  desc "Cleanup: delete stray non-macOS version drafts (only deletes editable PREPARE_FOR_SUBMISSION)"
+  lane :delete_stray_ios do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    strays = app.get_app_store_versions.select do |v|
+      v.platform != "MAC_OS" && v.app_store_state == "PREPARE_FOR_SUBMISSION"
+    end
+    if strays.empty?
+      UI.message("No stray non-macOS drafts to delete.")
+      next
+    end
+    strays.each do |v|
+      UI.important("Deleting #{v.platform} version #{v.version_string} (id #{v.id}, #{v.app_store_state})…")
+      Spaceship::ConnectAPI.client.tunes_request_client.delete("v1/appStoreVersions/#{v.id}")
+      UI.success("Deleted #{v.id}")
+    end
+  end
+
+  desc "Regenerate the Xcode project from project.yml (it is gitignored)"
+  lane :gen do
+    sh("cd .. && xcodegen generate")
+  end
+
+  desc "Regenerate localized metadata from APP_STORE_LISTINGS.md and push it (no binary). Safe anytime."
+  lane :metadata do
+    sh("cd .. && python3 scripts/gen_appstore_metadata.py")
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      force: true,                      # skip the interactive HTML preview
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Archive a Release build and export an App Store .pkg into build/fastlane/"
+  lane :build do
+    gen
+    key_path = File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+    auth = "-allowProvisioningUpdates " \
+           "-authenticationKeyPath #{key_path} " \
+           "-authenticationKeyID #{ENV.fetch('ASC_KEY_ID')} " \
+           "-authenticationKeyIssuerID #{ENV.fetch('ASC_ISSUER_ID')}"
+    build_mac_app(
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build/fastlane",
+      output_name: "QuickProtect",
+      xcargs: auth # gym applies this to both the archive and the export steps
+    )
+  end
+
+  desc "Upload an already-exported .pkg to App Store Connect (no submit, no metadata)"
+  lane :upload_build do
+    upload_to_testflight(
+      api_key: asc_api_key,
+      pkg: PKG_PATH,
+      skip_submission: true,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Build, upload the binary + metadata, and submit the current version for review"
+  lane :release do
+    build
+    sh("cd .. && python3 scripts/gen_appstore_metadata.py")
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      pkg: PKG_PATH,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,         # you press "Release" once approved
+      force: true,
+      run_precheck_before_submit: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+end
