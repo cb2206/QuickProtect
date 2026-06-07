@@ -125,6 +125,74 @@ platform :mac do
     end
   end
 
+  # --- Xcode Cloud helpers (public ASC API; needs an Admin key) ---
+  def asc_get(path)
+    require "net/http"
+    require "json"
+    token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      filepath: File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+    )
+    uri = URI("https://api.appstoreconnect.apple.com#{path}")
+    req = Net::HTTP::Get.new(uri)
+    req["Authorization"] = "Bearer #{token.text}"
+    res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |h| h.request(req) }
+    JSON.parse(res.body)
+  end
+
+  def asc_patch(path, body)
+    require "net/http"
+    require "json"
+    token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      filepath: File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+    )
+    uri = URI("https://api.appstoreconnect.apple.com#{path}")
+    req = Net::HTTP::Patch.new(uri)
+    req["Authorization"] = "Bearer #{token.text}"
+    req["Content-Type"] = "application/json"
+    req.body = body.to_json
+    Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |h| h.request(req) }
+  end
+
+  desc "Disable all enabled Xcode Cloud workflows (stops failing CI builds + emails; reversible)"
+  lane :ci_disable do
+    products = asc_get("/v1/ciProducts?limit=200")
+    (products["data"] || []).each do |prod|
+      wfs = asc_get("/v1/ciProducts/#{prod['id']}/workflows?limit=200")
+      (wfs["data"] || []).each do |wf|
+        next unless wf.dig("attributes", "isEnabled")
+        name = wf.dig("attributes", "name")
+        UI.important("Disabling workflow '#{name}' (#{wf['id']})…")
+        res = asc_patch("/v1/ciWorkflows/#{wf['id']}", {
+          data: { type: "ciWorkflows", id: wf["id"], attributes: { isEnabled: false } }
+        })
+        if res.code.to_i.between?(200, 299)
+          UI.success("Disabled '#{name}' (HTTP #{res.code})")
+        else
+          UI.error("Failed to disable '#{name}' (HTTP #{res.code}): #{res.body}")
+        end
+      end
+    end
+  end
+
+  desc "Read-only: list Xcode Cloud products and workflows"
+  lane :ci_status do
+    products = asc_get("/v1/ciProducts?limit=200")
+    data = products["data"] || []
+    UI.success("Xcode Cloud products: #{data.size}")
+    data.each do |prod|
+      UI.message("Product: #{prod.dig('attributes', 'name')} (#{prod['id']})")
+      wfs = asc_get("/v1/ciProducts/#{prod['id']}/workflows?limit=200")
+      (wfs["data"] || []).each do |wf|
+        UI.important("  workflow '#{wf.dig('attributes', 'name')}' (#{wf['id']}) enabled=#{wf.dig('attributes', 'isEnabled')}")
+      end
+    end
+    UI.message(products["errors"].to_s) if products["errors"]
+  end
+
   desc "Regenerate the Xcode project from project.yml (it is gitignored)"
   lane :gen do
     sh("cd .. && xcodegen generate")

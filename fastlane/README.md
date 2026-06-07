@@ -55,6 +55,22 @@ Ship 1.1: set version to 1.1, push all localized metadata, attach build 2, and s
 
 Cleanup: delete stray non-macOS version drafts (only deletes editable PREPARE_FOR_SUBMISSION)
 
+### mac ci_disable
+
+```sh
+[bundle exec] fastlane mac ci_disable
+```
+
+Disable all enabled Xcode Cloud workflows (stops failing CI builds + emails; reversible)
+
+### mac ci_status
+
+```sh
+[bundle exec] fastlane mac ci_status
+```
+
+Read-only: list Xcode Cloud products and workflows
+
 ### mac gen
 
 ```sh
