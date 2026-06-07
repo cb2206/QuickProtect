@@ -23,3 +23,6 @@ fastlane/.env
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/test_output/
+
+# graphify knowledge graph (machine-specific, regenerate with `graphify update .`)
+graphify-out/
