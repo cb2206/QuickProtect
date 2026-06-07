@@ -1,0 +1,187 @@
+{
+  "/Users/cb/dev/QuickProtect/QuickProtect/AppDelegate.swift": {
+    "mtime": 1780618020.7865827,
+    "ast_hash": "410135219a100b6df72107a85ba8338e",
+    "semantic_hash": "410135219a100b6df72107a85ba8338e"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Models/AppSettings.swift": {
+    "mtime": 1780615697.9261117,
+    "ast_hash": "58fee5bccfbb8cab554599ceae233927",
+    "semantic_hash": "58fee5bccfbb8cab554599ceae233927"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Models/Camera.swift": {
+    "mtime": 1775515559.0,
+    "ast_hash": "2c675db7a1eeba1e5b4f6d1f0d70f706",
+    "semantic_hash": "2c675db7a1eeba1e5b4f6d1f0d70f706"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Services/HotkeyManager.swift": {
+    "mtime": 1775017531.0,
+    "ast_hash": "a631a514dc374f16b1297cececc312a2",
+    "semantic_hash": "a631a514dc374f16b1297cececc312a2"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Services/ProtectService.swift": {
+    "mtime": 1780615697.9268756,
+    "ast_hash": "7b5443a7a5f04ebce473cce805487e5c",
+    "semantic_hash": "7b5443a7a5f04ebce473cce805487e5c"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Services/RTPParser.swift": {
+    "mtime": 1775017390.0,
+    "ast_hash": "365f02ef71993866124e1e94c5a49de8",
+    "semantic_hash": "365f02ef71993866124e1e94c5a49de8"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Services/RTSPClient.swift": {
+    "mtime": 1780617823.4968367,
+    "ast_hash": "4014ff05e6b9dda0f9d35ad5eb687c5d",
+    "semantic_hash": "4014ff05e6b9dda0f9d35ad5eb687c5d"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Services/RTSPClientManager.swift": {
+    "mtime": 1775502641.0,
+    "ast_hash": "372213066f91d9d570e313206deb433b",
+    "semantic_hash": "372213066f91d9d570e313206deb433b"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Services/UpdateChecker.swift": {
+    "mtime": 1780633033.4607027,
+    "ast_hash": "d0c34185d6e4d12e31067bfab0965959",
+    "semantic_hash": "d0c34185d6e4d12e31067bfab0965959"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/AuroraDesign.swift": {
+    "mtime": 1776835902.0,
+    "ast_hash": "395ca4719c007383e0a2dd70a0e7c0a4",
+    "semantic_hash": "395ca4719c007383e0a2dd70a0e7c0a4"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/AuroraFocusOverlay.swift": {
+    "mtime": 1780615697.928166,
+    "ast_hash": "335e14fd5a93ca399d96a37a1a64906a",
+    "semantic_hash": "335e14fd5a93ca399d96a37a1a64906a"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/AuroraSettingsChrome.swift": {
+    "mtime": 1780615697.9286182,
+    "ast_hash": "afe128ce359588530c8f227240c27a56",
+    "semantic_hash": "afe128ce359588530c8f227240c27a56"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/AuroraStates.swift": {
+    "mtime": 1776836383.0,
+    "ast_hash": "c1a760c2cc17d973d88d50bc8e7b82b8",
+    "semantic_hash": "c1a760c2cc17d973d88d50bc8e7b82b8"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/CameraGridView.swift": {
+    "mtime": 1780619011.4406922,
+    "ast_hash": "573fa74e45d024f3ad8685e714641df2",
+    "semantic_hash": "573fa74e45d024f3ad8685e714641df2"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/OnboardingView.swift": {
+    "mtime": 1780615697.929539,
+    "ast_hash": "ccb1660791064986b6f1577a4aaf35b5",
+    "semantic_hash": "ccb1660791064986b6f1577a4aaf35b5"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/PopoverContentView.swift": {
+    "mtime": 1780615697.9299872,
+    "ast_hash": "6397c777106d73fff39fca1626738f9d",
+    "semantic_hash": "6397c777106d73fff39fca1626738f9d"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/ProtectStreamView.swift": {
+    "mtime": 1780617794.961915,
+    "ast_hash": "007ac1612d084ec8648f1e36464b5178",
+    "semantic_hash": "007ac1612d084ec8648f1e36464b5178"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/Views/SettingsView.swift": {
+    "mtime": 1780619130.7138329,
+    "ast_hash": "828dbf04f926ff1474a5071f37ac364d",
+    "semantic_hash": "828dbf04f926ff1474a5071f37ac364d"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtect/main.swift": {
+    "mtime": 1774409387.0,
+    "ast_hash": "cc29c2001e9f321b59226e22aadacdf7",
+    "semantic_hash": "cc29c2001e9f321b59226e22aadacdf7"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/AppearanceTests.swift": {
+    "mtime": 1780631788.6199427,
+    "ast_hash": "0034ce3324781f3ef60713d970b1f569",
+    "semantic_hash": "0034ce3324781f3ef60713d970b1f569"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/CameraModelTests.swift": {
+    "mtime": 1775528160.0,
+    "ast_hash": "260e6be1d25557493de82f2d49faa128",
+    "semantic_hash": "260e6be1d25557493de82f2d49faa128"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/GridLayoutTests.swift": {
+    "mtime": 1775020618.0,
+    "ast_hash": "0127583eb1f0a480f1e0a464771a44b7",
+    "semantic_hash": "0127583eb1f0a480f1e0a464771a44b7"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/HotkeyManagerTests.swift": {
+    "mtime": 1775020813.0,
+    "ast_hash": "770e229b0276959c0ad2a2f96bf0053a",
+    "semantic_hash": "770e229b0276959c0ad2a2f96bf0053a"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/RTPParserTests.swift": {
+    "mtime": 1775020618.0,
+    "ast_hash": "91544473110fbe33e8b8f6e78d41c073",
+    "semantic_hash": "91544473110fbe33e8b8f6e78d41c073"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/RTSPProtocolTests.swift": {
+    "mtime": 1775020618.0,
+    "ast_hash": "afa80d9af3a3e56438e944dc2dab43b2",
+    "semantic_hash": "afa80d9af3a3e56438e944dc2dab43b2"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/TestRunner.swift": {
+    "mtime": 1775528178.0,
+    "ast_hash": "fe54f227db471ed43dca7599f2bee15a",
+    "semantic_hash": "fe54f227db471ed43dca7599f2bee15a"
+  },
+  "/Users/cb/dev/QuickProtect/QuickProtectTests/VersionComparisonTests.swift": {
+    "mtime": 1775020618.0,
+    "ast_hash": "def2f45cbc06d7ceb8ba8fea883ea185",
+    "semantic_hash": "def2f45cbc06d7ceb8ba8fea883ea185"
+  },
+  "/Users/cb/dev/QuickProtect/scripts/autocrop.swift": {
+    "mtime": 1780628118.7447891,
+    "ast_hash": "b4ee78b19f8cae15dd03a9635a0c3464",
+    "semantic_hash": "b4ee78b19f8cae15dd03a9635a0c3464"
+  },
+  "/Users/cb/dev/QuickProtect/scripts/blur_streams.swift": {
+    "mtime": 1780629744.3672216,
+    "ast_hash": "859f1e775dedcd1b78792da7d53b5c8a",
+    "semantic_hash": "859f1e775dedcd1b78792da7d53b5c8a"
+  },
+  "/Users/cb/dev/QuickProtect/scripts/clean_window.swift": {
+    "mtime": 1780628504.4428613,
+    "ast_hash": "487a24e13bc0f57a2d8b370ce60e676a",
+    "semantic_hash": "487a24e13bc0f57a2d8b370ce60e676a"
+  },
+  "/Users/cb/dev/QuickProtect/scripts/compose_screenshot.swift": {
+    "mtime": 1780628436.6267638,
+    "ast_hash": "94851db915f451305c0fdf4ee3e08d20",
+    "semantic_hash": "94851db915f451305c0fdf4ee3e08d20"
+  },
+  "/Users/cb/dev/QuickProtect/scripts/generate_appicon.swift": {
+    "mtime": 1780620161.7270977,
+    "ast_hash": "5b0d8602e75101842cf79aa6b9ba9ed9",
+    "semantic_hash": "5b0d8602e75101842cf79aa6b9ba9ed9"
+  },
+  "/Users/cb/dev/QuickProtect/PRIVACY.md": {
+    "mtime": 1780636004.55413,
+    "ast_hash": "6c9184a57dcedba339c7005b87d85240",
+    "semantic_hash": "6c9184a57dcedba339c7005b87d85240"
+  },
+  "/Users/cb/dev/QuickProtect/README.md": {
+    "mtime": 1780631899.593268,
+    "ast_hash": "ff23f4f4e7956db238f98e7d19395071",
+    "semantic_hash": "ff23f4f4e7956db238f98e7d19395071"
+  },
+  "/Users/cb/dev/QuickProtect/project.yml": {
+    "mtime": 1780631772.7062309,
+    "ast_hash": "98f039a77aa84db24b14adf023eb8154",
+    "semantic_hash": "98f039a77aa84db24b14adf023eb8154"
+  },
+  "/Users/cb/dev/QuickProtect/screenshots/appstore-1.png": {
+    "mtime": 1780631452.1506023,
+    "ast_hash": "49d31cf1a962e0bc6945531b97291c3a",
+    "semantic_hash": "49d31cf1a962e0bc6945531b97291c3a"
+  },
+  "/Users/cb/dev/QuickProtect/screenshots/appstore-2.png": {
+    "mtime": 1780631420.979663,
+    "ast_hash": "8107d8966ec0be8d7b67358aaf0fc4ec",
+    "semantic_hash": "8107d8966ec0be8d7b67358aaf0fc4ec"
+  }
+}
