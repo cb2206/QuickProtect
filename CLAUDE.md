@@ -1,6 +1,8 @@
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+This project uses a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Note: graphify-out/ is **gitignored** (machine-specific generated output). It won't exist on a fresh clone — run `graphify update .` once to generate it locally. The rules below apply only when the files are present.
 
 Rules:
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
