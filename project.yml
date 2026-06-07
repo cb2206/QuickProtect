@@ -5,6 +5,7 @@ options:
     macOS: "13.0"
   defaultConfig: Debug
   xcodeVersion: "16.0"
+  developmentLanguage: en
 
 settings:
   base:
@@ -43,10 +44,20 @@ targets:
         # Menu-bar agent: no Dock icon, no main window.
         LSUIElement: true
         CFBundleIconFile: QuickProtect
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "2"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
+        # Advertise the languages the app ships (English + German) so the system
+        # offers German when the user's preferred language is German.
+        CFBundleLocalizations:
+          - en
+          - de
+          - fr
+          - es
+          - nl
+          - it
+          - pt-BR
         NSHumanReadableCopyright: "Copyright © 2026 Christian Bartels. All rights reserved."
         # Shown when macOS 15+ prompts for local-network access.
         NSLocalNetworkUsageDescription: "QuickProtect connects to your UniFi Protect controller on your local network to list cameras and stream video."

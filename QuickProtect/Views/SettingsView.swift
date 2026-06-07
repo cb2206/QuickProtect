@@ -31,6 +31,20 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .about:      return "info.circle"
         }
     }
+
+    /// Localized title shown in the sidebar and detail-pane header. The raw value
+    /// remains the stable identifier; this is the user-facing, translatable label.
+    var title: String {
+        switch self {
+        case .general:    return String(localized: "General")
+        case .connection: return String(localized: "Connection")
+        case .ptz:        return String(localized: "PTZ")
+        case .cameras:    return String(localized: "Cameras")
+        case .shortcuts:  return String(localized: "Shortcuts")
+        case .updates:    return String(localized: "Updates")
+        case .about:      return String(localized: "About")
+        }
+    }
 }
 
 // MARK: - Root
@@ -81,7 +95,7 @@ struct SettingsView: View {
             ForEach(SettingsTab.visibleCases) { t in
                 AuroraSidebarItem(
                     systemImage: t.systemImage,
-                    title: t.rawValue,
+                    title: t.title,
                     selected: tab == t,
                     action: { tab = t }
                 )
@@ -104,7 +118,7 @@ struct SettingsView: View {
     private var detailPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                Text(tab.rawValue)
+                Text(tab.title)
                     .font(.system(size: 15, weight: .semibold))
                     .tracking(-0.2)
                     .foregroundColor(palette.text)
@@ -141,13 +155,13 @@ struct SettingsView: View {
             AuroraStatusBadge(
                 connected: service.isClassicLoggedIn,
                 text: service.isClassicLoggedIn
-                    ? "Connected"
-                    : (configured ? "Not verified" : "Not configured")
+                    ? String(localized: "Connected")
+                    : (configured ? String(localized: "Not verified") : String(localized: "Not configured"))
             )
         } else {
             AuroraStatusBadge(
                 connected: service.errorMessage == nil && !service.cameras.isEmpty,
-                text: service.errorMessage == nil ? "Connected" : "Disconnected"
+                text: service.errorMessage == nil ? String(localized: "Connected") : String(localized: "Disconnected")
             )
         }
     }
@@ -156,12 +170,12 @@ struct SettingsView: View {
 
     private var connectionTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AuroraSettingsSection("Controller") {
-                AuroraSettingsRow("IP Address", hint: "Local IP of your UniFi Protect controller") {
+            AuroraSettingsSection(String(localized: "Controller")) {
+                AuroraSettingsRow(String(localized: "IP Address"), hint: String(localized: "Local IP of your UniFi Protect controller")) {
                     PastableTextField(text: $settings.ipAddress, placeholder: "10.0.1.1")
                         .frame(width: 260)
                 }
-                AuroraSettingsRow("API Key", hint: "Integration API key from controller settings") {
+                AuroraSettingsRow(String(localized: "API Key"), hint: String(localized: "Integration API key from controller settings")) {
                     HStack(spacing: 6) {
                         Group {
                             if showApiKey {
@@ -182,7 +196,7 @@ struct SettingsView: View {
                         .help(showApiKey ? "Hide API key" : "Show API key")
                     }
                 }
-                AuroraSettingsRow("Stream protocol") {
+                AuroraSettingsRow(String(localized: "Stream protocol")) {
                     AuroraSegmented(
                         options: [("RTSPS (TLS)", false), ("RTSP (7447)", true)],
                         selection: $settings.usePlainRtsp
@@ -191,7 +205,7 @@ struct SettingsView: View {
                 AuroraSettingsRow(isLast: true) {
                     HStack(spacing: 10) {
                         AuroraPrimaryButton(
-                            title: "Test Connection",
+                            title: String(localized: "Test Connection"),
                             disabled: isTesting || settings.ipAddress.isEmpty || settings.apiKey.isEmpty,
                             action: runTest
                         )
@@ -217,10 +231,10 @@ struct SettingsView: View {
 
     private var generalTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AuroraSettingsSection("Startup") {
+            AuroraSettingsSection(String(localized: "Startup")) {
                 AuroraSettingsRow(
-                    "Launch at login",
-                    hint: "Automatically start QuickProtect when you log in.",
+                    String(localized: "Launch at login"),
+                    hint: String(localized: "Automatically start QuickProtect when you log in."),
                     isLast: true,
                     labelExpands: true
                 ) {
@@ -230,10 +244,10 @@ struct SettingsView: View {
                 }
             }
 
-            AuroraSettingsSection("Focus view") {
+            AuroraSettingsSection(String(localized: "Focus view")) {
                 AuroraSettingsRow(
-                    "Show overlay controls",
-                    hint: "Display the keyboard-shortcut hints and the on-screen PTZ pad when a camera is in focus.",
+                    String(localized: "Show overlay controls"),
+                    hint: String(localized: "Display the keyboard-shortcut hints and the on-screen PTZ pad when a camera is in focus."),
                     isLast: true,
                     labelExpands: true
                 ) {
@@ -243,18 +257,18 @@ struct SettingsView: View {
                 }
             }
 
-            AuroraSettingsSection("Appearance") {
-                AuroraSettingsRow("Theme") {
+            AuroraSettingsSection(String(localized: "Appearance")) {
+                AuroraSettingsRow(String(localized: "Theme")) {
                     AuroraSegmented(
                         options: [
-                            ("Auto",  AppSettings.Appearance.auto),
-                            ("Light", AppSettings.Appearance.light),
-                            ("Dark",  AppSettings.Appearance.dark)
+                            (String(localized: "Auto"),  AppSettings.Appearance.auto),
+                            (String(localized: "Light"), AppSettings.Appearance.light),
+                            (String(localized: "Dark"),  AppSettings.Appearance.dark)
                         ],
                         selection: $settings.appearance
                     )
                 }
-                AuroraSettingsRow("Accent", isLast: true) {
+                AuroraSettingsRow(String(localized: "Accent"), isLast: true) {
                     HStack(spacing: 8) {
                         ForEach(AuroraAccent.swatches, id: \.self) { hex in
                             AccentSwatch(hex: hex, selected: settings.accentColorHex == hex) {
@@ -271,15 +285,15 @@ struct SettingsView: View {
 
     private var ptzTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AuroraSettingsSection("Classic API credentials") {
+            AuroraSettingsSection(String(localized: "Classic API credentials")) {
                 AuroraSettingsRow(
-                    "Username",
-                    hint: "Local admin account on the Protect controller."
+                    String(localized: "Username"),
+                    hint: String(localized: "Local admin account on the Protect controller.")
                 ) {
                     PastableTextField(text: $settings.username, placeholder: "")
                         .frame(width: 260)
                 }
-                AuroraSettingsRow("Password") {
+                AuroraSettingsRow(String(localized: "Password")) {
                     HStack(spacing: 6) {
                         Group {
                             if showPassword {
@@ -301,7 +315,7 @@ struct SettingsView: View {
                 AuroraSettingsRow(isLast: true) {
                     HStack(spacing: 10) {
                         AuroraPrimaryButton(
-                            title: "Test Connection",
+                            title: String(localized: "Test Connection"),
                             disabled: isTestingPtz || settings.ipAddress.isEmpty
                                 || settings.username.isEmpty || settings.password.isEmpty,
                             action: runPtzTest
@@ -364,14 +378,14 @@ struct SettingsView: View {
 
     private var shortcutsTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AuroraSettingsSection("Global") {
+            AuroraSettingsSection(String(localized: "Global")) {
                 AuroraSettingsRow(
-                    "Toggle QuickProtect",
-                    hint: "Show or hide the camera grid from anywhere.",
+                    String(localized: "Toggle QuickProtect"),
+                    hint: String(localized: "Show or hide the camera grid from anywhere."),
                     isLast: true
                 ) {
                     HStack(spacing: 10) {
-                        Text(isRecordingHotkey ? "Press shortcut…" : settings.hotkeyDisplayString)
+                        Text(isRecordingHotkey ? String(localized: "Press shortcut…") : settings.hotkeyDisplayString)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(isRecordingHotkey ? Color.accentColor : Color.accentColor)
                             .padding(.horizontal, 10).padding(.vertical, 3)
@@ -384,11 +398,11 @@ struct SettingsView: View {
                                     .stroke(Color.accentColor.opacity(isRecordingHotkey ? 1 : 0.4),
                                             lineWidth: 0.5)
                             )
-                        AuroraSecondaryButton(title: isRecordingHotkey ? "Cancel" : "Change") {
+                        AuroraSecondaryButton(title: isRecordingHotkey ? String(localized: "Cancel") : String(localized: "Change")) {
                             isRecordingHotkey.toggle()
                         }
                         if settings.globalHotkey() != nil {
-                            AuroraSecondaryButton(title: "Clear") {
+                            AuroraSecondaryButton(title: String(localized: "Clear")) {
                                 settings.clearGlobalHotkey()
                                 HotkeyManager.shared.unregister()
                             }
@@ -396,14 +410,14 @@ struct SettingsView: View {
                     }
                 }
             }
-            AuroraSettingsSection("Within QuickProtect") {
+            AuroraSettingsSection(String(localized: "Within QuickProtect")) {
                 let rows: [(String, String)] = [
-                    ("Focus camera",        "Click"),
-                    ("Display fullscreen",  "F  ·  Space"),
-                    ("Exit / back",         "Esc"),
-                    ("Pan & tilt (PTZ)",    "← → ↑ ↓"),
-                    ("Open in Protect",     "Double-click"),
-                    ("Zoom in feed",        "⌘+scroll"),
+                    (String(localized: "Focus camera"),       String(localized: "Click")),
+                    (String(localized: "Display fullscreen"), String(localized: "F  ·  Space")),
+                    (String(localized: "Exit / back"),        String(localized: "Esc")),
+                    (String(localized: "Pan & tilt (PTZ)"),   "← → ↑ ↓"),
+                    (String(localized: "Open in Protect"),    String(localized: "Double-click")),
+                    (String(localized: "Zoom in feed"),       String(localized: "⌘+scroll")),
                 ]
                 ForEach(Array(rows.enumerated()), id: \.offset) { idx, r in
                     AuroraSettingsRow(isLast: idx == rows.count - 1) {
@@ -426,8 +440,8 @@ struct SettingsView: View {
 
     private var updatesTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AuroraSettingsSection("Version") {
-                AuroraSettingsRow("Installed") {
+            AuroraSettingsSection(String(localized: "Version")) {
+                AuroraSettingsRow(String(localized: "Installed")) {
                     HStack(spacing: 8) {
                         Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
                             .font(.system(size: 12))
@@ -444,14 +458,14 @@ struct SettingsView: View {
                 }
             }
 
-            AuroraSettingsSection("Source") {
+            AuroraSettingsSection(String(localized: "Source")) {
                 AuroraSettingsRow(
-                    "GitHub",
-                    hint: "View the project source and releases.",
+                    String(localized: "GitHub"),
+                    hint: String(localized: "View the project source and releases."),
                     isLast: true,
                     labelExpands: true
                 ) {
-                    AuroraSecondaryButton(title: "View on GitHub") {
+                    AuroraSecondaryButton(title: String(localized: "View on GitHub")) {
                         if let url = URL(string: "https://github.com/cb2206/QuickProtect") {
                             NSWorkspace.shared.open(url)
                         }
@@ -467,12 +481,12 @@ struct SettingsView: View {
         case .idle:
             HStack(spacing: 10) {
                 if updateChecker.updateAvailable {
-                    AuroraPrimaryButton(title: "Install Update") {
+                    AuroraPrimaryButton(title: String(localized: "Install Update")) {
                         updateChecker.downloadAndInstall()
                     }
                 }
                 AuroraSecondaryButton(
-                    title: updateChecker.isChecking ? "Checking…" : "Check for Updates"
+                    title: updateChecker.isChecking ? String(localized: "Checking…") : String(localized: "Check for Updates")
                 ) {
                     updateChecker.checkForUpdate()
                 }
@@ -486,7 +500,7 @@ struct SettingsView: View {
                 Text("\(Int(progress * 100))%")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(palette.subtext)
-                AuroraSecondaryButton(title: "Cancel") { updateChecker.cancelDownload() }
+                AuroraSecondaryButton(title: String(localized: "Cancel")) { updateChecker.cancelDownload() }
             }
         case .installing:
             HStack(spacing: 8) {
@@ -502,8 +516,8 @@ struct SettingsView: View {
                     .foregroundColor(AuroraTokens.statusRed)
                     .lineLimit(3)
                 HStack(spacing: 8) {
-                    AuroraPrimaryButton(title: "Retry") { updateChecker.downloadAndInstall() }
-                    AuroraSecondaryButton(title: "Dismiss") { updateChecker.updateState = .idle }
+                    AuroraPrimaryButton(title: String(localized: "Retry")) { updateChecker.downloadAndInstall() }
+                    AuroraSecondaryButton(title: String(localized: "Dismiss")) { updateChecker.updateState = .idle }
                 }
             }
         }
@@ -531,20 +545,20 @@ struct SettingsView: View {
                 .foregroundColor(palette.subtext)
                 .frame(maxWidth: 420, alignment: .leading)
 
-            AuroraSettingsSection("Legal") {
+            AuroraSettingsSection(String(localized: "Legal")) {
                 AuroraSettingsRow(
-                    "License",
-                    hint: "© 2026 Christian Bartels · Released under the MIT License.",
+                    String(localized: "License"),
+                    hint: String(localized: "© 2026 Christian Bartels · Released under the MIT License."),
                     isLast: true,
                     labelExpands: true
                 ) {
                     HStack(spacing: 10) {
-                        AuroraSecondaryButton(title: "View License") {
+                        AuroraSecondaryButton(title: String(localized: "View License")) {
                             if let url = URL(string: "https://github.com/cb2206/QuickProtect/blob/main/LICENSE") {
                                 NSWorkspace.shared.open(url)
                             }
                         }
-                        AuroraSecondaryButton(title: "View on GitHub") {
+                        AuroraSecondaryButton(title: String(localized: "View on GitHub")) {
                             if let url = URL(string: "https://github.com/cb2206/QuickProtect") {
                                 NSWorkspace.shared.open(url)
                             }
@@ -584,7 +598,7 @@ struct SettingsView: View {
             } else {
                 let n = service.cameras.count
                 testResult = TestResult(
-                    message: "Connected · \(n) camera\(n == 1 ? "" : "s") found",
+                    message: String(localized: "Connected · \(n) cameras found"),
                     icon: "checkmark.circle.fill",
                     color: AuroraTokens.statusGreenDark
                 )
@@ -600,13 +614,13 @@ struct SettingsView: View {
             isTestingPtz = false
             if ok {
                 ptzTestResult = TestResult(
-                    message: "Signed in · PTZ control ready",
+                    message: String(localized: "Signed in · PTZ control ready"),
                     icon: "checkmark.circle.fill",
                     color: AuroraTokens.statusGreenDark
                 )
             } else {
                 ptzTestResult = TestResult(
-                    message: "Login failed — check the username and password",
+                    message: String(localized: "Login failed — check the username and password"),
                     icon: "xmark.circle.fill",
                     color: .red
                 )
@@ -811,14 +825,14 @@ private struct CameraRow: View {
                                 .background(Capsule().fill(Color.accentColor.opacity(0.15)))
                         }
                     }
-                    Text(camera.isOnline ? "Connected" : "Offline")
+                    Text(camera.isOnline ? String(localized: "Connected") : String(localized: "Offline"))
                         .font(.system(size: 11))
                         .foregroundColor(palette.subtext)
                 }
                 Spacer()
                 AuroraSegmented(
                     options: [
-                        ("Auto", nil as AppSettings.CameraSize?),
+                        (String(localized: "Auto"), nil as AppSettings.CameraSize?),
                         ("S",    .small),
                         ("M",    .medium),
                         ("L",    .large)

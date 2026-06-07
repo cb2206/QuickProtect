@@ -47,14 +47,14 @@ struct PopoverContentView: View {
 
             searchField
 
-            HeaderIconButton(systemName: "arrow.clockwise", help: "Refresh cameras") {
+            HeaderIconButton(systemName: "arrow.clockwise", help: String(localized: "Refresh cameras")) {
                 Task { await service.fetchCameras() }
             }
             .disabled(service.isLoading)
 
-            HeaderIconButton(systemName: "gearshape", help: "Settings", action: openSettings)
+            HeaderIconButton(systemName: "gearshape", help: String(localized: "Settings"), action: openSettings)
 
-            HeaderIconButton(systemName: "power", help: "Quit QuickProtect") {
+            HeaderIconButton(systemName: "power", help: String(localized: "Quit QuickProtect")) {
                 NSApp.terminate(nil)
             }
         }
@@ -83,7 +83,7 @@ struct PopoverContentView: View {
             Circle().fill(AuroraTokens.statusGreenDark)
                 .frame(width: 5, height: 5)
             // TODO: expose bitrate from ProtectService; design shows "· 4.2 Mbps" too
-            Text("\(visibleCount) stream\(visibleCount == 1 ? "" : "s")")
+            Text("\(visibleCount) streams")
                 .font(.system(size: 11))
                 .monospacedDigit()
         }
@@ -96,7 +96,7 @@ struct PopoverContentView: View {
         HStack(spacing: 5) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 10, weight: .medium))
-            AuroraSearchField(text: $searchQuery, placeholder: "Search cameras")
+            AuroraSearchField(text: $searchQuery, placeholder: String(localized: "Search cameras"))
                 .frame(width: 100)
             if !searchQuery.isEmpty {
                 Button { searchQuery = "" } label: {

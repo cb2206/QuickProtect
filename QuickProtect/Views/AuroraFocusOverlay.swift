@@ -59,11 +59,11 @@ struct AuroraFocusTopBar: View {
                 .foregroundStyle(.white.opacity(0.55))
 
             AuroraFocusIconButton(systemName: fillMode ? "rectangle.inset.filled" : "rectangle",
-                                   help: fillMode ? "Fit to frame" : "Fill frame") {
+                                   help: fillMode ? String(localized: "Fit to frame") : String(localized: "Fill frame")) {
                 fillMode.toggle()
             }
             AuroraFocusIconButton(systemName: "arrow.up.left.and.arrow.down.right",
-                                   help: "Fullscreen (F)",
+                                   help: String(localized: "Fullscreen (F)"),
                                    action: onToggleFullscreen)
         }
         .padding(.horizontal, 12).padding(.vertical, 7)
@@ -164,23 +164,23 @@ struct AuroraPtzDpad: View {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
                     Color.clear
-                    DpadButton(systemName: "chevron.up", help: "Tilt up",
+                    DpadButton(systemName: "chevron.up", help: String(localized: "Tilt up"),
                                isActive: activeDirection == .up,
                                onPress: { onPress(.up) }, onRelease: onRelease)
                     Color.clear
                 }
                 HStack(spacing: 0) {
-                    DpadButton(systemName: "chevron.left", help: "Pan left",
+                    DpadButton(systemName: "chevron.left", help: String(localized: "Pan left"),
                                isActive: activeDirection == .left,
                                onPress: { onPress(.left) }, onRelease: onRelease)
                     Color.clear
-                    DpadButton(systemName: "chevron.right", help: "Pan right",
+                    DpadButton(systemName: "chevron.right", help: String(localized: "Pan right"),
                                isActive: activeDirection == .right,
                                onPress: { onPress(.right) }, onRelease: onRelease)
                 }
                 HStack(spacing: 0) {
                     Color.clear
-                    DpadButton(systemName: "chevron.down", help: "Tilt down",
+                    DpadButton(systemName: "chevron.down", help: String(localized: "Tilt down"),
                                isActive: activeDirection == .down,
                                onPress: { onPress(.down) }, onRelease: onRelease)
                     Color.clear
@@ -345,10 +345,10 @@ struct AuroraFocusHints: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Hint(keys: ["F"], label: "Fullscreen")
-            Hint(keys: ["esc"], label: "Back")
+            Hint(keys: ["F"], label: String(localized: "Fullscreen"))
+            Hint(keys: ["esc"], label: String(localized: "Back"))
             if showPtzHint {
-                Hint(keys: ["←", "→", "↑", "↓"], label: "Pan / tilt")
+                Hint(keys: ["←", "→", "↑", "↓"], label: String(localized: "Pan / tilt"))
             }
         }
         .font(.system(size: 10.5))

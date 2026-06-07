@@ -123,7 +123,7 @@ final class UpdateChecker: NSObject, ObservableObject {
 
     func downloadAndInstall() {
         guard let url = dmgDownloadURL else {
-            updateState = .error("No DMG download URL found")
+            updateState = .error(String(localized: "No DMG download URL found"))
             return
         }
         updateState = .downloading(progress: 0)
@@ -302,9 +302,9 @@ final class UpdateChecker: NSObject, ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .mountFailed:        return "Failed to mount the update DMG"
-            case .noAppInDMG:         return "No app bundle found in the DMG"
-            case .swapFailed(let m):  return "App replacement failed: \(m)"
+            case .mountFailed:        return String(localized: "Failed to mount the update DMG")
+            case .noAppInDMG:         return String(localized: "No app bundle found in the DMG")
+            case .swapFailed(let m):  return String(localized: "App replacement failed: \(m)")
             case .processFailed(let m): return m
             }
         }
@@ -331,14 +331,14 @@ extension UpdateChecker: URLSessionDownloadDelegate {
             try FileManager.default.moveItem(at: location, to: URL(fileURLWithPath: dest))
             installUpdate(dmgPath: dest)
         } catch {
-            updateState = .error("Failed to save download: \(error.localizedDescription)")
+            updateState = .error(String(localized: "Failed to save download: \(error.localizedDescription)"))
         }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     didCompleteWithError error: Error?) {
         if let error, (error as NSError).code != NSURLErrorCancelled {
-            updateState = .error("Download failed: \(error.localizedDescription)")
+            updateState = .error(String(localized: "Download failed: \(error.localizedDescription)"))
         }
     }
 }

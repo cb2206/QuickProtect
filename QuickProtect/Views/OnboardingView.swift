@@ -52,9 +52,9 @@ struct OnboardingView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 10) {
-                stepRow(1, "Connect")
-                stepRow(2, "PTZ (optional)")
-                stepRow(3, "All set")
+                stepRow(1, String(localized: "Connect"))
+                stepRow(2, String(localized: "PTZ (optional)"))
+                stepRow(3, String(localized: "All set"))
             }
             .padding(.top, 28)
 
@@ -128,7 +128,7 @@ struct OnboardingView: View {
 
     private var connectStep: some View {
         VStack(alignment: .leading, spacing: 6) {
-            stepEyebrow("Step 1 of 3")
+            stepEyebrow(String(localized: "Step 1 of 3"))
             Text("Connect your controller")
                 .font(.system(size: 20, weight: .semibold))
                 .tracking(-0.3)
@@ -138,11 +138,11 @@ struct OnboardingView: View {
                 .foregroundColor(palette.subtext)
                 .lineSpacing(3)
                 .padding(.bottom, 24)
-            onField("IP Address") {
+            onField(String(localized: "IP Address")) {
                 PastableTextField(text: $settings.ipAddress, placeholder: "10.0.1.1")
                     .frame(width: 300)
             }
-            onField("API Key") {
+            onField(String(localized: "API Key")) {
                 HStack(spacing: 6) {
                     Group {
                         if showApiKey {
@@ -160,7 +160,7 @@ struct OnboardingView: View {
                 }
             }
             HStack(spacing: 10) {
-                AuroraSecondaryButton(title: "Test Connection", action: runTest)
+                AuroraSecondaryButton(title: String(localized: "Test Connection"), action: runTest)
                     .disabled(isTesting || settings.ipAddress.isEmpty || settings.apiKey.isEmpty)
                 if isTesting { ProgressView().scaleEffect(0.6) }
                 if let result = testResult {
@@ -177,7 +177,7 @@ struct OnboardingView: View {
 
     private var ptzStep: some View {
         VStack(alignment: .leading, spacing: 6) {
-            stepEyebrow("Step 2 of 3")
+            stepEyebrow(String(localized: "Step 2 of 3"))
             Text("PTZ control (optional)")
                 .font(.system(size: 20, weight: .semibold))
                 .tracking(-0.3)
@@ -187,11 +187,11 @@ struct OnboardingView: View {
                 .foregroundColor(palette.subtext)
                 .lineSpacing(3)
                 .padding(.bottom, 20)
-            onField("Username") {
+            onField(String(localized: "Username")) {
                 PastableTextField(text: $settings.username, placeholder: "")
                     .frame(width: 300)
             }
-            onField("Password") {
+            onField(String(localized: "Password")) {
                 HStack(spacing: 6) {
                     Group {
                         if showPassword {
@@ -209,7 +209,7 @@ struct OnboardingView: View {
                 }
             }
             HStack(spacing: 10) {
-                AuroraSecondaryButton(title: "Test Connection", action: runPtzTest)
+                AuroraSecondaryButton(title: String(localized: "Test Connection"), action: runPtzTest)
                     .disabled(isTestingPtz || settings.ipAddress.isEmpty
                               || settings.username.isEmpty || settings.password.isEmpty)
                 if isTestingPtz { ProgressView().scaleEffect(0.6) }
@@ -227,7 +227,7 @@ struct OnboardingView: View {
 
     private var doneStep: some View {
         VStack(alignment: .leading, spacing: 10) {
-            stepEyebrow("Step 3 of 3")
+            stepEyebrow(String(localized: "Step 3 of 3"))
             Text("You're all set.")
                 .font(.system(size: 20, weight: .semibold))
                 .tracking(-0.3)
@@ -237,7 +237,7 @@ struct OnboardingView: View {
                 .foregroundColor(palette.subtext)
                 .lineSpacing(3)
             if !service.cameras.isEmpty {
-                Text("\(service.cameras.count) camera\(service.cameras.count == 1 ? "" : "s") detected.")
+                Text("\(service.cameras.count) cameras detected.")
                     .font(.system(size: 12))
                     .foregroundColor(AuroraTokens.statusGreenDark)
                     .padding(.top, 8)
@@ -284,7 +284,7 @@ struct OnboardingView: View {
                     .padding(.horizontal, 12).padding(.vertical, 5)
             }
             .buttonStyle(.plain)
-            AuroraPrimaryButton(title: step < 3 ? "Continue" : "Finish") {
+            AuroraPrimaryButton(title: step < 3 ? String(localized: "Continue") : String(localized: "Finish")) {
                 if step < 3 {
                     step += 1
                 } else {
@@ -307,7 +307,7 @@ struct OnboardingView: View {
             } else {
                 let n = service.cameras.count
                 testResult = TestResult(connected: true,
-                                        message: "Connected — \(n) camera\(n == 1 ? "" : "s") found")
+                                        message: String(localized: "Connected — \(n) cameras found"))
             }
         }
     }
@@ -319,10 +319,10 @@ struct OnboardingView: View {
             let ok = await service.classicLogin()
             isTestingPtz = false
             if ok {
-                ptzTestResult = TestResult(connected: true, message: "Signed in — PTZ control ready")
+                ptzTestResult = TestResult(connected: true, message: String(localized: "Signed in — PTZ control ready"))
             } else {
                 ptzTestResult = TestResult(connected: false,
-                                           message: "Login failed — check username and password")
+                                           message: String(localized: "Login failed — check username and password"))
             }
         }
     }

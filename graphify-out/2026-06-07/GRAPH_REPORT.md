@@ -1,11 +1,11 @@
 # Graph Report - QuickProtect  (2026-06-07)
 
 ## Corpus Check
-- 36 files · ~124,075 words
+- 35 files · ~117,048 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 867 nodes · 1527 edges · 63 communities (38 shown, 25 thin omitted)
+- 864 nodes · 1524 edges · 71 communities (46 shown, 25 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 44 edges (avg confidence: 0.82)
 - Token cost: 0 input · 0 output
 
@@ -67,8 +67,16 @@
 - [[_COMMUNITY_Community 50|Community 50]]
 - [[_COMMUNITY_Community 53|Community 53]]
 - [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 55|Community 55]]
 - [[_COMMUNITY_Community 56|Community 56]]
+- [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
+- [[_COMMUNITY_Community 59|Community 59]]
 - [[_COMMUNITY_Community 60|Community 60]]
+- [[_COMMUNITY_Community 61|Community 61]]
+- [[_COMMUNITY_Community 62|Community 62]]
+- [[_COMMUNITY_Community 63|Community 63]]
+- [[_COMMUNITY_Community 64|Community 64]]
 - [[_COMMUNITY_Community 65|Community 65]]
 - [[_COMMUNITY_Community 66|Community 66]]
 - [[_COMMUNITY_Community 67|Community 67]]
@@ -114,23 +122,23 @@
 - **Standalone XCTest-less test harness suites** — quickprotecttests_testrunner_runalltests, quickprotecttests_testrunner_testmain, services_rtpparser_rtpparser, models_camera_camera [INFERRED 0.75]
 - **App Store screenshot generation pipeline** — scripts_clean_window_main, scripts_autocrop_main, scripts_blur_streams_main, scripts_compose_screenshot_main [INFERRED 0.85]
 
-## Communities (63 total, 25 thin omitted)
+## Communities (71 total, 25 thin omitted)
 
 ### Community 0 - "App Shell & Settings"
-Cohesion: 0.05
-Nodes (37): Animation, AppDelegate, AuroraPtzDpad, DispatchWorkItem, DropDelegate, DropInfo, DropProposal, Mode (+29 more)
+Cohesion: 0.09
+Nodes (13): Animation, AppDelegate, AuroraPtzDpad, DispatchWorkItem, Mode, Never, Any, AppSettings (+5 more)
 
 ### Community 1 - "Hotkey Capture Field"
-Cohesion: 0.06
-Nodes (44): HotkeyCapture, Identifiable, NSControl, NSObject, NSSecureTextField, NSTextFieldDelegate, NSView, NSViewRepresentable (+36 more)
+Cohesion: 0.20
+Nodes (8): NSViewRepresentable, Context, Coordinator, NSTextField, Coordinator, AuroraSearchField, EditableTextField, PastableTextField
 
 ### Community 2 - "Settings & Appearance Store"
 Cohesion: 0.08
 Nodes (26): CaseIterable, Int, Appearance, auto, dark, light, AppSettings, CameraSize (+18 more)
 
 ### Community 3 - "Protect Service API Layer"
-Cohesion: 0.08
-Nodes (23): LocalizedError, Any, Bool, Camera, Double, Error, String, Timer (+15 more)
+Cohesion: 0.10
+Nodes (20): LocalizedError, Any, Bool, Camera, Double, Error, String, Timer (+12 more)
 
 ### Community 4 - "RTSP Client Networking"
 Cohesion: 0.13
@@ -177,8 +185,8 @@ Cohesion: 0.24
 Nodes (18): DateFormatter, Direction, Bool, Date, String, Void, View, AuroraRecDot (+10 more)
 
 ### Community 15 - "Aurora Design Tokens"
-Cohesion: 0.12
-Nodes (19): AppSettings, Axis, ColorScheme, ProtectService, CGFloat, Color, String, AuroraTokens (+11 more)
+Cohesion: 0.18
+Nodes (12): Axis, ColorScheme, CGFloat, Color, String, AppSettings.Appearance, AuroraAccent, AuroraBrandMark (+4 more)
 
 ### Community 16 - "Grid Layout Tests"
 Cohesion: 0.24
@@ -201,8 +209,8 @@ Cohesion: 0.18
 Nodes (9): Codable, Decodable, Decoder, Camera.Channel, Channel, FeatureFlags, Bool, Int (+1 more)
 
 ### Community 22 - "Onboarding Flow"
-Cohesion: 0.17
-Nodes (10): AuroraTokens, Bool, Content, Int, ProtectService, String, TestResult, Void (+2 more)
+Cohesion: 0.15
+Nodes (12): ProtectService, AuroraTokens, Bool, Content, Int, ProtectService, String, TestResult (+4 more)
 
 ### Community 24 - "RTSP Streaming Pipeline"
 Cohesion: 0.18
@@ -213,8 +221,8 @@ Cohesion: 0.18
 Nodes (11): CodingKey, CodingKeys, canOpticalZoom, channels, featureFlags, id, isPtz, isRtspEnabled (+3 more)
 
 ### Community 26 - "Settings View"
-Cohesion: 0.22
-Nodes (11): HotkeyManager, AppSettings, AuroraTokens, Camera, ProtectService, TestResult, UpdateChecker, Value (+3 more)
+Cohesion: 0.20
+Nodes (12): HotkeyManager, AppSettings, AuroraTokens, Camera, ProtectService, TestResult, Void, UpdateChecker (+4 more)
 
 ### Community 27 - "Privacy & Build Config"
 Cohesion: 0.18
@@ -227,6 +235,10 @@ Nodes (11): savedPanelSize, showPanel, classicLogin, createRtspStreamURL, enrich
 ### Community 30 - "Stream Blur Script"
 Cohesion: 0.35
 Nodes (10): alpha(), Box, boxMean(), inBox(), lum(), markCount(), nearLabel(), Bool (+2 more)
+
+### Community 31 - "Popover Content View"
+Cohesion: 0.15
+Nodes (14): AppSettings, NSObject, NSTextFieldDelegate, AuroraTokens, Binding, Int, Notification, ProtectService (+6 more)
 
 ### Community 32 - "App Store Screenshot 1"
 Cohesion: 0.32
@@ -248,13 +260,41 @@ Nodes (5): Direction, down, left, right, up
 Cohesion: 0.50
 Nodes (3): isBorder(), Bool, Int
 
+### Community 55 - "Community 55"
+Cohesion: 0.17
+Nodes (13): AuroraTokens, Binding, Camera, CGFloat, Date, Int, ProtectService, String (+5 more)
+
 ### Community 56 - "Community 56"
 Cohesion: 0.11
 Nodes (17): Building from Source, Features, How It Works, Install, Installing an Unsigned App, Keyboard Shortcuts, License, Option 1: Tailscale (Recommended) (+9 more)
 
+### Community 57 - "Community 57"
+Cohesion: 0.20
+Nodes (7): Binding, Color, Notification, String, AccentSwatch, Coordinator, TestResult
+
+### Community 58 - "Community 58"
+Cohesion: 0.31
+Nodes (6): HotkeyCapture, NSSecureTextField, Context, EditableSecureTextField, HotkeyRecorderView, PastableSecureField
+
+### Community 59 - "Community 59"
+Cohesion: 0.36
+Nodes (7): NSControl, NSView, Bool, NSEvent, UInt16, handleEditingKeyEquivalent(), HotkeyCapture
+
 ### Community 60 - "Community 60"
 Cohesion: 0.20
 Nodes (9): Changes to this policy, Children's privacy, Contact, Data collection, Information stored on your device, Network connections, Privacy Policy for QuickProtect, Summary (+1 more)
+
+### Community 61 - "Community 61"
+Cohesion: 0.22
+Nodes (9): Identifiable, SettingsTab, about, cameras, connection, general, ptz, shortcuts (+1 more)
+
+### Community 62 - "Community 62"
+Cohesion: 0.36
+Nodes (4): DropDelegate, DropInfo, DropProposal, CameraDropDelegate
+
+### Community 64 - "Community 64"
+Cohesion: 0.33
+Nodes (5): Mode, connecting, failed, playing, Notification.Name
 
 ## Knowledge Gaps
 - **226 isolated node(s):** `Notification.Name`, `NSStatusItem`, `Any`, `CGFloat`, `NSImage` (+221 more)
@@ -264,17 +304,17 @@ Nodes (9): Changes to this policy, Children's privacy, Contact, Data collection,
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Camera` connect `Camera Channel Encoding` to `Hotkey Capture Field`, `Settings & Appearance Store`, `Custom Test Harness`, `Camera Model (Codable)`, `Protect API Calls & PTZ`, `Camera Model Tests`?**
-  _High betweenness centrality (0.243) - this node is a cross-community bridge._
+- **Why does `Camera` connect `Camera Channel Encoding` to `Settings & Appearance Store`, `Custom Test Harness`, `Community 61`, `Camera Model (Codable)`, `Protect API Calls & PTZ`, `Camera Model Tests`?**
+  _High betweenness centrality (0.245) - this node is a cross-community bridge._
 - **Why does `AppSettings` connect `Settings & Appearance Store` to `Protect Service API Layer`, `Global Hotkey & Launch`, `RTSP Stream Manager`, `Camera Channel Encoding`, `Protect API Calls & PTZ`?**
-  _High betweenness centrality (0.187) - this node is a cross-community bridge._
-- **Why does `SettingsView` connect `Settings View` to `Hotkey Capture Field`, `Protect Service API Layer`, `RTSP Stream Manager`, `Menu Bar Panel & Window`, `Aurora Focus Overlay HUD`, `Aurora Design Tokens`, `Aurora Settings Chrome`, `Onboarding Flow`?**
-  _High betweenness centrality (0.179) - this node is a cross-community bridge._
+  _High betweenness centrality (0.188) - this node is a cross-community bridge._
+- **Why does `SettingsView` connect `Settings View` to `Hotkey Capture Field`, `RTSP Stream Manager`, `Menu Bar Panel & Window`, `Aurora Focus Overlay HUD`, `Aurora Design Tokens`, `Aurora Settings Chrome`, `Onboarding Flow`, `Community 57`, `Community 58`, `Community 61`, `Popover Content View`?**
+  _High betweenness centrality (0.180) - this node is a cross-community bridge._
 - **What connects `Notification.Name`, `NSStatusItem`, `Any` to the rest of the system?**
   _231 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `App Shell & Settings` be split into smaller, more focused modules?**
-  _Cohesion score 0.0505175983436853 - nodes in this community are weakly interconnected._
-- **Should `Hotkey Capture Field` be split into smaller, more focused modules?**
-  _Cohesion score 0.05505952380952381 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08831908831908832 - nodes in this community are weakly interconnected._
 - **Should `Settings & Appearance Store` be split into smaller, more focused modules?**
   _Cohesion score 0.07547169811320754 - nodes in this community are weakly interconnected._
+- **Should `Protect Service API Layer` be split into smaller, more focused modules?**
+  _Cohesion score 0.0975609756097561 - nodes in this community are weakly interconnected._

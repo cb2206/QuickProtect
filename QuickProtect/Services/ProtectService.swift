@@ -332,11 +332,11 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func validate() -> Bool {
         if settings.ipAddress.isEmpty {
-            Task { await MainActor.run { self.errorMessage = "No IP address configured. Open Settings." } }
+            Task { await MainActor.run { self.errorMessage = String(localized: "No IP address configured. Open Settings.") } }
             return false
         }
         if settings.apiKey.isEmpty {
-            Task { await MainActor.run { self.errorMessage = "No API key configured. Open Settings." } }
+            Task { await MainActor.run { self.errorMessage = String(localized: "No API key configured. Open Settings.") } }
             return false
         }
         return true
@@ -360,7 +360,7 @@ final class ProtectService: NSObject, ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .invalidURL:            return "Invalid IP address or URL."
+            case .invalidURL:            return String(localized: "Invalid IP address or URL.")
             case .http(let c, let body): return "HTTP \(c) – \(body.prefix(200))"
             }
         }

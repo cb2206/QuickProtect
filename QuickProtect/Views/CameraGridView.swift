@@ -60,11 +60,11 @@ struct CameraGridView: View {
         AuroraStateCard(
             tone: .warning,
             systemImage: "exclamationmark.circle",
-            title: "Can't reach controller",
+            title: String(localized: "Can't reach controller"),
             message: message,
-            primary: ("Retry", { lastRetryAt = Date(); Task { await service.fetchCameras() } }),
-            secondary: ("Open Settings", onOpenSettings),
-            footer: lastRetryAt.map { "Last try: \(Self.relativeAgo(from: $0))" }
+            primary: (String(localized: "Retry"), { lastRetryAt = Date(); Task { await service.fetchCameras() } }),
+            secondary: (String(localized: "Open Settings"), onOpenSettings),
+            footer: lastRetryAt.map { String(localized: "Last try: \(Self.relativeAgo(from: $0))") }
         )
         .padding(24)
     }
@@ -73,10 +73,10 @@ struct CameraGridView: View {
         AuroraStateCard(
             tone: .neutral,
             systemImage: "video.slash",
-            title: "No cameras yet",
-            message: "Connected, but no cameras came back. Adopt one in the Protect app, then refresh.",
-            primary: ("Refresh", { Task { await service.fetchCameras() } }),
-            secondary: ("Open in Protect", openProtectDashboard),
+            title: String(localized: "No cameras yet"),
+            message: String(localized: "Connected, but no cameras came back. Adopt one in the Protect app, then refresh."),
+            primary: (String(localized: "Refresh"), { Task { await service.fetchCameras() } }),
+            secondary: (String(localized: "Open in Protect"), openProtectDashboard),
             footer: nil
         )
         .padding(24)
@@ -91,10 +91,10 @@ struct CameraGridView: View {
 
     private static func relativeAgo(from date: Date) -> String {
         let secs = Int(max(0, Date().timeIntervalSince(date)))
-        if secs < 2 { return "just now" }
-        if secs < 60 { return "\(secs) sec ago" }
+        if secs < 2 { return String(localized: "just now") }
+        if secs < 60 { return String(localized: "\(secs) seconds ago") }
         let mins = secs / 60
-        if mins < 60 { return "\(mins) min ago" }
+        if mins < 60 { return String(localized: "\(mins) minutes ago") }
         return DateFormatter.localizedString(from: date, dateStyle: .none, timeStyle: .short)
     }
 

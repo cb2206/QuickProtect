@@ -170,8 +170,8 @@
     "semantic_hash": "ff23f4f4e7956db238f98e7d19395071"
   },
   "project.yml": {
-    "mtime": 1780862625.0049636,
-    "ast_hash": "138ca04aa01046d106b8c96231dcc7ca",
+    "mtime": 1780853247.6915724,
+    "ast_hash": "e49f0d03ff49c48ab792b0b8c4b209a0",
     "semantic_hash": ""
   },
   "screenshots/appstore-1.png": {
@@ -187,11 +187,6 @@
   "CLAUDE.md": {
     "mtime": 1780850970.9100468,
     "ast_hash": "82efb97a359f5c7290bf2513d14686be",
-    "semantic_hash": ""
-  },
-  "scripts/gen_localizations.py": {
-    "mtime": 1780862688.0768328,
-    "ast_hash": "d64bd98aecf429ff2d9eb212bbc9da23",
     "semantic_hash": ""
   }
 }

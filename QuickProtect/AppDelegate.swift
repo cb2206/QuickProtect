@@ -51,11 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         s.hasShownAutoStartPrompt = true
 
         let alert = NSAlert()
-        alert.messageText = "Start QuickProtect at Login?"
-        alert.informativeText = "QuickProtect can start automatically when you log in so your cameras are always one click away."
+        alert.messageText = String(localized: "Start QuickProtect at Login?")
+        alert.informativeText = String(localized: "QuickProtect can start automatically when you log in so your cameras are always one click away.")
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Enable")
-        alert.addButton(withTitle: "Not Now")
+        alert.addButton(withTitle: String(localized: "Enable"))
+        alert.addButton(withTitle: String(localized: "Not Now"))
 
         // Show as a floating alert (app is .accessory so there's no dock icon)
         NSApp.setActivationPolicy(.regular)
@@ -154,13 +154,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let menu = NSMenu()
 
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettingsFromMenu), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: String(localized: "Settings…"), action: #selector(openSettingsFromMenu), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit QuickProtect", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: String(localized: "Quit QuickProtect"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
 
         statusItem?.menu = menu
@@ -349,7 +349,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if settingsWindow == nil {
             let view = SettingsView(service: service, updateChecker: updateChecker)
             let win = NSWindow(contentViewController: NSHostingController(rootView: view))
-            win.title = "QuickProtect – Settings"
+            win.title = String(localized: "QuickProtect – Settings")
             win.styleMask = [.titled, .closable]
             win.setContentSize(NSSize(width: 820, height: 600))
             win.isReleasedWhenClosed = false
