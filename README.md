@@ -24,6 +24,7 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **Per-display layouts** — different camera arrangements and popover sizes on your laptop vs. external monitor
 - **Global keyboard shortcut** — toggle the popover from anywhere, configurable in Settings
 - **Light & dark themes** — follow the system appearance or pin Light/Dark, plus a choice of accent colors
+- **Multilingual** — fully localized in English, German, French, Spanish, Dutch, Italian, and Brazilian Portuguese; follows your macOS language automatically
 - **First-run onboarding** — a short guided setup walks you through connecting on first launch
 - **Auto-update** — checks for updates on launch and daily; downloads, installs, and restarts automatically from GitHub releases
 - **Launch at login** — optional, with a first-run prompt; toggle in Settings
@@ -99,6 +100,20 @@ swiftc \
   QuickProtect/*.swift \
   QuickProtect/**/*.swift
 ```
+
+> The `swiftc` path compiles code only and won't process the String Catalog, so a `swiftc` build runs in English. Use the Xcode/XcodeGen build for a localized app.
+
+## Localization
+
+QuickProtect ships in English, German, French, Spanish, Dutch, Italian, and Brazilian Portuguese, and follows the system language automatically (set a per-app language in **System Settings → General → Language & Region**).
+
+All UI strings live in a single String Catalog at `QuickProtect/Localizable.xcstrings`. The catalog is generated from `scripts/gen_localizations.py`, which holds one dictionary per language plus plural rules and a parity check that every language covers the full key set:
+
+```bash
+python3 scripts/gen_localizations.py   # regenerates QuickProtect/Localizable.xcstrings
+```
+
+To add or edit a translation, update the relevant dictionary in that script and re-run it (XcodeGen picks up new languages into `knownRegions` automatically; also add the language code to `CFBundleLocalizations` in `project.yml`). Localized App Store metadata for every language is kept in [`APP_STORE_LISTINGS.md`](APP_STORE_LISTINGS.md).
 
 ## Running Tests
 
