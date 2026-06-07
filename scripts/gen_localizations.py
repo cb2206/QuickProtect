@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, collections, sys
+import json, collections, sys, os
 
 # ---------------------------------------------------------------------------
 # German (informal "du") — the existing, reviewed translation.
@@ -1015,7 +1015,8 @@ for k in sorted(plurals):
 
 catalog = {"sourceLanguage": "en", "strings": strings, "version": "1.0"}
 
-out = "/Users/cb/dev/QuickProtect/QuickProtect/Localizable.xcstrings"
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+out = os.path.join(_root, "QuickProtect", "Localizable.xcstrings")
 with open(out, "w", encoding="utf-8") as f:
     json.dump(catalog, f, ensure_ascii=False, indent=2)
     f.write("\n")
