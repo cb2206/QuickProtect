@@ -1,12 +1,12 @@
 QuickProtect bringt deine UniFi-Protect-Kameras mit nur einem Klick direkt in die Menüleiste deines Macs.
 
-Klick auf das Menüleistensymbol, um alle Kameras in einem Live-Raster zu sehen. Klick auf eine Kamera, um sie zu fokussieren, doppelklicke, um sie in Protect zu öffnen, und drück F für Vollbild. PTZ-Kameras schwenkst und neigst du mit den Pfeiltasten oder dem Steuerkreuz auf dem Bildschirm.
+Klicke auf das Menüleistensymbol, um alle Kameras in einem Live-Raster zu sehen. Klicke auf eine Kamera, um sie zu vergrößern, doppelklicke, um sie in Protect zu öffnen, und drücke F für Vollbild. PTZ-Kameras schwenkst und neigst du mit den Pfeiltasten oder dem Steuerkreuz auf dem Bildschirm.
 
 QuickProtect kommuniziert direkt mit deinem Controller im lokalen Netzwerk über RTSP/RTSPS. Keine Cloud, kein Konto, kein Tracking – dein Video verlässt nie dein Netzwerk.
 
 FUNKTIONEN
 • Live-Kameraraster in der Menüleiste
-• Fokus und Vollbild mit einem Klick
+• Großansicht und Vollbild mit einem Klick
 • PTZ-Steuerung per Tastatur oder Steuerkreuz
 • Zoomen und Schwenken im Bild
 • Größenveränderbares Fenster, Kameras per Ziehen neu anordnen

@@ -1,12 +1,12 @@
 QuickProtect place vos caméras UniFi Protect à un clic — directement dans la barre des menus de votre Mac.
 
-Cliquez sur l'icône de la barre des menus pour voir toutes vos caméras dans une grille en direct. Cliquez sur une caméra pour la mettre au premier plan, double-cliquez pour l'ouvrir dans Protect et appuyez sur F pour le plein écran. Pour les caméras PTZ, effectuez un panoramique et inclinez avec les touches fléchées ou le pavé à l'écran.
+Cliquez sur l'icône de la barre des menus pour voir toutes vos caméras dans une grille en direct. Cliquez sur une caméra pour l'agrandir, double-cliquez pour l'ouvrir dans Protect et appuyez sur F pour le plein écran. Pour les caméras PTZ, effectuez un panoramique et inclinez avec les touches fléchées ou le pavé à l'écran.
 
 QuickProtect communique directement avec votre contrôleur sur votre réseau local via RTSP/RTSPS. Pas de cloud, pas de compte, pas de suivi — votre vidéo ne quitte jamais votre réseau.
 
 FONCTIONNALITÉS
 • Grille de caméras en direct dans la barre des menus
-• Mise au premier plan et plein écran en un clic
+• Agrandissement et plein écran en un clic
 • Contrôle PTZ au clavier ou avec un pavé à l'écran
 • Zoom et panoramique dans un flux
 • Fenêtre redimensionnable, réorganisation des caméras par glissement

@@ -130,7 +130,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fertig"
+            "value": "Alles bereit"
           }
         },
         "fr": {
@@ -646,7 +646,7 @@
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verifica…"
+            "value": "Verifica in corso…"
           }
         },
         "pt-BR": {
@@ -827,13 +827,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Klick auf das Blendensymbol in der Menüleiste, um das Kameraraster zu öffnen, oder drück deinen globalen Kurzbefehl."
+            "value": "Klicke auf das Blendensymbol in der Menüleiste, um das Kameraraster zu öffnen, oder drücke deinen globalen Kurzbefehl."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clique sur l'icône d'ouverture dans la barre des menus pour ouvrir la grille des caméras, ou utilisez votre raccourci global."
+            "value": "Cliquez sur l'icône de diaphragme dans la barre des menus pour ouvrir la grille des caméras, ou utilisez votre raccourci global."
           }
         },
         "es": {
@@ -1032,13 +1032,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verbinden…"
+            "value": "Verbinde…"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connexion…"
+            "value": "Connexion en cours…"
           }
         },
         "es": {
@@ -1050,7 +1050,7 @@
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verbinden…"
+            "value": "Bezig met verbinden…"
           }
         },
         "it": {
@@ -1278,37 +1278,37 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verwerfen"
+            "value": "Schließen"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ignorer"
+            "value": "Fermer"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Descartar"
+            "value": "Cerrar"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Negeer"
+            "value": "Sluit"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ignora"
+            "value": "Chiudi"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dispensar"
+            "value": "Fechar"
           }
         }
       }
@@ -1360,37 +1360,37 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tastaturkurzbefehl-Hinweise und das PTZ-Steuerkreuz anzeigen, wenn eine Kamera im Fokus ist."
+            "value": "Tastaturkurzbefehl-Hinweise und das PTZ-Steuerkreuz anzeigen, wenn eine Kamera in der Großansicht ist."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Afficher les rappels de raccourcis clavier et le pavé PTZ à l'écran lorsqu'une caméra est en mode focus."
+            "value": "Afficher les rappels de raccourcis clavier et le pavé PTZ à l'écran lorsqu'une caméra est en vue agrandie."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostrar las indicaciones de atajos de teclado y el panel PTZ en pantalla cuando una cámara está en modo enfoque."
+            "value": "Mostrar las indicaciones de atajos de teclado y el panel PTZ en pantalla cuando una cámara está en vista ampliada."
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toon de sneltoetshints en het PTZ-bedieningspaneel op het scherm wanneer een camera in focus is."
+            "value": "Toon de sneltoetshints en het PTZ-bedieningspaneel op het scherm wanneer een camera vergroot is."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostra i suggerimenti delle scorciatoie da tastiera e il pad PTZ sullo schermo quando una telecamera è in primo piano."
+            "value": "Mostra i suggerimenti delle scorciatoie da tastiera e il pad PTZ sullo schermo quando una telecamera è ingrandita."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostrar as dicas de atalhos de teclado e o painel PTZ na tela quando uma câmera está em foco."
+            "value": "Mostrar as dicas de atalhos de teclado e o painel PTZ na tela quando uma câmera está ampliada."
           }
         }
       }
@@ -1893,37 +1893,37 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kamera fokussieren"
+            "value": "Kamera vergrößern"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Focaliser la caméra"
+            "value": "Agrandir la caméra"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enfocar cámara"
+            "value": "Ampliar cámara"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Camera focussen"
+            "value": "Camera vergroten"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metti a fuoco la telecamera"
+            "value": "Ingrandisci la telecamera"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Focar câmera"
+            "value": "Ampliar câmera"
           }
         }
       }
@@ -1934,37 +1934,37 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fokusansicht"
+            "value": "Großansicht"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mode focus"
+            "value": "Vue agrandie"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vista de enfoque"
+            "value": "Vista ampliada"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Focusweergave"
+            "value": "Vergrote weergave"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vista a fuoco"
+            "value": "Vista ingrandita"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Modo de foco"
+            "value": "Visualização ampliada"
           }
         }
       }
@@ -2836,7 +2836,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anmeldung fehlgeschlagen – prüf Benutzername und Passwort"
+            "value": "Anmeldung fehlgeschlagen – prüfe Benutzername und Passwort"
           }
         },
         "fr": {
@@ -2877,7 +2877,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anmeldung fehlgeschlagen – prüf Benutzername und Passwort"
+            "value": "Anmeldung fehlgeschlagen – prüfe Benutzername und Passwort"
           }
         },
         "fr": {
@@ -3182,7 +3182,7 @@
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nog geen camera's gevonden. Voer „Verbinding testen“ uit op het tabblad Verbinding."
+            "value": "Nog geen camera's gevonden. Voer ‘Verbinding testen’ uit op het tabblad Verbinding."
           }
         },
         "it": {
@@ -3194,7 +3194,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nenhuma câmera detectada ainda. Execute «Testar conexão» na aba Conexão."
+            "value": "Nenhuma câmera detectada ainda. Execute “Testar conexão” na aba Conexão."
           }
         }
       }
@@ -3686,7 +3686,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pan e tilt (PTZ)"
+            "value": "Girar e inclinar (PTZ)"
           }
         }
       }
@@ -3727,7 +3727,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pan / tilt"
+            "value": "Girar / inclinar"
           }
         }
       }
@@ -5244,7 +5244,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Para usar pan e tilt em câmeras PTZ, o QuickProtect precisa de uma conta de administrador local. A chave da API de integração não expõe endpoints PTZ. Você pode pular isto e adicionar depois nos ajustes."
+            "value": "Para girar e inclinar câmeras PTZ, o QuickProtect precisa de uma conta de administrador local. A chave da API de integração não expõe endpoints PTZ. Você pode pular isto e adicionar depois nos ajustes."
           }
         }
       }
@@ -5736,7 +5736,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ampliar na transmissão"
+            "value": "Zoom na transmissão"
           }
         }
       }
