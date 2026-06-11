@@ -9,3 +9,24 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## Loop protocol
+
+Every task runs as a loop, not a line:
+
+1. Write the change.
+2. Run the checks: `xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet`,
+   then `swiftlint --strict`. No silencing errors with try?, try!, force-unwraps, or empty catch blocks.
+3. If anything fails, read the error, fix the cause, go back to step 2.
+4. Repeat up to 5 times.
+
+Stop conditions:
+- All checks pass: report "done" with the passing output as proof.
+- 5 attempts used: stop and report what still fails and what you tried.
+- Same error appears twice in a row: stop. You're guessing, not fixing.
+
+Never report "done" without check output from this session.
+Never fix a test by weakening it. Fix the code, not the test.
+
+SwiftLint baseline: .swiftlint.yml disables rules the legacy code still violates.
+Don't add new violations of those rules; re-enable rules as files get cleaned up.
