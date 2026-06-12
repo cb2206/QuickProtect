@@ -62,6 +62,8 @@ struct SettingsView: View {
     @State private var isRecordingHotkey = false
     @State private var showApiKey = false
     @State private var showPassword = false
+    /// Toggled to force `pendingCertFingerprint` to re-read after the user re-pins.
+    @State private var certRefresh = false
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
@@ -224,7 +226,35 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            if let candidate = pendingCertFingerprint {
+                AuroraSettingsSection(String(localized: "Certificate")) {
+                    AuroraSettingsRow(
+                        String(localized: "Certificate changed"),
+                        hint: String(localized: "The controller is presenting a new certificate (key \(String(candidate.prefix(16)))…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change."),
+                        isLast: true,
+                        labelExpands: true
+                    ) {
+                        AuroraPrimaryButton(
+                            title: String(localized: "Trust new certificate"),
+                            disabled: false
+                        ) {
+                            CertificateTrust.Store().trustPending(host: settings.ipAddress)
+                            certRefresh.toggle()
+                            runTest()
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    /// The fingerprint of a changed controller certificate awaiting the user's
+    /// approval, if any. Reads through `certRefresh` so re-pinning updates the UI.
+    private var pendingCertFingerprint: String? {
+        _ = certRefresh
+        guard !settings.ipAddress.isEmpty else { return nil }
+        return CertificateTrust.Store().pending(host: settings.ipAddress)
     }
 
     // MARK: General
@@ -477,48 +507,21 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var updateActions: some View {
-        switch updateChecker.updateState {
-        case .idle:
-            HStack(spacing: 10) {
-                if updateChecker.updateAvailable {
-                    AuroraPrimaryButton(title: String(localized: "Install Update")) {
-                        updateChecker.downloadAndInstall()
-                    }
-                }
-                AuroraSecondaryButton(
-                    title: updateChecker.isChecking ? String(localized: "Checking…") : String(localized: "Check for Updates")
-                ) {
-                    updateChecker.checkForUpdate()
-                }
-                if updateChecker.isChecking {
-                    ProgressView().scaleEffect(0.6)
+        HStack(spacing: 10) {
+            // Notify-only: the GitHub build is unsigned by design, so there is no
+            // in-app installer — point the user at the release page to update.
+            if updateChecker.updateAvailable {
+                AuroraPrimaryButton(title: String(localized: "Get update")) {
+                    updateChecker.openReleasePage()
                 }
             }
-        case .downloading(let progress):
-            HStack(spacing: 8) {
-                ProgressView(value: progress).frame(width: 160)
-                Text("\(Int(progress * 100))%")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(palette.subtext)
-                AuroraSecondaryButton(title: String(localized: "Cancel")) { updateChecker.cancelDownload() }
+            AuroraSecondaryButton(
+                title: updateChecker.isChecking ? String(localized: "Checking…") : String(localized: "Check for Updates")
+            ) {
+                updateChecker.checkForUpdate()
             }
-        case .installing:
-            HStack(spacing: 8) {
+            if updateChecker.isChecking {
                 ProgressView().scaleEffect(0.6)
-                Text("Installing update…")
-                    .font(.system(size: 11))
-                    .foregroundColor(palette.subtext)
-            }
-        case .error(let message):
-            VStack(alignment: .leading, spacing: 6) {
-                Text(message)
-                    .font(.system(size: 11))
-                    .foregroundColor(AuroraTokens.statusRed)
-                    .lineLimit(3)
-                HStack(spacing: 8) {
-                    AuroraPrimaryButton(title: String(localized: "Retry")) { updateChecker.downloadAndInstall() }
-                    AuroraSecondaryButton(title: String(localized: "Dismiss")) { updateChecker.updateState = .idle }
-                }
             }
         }
     }

@@ -5,6 +5,13 @@ import json, collections, sys, os
 # German (informal "du") — the existing, reviewed translation.
 # ---------------------------------------------------------------------------
 de = {
+    "Certificate": "Zertifikat",
+    "Certificate changed": "Zertifikat geändert",
+    "PTZ unavailable — check the username and password in Settings.": "PTZ nicht verfügbar – prüfe Benutzername und Passwort in den Einstellungen.",
+    "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "Der Controller zeigt ein neues Zertifikat (Schlüssel %@…). Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vertraue ihm nur, wenn du die Änderung kennst.",
+    "The controller's certificate changed. Open Settings to review and trust it.": "Das Zertifikat des Controllers hat sich geändert. Öffne die Einstellungen, um es zu prüfen und ihm zu vertrauen.",
+    "Trust new certificate": "Neuem Zertifikat vertrauen",
+    "Get update": "Update laden",
     "API Key": "API-Schlüssel",
     "About": "Über",
     "All set": "Alles bereit",
@@ -157,6 +164,13 @@ de = {
 # French (formal "vous" — macOS norm)
 # ---------------------------------------------------------------------------
 fr = {
+    "Certificate": "Certificat",
+    "Certificate changed": "Certificat modifié",
+    "PTZ unavailable — check the username and password in Settings.": "PTZ indisponible — vérifiez le nom d'utilisateur et le mot de passe dans les réglages.",
+    "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "Le contrôleur présente un nouveau certificat (clé %@…). C'est normal si vous avez réinstallé ou remplacé le contrôleur — sinon, cela peut indiquer que quelqu'un intercepte la connexion. Ne l'approuvez que si vous reconnaissez ce changement.",
+    "The controller's certificate changed. Open Settings to review and trust it.": "Le certificat du contrôleur a changé. Ouvrez les réglages pour l'examiner et l'approuver.",
+    "Trust new certificate": "Approuver le nouveau certificat",
+    "Get update": "Obtenir la mise à jour",
     "API Key": "Clé API",
     "About": "À propos",
     "All set": "Terminé",
@@ -309,6 +323,13 @@ fr = {
 # Spanish (informal "tú")
 # ---------------------------------------------------------------------------
 es = {
+    "Certificate": "Certificado",
+    "Certificate changed": "Certificado cambiado",
+    "PTZ unavailable — check the username and password in Settings.": "PTZ no disponible — comprueba el usuario y la contraseña en los ajustes.",
+    "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "El controlador presenta un certificado nuevo (clave %@…). Es lo esperado si reinstalaste o reemplazaste el controlador, pero si no, podría indicar que alguien está interceptando la conexión. Confía en él solo si reconoces el cambio.",
+    "The controller's certificate changed. Open Settings to review and trust it.": "El certificado del controlador cambió. Abre los ajustes para revisarlo y confiar en él.",
+    "Trust new certificate": "Confiar en el nuevo certificado",
+    "Get update": "Obtener actualización",
     "API Key": "Clave API",
     "About": "Acerca de",
     "All set": "Listo",
@@ -461,6 +482,13 @@ es = {
 # Dutch (informal "je")
 # ---------------------------------------------------------------------------
 nl = {
+    "Certificate": "Certificaat",
+    "Certificate changed": "Certificaat gewijzigd",
+    "PTZ unavailable — check the username and password in Settings.": "PTZ niet beschikbaar — controleer gebruikersnaam en wachtwoord in de instellingen.",
+    "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "De controller presenteert een nieuw certificaat (sleutel %@…). Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen — zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vertrouw het alleen als je de wijziging herkent.",
+    "The controller's certificate changed. Open Settings to review and trust it.": "Het certificaat van de controller is gewijzigd. Open de instellingen om het te controleren en te vertrouwen.",
+    "Trust new certificate": "Nieuw certificaat vertrouwen",
+    "Get update": "Update ophalen",
     "API Key": "API-sleutel",
     "About": "Over",
     "All set": "Klaar",
@@ -613,6 +641,13 @@ nl = {
 # Italian (informal "tu")
 # ---------------------------------------------------------------------------
 it = {
+    "Certificate": "Certificato",
+    "Certificate changed": "Certificato modificato",
+    "PTZ unavailable — check the username and password in Settings.": "PTZ non disponibile — controlla nome utente e password nelle impostazioni.",
+    "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "Il controller presenta un nuovo certificato (chiave %@…). È previsto se hai reinstallato o sostituito il controller, ma in caso contrario potrebbe indicare che qualcuno sta intercettando la connessione. Fidati solo se riconosci la modifica.",
+    "The controller's certificate changed. Open Settings to review and trust it.": "Il certificato del controller è cambiato. Apri le impostazioni per esaminarlo e fidarti.",
+    "Trust new certificate": "Fidati del nuovo certificato",
+    "Get update": "Ottieni aggiornamento",
     "API Key": "Chiave API",
     "About": "Informazioni",
     "All set": "Pronto",
@@ -765,6 +800,13 @@ it = {
 # Brazilian Portuguese ("você")
 # ---------------------------------------------------------------------------
 pt_br = {
+    "Certificate": "Certificado",
+    "Certificate changed": "Certificado alterado",
+    "PTZ unavailable — check the username and password in Settings.": "PTZ indisponível — verifique o usuário e a senha nos ajustes.",
+    "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "O controlador está apresentando um novo certificado (chave %@…). Isso é esperado se você reinstalou ou substituiu o controlador — caso contrário, pode indicar que alguém está interceptando a conexão. Confie nele somente se reconhecer a alteração.",
+    "The controller's certificate changed. Open Settings to review and trust it.": "O certificado do controlador foi alterado. Abra os ajustes para revisá-lo e confiar nele.",
+    "Trust new certificate": "Confiar no novo certificado",
+    "Get update": "Obter atualização",
     "API Key": "Chave de API",
     "About": "Sobre",
     "All set": "Tudo pronto",

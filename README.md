@@ -26,7 +26,7 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **Light & dark themes** — follow the system appearance or pin Light/Dark, plus a choice of accent colors
 - **Multilingual** — fully localized in English, German, French, Spanish, Dutch, Italian, and Brazilian Portuguese; follows your macOS language automatically
 - **First-run onboarding** — a short guided setup walks you through connecting on first launch
-- **Auto-update** — checks for updates on launch and daily; downloads, installs, and restarts automatically from GitHub releases
+- **Update notifications** — checks for updates on launch and daily, then points you to the latest GitHub release to download (the build is unsigned by design, so it never auto-installs)
 - **Launch at login** — optional, with a first-run prompt; toggle in Settings
 - **Self-signed TLS support** — connects to controllers using self-signed certificates without system-wide trust changes
 - **Credentials in the Keychain** — your API key and PTZ admin login are stored in the macOS Keychain, not in plaintext preferences

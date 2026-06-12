@@ -194,8 +194,13 @@ final class AppSettings: ObservableObject {
 
     // MARK: - Launch at login
 
+    /// Set while reconciling the published value with the real registration state,
+    /// to stop `didSet` from recursing back into `updateLoginItem()`.
+    private var isSyncingLoginItem = false
+
     @Published var launchAtLogin: Bool {
         didSet {
+            guard !isSyncingLoginItem else { return }
             UserDefaults.standard.set(launchAtLogin, forKey: Keys.launchAtLogin)
             updateLoginItem()
         }
@@ -241,7 +246,15 @@ final class AppSettings: ObservableObject {
                 try svc.unregister()
             }
         } catch {
-            // Silently ignore — user can toggle again
+            // Registration failed — reconcile the toggle with reality so the UI
+            // doesn't show "on" while the system rejected it.
+            let actuallyEnabled = (svc.status == .enabled)
+            if actuallyEnabled != launchAtLogin {
+                isSyncingLoginItem = true
+                launchAtLogin = actuallyEnabled
+                isSyncingLoginItem = false
+                UserDefaults.standard.set(actuallyEnabled, forKey: Keys.launchAtLogin)
+            }
         }
     }
 
@@ -334,7 +347,9 @@ enum KeychainStore {
         let data = Data(value.utf8)
         let attributes: [String: Any] = [
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            // AfterFirstUnlock so credentials are available when the app relaunches
+            // at login; ThisDeviceOnly so they never sync or migrate via backups.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
 
         let status = SecItemUpdate(baseQuery(account) as CFDictionary, attributes as CFDictionary)

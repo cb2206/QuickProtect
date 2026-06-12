@@ -22,12 +22,24 @@ final class ProtectService: NSObject, ObservableObject {
     /// accumulating on the UDM when the panel is closed or the app quits.
     private var activeStreamCameraIds: Set<String> = []
 
+    /// Guards the classic-API credential fields below, which are read and written
+    /// from concurrent PTZ `Task`s and the fetch path.
+    private let credLock = NSLock()
+    private var _csrfToken: String?
+    private var _tokenCookie: String?
+
     /// CSRF token captured from classic API login response. Required for POST/PUT/DELETE
     /// requests to the classic API (used for PTZ control).
-    private var csrfToken: String?
+    private var csrfToken: String? {
+        get { credLock.lock(); defer { credLock.unlock() }; return _csrfToken }
+        set { credLock.lock(); _csrfToken = newValue; credLock.unlock() }
+    }
     /// TOKEN cookie captured from classic API login response. Manually set on requests
     /// because a fresh HTTPCookieStorage instance may not auto-accept cookies.
-    private var tokenCookie: String?
+    private var tokenCookie: String? {
+        get { credLock.lock(); defer { credLock.unlock() }; return _tokenCookie }
+        set { credLock.lock(); _tokenCookie = newValue; credLock.unlock() }
+    }
     /// Whether the classic API login succeeded. Drives the PTZ connection status
     /// pill in Settings. Updated on the main actor since it's observed by SwiftUI.
     @Published private(set) var isClassicLoggedIn = false
@@ -50,7 +62,7 @@ final class ProtectService: NSObject, ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Accept")
 
             let (data, response) = try await tlsSession.data(for: request)
-            let http = response as! HTTPURLResponse
+            guard let http = response as? HTTPURLResponse else { throw APIError.invalidURL }
             guard (200...299).contains(http.statusCode) else {
                 throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
             }
@@ -180,7 +192,8 @@ final class ProtectService: NSObject, ObservableObject {
         }
 
         await setClassicLoggedIn(true)
-        RTSPClient.log("[PTZ] classicLogin OK, csrf=\(csrfToken?.prefix(12) ?? "nil"), token=\(tokenCookie != nil ? "yes(\(tokenCookie!.prefix(12))...)" : "nil")")
+        // Don't log credential material — just whether each token was obtained.
+        RTSPClient.log("[PTZ] classicLogin OK, csrf=\(csrfToken != nil), token=\(tokenCookie != nil)")
         return true
     }
 
@@ -202,9 +215,12 @@ final class ProtectService: NSObject, ObservableObject {
 
         // Classic API returns a plain array (not wrapped in {data: [...]})
         let classicCameras = (try? JSONDecoder().decode([Camera].self, from: data)) ?? []
-        let ptzIds = Set(classicCameras.filter(\.isPtz).map(\.id))
 
-        guard !ptzIds.isEmpty else { return }
+        // Only apply flags when we actually got a camera list back. A transient
+        // empty/failed response must not wipe previously-known PTZ flags; but when
+        // the list is present it is authoritative (a camera that lost PTZ is cleared).
+        guard !classicCameras.isEmpty else { return }
+        let ptzIds = Set(classicCameras.filter(\.isPtz).map(\.id))
 
         await MainActor.run {
             self.cameras = self.cameras.map { cam in
@@ -245,7 +261,16 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func sendPtzRelative(cameraId: String, pan: Double, tilt: Double) {
         Task {
-            if !isClassicLoggedIn { guard await classicLogin() else { return } }
+            if !isClassicLoggedIn {
+                guard await classicLogin() else {
+                    // Don't keep firing failed moves at 10 Hz — stop and surface it.
+                    await MainActor.run {
+                        self.ptzStopTimer()
+                        self.errorMessage = String(localized: "PTZ unavailable — check the username and password in Settings.")
+                    }
+                    return
+                }
+            }
             await sendMove(cameraId: cameraId, body: [
                 "type": "relative",
                 "payload": [
@@ -283,6 +308,8 @@ final class ProtectService: NSObject, ObservableObject {
             await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil
+            // Session expired mid-move: stop the repeat timer so we don't spew 401s.
+            await MainActor.run { self.ptzStopTimer() }
         }
     }
 
@@ -367,7 +394,7 @@ final class ProtectService: NSObject, ObservableObject {
     }
 }
 
-// MARK: - URLSessionDelegate (self-signed cert bypass + trust registration)
+// MARK: - URLSessionDelegate (trust-on-first-use pinning for the self-signed controller cert)
 
 extension ProtectService: URLSessionDelegate {
     func urlSession(
@@ -380,24 +407,16 @@ extension ProtectService: URLSessionDelegate {
             completionHandler(.performDefaultHandling, nil)
             return
         }
-        // Register the cert in the user's trust store so AVFoundation's internal
-        // TLS stack also accepts it when opening rtsps:// streams.
-        if let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
-           let cert = chain.first {
-            registerCertTrust(cert)
+        // Pin the controller's public key on first use; reject if it later changes
+        // (possible MITM). Never writes to the system trust store.
+        let host = challenge.protectionSpace.host
+        if CertificateTrust.evaluate(host: host, trust: trust) {
+            completionHandler(.useCredential, URLCredential(trust: trust))
+        } else {
+            Task { await MainActor.run {
+                self.errorMessage = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
+            } }
+            completionHandler(.cancelAuthenticationChallenge, nil)
         }
-        completionHandler(.useCredential, URLCredential(trust: trust))
-    }
-
-    private func registerCertTrust(_ cert: SecCertificate) {
-        // Skip if already trusted
-        var existing: CFArray?
-        guard SecTrustSettingsCopyTrustSettings(cert, .user, &existing) != errSecSuccess else { return }
-        // Add to keychain (no-op if already present)
-        SecItemAdd([kSecClass: kSecClassCertificate,
-                    kSecValueRef: cert,
-                    kSecAttrLabel: "QuickProtect Controller"] as CFDictionary, nil)
-        // Mark trusted for all uses in the user domain
-        SecTrustSettingsSetTrustSettings(cert, .user, nil)
     }
 }

@@ -534,6 +534,88 @@
         }
       }
     },
+    "Certificate": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificat"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificaat"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado"
+          }
+        }
+      }
+    },
+    "Certificate changed": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat geändert"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificat modifié"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado cambiado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificaat gewijzigd"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificato modificato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado alterado"
+          }
+        }
+      }
+    },
     "Change": {
       "extractionState": "manual",
       "localizations": {
@@ -2092,6 +2174,47 @@
         }
       }
     },
+    "Get update": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update laden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtenir la mise à jour"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtener actualización"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update ophalen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ottieni aggiornamento"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obter atualização"
+          }
+        }
+      }
+    },
     "Global": {
       "extractionState": "manual",
       "localizations": {
@@ -3609,6 +3732,47 @@
         }
       }
     },
+    "PTZ unavailable — check the username and password in Settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PTZ nicht verfügbar – prüfe Benutzername und Passwort in den Einstellungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PTZ indisponible — vérifiez le nom d'utilisateur et le mot de passe dans les réglages."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PTZ no disponible — comprueba el usuario y la contraseña en los ajustes."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PTZ niet beschikbaar — controleer gebruikersnaam en wachtwoord in de instellingen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PTZ non disponibile — controlla nome utente e password nelle impostazioni."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PTZ indisponível — verifique o usuário e a senha nos ajustes."
+          }
+        }
+      }
+    },
     "PTZ · ARROW KEYS": {
       "extractionState": "manual",
       "localizations": {
@@ -5085,6 +5249,88 @@
         }
       }
     },
+    "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller zeigt ein neues Zertifikat (Schlüssel %@…). Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vertraue ihm nur, wenn du die Änderung kennst."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur présente un nouveau certificat (clé %@…). C'est normal si vous avez réinstallé ou remplacé le contrôleur — sinon, cela peut indiquer que quelqu'un intercepte la connexion. Ne l'approuvez que si vous reconnaissez ce changement."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador presenta un certificado nuevo (clave %@…). Es lo esperado si reinstalaste o reemplazaste el controlador, pero si no, podría indicar que alguien está interceptando la conexión. Confía en él solo si reconoces el cambio."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller presenteert een nieuw certificaat (sleutel %@…). Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen — zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vertrouw het alleen als je de wijziging herkent."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller presenta un nuovo certificato (chiave %@…). È previsto se hai reinstallato o sostituito il controller, ma in caso contrario potrebbe indicare che qualcuno sta intercettando la connessione. Fidati solo se riconosci la modifica."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador está apresentando um novo certificado (chave %@…). Isso é esperado se você reinstalou ou substituiu o controlador — caso contrário, pode indicar que alguém está interceptando a conexão. Confie nele somente se reconhecer a alteração."
+          }
+        }
+      }
+    },
+    "The controller's certificate changed. Open Settings to review and trust it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Zertifikat des Controllers hat sich geändert. Öffne die Einstellungen, um es zu prüfen und ihm zu vertrauen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le certificat du contrôleur a changé. Ouvrez les réglages pour l'examiner et l'approuver."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El certificado del controlador cambió. Abre los ajustes para revisarlo y confiar en él."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Het certificaat van de controller is gewijzigd. Open de instellingen om het te controleren en te vertrouwen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il certificato del controller è cambiato. Apri le impostazioni per esaminarlo e fidarti."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O certificado do controlador foi alterado. Abra os ajustes para revisá-lo e confiar nele."
+          }
+        }
+      }
+    },
     "Theme": {
       "extractionState": "manual",
       "localizations": {
@@ -5286,6 +5532,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mostrar/ocultar QuickProtect"
+          }
+        }
+      }
+    },
+    "Trust new certificate": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuem Zertifikat vertrauen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approuver le nouveau certificat"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar en el nuevo certificado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nieuw certificaat vertrouwen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fidati del nuovo certificato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar no novo certificado"
           }
         }
       }

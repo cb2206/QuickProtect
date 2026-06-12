@@ -26,6 +26,13 @@ final class RTSPClient: ObservableObject {
 
     private let queue = DispatchQueue(label: "com.quickprotect.rtsp", qos: .userInitiated)
 
+    // MARK: - Resource limits (defend against a hostile/buggy endpoint)
+    // RTSP control responses (incl. SDP) are small; an unbounded Content-Length or
+    // a header terminator that never arrives must not balloon memory.
+    private let maxControlBuffer = 8 * 1024 * 1024   // hard ceiling on the receive buffer
+    private let maxContentLength = 4 * 1024 * 1024   // reject larger Content-Length outright
+    private let maxHeaderSize    = 64 * 1024         // give up scanning for \r\n\r\n past this
+
     // MARK: - State (queue-only)
 
     private var connection:  NWConnection?
@@ -68,13 +75,26 @@ final class RTSPClient: ObservableObject {
 
     // MARK: - Public API (called from main thread)
 
+    /// Opt-in file logging. Off by default; enable with
+    ///   defaults write com.cb.quickprotect QPDebugLogging -bool YES
+    /// Callers must not pass credential material (tokens, passwords) here.
+    static let debugLoggingEnabled = UserDefaults.standard.bool(forKey: "QPDebugLogging")
+    private static let maxLogBytes: UInt64 = 1_048_576  // 1 MB, truncated on rollover
+
     static func log(_ msg: String) { dbg(msg) }
     private static func dbg(_ msg: String) {
+        guard debugLoggingEnabled else { return }
         let line = "\(Date()) \(msg)\n"
         // NSTemporaryDirectory() resolves to the app's sandbox container temp
         // dir under the App Sandbox, and /private/tmp otherwise — writable in
         // both, unlike a hard-coded /tmp path which the sandbox blocks.
         let path = (NSTemporaryDirectory() as NSString).appendingPathComponent("quickprotect_debug.log")
+        // Cap the file: start fresh once it grows past the limit so it can't
+        // accumulate without bound across long-running sessions.
+        if let size = try? FileManager.default.attributesOfItem(atPath: path)[.size] as? UInt64,
+           size > maxLogBytes {
+            try? FileManager.default.removeItem(atPath: path)
+        }
         if let fh = FileHandle(forWritingAtPath: path) {
             fh.seekToEndOfFile()
             fh.write(Data(line.utf8))
@@ -117,10 +137,22 @@ final class RTSPClient: ObservableObject {
             }
 
             let tlsOpts = NWProtocolTLS.Options()
+            // Trust-on-first-use pinning, same policy as the HTTPS path: accept the
+            // self-signed controller cert on first sight, reject if its key later
+            // changes (possible MITM). Never writes to the system trust store.
             sec_protocol_options_set_verify_block(
                 tlsOpts.securityProtocolOptions,
-                { _, _, complete in complete(true) },
-                DispatchQueue.global()
+                { [weak self] _, secTrust, complete in
+                    let trust = sec_trust_copy_ref(secTrust).takeRetainedValue()
+                    let ok = CertificateTrust.evaluate(host: host, trust: trust)
+                    if !ok {
+                        DispatchQueue.main.async {
+                            self?.error = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
+                        }
+                    }
+                    complete(ok)
+                },
+                queue
             )
 
             let params = NWParameters(tls: tlsOpts)
@@ -184,6 +216,10 @@ final class RTSPClient: ObservableObject {
             // Already on self.queue (NWConnection dispatches callbacks there)
             if let bytes = data, !bytes.isEmpty {
                 self.buffer.append(contentsOf: bytes)
+                guard self.bufferCount <= self.maxControlBuffer else {
+                    self.failConnection("RTSP buffer exceeded \(self.maxControlBuffer) bytes")
+                    return
+                }
                 self.processBuffer()
             }
             if let e = err {
@@ -214,10 +250,22 @@ final class RTSPClient: ObservableObject {
         if inRTPMode { processRTP() } else { processRTSPResponses() }
     }
 
+    /// Tear down the connection with an error. Must be called on `queue`.
+    private func failConnection(_ message: String) {
+        Self.dbg("[RTSP] failConnection: \(message)")
+        DispatchQueue.main.async { self.error = message }
+        disconnectOnQueue()
+    }
+
     // MARK: - RTSP response parser
 
     private func processRTSPResponses() {
-        guard let headerEnd = findHeaderEnd() else { return }
+        guard let headerEnd = findHeaderEnd() else {
+            // No header terminator yet. If we've buffered more than a sane header
+            // could ever be, the endpoint is misbehaving — give up.
+            if bufferCount > maxHeaderSize { failConnection("RTSP header exceeded \(maxHeaderSize) bytes") }
+            return
+        }
 
         let headerText = String(bytes: buffer[bufferOffset..<headerEnd], encoding: .utf8) ?? ""
         let lines = headerText.components(separatedBy: "\r\n")
@@ -234,6 +282,11 @@ final class RTSPClient: ObservableObject {
             }
         }
         if !newSession.isEmpty { sessionId = newSession }
+
+        guard contentLength >= 0, contentLength <= maxContentLength else {
+            failConnection("RTSP Content-Length out of range: \(contentLength)")
+            return
+        }
 
         let total = headerEnd + contentLength
         guard buffer.count >= total else { return }
@@ -423,11 +476,9 @@ final class RTSPClient: ObservableObject {
             guard length > 2 else { return }
             let fuInd  = buffer[off]
             let fuHdr  = buffer[off + 1]
-            let isStart = (fuHdr & 0x80) != 0
-            let isEnd   = (fuHdr & 0x40) != 0
-            let origType = fuHdr & 0x1F
+            let (isStart, isEnd, _) = RTPParser.parseFUAFlags(fuHdr)
             if isStart {
-                fuBuffer = [(fuInd & 0xE0) | origType]
+                fuBuffer = [RTPParser.reconstructH264FUAHeader(fuIndicator: fuInd, fuHeader: fuHdr)]
                 fuBuffer!.append(contentsOf: buffer[(off + 2) ..< (off + length)])
             } else {
                 fuBuffer?.append(contentsOf: buffer[(off + 2) ..< (off + length)])
@@ -448,11 +499,8 @@ final class RTSPClient: ObservableObject {
         case 49:    // Fragmentation Unit
             guard length >= 3 else { return }
             let fuHdr   = buffer[off + 2]
-            let isStart = (fuHdr & 0x80) != 0
-            let isEnd   = (fuHdr & 0x40) != 0
-            let fuNalType = fuHdr & 0x3F
-            let hdr0: UInt8 = (buffer[off] & 0x81) | (fuNalType << 1)
-            let hdr1: UInt8 = buffer[off + 1]
+            let (isStart, isEnd, _) = RTPParser.parseH265FUFlags(fuHdr)
+            let (hdr0, hdr1) = RTPParser.reconstructH265FUHeader(byte0: buffer[off], byte1: buffer[off + 1], fuHeader: fuHdr)
             if isStart {
                 fuBuffer = [hdr0, hdr1]
                 fuBuffer!.append(contentsOf: buffer[(off + 3) ..< (off + length)])
@@ -479,11 +527,10 @@ final class RTSPClient: ObservableObject {
         guard !nal.isEmpty else { return }
 
         if codec == "H265", nal.count >= 2 {
-            let nalType = (nal[0] >> 1) & 0x3F
-            switch nalType {
-            case 32: hevcVPS = nal
-            case 33: hevcSPS = nal
-            case 34: hevcPPS = nal
+            switch RTPParser.classifyH265NAL(nal[0]) {
+            case .vps: hevcVPS = nal
+            case .sps: hevcSPS = nal
+            case .pps: hevcPPS = nal
             default: break
             }
             if formatDescription == nil, let vps = hevcVPS, let sps = hevcSPS, let pps = hevcPPS {
@@ -494,12 +541,15 @@ final class RTSPClient: ObservableObject {
                     DispatchQueue.main.async { self.videoDimensions = size }
                 }
             }
-            if nalType == 32 || nalType == 33 || nalType == 34 { return }
+            // Don't enqueue parameter sets as picture data.
+            switch RTPParser.classifyH265NAL(nal[0]) {
+            case .vps, .sps, .pps: return
+            default: break
+            }
         } else {
-            let nalType = nal[0] & 0x1F
-            switch nalType {
-            case 7: h264SPS = nal
-            case 8: h264PPS = nal
+            switch RTPParser.classifyH264NAL(nal[0]) {
+            case .sps: h264SPS = nal
+            case .pps: h264PPS = nal
             default: break
             }
             if formatDescription == nil, let sps = h264SPS, let pps = h264PPS {
@@ -510,7 +560,11 @@ final class RTSPClient: ObservableObject {
                     DispatchQueue.main.async { self.videoDimensions = size }
                 }
             }
-            if nalType == 7 || nalType == 8 || nalType == 9 { return }
+            // Don't enqueue parameter sets or access-unit delimiters as picture data.
+            switch RTPParser.classifyH264NAL(nal[0]) {
+            case .sps, .pps, .aud: return
+            default: break
+            }
         }
 
         guard formatDescription != nil else { return }
@@ -560,10 +614,10 @@ final class RTSPClient: ObservableObject {
                 let firstNAL = nals[0]
                 let isKeyframe: Bool
                 if codec == "H265", firstNAL.count >= 2 {
-                    let t = (firstNAL[0] >> 1) & 0x3F
-                    isKeyframe = (t >= 16 && t <= 21)
+                    if case .keyframe = RTPParser.classifyH265NAL(firstNAL[0]) { isKeyframe = true }
+                    else { isKeyframe = false }
                 } else {
-                    isKeyframe = (firstNAL[0] & 0x1F) == 5
+                    isKeyframe = RTPParser.classifyH264NAL(firstNAL[0]) == .idr
                 }
                 for dict in attachments {
                     dict[kCMSampleAttachmentKey_DependsOnOthers] = !isKeyframe

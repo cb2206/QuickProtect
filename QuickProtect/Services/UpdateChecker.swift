@@ -3,19 +3,19 @@ import AppKit
 
 /// Identifies how this build was distributed.
 ///
-/// The built-in self-updater (download DMG → swap bundle → relaunch) only
-/// applies to the directly-distributed GitHub build. Mac App Store builds
-/// are updated by the App Store itself, and Apple forbids apps that ship
-/// their own download/install update mechanism (App Store Review Guideline
-/// 2.4.5 / 3.2.2). When the app is delivered through the App Store, macOS
-/// places a `_MASReceipt/receipt` file inside the bundle; its presence is a
-/// reliable runtime signal that the self-updater must stay hidden and idle.
+/// The GitHub build is distributed **unsigned** (a deliberate hurdle that steers
+/// users toward the paid Mac App Store version). Because an unsigned build can't
+/// be safely auto-installed — downloading and executing an unsigned DMG would be
+/// a supply-chain risk — the updater only *notifies* and links to the release
+/// page; it never installs. Mac App Store builds are updated by the App Store
+/// itself, and Apple forbids in-app update mechanisms there (Guideline 2.4.5 /
+/// 3.2.2), so the updater stays idle when a `_MASReceipt/receipt` is present.
 enum AppDistribution {
     static var isAppStore: Bool {
-        // Demo override: force App Store presentation (hides the self-update tab
-        // and disables update checks) without a real receipt — used for App
-        // Store review screen recordings. This can only force the value TRUE,
-        // never disable genuine App Store detection, so it is safe to ship.
+        // Demo override: force App Store presentation (hides the update tab and
+        // disables update checks) without a real receipt — used for App Store
+        // review screen recordings. Can only force the value TRUE, never disable
+        // genuine App Store detection, so it is safe to ship.
         //   Enable:  defaults write com.cb.quickprotect QPForceAppStore -bool YES
         //   Disable: defaults delete com.cb.quickprotect QPForceAppStore
         if UserDefaults.standard.bool(forKey: "QPForceAppStore") { return true }
@@ -26,6 +26,10 @@ enum AppDistribution {
     }
 }
 
+/// Checks GitHub for a newer release and surfaces it in Settings. Notify-only:
+/// it does not download or install anything. The user opens the release page and
+/// updates manually (the GitHub build is intentionally unsigned, so auto-install
+/// is neither possible nor safe — see `AppDistribution`).
 final class UpdateChecker: NSObject, ObservableObject {
 
     // MARK: - Published state
@@ -34,14 +38,6 @@ final class UpdateChecker: NSObject, ObservableObject {
     @Published var latestVersion   = ""
     @Published var releaseURL: URL?
     @Published var isChecking      = false
-    @Published var updateState: UpdateState = .idle
-
-    enum UpdateState: Equatable {
-        case idle
-        case downloading(progress: Double)
-        case installing
-        case error(String)
-    }
 
     // MARK: - Config
 
@@ -49,13 +45,10 @@ final class UpdateChecker: NSObject, ObservableObject {
     private let repoName  = "QuickProtect"
     private var timer: Timer?
 
-    // MARK: - Download state
-
-    private var dmgDownloadURL: URL?
-    private var downloadTask: URLSessionDownloadTask?
-    private lazy var downloadSession: URLSession = {
-        URLSession(configuration: .default, delegate: self, delegateQueue: .main)
-    }()
+    /// Releases page to fall back to if a specific release URL wasn't captured.
+    private var releasesPageURL: URL? {
+        URL(string: "https://github.com/\(repoOwner)/\(repoName)/releases/latest")
+    }
 
     private var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0"
@@ -102,243 +95,26 @@ final class UpdateChecker: NSObject, ObservableObject {
                 self.latestVersion = remote
                 self.releaseURL = URL(string: htmlURL)
                 self.updateAvailable = self.isNewer(remote: remote, local: self.currentVersion)
-
-                // Extract DMG download URL from assets array
-                self.dmgDownloadURL = nil
-                if let assets = json["assets"] as? [[String: Any]] {
-                    for asset in assets {
-                        if let name = asset["name"] as? String,
-                           name.lowercased().hasSuffix(".dmg"),
-                           let downloadURL = asset["browser_download_url"] as? String {
-                            self.dmgDownloadURL = URL(string: downloadURL)
-                            break
-                        }
-                    }
-                }
             }
         }.resume()
     }
 
-    // MARK: - Download update
+    // MARK: - Open the release for manual download
 
-    func downloadAndInstall() {
-        guard let url = dmgDownloadURL else {
-            updateState = .error(String(localized: "No DMG download URL found"))
-            return
+    /// Opens the latest release page in the browser. The user downloads and
+    /// installs manually — this build is unsigned by design, so there is no
+    /// in-app installer.
+    func openReleasePage() {
+        if let url = releaseURL ?? releasesPageURL {
+            NSWorkspace.shared.open(url)
         }
-        updateState = .downloading(progress: 0)
-        downloadTask = downloadSession.downloadTask(with: url)
-        downloadTask?.resume()
-    }
-
-    func cancelDownload() {
-        downloadTask?.cancel()
-        downloadTask = nil
-        updateState = .idle
-    }
-
-    // MARK: - Install from DMG
-
-    private func installUpdate(dmgPath: String) {
-        updateState = .installing
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            do {
-                let appPath = Bundle.main.bundlePath
-                let appDir  = (appPath as NSString).deletingLastPathComponent
-                _ = (appPath as NSString).lastPathComponent  // "QuickProtect.app"
-
-                // 1. Mount DMG
-                let mountPoint = try self?.mountDMG(at: dmgPath)
-                guard let mount = mountPoint else {
-                    throw UpdateError.mountFailed
-                }
-
-                defer {
-                    // Always unmount
-                    let detach = Process()
-                    detach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-                    detach.arguments = ["detach", mount, "-force"]
-                    try? detach.run()
-                    detach.waitUntilExit()
-                    // Clean up DMG
-                    try? FileManager.default.removeItem(atPath: dmgPath)
-                }
-
-                // 2. Find .app in mounted volume
-                let contents = try FileManager.default.contentsOfDirectory(atPath: mount)
-                guard let appBundle = contents.first(where: { $0.hasSuffix(".app") }) else {
-                    throw UpdateError.noAppInDMG
-                }
-                let sourceApp = (mount as NSString).appendingPathComponent(appBundle)
-
-                // 3. Stage: copy new app to temp location using ditto (preserves xattrs)
-                let stagedApp = (NSTemporaryDirectory() as NSString).appendingPathComponent("QuickProtect-staged.app")
-                try? FileManager.default.removeItem(atPath: stagedApp)
-                try self?.runProcess("/usr/bin/ditto", args: [sourceApp, stagedApp])
-
-                // 4. Swap: rename old app, move new app in place
-                let oldApp = (appDir as NSString).appendingPathComponent("QuickProtect-old.app")
-                try? FileManager.default.removeItem(atPath: oldApp)  // remove any previous backup
-                try FileManager.default.moveItem(atPath: appPath, toPath: oldApp)
-
-                do {
-                    try FileManager.default.moveItem(atPath: stagedApp, toPath: appPath)
-                } catch {
-                    // Rollback: restore old app
-                    try? FileManager.default.moveItem(atPath: oldApp, toPath: appPath)
-                    throw UpdateError.swapFailed(error.localizedDescription)
-                }
-
-                // 5. Remove quarantine xattr
-                _ = try? self?.runProcess("/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", appPath])
-
-                // 6. Restart via helper script
-                let pid = ProcessInfo.processInfo.processIdentifier
-                self?.launchRestartScript(pid: pid, newAppPath: appPath, oldAppPath: oldApp)
-
-                DispatchQueue.main.async {
-                    NSApp.terminate(nil)
-                }
-
-            } catch {
-                DispatchQueue.main.async {
-                    self?.updateState = .error(error.localizedDescription)
-                }
-            }
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func mountDMG(at path: String) throws -> String {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-        proc.arguments = ["attach", path, "-nobrowse", "-noverify", "-plist"]
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        try proc.run()
-        proc.waitUntilExit()
-
-        guard proc.terminationStatus == 0 else { throw UpdateError.mountFailed }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let entities = plist["system-entities"] as? [[String: Any]] else {
-            throw UpdateError.mountFailed
-        }
-
-        // Find the mount point from the plist output
-        for entity in entities {
-            if let mountPoint = entity["mount-point"] as? String {
-                return mountPoint
-            }
-        }
-        throw UpdateError.mountFailed
-    }
-
-    @discardableResult
-    private func runProcess(_ path: String, args: [String]) throws -> String {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: path)
-        proc.arguments = args
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = pipe
-        try proc.run()
-        proc.waitUntilExit()
-        guard proc.terminationStatus == 0 else {
-            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            throw UpdateError.processFailed("\(path) failed: \(output)")
-        }
-        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    }
-
-    private func launchRestartScript(pid: Int32, newAppPath: String, oldAppPath: String) {
-        let script = """
-        #!/bin/sh
-        for i in $(seq 1 20); do
-            kill -0 \(pid) 2>/dev/null || break
-            sleep 0.5
-        done
-        rm -rf "\(oldAppPath)"
-        open "\(newAppPath)"
-        rm -f /tmp/quickprotect-restart.sh
-        rm -f /tmp/QuickProtect-update.dmg
-        """
-
-        let scriptPath = "/tmp/quickprotect-restart.sh"
-        try? script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
-
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/bin/sh")
-        proc.arguments = [scriptPath]
-        // Detach from our process group so it survives our exit
-        proc.qualityOfService = .utility
-        try? proc.run()
     }
 
     // MARK: - Version comparison
 
+    /// Delegates to the single, unit-tested implementation in RTPParser so the
+    /// shipping comparison and the tested one can't drift apart.
     private func isNewer(remote: String, local: String) -> Bool {
-        let r = remote.split(separator: ".").compactMap { Int($0) }
-        let l = local.split(separator: ".").compactMap { Int($0) }
-        for i in 0..<max(r.count, l.count) {
-            let rv = i < r.count ? r[i] : 0
-            let lv = i < l.count ? l[i] : 0
-            if rv > lv { return true }
-            if rv < lv { return false }
-        }
-        return false
-    }
-
-    // MARK: - Errors
-
-    enum UpdateError: LocalizedError {
-        case mountFailed
-        case noAppInDMG
-        case swapFailed(String)
-        case processFailed(String)
-
-        var errorDescription: String? {
-            switch self {
-            case .mountFailed:        return String(localized: "Failed to mount the update DMG")
-            case .noAppInDMG:         return String(localized: "No app bundle found in the DMG")
-            case .swapFailed(let m):  return String(localized: "App replacement failed: \(m)")
-            case .processFailed(let m): return m
-            }
-        }
-    }
-}
-
-// MARK: - URLSessionDownloadDelegate
-
-extension UpdateChecker: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
-                    totalBytesExpectedToWrite: Int64) {
-        let progress = totalBytesExpectedToWrite > 0
-            ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-            : 0
-        updateState = .downloading(progress: progress)
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didFinishDownloadingTo location: URL) {
-        let dest = "/tmp/QuickProtect-update.dmg"
-        try? FileManager.default.removeItem(atPath: dest)
-        do {
-            try FileManager.default.moveItem(at: location, to: URL(fileURLWithPath: dest))
-            installUpdate(dmgPath: dest)
-        } catch {
-            updateState = .error(String(localized: "Failed to save download: \(error.localizedDescription)"))
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask,
-                    didCompleteWithError error: Error?) {
-        if let error, (error as NSError).code != NSURLErrorCancelled {
-            updateState = .error(String(localized: "Download failed: \(error.localizedDescription)"))
-        }
+        RTPParser.isNewer(remote: remote, local: local)
     }
 }
