@@ -67,12 +67,9 @@ struct AuroraFocusTopBar: View {
                                    action: onToggleFullscreen)
         }
         .padding(.horizontal, 12).padding(.vertical, 7)
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.8)
-            }
-        )
+        // Plain fill, deliberately not a blur: a withinWindow blur whose
+        // backdrop is live video forces a re-blur on every frame.
+        .background(Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.9))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
@@ -146,11 +143,7 @@ struct AuroraPtzDpad: View {
             // Partially transparent backing so the pad stays legible over any
             // camera image, while still letting the scene show through.
             Circle()
-                .fill(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.55))
-                .background(
-                    VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                        .clipShape(Circle())
-                )
+                .fill(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.7))
                 .overlay(
                     Circle().stroke(Color.white.opacity(0.14), lineWidth: 0.5)
                 )
@@ -224,11 +217,7 @@ struct AuroraPtzZoomControl: View {
         .background(
             // Same partially transparent backing as the d-pad, capsule-shaped.
             Capsule()
-                .fill(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.55))
-                .background(
-                    VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                        .clipShape(Capsule())
-                )
+                .fill(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.7))
                 .overlay(
                     Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5)
                 )
@@ -319,12 +308,7 @@ struct AuroraFullscreenHUD: View {
                 .foregroundStyle(.white.opacity(0.55))
         }
         .padding(.horizontal, 10).padding(.vertical, 5)
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.65)
-            }
-        )
+        .background(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.8))
         .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
         .clipShape(Capsule())
     }
@@ -352,12 +336,7 @@ struct AuroraFullscreenHUD: View {
             KbdKey("esc"); Text("back to popover").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.7)
-            }
-        )
+        .background(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.85))
         .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
         .clipShape(Capsule())
     }
@@ -404,12 +383,7 @@ struct AuroraFocusHints: View {
         .foregroundStyle(Color.white.opacity(0.8))
         .padding(.horizontal, 10).padding(.vertical, 6)
         // Partially transparent backing so the labels stay readable over any scene.
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.55)
-            }
-        )
+        .background(Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.7))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.white.opacity(0.10), lineWidth: 0.5)

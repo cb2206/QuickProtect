@@ -22,4 +22,9 @@ final class RTSPClientManager: ObservableObject {
         }
         clients.removeAll()
     }
+
+    deinit {
+        // Safety net: never let owned connections outlive the manager.
+        disconnectAll()
+    }
 }

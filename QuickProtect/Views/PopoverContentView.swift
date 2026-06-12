@@ -3,6 +3,7 @@ import SwiftUI
 /// Root view shown inside the status-bar popover.
 struct PopoverContentView: View {
     @ObservedObject var service: ProtectService
+    let clientManager: RTSPClientManager
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchQuery: String = ""
@@ -17,7 +18,8 @@ struct PopoverContentView: View {
                 header
                 AuroraHairline(color: palette.chromeBorder)
             }
-            CameraGridView(service: service, searchQuery: searchQuery, onOpenSettings: openSettings)
+            CameraGridView(service: service, clientManager: clientManager,
+                           searchQuery: searchQuery, onOpenSettings: openSettings)
         }
         .background(palette.popoverBg)
         .accentColor(Color(hex: settings.accentColorHex))

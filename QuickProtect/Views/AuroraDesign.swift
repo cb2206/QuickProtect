@@ -120,19 +120,17 @@ struct AuroraBrandMark: View {
 
 struct AuroraRecDot: View {
     var size: CGFloat = 6
-    @State private var pulse = false
 
+    // Intentionally static. The original repeatForever pulse (plus glow shadow)
+    // ticked the main thread at display refresh rate for every visible dot,
+    // costing roughly as much CPU as the video pipeline itself (panel-open
+    // usage dropped from 20-30% to 12-13% when it was removed). If a live
+    // affordance is ever wanted again, drive it from a ≤1 Hz timer, not a
+    // per-frame animation.
     var body: some View {
         Circle()
             .fill(AuroraTokens.statusRed)
             .frame(width: size, height: size)
-            .shadow(color: AuroraTokens.statusRed.opacity(0.6), radius: size * 0.5)
-            .opacity(pulse ? 0.35 : 1.0)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
-            }
     }
 }
 

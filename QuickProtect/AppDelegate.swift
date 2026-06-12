@@ -18,6 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     let service = ProtectService()
     let updateChecker = UpdateChecker()
+    /// Owned here (not by the SwiftUI tree) so closePanel() can disconnect
+    /// streams deterministically before the view hierarchy is destroyed.
+    let clientManager = RTSPClientManager()
 
     // MARK: - Lifecycle
 
@@ -43,6 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             promptAutoStartIfNeeded()
         }
         updateChecker.startPeriodicChecks()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Release camera streams (RTSP TEARDOWN + server-side DELETE) so the
+        // controller doesn't keep sessions alive against a dead process.
+        closePanel()
+        // Those requests are dispatched asynchronously; give them a brief
+        // window to reach the controller before the process exits.
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
     }
 
     private func promptAutoStartIfNeeded() {
@@ -179,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         if panel == nil {
             let size = savedPanelSize()
-            let content = PopoverContentView(service: service) { [weak self] in
+            let content = PopoverContentView(service: service, clientManager: clientManager) { [weak self] in
                 self?.openSettings()
             }
             let hostingController = NSHostingController(rootView: content)
@@ -233,9 +245,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func closePanel() {
         service.isPopoverOpen = false
+        // Tear streams down explicitly: the hosting controller is destroyed
+        // below in the same runloop turn, so a SwiftUI .onChange observing
+        // isPopoverOpen would never get an update pass to run in.
+        clientManager.disconnectAll()
+        service.cleanupStreams()
         panel?.orderOut(nil)
-        // Destroy the hosting controller so SwiftUI tears down CameraCells
-        // and their RTSPClients disconnect. Recreated in showPanel().
+        // Destroy the hosting controller so the panel is rebuilt fresh in
+        // showPanel().
         panel?.contentViewController = nil
         panel = nil
         if let monitor = clickMonitor {
@@ -262,7 +279,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         AppSettings.shared.setPanelSize(win.frame.size)
     }
 
-    func windowDidClose(_ notification: Notification) {
+    func windowWillClose(_ notification: Notification) {
         if let win = notification.object as? NSPanel, win === panel {
             closePanel()
         }

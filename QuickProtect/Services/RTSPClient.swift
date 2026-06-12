@@ -73,6 +73,16 @@ final class RTSPClient: ObservableObject {
         }
     }
 
+    deinit {
+        // Safety net only — owners are expected to call disconnect() explicitly.
+        // Without this, dropping the last reference leaves the NWConnection
+        // established and the controller keeps streaming into it until the
+        // session times out. Reading `connection` off-queue is benign here: at
+        // deinit no strong references remain, so the only queue work that could
+        // still run holds `self` weakly and bails before touching state.
+        connection?.cancel()
+    }
+
     // MARK: - Public API (called from main thread)
 
     /// Opt-in file logging. Off by default; enable with
@@ -196,9 +206,19 @@ final class RTSPClient: ObservableObject {
         if let conn = connection, let url = currentURL, !sessionId.isEmpty {
             let seq = nextCSeq()
             let msg = "TEARDOWN \(url.absoluteString) RTSP/1.0\r\nCSeq: \(seq)\r\nSession: \(sessionId)\r\n\r\n"
-            conn.send(content: Data(msg.utf8), completion: .idempotent)
+            // Cancel only once the TEARDOWN has hit the wire — cancelling on the
+            // next line raced the send and usually dropped it. The asyncAfter is
+            // a backstop for a dead connection whose send never completes;
+            // cancel() is idempotent so firing both is fine.
+            conn.send(content: Data(msg.utf8), completion: .contentProcessed { _ in
+                conn.cancel()
+            })
+            queue.asyncAfter(deadline: .now() + 1) {
+                conn.cancel()
+            }
+        } else {
+            connection?.cancel()
         }
-        connection?.cancel()
         connection = nil
         displayLayer.flush()
         DispatchQueue.main.async { [self] in

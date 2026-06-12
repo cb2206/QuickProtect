@@ -11,9 +11,11 @@ extension Notification.Name {
 
 struct CameraGridView: View {
     @ObservedObject var service: ProtectService
+    /// Owned by AppDelegate so stream teardown doesn't depend on this view's
+    /// lifetime — see AppDelegate.closePanel().
+    let clientManager: RTSPClientManager
     var searchQuery: String = ""
     var onOpenSettings: () -> Void = {}
-    @StateObject private var clientManager = RTSPClientManager()
     @State private var dragCameraId: String?
     @State private var focusedCameraId: String?
     @State private var lastRetryAt: Date?
@@ -164,12 +166,6 @@ struct CameraGridView: View {
         .onChange(of: focusedCameraId) { newId in
             service.lastFocusedCameraId = newId
             service.isFocusMode = newId != nil
-        }
-        .onChange(of: service.isPopoverOpen) { open in
-            if !open {
-                clientManager.disconnectAll()
-                service.cleanupStreams()
-            }
         }
     }
 
@@ -888,12 +884,9 @@ struct CameraCell: View {
             }
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(
-            ZStack {
-                VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
-                Color.black.opacity(0.55)
-            }
-        )
+        // Plain fill, deliberately not a blur: a withinWindow blur whose
+        // backdrop is live video forces a re-blur on every frame, per tile.
+        .background(Color.black.opacity(0.7))
         .overlay(
             RoundedRectangle(cornerRadius: 5)
                 .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
