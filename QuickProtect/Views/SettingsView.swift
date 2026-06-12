@@ -365,7 +365,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            Text("PTZ control uses the classic Protect API, which requires a local account. The Integration API (API Key) does not expose PTZ endpoints.")
+            Text("PTZ control uses the classic Protect API, which requires a local account. The Integration API (API Key) only exposes preset and patrol endpoints, not free-form movement.")
                 .font(.system(size: 11))
                 .foregroundColor(palette.subtext)
                 .fixedSize(horizontal: false, vertical: true)

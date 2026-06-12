@@ -3732,43 +3732,43 @@
         }
       }
     },
-    "PTZ control uses the classic Protect API, which requires a local account. The Integration API (API Key) does not expose PTZ endpoints.": {
+    "PTZ control uses the classic Protect API, which requires a local account. The Integration API (API Key) only exposes preset and patrol endpoints, not free-form movement.": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die PTZ-Steuerung nutzt die klassische Protect-API, die ein lokales Konto erfordert. Die Integrations-API (API-Schlüssel) bietet keine PTZ-Endpunkte."
+            "value": "Die PTZ-Steuerung nutzt die klassische Protect-API, die ein lokales Konto erfordert. Die Integrations-API (API-Schlüssel) bietet nur Endpunkte für Voreinstellungen und Patrouillen, keine freie Bewegung."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le contrôle PTZ utilise l'API Protect classique, qui nécessite un compte local. L'API d'intégration (clé API) n'expose pas de points de terminaison PTZ."
+            "value": "Le contrôle PTZ utilise l'API Protect classique, qui nécessite un compte local. L'API d'intégration (clé API) n'expose que les points de terminaison de préréglages et de patrouilles, pas le mouvement libre."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "El control PTZ usa la API clásica de Protect, que requiere una cuenta local. La API de integración (clave API) no expone endpoints PTZ."
+            "value": "El control PTZ usa la API clásica de Protect, que requiere una cuenta local. La API de integración (clave API) solo expone endpoints de preajustes y patrullas, no el movimiento libre."
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "PTZ-bediening gebruikt de klassieke Protect-API, waarvoor een lokaal account nodig is. De integratie-API (API-sleutel) biedt geen PTZ-endpoints."
+            "value": "PTZ-bediening gebruikt de klassieke Protect-API, waarvoor een lokaal account nodig is. De integratie-API (API-sleutel) biedt alleen endpoints voor presets en patrouilles, geen vrije beweging."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Il controllo PTZ usa l'API Protect classica, che richiede un account locale. L'API di integrazione (chiave API) non espone endpoint PTZ."
+            "value": "Il controllo PTZ usa l'API Protect classica, che richiede un account locale. L'API di integrazione (chiave API) espone solo endpoint per preset e pattugliamenti, non il movimento libero."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O controle PTZ usa a API clássica do Protect, que exige uma conta local. A API de integração (chave de API) não expõe endpoints PTZ."
+            "value": "O controle PTZ usa a API clássica do Protect, que exige uma conta local. A API de integração (chave de API) só expõe endpoints de predefinições e patrulhas, não o movimento livre."
           }
         }
       }
@@ -5495,43 +5495,43 @@
         }
       }
     },
-    "To pan and tilt PTZ cameras, QuickProtect needs a local admin account. The Integration API key doesn't expose PTZ endpoints. You can skip this and add it later in Settings.": {
+    "To pan and tilt PTZ cameras, QuickProtect needs a local admin account. The Integration API key only exposes preset and patrol endpoints, not free-form movement. You can skip this and add it later in Settings.": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zum Schwenken und Neigen von PTZ-Kameras benötigt QuickProtect ein lokales Admin-Konto. Der Integrations-API-Schlüssel bietet keine PTZ-Endpunkte. Du kannst diesen Schritt überspringen und ihn später in den Einstellungen hinzufügen."
+            "value": "Zum Schwenken und Neigen von PTZ-Kameras benötigt QuickProtect ein lokales Admin-Konto. Der Integrations-API-Schlüssel bietet nur Endpunkte für Voreinstellungen und Patrouillen, keine freie Bewegung. Du kannst diesen Schritt überspringen und ihn später in den Einstellungen hinzufügen."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pour effectuer un panoramique et incliner les caméras PTZ, QuickProtect a besoin d'un compte administrateur local. La clé de l'API d'intégration n'expose pas de points de terminaison PTZ. Vous pouvez ignorer cette étape et l'ajouter plus tard dans les réglages."
+            "value": "Pour effectuer un panoramique et incliner les caméras PTZ, QuickProtect a besoin d'un compte administrateur local. La clé de l'API d'intégration n'expose que les points de terminaison de préréglages et de patrouilles, pas le mouvement libre. Vous pouvez ignorer cette étape et l'ajouter plus tard dans les réglages."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Para girar e inclinar las cámaras PTZ, QuickProtect necesita una cuenta de administrador local. La clave de la API de integración no expone endpoints PTZ. Puedes omitir esto y añadirlo más tarde en los ajustes."
+            "value": "Para girar e inclinar las cámaras PTZ, QuickProtect necesita una cuenta de administrador local. La clave de la API de integración solo expone endpoints de preajustes y patrullas, no el movimiento libre. Puedes omitir esto y añadirlo más tarde en los ajustes."
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Om PTZ-camera's te pannen en te kantelen heeft QuickProtect een lokaal beheerdersaccount nodig. De integratie-API-sleutel biedt geen PTZ-endpoints. Je kunt dit overslaan en het later in de instellingen toevoegen."
+            "value": "Om PTZ-camera's te pannen en te kantelen heeft QuickProtect een lokaal beheerdersaccount nodig. De integratie-API-sleutel biedt alleen endpoints voor presets en patrouilles, geen vrije beweging. Je kunt dit overslaan en het later in de instellingen toevoegen."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Per il brandeggio e l'inclinazione delle telecamere PTZ, QuickProtect ha bisogno di un account amministratore locale. La chiave dell'API di integrazione non espone endpoint PTZ. Puoi saltare questo passaggio e aggiungerlo più tardi nelle impostazioni."
+            "value": "Per il brandeggio e l'inclinazione delle telecamere PTZ, QuickProtect ha bisogno di un account amministratore locale. La chiave dell'API di integrazione espone solo endpoint per preset e pattugliamenti, non il movimento libero. Puoi saltare questo passaggio e aggiungerlo più tardi nelle impostazioni."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Para girar e inclinar câmeras PTZ, o QuickProtect precisa de uma conta de administrador local. A chave da API de integração não expõe endpoints PTZ. Você pode pular isto e adicionar depois nos ajustes."
+            "value": "Para girar e inclinar câmeras PTZ, o QuickProtect precisa de uma conta de administrador local. A chave da API de integração só expõe endpoints de predefinições e patrulhas, não o movimento livre. Você pode pular isto e adicionar depois nos ajustes."
           }
         }
       }
