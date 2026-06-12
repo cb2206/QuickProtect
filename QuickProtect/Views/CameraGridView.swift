@@ -284,8 +284,12 @@ struct CameraCell: View {
                         guard zoomScale > 1.0 else { return }
                         let maxPanX = cellSize.width * (zoomScale - 1) / 2
                         let maxPanY = cellSize.height * (zoomScale - 1) / 2
-                        let newX = lastPanOffset.width - dx
-                        let newY = lastPanOffset.height - dy
+                        // Add the deltas: verified by hand against Photos — with the
+                        // system scroll preference already baked into
+                        // scrollingDeltaX/Y, adding gives the Photos-style pan.
+                        // Do not "fix" the sign without testing on a trackpad.
+                        let newX = lastPanOffset.width + dx
+                        let newY = lastPanOffset.height + dy
                         panOffset = CGSize(
                             width: max(-maxPanX, min(maxPanX, newX)),
                             height: max(-maxPanY, min(maxPanY, newY))
