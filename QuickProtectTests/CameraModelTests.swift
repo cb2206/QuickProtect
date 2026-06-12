@@ -20,6 +20,7 @@ final class CameraModelTests: XCTestCase {
         XCTAssertEqual(camera.state, "CONNECTED")
         XCTAssertTrue(camera.isOnline)
         XCTAssertFalse(camera.isPtz)
+        XCTAssertFalse(camera.canZoom)
     }
 
     // MARK: - Classic API shape with featureFlags
@@ -40,6 +41,7 @@ final class CameraModelTests: XCTestCase {
 
         let camera = try JSONDecoder().decode(Camera.self, from: json)
         XCTAssertTrue(camera.isPtz)
+        XCTAssertFalse(camera.canZoom, "pan/tilt-only camera must not report optical zoom")
     }
 
     func testDecodeOpticalZoomSetsPtz() throws {
@@ -58,6 +60,50 @@ final class CameraModelTests: XCTestCase {
 
         let camera = try JSONDecoder().decode(Camera.self, from: json)
         XCTAssertTrue(camera.isPtz, "canOpticalZoom should also set isPtz")
+        XCTAssertTrue(camera.canZoom)
+    }
+
+    func testDecodeZoomRatioSetsCanZoom() throws {
+        // Modern firmware (e.g. G6 PTZ) reports canOpticalZoom=false and
+        // expresses the zoom lens via featureFlags.zoom.ratio instead.
+        let json = """
+        {
+            "id": "g6ptz",
+            "name": "Backyard",
+            "state": "CONNECTED",
+            "channels": [],
+            "featureFlags": {
+                "isPtz": true,
+                "canOpticalZoom": false,
+                "zoom": { "ratio": 10, "steps": { "min": 0, "max": 1000, "step": 1 } }
+            }
+        }
+        """.data(using: .utf8)!
+
+        let camera = try JSONDecoder().decode(Camera.self, from: json)
+        XCTAssertTrue(camera.isPtz)
+        XCTAssertTrue(camera.canZoom, "zoom.ratio > 1 should set canZoom")
+    }
+
+    func testDecodeZoomRatioOneIsNotZoom() throws {
+        // Fixed-lens cameras report zoom.ratio = 1 with null steps.
+        let json = """
+        {
+            "id": "fixed2",
+            "name": "Doorbell",
+            "state": "CONNECTED",
+            "channels": [],
+            "featureFlags": {
+                "isPtz": false,
+                "canOpticalZoom": false,
+                "zoom": { "ratio": 1, "steps": { "min": null, "max": null, "step": null } }
+            }
+        }
+        """.data(using: .utf8)!
+
+        let camera = try JSONDecoder().decode(Camera.self, from: json)
+        XCTAssertFalse(camera.isPtz)
+        XCTAssertFalse(camera.canZoom)
     }
 
     func testDecodeNonPtzCamera() throws {
@@ -76,6 +122,7 @@ final class CameraModelTests: XCTestCase {
 
         let camera = try JSONDecoder().decode(Camera.self, from: json)
         XCTAssertFalse(camera.isPtz)
+        XCTAssertFalse(camera.canZoom)
     }
 
     // MARK: - Partial/missing fields
@@ -103,6 +150,7 @@ final class CameraModelTests: XCTestCase {
 
         let camera = try JSONDecoder().decode(Camera.self, from: json)
         XCTAssertTrue(camera.isPtz)
+        XCTAssertFalse(camera.canZoom)
     }
 
     // MARK: - Channel decoding

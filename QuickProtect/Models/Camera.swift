@@ -8,6 +8,9 @@ struct Camera: Identifiable {
     /// True if the camera supports physical pan/tilt/zoom.
     /// Set during classic API enrichment (Integration API doesn't expose this flag).
     var isPtz: Bool = false
+    /// True if the camera has an optical zoom lens (may be true on cameras
+    /// without pan/tilt motors). Enriched the same way as `isPtz`.
+    var canZoom: Bool = false
 
     struct Channel {
         let id: Int
@@ -20,13 +23,26 @@ struct Camera: Identifiable {
     struct FeatureFlags: Decodable {
         let isPtz: Bool
         let canOpticalZoom: Bool
+        /// Optical zoom range from the nested `zoom` flags. Current firmware
+        /// reports canOpticalZoom=false even on zoom lenses (e.g. G6 PTZ) and
+        /// expresses the capability as zoom.ratio > 1 instead; fixed lenses
+        /// report ratio 1.
+        let zoomRatio: Double
+
+        var hasOpticalZoom: Bool { canOpticalZoom || zoomRatio > 1 }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             isPtz          = (try? c.decode(Bool.self, forKey: .isPtz))          ?? false
             canOpticalZoom = (try? c.decode(Bool.self, forKey: .canOpticalZoom)) ?? false
+            let zoom = try? c.decode(Zoom.self, forKey: .zoom)
+            zoomRatio = zoom?.ratio ?? 1
         }
-        enum CodingKeys: String, CodingKey { case isPtz, canOpticalZoom }
+        enum CodingKeys: String, CodingKey { case isPtz, canOpticalZoom, zoom }
+
+        struct Zoom: Decodable {
+            let ratio: Double?
+        }
     }
 
     var primaryRtspAlias: String? {
@@ -50,9 +66,11 @@ extension Camera: Codable {
         channels = (try? c.decode([Channel].self, forKey: .channels)) ?? []
         // featureFlags with isPtz/canOpticalZoom — only present in classic API responses
         if let flags = try? c.decode(FeatureFlags.self, forKey: .featureFlags) {
-            isPtz = flags.isPtz || flags.canOpticalZoom
+            isPtz = flags.isPtz || flags.hasOpticalZoom
+            canZoom = flags.hasOpticalZoom
         } else {
             isPtz = false
+            canZoom = false
         }
     }
 
@@ -62,7 +80,7 @@ extension Camera: Codable {
         try c.encode(name, forKey: .name)
         try c.encode(state, forKey: .state)
         try c.encode(channels, forKey: .channels)
-        // isPtz is enriched at runtime; featureFlags is decode-only
+        // isPtz/canZoom are enriched at runtime; featureFlags is decode-only
     }
 
     enum CodingKeys: String, CodingKey {

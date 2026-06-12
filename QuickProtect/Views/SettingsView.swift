@@ -446,8 +446,9 @@ struct SettingsView: View {
                     (String(localized: "Display fullscreen"), String(localized: "F  ·  Space")),
                     (String(localized: "Exit / back"),        String(localized: "Esc")),
                     (String(localized: "Pan & tilt (PTZ)"),   "← → ↑ ↓"),
+                    (String(localized: "Zoom (PTZ)"),         "I  ·  O"),
                     (String(localized: "Open in Protect"),    String(localized: "Double-click")),
-                    (String(localized: "Zoom in feed"),       String(localized: "⌘+scroll")),
+                    (String(localized: "Digital zoom"),       String(localized: "⌘+scroll")),
                 ]
                 ForEach(Array(rows.enumerated()), id: \.offset) { idx, r in
                     AuroraSettingsRow(isLast: idx == rows.count - 1) {

@@ -244,6 +244,7 @@ struct CameraCell: View {
     @State private var cellSize: CGSize = .zero       // for pan clamping
     @State private var focusFillMode: Bool = false    // fit/fill toggle; loaded per-camera on focus (default: fit)
     @State private var ptzActiveDirection: AuroraPtzDpad.Direction?  // lit arrow on the d-pad
+    @State private var ptzActiveZoom: AuroraPtzZoomControl.Direction?  // lit +/− on the zoom pill
     @State private var reattachNonce = 0               // bump to re-attach the display layer
     @State private var clockTick: Date = Date()
     @State private var clockTimer: Timer?
@@ -392,6 +393,12 @@ struct CameraCell: View {
                 installKeyMonitor()
                 startClockTimer()
             } else {
+                // Only the previously-focused cell holds a key monitor; make
+                // sure no axis keeps moving after focus is gone (a held key's
+                // key-up is never delivered once the monitor is removed).
+                if keyMonitor != nil {
+                    service.ptzStopAll(cameraId: camera.id)
+                }
                 removeKeyMonitor()
                 stopClockTimer()
                 removeMouseMonitor()
@@ -402,6 +409,7 @@ struct CameraCell: View {
                 panOffset = .zero
                 lastPanOffset = .zero
                 ptzActiveDirection = nil
+                ptzActiveZoom = nil
                 // Returning to the grid resizes this cell; the shared display
                 // layer can fall out of the view tree and render black. Nudge a
                 // re-attach after the transition settles (mirrors what the
@@ -528,29 +536,51 @@ struct CameraCell: View {
 
     // MARK: - PTZ key handling
 
-    private func isPtzKey(_ keyCode: UInt16) -> Bool {
-        [123, 124, 125, 126].contains(keyCode)
+    /// The camera's current capability flags from the service. The NSEvent
+    /// monitor closures capture this view struct by value, so `camera` itself
+    /// can be a stale pre-enrichment copy (canZoom=false) after the panel is
+    /// reopened — always consult the live list for gating.
+    private var currentCanZoom: Bool {
+        service.cameras.first(where: { $0.id == camera.id })?.canZoom ?? camera.canZoom
     }
 
-    /// Key-down: start repeating PTZ movement in the pressed direction.
-    /// Also lights up the matching arrow on the on-screen d-pad.
+    private func isPtzKey(_ keyCode: UInt16) -> Bool {
+        [123, 124, 125, 126].contains(keyCode) || (currentCanZoom && isZoomKey(keyCode))
+    }
+
+    private func isZoomKey(_ keyCode: UInt16) -> Bool {
+        keyCode == 34 || keyCode == 31  // I, O
+    }
+
+    /// Key-down: start PTZ movement on the pressed axis (other axes keep
+    /// running, so arrows and I/O combine). Also lights up the matching
+    /// arrow on the on-screen d-pad / zoom pill.
     private func handlePtzKeyDown(_ keyCode: UInt16) -> Bool {
         guard !AppSettings.shared.username.isEmpty else { return false }
         switch keyCode {
-        case 123: service.ptzStartMove(cameraId: camera.id, pan: -1); ptzActiveDirection = .left    // Left
-        case 124: service.ptzStartMove(cameraId: camera.id, pan:  1); ptzActiveDirection = .right   // Right
-        case 126: service.ptzStartMove(cameraId: camera.id, tilt:  1); ptzActiveDirection = .up     // Up
-        case 125: service.ptzStartMove(cameraId: camera.id, tilt: -1); ptzActiveDirection = .down   // Down
+        case 123: service.ptzSetAxes(cameraId: camera.id, pan: -1); ptzActiveDirection = .left    // Left
+        case 124: service.ptzSetAxes(cameraId: camera.id, pan:  1); ptzActiveDirection = .right   // Right
+        case 126: service.ptzSetAxes(cameraId: camera.id, tilt:  1); ptzActiveDirection = .up     // Up
+        case 125: service.ptzSetAxes(cameraId: camera.id, tilt: -1); ptzActiveDirection = .down   // Down
+        case 34 where currentCanZoom:
+            service.ptzSetAxes(cameraId: camera.id, zoom:  1); ptzActiveZoom = .zoomIn            // I
+        case 31 where currentCanZoom:
+            service.ptzSetAxes(cameraId: camera.id, zoom: -1); ptzActiveZoom = .zoomOut           // O
         default:  return false
         }
         return true
     }
 
-    /// Key-up: stop PTZ movement immediately and clear the lit arrow.
+    /// Key-up: stop the released key's axis and clear its lit control;
+    /// other axes keep moving.
     private func handlePtzKeyUp(_ keyCode: UInt16) -> Bool {
         guard !AppSettings.shared.username.isEmpty, isPtzKey(keyCode) else { return false }
-        service.ptzStop(cameraId: camera.id)
-        ptzActiveDirection = nil
+        switch keyCode {
+        case 123, 124: service.ptzSetAxes(cameraId: camera.id, pan: 0); ptzActiveDirection = nil
+        case 125, 126: service.ptzSetAxes(cameraId: camera.id, tilt: 0); ptzActiveDirection = nil
+        case 34, 31:   service.ptzSetAxes(cameraId: camera.id, zoom: 0); ptzActiveZoom = nil
+        default: return false
+        }
         return true
     }
 
@@ -726,16 +756,29 @@ struct CameraCell: View {
 
             HStack(alignment: .bottom) {
                 if showOverlayControls {
-                    AuroraFocusHints(showPtzHint: camera.isPtz)
+                    AuroraFocusHints(showPtzHint: camera.isPtz,
+                                     showZoomHint: camera.canZoom)
                         .padding(.leading, 12).padding(.bottom, 12)
                 }
                 Spacer()
-                if showOverlayControls && camera.isPtz && !AppSettings.shared.username.isEmpty {
-                    AuroraPtzDpad(
-                        onPress: { dir in dpadPress(dir) },
-                        onRelease: { dpadRelease() },
-                        activeDirection: ptzActiveDirection
-                    )
+                if showOverlayControls && (camera.isPtz || camera.canZoom)
+                    && !AppSettings.shared.username.isEmpty {
+                    HStack(alignment: .bottom, spacing: 6) {
+                        if camera.isPtz {
+                            AuroraPtzDpad(
+                                onPress: { dir in dpadPress(dir) },
+                                onRelease: { dpadRelease() },
+                                activeDirection: ptzActiveDirection
+                            )
+                        }
+                        if camera.canZoom {
+                            AuroraPtzZoomControl(
+                                onPress: { dir in zoomPress(dir) },
+                                onRelease: { zoomRelease() },
+                                activeDirection: ptzActiveZoom
+                            )
+                        }
+                    }
                     .padding(.trailing, 16).padding(.bottom, 16)
                 }
             }
@@ -750,16 +793,29 @@ struct CameraCell: View {
     private func dpadPress(_ dir: AuroraPtzDpad.Direction) {
         ptzActiveDirection = dir
         switch dir {
-        case .up:    service.ptzStartMove(cameraId: camera.id, tilt:  1)
-        case .down:  service.ptzStartMove(cameraId: camera.id, tilt: -1)
-        case .left:  service.ptzStartMove(cameraId: camera.id, pan:  -1)
-        case .right: service.ptzStartMove(cameraId: camera.id, pan:   1)
+        case .up:    service.ptzSetAxes(cameraId: camera.id, tilt:  1)
+        case .down:  service.ptzSetAxes(cameraId: camera.id, tilt: -1)
+        case .left:  service.ptzSetAxes(cameraId: camera.id, pan:  -1)
+        case .right: service.ptzSetAxes(cameraId: camera.id, pan:   1)
         }
     }
 
     private func dpadRelease() {
-        service.ptzStop(cameraId: camera.id)
+        service.ptzSetAxes(cameraId: camera.id, pan: 0, tilt: 0)
         ptzActiveDirection = nil
+    }
+
+    private func zoomPress(_ dir: AuroraPtzZoomControl.Direction) {
+        ptzActiveZoom = dir
+        switch dir {
+        case .zoomIn:  service.ptzSetAxes(cameraId: camera.id, zoom:  1)
+        case .zoomOut: service.ptzSetAxes(cameraId: camera.id, zoom: -1)
+        }
+    }
+
+    private func zoomRelease() {
+        service.ptzSetAxes(cameraId: camera.id, zoom: 0)
+        ptzActiveZoom = nil
     }
 
     private func startClockTimer() {

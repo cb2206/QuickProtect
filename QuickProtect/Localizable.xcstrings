@@ -1313,6 +1313,47 @@
         }
       }
     },
+    "Digital zoom": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digitaler Zoom"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom numérique"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom digital"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Digitale zoom"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom digitale"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom digital"
+          }
+        }
+      }
+    },
     "Disconnected": {
       "extractionState": "manual",
       "localizations": {
@@ -5987,43 +6028,166 @@
         }
       }
     },
-    "Zoom in feed": {
+    "Zoom": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Im Feed zoomen"
+            "value": "Zoom"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zoomer dans le flux"
+            "value": "Zoom"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Acercar en la transmisión"
+            "value": "Zoom"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inzoomen op beeld"
+            "value": "Zoom"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zoom nel feed"
+            "value": "Zoom"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zoom na transmissão"
+            "value": "Zoom"
+          }
+        }
+      }
+    },
+    "Zoom (PTZ)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom (PTZ)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom (PTZ)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom (PTZ)"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom (PTZ)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom (PTZ)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom (PTZ)"
+          }
+        }
+      }
+    },
+    "Zoom in (I)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heranzoomen (I)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom avant (I)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acercar (I)"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inzoomen (I)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom avanti (I)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aproximar (I)"
+          }
+        }
+      }
+    },
+    "Zoom out (O)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herauszoomen (O)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom arrière (O)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alejar (O)"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uitzoomen (O)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom indietro (O)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afastar (O)"
           }
         }
       }

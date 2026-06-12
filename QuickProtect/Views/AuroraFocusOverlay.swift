@@ -158,7 +158,7 @@ struct AuroraPtzDpad: View {
             // Center dot
             Circle()
                 .fill(Color.white.opacity(0.4))
-                .frame(width: 6, height: 6)
+                .frame(width: 5, height: 5)
 
             // Grid of 3x3 positions; corners stay blank
             VStack(spacing: 0) {
@@ -186,9 +186,54 @@ struct AuroraPtzDpad: View {
                     Color.clear
                 }
             }
-            .padding(8)
+            .padding(6)
         }
-        .frame(width: 110, height: 110)
+        .frame(width: AuroraPtzControlMetrics.height, height: AuroraPtzControlMetrics.height)
+    }
+}
+
+/// Shared sizing for the PTZ d-pad and the zoom pill so they stay height-aligned.
+enum AuroraPtzControlMetrics {
+    static let height: CGFloat = 82
+}
+
+// MARK: - PTZ zoom control
+
+/// Vertical +/− pill that drives the optical zoom, styled to match the d-pad.
+struct AuroraPtzZoomControl: View {
+    let onPress: (Direction) -> Void
+    let onRelease: () -> Void
+    /// Direction currently driven by the keyboard, so the matching button lights up.
+    var activeDirection: Direction? = nil
+
+    enum Direction { case zoomIn, zoomOut }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DpadButton(systemName: "plus", help: String(localized: "Zoom in (I)"),
+                       isActive: activeDirection == .zoomIn,
+                       onPress: { onPress(.zoomIn) }, onRelease: onRelease)
+            Rectangle()
+                .fill(Color.white.opacity(0.15))
+                .frame(width: 11, height: 0.5)
+            DpadButton(systemName: "minus", help: String(localized: "Zoom out (O)"),
+                       isActive: activeDirection == .zoomOut,
+                       onPress: { onPress(.zoomOut) }, onRelease: onRelease)
+        }
+        .padding(.vertical, 4)
+        .background(
+            // Same partially transparent backing as the d-pad, capsule-shaped.
+            Capsule()
+                .fill(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.55))
+                .background(
+                    VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
+                        .clipShape(Capsule())
+                )
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+                )
+        )
+        .frame(width: 27, height: AuroraPtzControlMetrics.height)
     }
 }
 
@@ -204,7 +249,7 @@ private struct DpadButton: View {
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(Color.white.opacity(lit ? 1.0 : 0.85))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
@@ -342,6 +387,7 @@ struct AuroraFullscreenHUD: View {
 
 struct AuroraFocusHints: View {
     let showPtzHint: Bool
+    var showZoomHint: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -349,6 +395,9 @@ struct AuroraFocusHints: View {
             Hint(keys: ["esc"], label: String(localized: "Back"))
             if showPtzHint {
                 Hint(keys: ["←", "→", "↑", "↓"], label: String(localized: "Pan / tilt"))
+            }
+            if showZoomHint {
+                Hint(keys: ["I", "O"], label: String(localized: "Zoom"))
             }
         }
         .font(.system(size: 10.5))

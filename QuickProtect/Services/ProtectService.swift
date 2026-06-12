@@ -221,64 +221,105 @@ final class ProtectService: NSObject, ObservableObject {
         // the list is present it is authoritative (a camera that lost PTZ is cleared).
         guard !classicCameras.isEmpty else { return }
         let ptzIds = Set(classicCameras.filter(\.isPtz).map(\.id))
+        let zoomIds = Set(classicCameras.filter(\.canZoom).map(\.id))
 
         await MainActor.run {
             self.cameras = self.cameras.map { cam in
                 var c = cam
                 c.isPtz = ptzIds.contains(cam.id)
+                c.canZoom = zoomIds.contains(cam.id)
                 return c
             }
         }
     }
 
-    // MARK: - PTZ control (classic API — repeating relative moves)
+    // MARK: - PTZ control (classic API — continuous velocity moves)
 
-    private var ptzTimer: Timer?
+    /// Commanded velocity per axis on the controller's ±1000 scale. One
+    /// continuous-move command carries all three axes, so they run in
+    /// parallel; all zeros stops the motion. Mutated only inside the serial
+    /// send chain.
+    private struct PtzVelocity: Equatable {
+        var x = 0.0
+        var y = 0.0
+        var z = 0.0
+    }
 
-    /// Starts repeating relative moves at max step size. Call `ptzStop` on key-up.
-    func ptzStartMove(cameraId: String, pan: Double = 0, tilt: Double = 0) {
-        ptzStopTimer()
-        // Half of the 4095 max — a single key tap should nudge, not lurch.
-        let step = 2048.0
-        RTSPClient.log("[PTZ] startMove cam=\(cameraId) pan=\(pan) tilt=\(tilt)")
+    private enum PtzAxis: Hashable { case pan, tilt, zoom }
 
-        sendPtzRelative(cameraId: cameraId, pan: pan * step, tilt: tilt * step)
-        ptzTimer = Timer.scheduledTimer(withTimeInterval: 0.10, repeats: true) { [weak self] _ in
-            self?.sendPtzRelative(cameraId: cameraId, pan: pan * step, tilt: tilt * step)
+    private var ptzDesired = PtzVelocity()
+    private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
+    /// Serializes move commands so they reach the controller in call order
+    /// (an earlier send may still be waiting on login or a tap's minimum burst).
+    private var ptzSendChain: Task<Void, Never>?
+
+    /// Full speed on the ±1000 velocity scale.
+    private static let ptzVelocityScale = 1000.0
+    /// Minimum travel time for a quick tap before its stop goes out.
+    private static let ptzMinBurst: TimeInterval = 0.25
+
+    /// Sets the direction (−1, 0, +1) of the given axes; axes passed as nil
+    /// keep their current velocity, so pan, tilt, and zoom can run in
+    /// parallel. Pass 0 on key-up to stop a single axis.
+    func ptzSetAxes(cameraId: String, pan: Double? = nil, tilt: Double? = nil, zoom: Double? = nil) {
+        RTSPClient.log("[PTZ] setAxes pan=\(pan?.description ?? "·") tilt=\(tilt?.description ?? "·") zoom=\(zoom?.description ?? "·")")
+
+        // A quick tap should still produce meaningful travel: when an axis is
+        // released early, postpone the command until its minimum burst is up.
+        var delay: TimeInterval = 0
+        for (axis, direction) in [(PtzAxis.pan, pan), (.tilt, tilt), (.zoom, zoom)] {
+            guard let direction else { continue }
+            if direction == 0 {
+                if let started = ptzAxisStartedAt[axis] {
+                    delay = max(delay, Self.ptzMinBurst - Date().timeIntervalSince(started))
+                }
+                ptzAxisStartedAt[axis] = nil
+            } else {
+                ptzAxisStartedAt[axis] = Date()
+            }
+        }
+
+        enqueuePtzSend(cameraId: cameraId, delay: max(0, delay)) { state in
+            if let pan { state.x = pan * Self.ptzVelocityScale }
+            if let tilt { state.y = tilt * Self.ptzVelocityScale }
+            if let zoom { state.z = zoom * Self.ptzVelocityScale }
         }
     }
 
-    /// Stops PTZ movement by cancelling the repeat timer.
-    func ptzStop(cameraId: String) {
-        RTSPClient.log("[PTZ] stop")
-        ptzStopTimer()
+    /// Stops all PTZ motion (focus exit and other cleanup paths). Cheap when
+    /// nothing is moving — unchanged state is never sent.
+    func ptzStopAll(cameraId: String) {
+        ptzAxisStartedAt = [:]
+        enqueuePtzSend(cameraId: cameraId, delay: 0) { $0 = PtzVelocity() }
     }
 
-    private func ptzStopTimer() {
-        ptzTimer?.invalidate()
-        ptzTimer = nil
-    }
-
-    private func sendPtzRelative(cameraId: String, pan: Double, tilt: Double) {
-        Task {
+    /// Applies `mutate` to the desired velocities and sends the resulting
+    /// continuous-move command. Commands are chained so they reach the
+    /// controller in call order; `delay` postpones the send within the chain.
+    private func enqueuePtzSend(cameraId: String, delay: TimeInterval,
+                                mutate: @escaping (inout PtzVelocity) -> Void) {
+        let previous = ptzSendChain
+        ptzSendChain = Task {
+            await previous?.value
+            if delay > 0 {
+                // Only ends early on cancellation, which this chain never does.
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
             if !isClassicLoggedIn {
                 guard await classicLogin() else {
-                    // Don't keep firing failed moves at 10 Hz — stop and surface it.
                     await MainActor.run {
-                        self.ptzStopTimer()
                         self.errorMessage = String(localized: "PTZ unavailable — check the username and password in Settings.")
                     }
                     return
                 }
             }
+            var state = ptzDesired
+            mutate(&state)
+            guard state != ptzDesired else { return }
+            ptzDesired = state
             await sendMove(cameraId: cameraId, body: [
-                "type": "relative",
-                "payload": [
-                    "panPos": pan,
-                    "tiltPos": tilt,
-                    "panSpeed": 255,
-                    "tiltSpeed": 255
-                ]
+                "type": "continuous",
+                "payload": ["x": Int(state.x), "y": Int(state.y), "z": Int(state.z)]
             ])
         }
     }
@@ -308,8 +349,6 @@ final class ProtectService: NSObject, ObservableObject {
             await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil
-            // Session expired mid-move: stop the repeat timer so we don't spew 401s.
-            await MainActor.run { self.ptzStopTimer() }
         }
     }
 

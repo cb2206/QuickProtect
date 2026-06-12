@@ -460,6 +460,7 @@ func CameraModelRunnerTests() {
         """.data(using: .utf8)!
         let cam = try JSONDecoder().decode(Camera.self, from: json)
         try expect(cam.isPtz, "isPtz should be true")
+        try expect(!cam.canZoom, "pan/tilt-only camera must not report optical zoom")
     }
 
     test("canOpticalZoom sets isPtz") {
@@ -469,6 +470,29 @@ func CameraModelRunnerTests() {
         """.data(using: .utf8)!
         let cam = try JSONDecoder().decode(Camera.self, from: json)
         try expect(cam.isPtz, "canOpticalZoom should set isPtz")
+        try expect(cam.canZoom, "canOpticalZoom should set canZoom")
+    }
+
+    test("zoom.ratio > 1 sets canZoom (modern firmware)") {
+        let json = """
+        {"id":"g6","name":"Backyard","state":"CONNECTED","channels":[],
+         "featureFlags":{"isPtz":true,"canOpticalZoom":false,
+                         "zoom":{"ratio":10,"steps":{"min":0,"max":1000,"step":1}}}}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expect(cam.isPtz)
+        try expect(cam.canZoom, "zoom.ratio > 1 should set canZoom")
+    }
+
+    test("zoom.ratio == 1 does not set canZoom") {
+        let json = """
+        {"id":"fx","name":"Doorbell","state":"CONNECTED","channels":[],
+         "featureFlags":{"isPtz":false,"canOpticalZoom":false,
+                         "zoom":{"ratio":1,"steps":{"min":null,"max":null,"step":null}}}}
+        """.data(using: .utf8)!
+        let cam = try JSONDecoder().decode(Camera.self, from: json)
+        try expect(!cam.isPtz)
+        try expect(!cam.canZoom, "fixed lens must not report canZoom")
     }
 
     test("missing state defaults to UNKNOWN") {
