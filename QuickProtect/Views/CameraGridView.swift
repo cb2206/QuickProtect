@@ -757,6 +757,20 @@ struct CameraCell: View {
             }
         }
 
+        let quality = AppSettings.shared.streamQuality(for: camera.id)
+        Section("Stream quality") {
+            // Follow the global default; the label spells out what that is.
+            Button { setStreamQuality(nil) } label: {
+                Label(String(localized: "Use default (\(AppSettings.shared.defaultStreamQuality.displayName))"),
+                      systemImage: quality == nil ? "checkmark" : "")
+            }
+            ForEach(StreamQuality.allCases, id: \.self) { q in
+                Button { setStreamQuality(q) } label: {
+                    Label(q.displayName, systemImage: quality == q ? "checkmark" : "")
+                }
+            }
+        }
+
         Divider()
 
         Button {
@@ -781,6 +795,13 @@ struct CameraCell: View {
     private func setSize(_ size: AppSettings.CameraSize?) {
         AppSettings.shared.setCameraSize(size, for: camera.id)
         service.objectWillChange.send()   // trigger grid re-layout
+    }
+
+    /// Apply a per-camera quality override (or `nil` to follow the global
+    /// default) and switch the live stream to match.
+    private func setStreamQuality(_ quality: StreamQuality?) {
+        AppSettings.shared.setStreamQuality(quality, for: camera.id)
+        reconcilePrimaryQuality()
     }
 
     // MARK: - State overlay

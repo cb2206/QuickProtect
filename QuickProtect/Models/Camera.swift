@@ -17,6 +17,16 @@ enum StreamQuality: String, CaseIterable, Codable {
     func resolve(focused: Bool) -> StreamQuality {
         self == .auto ? (focused ? .high : .low) : self
     }
+
+    /// Localized name for menus and settings.
+    var displayName: String {
+        switch self {
+        case .auto:   return String(localized: "Auto")
+        case .high:   return String(localized: "High")
+        case .medium: return String(localized: "Medium")
+        case .low:    return String(localized: "Low")
+        }
+    }
 }
 
 struct Camera: Identifiable {
