@@ -19,6 +19,10 @@ final class RTSPClient: ObservableObject {
     @Published var hasFrame     = false
     @Published var error: String?
     @Published var videoDimensions: CGSize = .zero
+    /// True once an AAC audio track has been negotiated for this stream.
+    @Published var hasAudio = false
+    /// Whether audio output is muted. Mirrors the global speaker preference.
+    @Published var isMuted = true
 
     // MARK: - Dedicated processing queue
     // All mutable state below is accessed exclusively on this queue.
@@ -44,6 +48,19 @@ final class RTSPClient: ObservableObject {
     private var sessionId    = ""
     private var trackControl = ""
 
+    /// Which RTSP request we last sent and are awaiting a response for. Requests
+    /// are strictly sequential (one outstanding at a time), so this drives the
+    /// setup handshake instead of matching on the bare CSeq counter.
+    private enum RTSPRequest { case options, describe, setupVideo, setupAudio, play }
+    private var awaiting: RTSPRequest = .options
+    private var audioInfo: RTPParser.SDPAudioInfo?
+
+    /// Interleaved RTP channels actually assigned by the server's SETUP response
+    /// Transport header. We propose 0-1 (video) and 2-3 (audio), but the server is
+    /// free to renumber, so we read the channel back rather than assume it.
+    private var videoRTPChannel: UInt8 = 0
+    private var audioRTPChannel: UInt8 = 2
+
     private var codec            = "H264"
     private var fuBuffer:          [UInt8]?
     private var formatDescription: CMVideoFormatDescription?
@@ -57,6 +74,14 @@ final class RTSPClient: ObservableObject {
 
     private var pendingNALs: [[UInt8]] = []
     private var hasFrameSignalled = false   // queue-only: gates the one-shot hasFrame publish
+
+    // Audio (queue-only). The renderer exists only while this client is the
+    // focused stream; muting toggles its output without tearing it down.
+    private var audioRenderer: AudioRenderer?
+    private var audioActive   = false       // true while this client is focused
+    private var audioMuted    = true
+    private var aacDepacketizer: RTPParser.AACDepacketizer?
+    private var audioLoggedFirstAU = false   // queue-only: one-shot enqueue log
 
     // MARK: - Init
 
@@ -126,6 +151,10 @@ final class RTSPClient: ObservableObject {
             cSeq             = 0
             sessionId        = ""
             trackControl     = ""
+            awaiting         = .options
+            audioInfo        = nil
+            videoRTPChannel  = 0
+            audioRTPChannel  = 2
             codec            = "H264"
             fuBuffer         = nil
             hevcVPS          = nil
@@ -199,6 +228,46 @@ final class RTSPClient: ObservableObject {
         }
     }
 
+    // MARK: - Audio control (called from main thread)
+
+    /// Mark this client as the focused stream. Audio is rendered only for the
+    /// focused camera; leaving focus tears the renderer down. Negotiation already
+    /// happened at connect, so this never reconnects.
+    func setAudioActive(_ active: Bool) {
+        queue.async { [self] in
+            guard audioActive != active else { return }
+            audioActive = active
+            if active {
+                if inRTPMode { startAudioRenderer() }
+            } else {
+                audioRenderer?.stop()
+                audioRenderer = nil
+                aacDepacketizer = nil
+            }
+        }
+    }
+
+    /// Mute or unmute audio output. Takes effect immediately; the renderer stays
+    /// alive so toggling never re-negotiates or re-buffers.
+    func setMuted(_ muted: Bool) {
+        DispatchQueue.main.async { self.isMuted = muted }
+        queue.async { [self] in
+            audioMuted = muted
+            audioRenderer?.setMuted(muted)
+        }
+    }
+
+    /// Create the audio renderer for the current track. Queue-only.
+    private func startAudioRenderer() {
+        guard audioRenderer == nil, let audio = audioInfo else { return }
+        audioLoggedFirstAU = false
+        audioRenderer = AudioRenderer(audio: audio, muted: audioMuted)
+        aacDepacketizer = RTPParser.AACDepacketizer(
+            sizeLength: audio.sizeLength, indexLength: audio.indexLength,
+            indexDeltaLength: audio.indexDeltaLength)
+        Self.dbg("[RTSP] audio renderer \(audioRenderer == nil ? "FAILED" : "started") muted=\(audioMuted)")
+    }
+
     // MARK: - Internal disconnect (must be called on queue)
 
     private func disconnectOnQueue() {
@@ -220,6 +289,9 @@ final class RTSPClient: ObservableObject {
             connection?.cancel()
         }
         connection = nil
+        audioRenderer?.stop()
+        audioRenderer = nil
+        aacDepacketizer = nil
         displayLayer.flush()
         DispatchQueue.main.async { [self] in
             isConnected = false
@@ -292,16 +364,26 @@ final class RTSPClient: ObservableObject {
 
         var contentLength = 0
         var newSession    = ""
+        var transport     = ""
         for line in lines.dropFirst() {
             let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
             guard parts.count == 2 else { continue }
             switch parts[0].lowercased() {
             case "content-length": contentLength = Int(parts[1]) ?? 0
             case "session":        newSession = parts[1].components(separatedBy: ";").first ?? parts[1]
+            case "transport":      transport = parts[1]
             default: break
             }
         }
         if !newSession.isEmpty { sessionId = newSession }
+
+        // Record the RTP channel the server actually bound for whichever SETUP
+        // this response answers, so the interleaved demux matches reality.
+        if let ch = RTPParser.interleavedRTPChannel(transport) {
+            if awaiting == .setupVideo { videoRTPChannel = ch }
+            if awaiting == .setupAudio { audioRTPChannel = ch }
+            Self.dbg("[RTSP] \(awaiting) transport channel=\(ch)")
+        }
 
         guard contentLength >= 0, contentLength <= maxContentLength else {
             failConnection("RTSP Content-Length out of range: \(contentLength)")
@@ -321,21 +403,40 @@ final class RTSPClient: ObservableObject {
         let statusCode = Int(statusLine.components(separatedBy: " ").dropFirst().first ?? "0") ?? 0
 
         guard (200...299).contains(statusCode) else {
+            // Audio is best-effort: if the server rejects the second SETUP, drop
+            // the audio track and still PLAY video rather than failing the stream.
+            if awaiting == .setupAudio {
+                Self.dbg("[RTSP] audio SETUP rejected (\(statusCode)); continuing video-only")
+                audioInfo = nil
+                sendPlay()
+                if bufferCount > 0 { processRTSPResponses() }
+                return
+            }
             DispatchQueue.main.async { self.error = "RTSP \(statusCode)" }
             return
         }
 
-        switch cSeq {
-        case 1: sendDescribe()
-        case 2:
+        switch awaiting {
+        case .options:
+            sendDescribe()
+        case .describe:
             if let sdp = body { parseSDP(sdp) }
-            sendSetup()
-        case 3: sendPlay()
-        case 4:
+            sendSetupVideo()
+        case .setupVideo:
+            // Negotiate the audio track too when the SDP advertised one, so
+            // unmuting later needs no reconnect. Otherwise go straight to PLAY.
+            if audioInfo != nil { sendSetupAudio() } else { sendPlay() }
+        case .setupAudio:
+            sendPlay()
+        case .play:
             inRTPMode = true
-            DispatchQueue.main.async { self.isConnected = true }
+            let hasAudioTrack = audioInfo != nil
+            DispatchQueue.main.async {
+                self.isConnected = true
+                self.hasAudio = hasAudioTrack
+            }
+            if audioActive { startAudioRenderer() }
             if !buffer.isEmpty { processRTP() }
-        default: break
         }
 
         if !inRTPMode && bufferCount > 0 { processRTSPResponses() }
@@ -361,11 +462,13 @@ final class RTSPClient: ObservableObject {
     }
 
     private func sendOptions() {
+        awaiting = .options
         let seq = nextCSeq()
         send("OPTIONS \(currentURL!.absoluteString) RTSP/1.0\r\nCSeq: \(seq)\r\n\r\n")
     }
 
     private func sendDescribe() {
+        awaiting = .describe
         let seq = nextCSeq()
         send("DESCRIBE \(currentURL!.absoluteString) RTSP/1.0\r\nCSeq: \(seq)\r\nAccept: application/sdp\r\n\r\n")
     }
@@ -391,6 +494,11 @@ final class RTSPClient: ObservableObject {
                 parseSpropParameterSets(line)
             }
         }
+
+        audioInfo = RTPParser.parseAudioTrack(sdp: sdp)
+        if let a = audioInfo {
+            Self.dbg("[RTSP] audio track: AAC \(a.sampleRate)Hz/\(a.channels)ch control=\(a.trackControl)")
+        }
     }
 
     private func parseSpropParameterSets(_ fmtpLine: String) {
@@ -408,19 +516,33 @@ final class RTSPClient: ObservableObject {
         }
     }
 
-    private func sendSetup() {
-        let seq = nextCSeq()
+    /// Resolve a track-control string (absolute URL or relative path) to a full URL.
+    private func trackURL(for control: String) -> String {
+        if control.hasPrefix("rtsps://") || control.hasPrefix("rtsp://") { return control }
         let base = currentURL!.absoluteString
-        let trackURL: String
-        if trackControl.hasPrefix("rtsps://") || trackControl.hasPrefix("rtsp://") {
-            trackURL = trackControl
-        } else {
-            trackURL = base + (trackControl.hasPrefix("/") ? trackControl : "/\(trackControl)")
-        }
-        send("SETUP \(trackURL) RTSP/1.0\r\nCSeq: \(seq)\r\nTransport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n\r\n")
+        return base + (control.hasPrefix("/") ? control : "/\(control)")
+    }
+
+    private func sendSetupVideo() {
+        awaiting = .setupVideo
+        let seq = nextCSeq()
+        // Video RTP/RTCP on interleaved channels 0/1.
+        send("SETUP \(trackURL(for: trackControl)) RTSP/1.0\r\nCSeq: \(seq)\r\n" +
+             "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n\r\n")
+    }
+
+    private func sendSetupAudio() {
+        guard let audio = audioInfo else { sendPlay(); return }
+        awaiting = .setupAudio
+        let seq = nextCSeq()
+        // Audio RTP/RTCP on interleaved channels 2/3. Include the Session from the
+        // video SETUP so the server aggregates both tracks under one session.
+        send("SETUP \(trackURL(for: audio.trackControl)) RTSP/1.0\r\nCSeq: \(seq)\r\n" +
+             "Transport: RTP/AVP/TCP;unicast;interleaved=2-3\r\nSession: \(sessionId)\r\n\r\n")
     }
 
     private func sendPlay() {
+        awaiting = .play
         let seq = nextCSeq()
         send("PLAY \(currentURL!.absoluteString) RTSP/1.0\r\nCSeq: \(seq)\r\nSession: \(sessionId)\r\nRange: npt=0.000-\r\n\r\n")
     }
@@ -442,8 +564,10 @@ final class RTSPClient: ObservableObject {
             let channel = buffer[pos + 1]
             let length  = Int(buffer[pos + 2]) << 8 | Int(buffer[pos + 3])
             guard pos + 4 + length <= buffer.count else { break }
-            if channel == 0 {
+            if channel == videoRTPChannel {
                 handleRTP(pos + 4, length: length)
+            } else if audioInfo != nil && channel == audioRTPChannel {
+                handleAudioRTP(pos + 4, length: length)
             }
             bufferOffset = pos + 4 + length
         }
@@ -471,6 +595,34 @@ final class RTSPClient: ObservableObject {
             }
             pendingNALs.removeAll(keepingCapacity: true)
         }
+    }
+
+    // MARK: - Audio RTP → AAC access units (RFC 3640, AAC-hbr)
+
+    /// Depacketize an audio RTP packet and feed its AAC access units to the
+    /// renderer. No-ops unless this client is the focused stream (renderer == nil).
+    /// Cross-packet fragmented AUs are reassembled by the stateful depacketizer.
+    private func handleAudioRTP(_ offset: Int, length: Int) {
+        guard let renderer = audioRenderer, length > 12 else { return }
+        let flags     = buffer[offset]
+        let marker    = (buffer[offset + 1] & 0x80) != 0
+        let csrcCount = Int(flags & 0x0F)
+        var payloadStart = offset + 12 + csrcCount * 4
+        let end = offset + length
+        // Skip an RTP header extension if the X bit is set.
+        if (flags & 0x10) != 0, payloadStart + 4 <= end {
+            let extWords = Int(buffer[payloadStart + 2]) << 8 | Int(buffer[payloadStart + 3])
+            payloadStart += 4 + extWords * 4
+        }
+        guard payloadStart < end else { return }
+
+        let payload = Array(buffer[payloadStart ..< end])
+        let aus = aacDepacketizer?.receive(payload, marker: marker) ?? []
+        if !aus.isEmpty, !audioLoggedFirstAU {
+            audioLoggedFirstAU = true
+            Self.dbg("[RTSP] first audio AU enqueued (\(aus[0].count) bytes)")
+        }
+        for au in aus { renderer.enqueue(au) }
     }
 
     // MARK: - H.264 RTP → NAL units (RFC 6184)

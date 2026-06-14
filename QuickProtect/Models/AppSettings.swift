@@ -231,6 +231,12 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(showFocusOverlayControls, forKey: Keys.showFocusOverlayControls) }
     }
 
+    /// Global speaker preference: whether focused streams play audio. Off (muted)
+    /// by default so opening a camera never blasts sound unexpectedly.
+    @Published var speakerEnabled: Bool {
+        didSet { UserDefaults.standard.set(speakerEnabled, forKey: Keys.speakerEnabled) }
+    }
+
     /// Whether the first-launch autostart prompt has been shown.
     var hasShownAutoStartPrompt: Bool {
         get { UserDefaults.standard.bool(forKey: Keys.autoStartPromptShown) }
@@ -278,6 +284,7 @@ final class AppSettings: ObservableObject {
         static let accentColorHex = "unifi.accentColorHex"
         static let hasCompletedOnboarding = "unifi.hasCompletedOnboarding"
         static let showFocusOverlayControls = "unifi.showFocusOverlayControls"
+        static let speakerEnabled = "unifi.speakerEnabled"
     }
 
     /// Loads a sensitive value from the Keychain. On first run after upgrading,
@@ -309,6 +316,7 @@ final class AppSettings: ObservableObject {
         showFocusOverlayControls = showControls != nil
             ? UserDefaults.standard.bool(forKey: Keys.showFocusOverlayControls)
             : true
+        speakerEnabled = UserDefaults.standard.bool(forKey: Keys.speakerEnabled)
     }
 }
 

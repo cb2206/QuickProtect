@@ -299,6 +299,7 @@ struct CameraCell: View {
                     onKeyPress: isFocused ? { keyCode in
                         if keyCode == 3 { toggleTrueFullscreen() }     // F
                         else if keyCode == 53 { handleEscape() }       // Escape
+                        else if keyCode == 46 { toggleMute() }         // M
                         // PTZ keys are handled by the NSEvent monitors (keyDown + keyUp)
                     } : nil
                 )
@@ -325,7 +326,9 @@ struct CameraCell: View {
                         cameraName: camera.name,
                         isPtz: camera.isPtz,
                         now: clockTick,
-                        visible: hudVisible
+                        visible: hudVisible,
+                        hasAudio: rtspClient.hasAudio,
+                        isMuted: rtspClient.isMuted
                     )
                     .transition(.opacity)
                 } else {
@@ -354,6 +357,7 @@ struct CameraCell: View {
             if isFocused {
                 focusFillMode = AppSettings.shared.cameraFillMode(for: camera.id) ?? false
                 installKeyMonitor(); startClockTimer()
+                activateAudio()
             }
         }
         .onDisappear {
@@ -363,6 +367,7 @@ struct CameraCell: View {
             stopClockTimer()
             removeMouseMonitor()
             hudHideWorkItem?.cancel()
+            deactivateAudio()
         }
         .onChange(of: service.isPopoverOpen) { open in
             if open {
@@ -392,6 +397,7 @@ struct CameraCell: View {
                 focusFillMode = AppSettings.shared.cameraFillMode(for: camera.id) ?? false
                 installKeyMonitor()
                 startClockTimer()
+                activateAudio()
             } else {
                 // Only the previously-focused cell holds a key monitor; make
                 // sure no axis keeps moving after focus is gone (a held key's
@@ -403,6 +409,7 @@ struct CameraCell: View {
                 stopClockTimer()
                 removeMouseMonitor()
                 hudHideWorkItem?.cancel()
+                deactivateAudio()
                 isTrueFullscreen = false
                 hudVisible = true
                 zoomScale = 1.0
@@ -458,6 +465,27 @@ struct CameraCell: View {
         }
     }
 
+    // MARK: - Audio
+
+    /// Begin audio playback for the focused stream, honoring the global speaker
+    /// preference. Negotiation already happened at connect, so this never reconnects.
+    private func activateAudio() {
+        rtspClient.setMuted(!AppSettings.shared.speakerEnabled)
+        rtspClient.setAudioActive(true)
+    }
+
+    private func deactivateAudio() {
+        rtspClient.setAudioActive(false)
+    }
+
+    /// Flip the global speaker preference and apply it to the focused stream.
+    private func toggleMute() {
+        guard rtspClient.hasAudio else { return }
+        let enabled = !AppSettings.shared.speakerEnabled
+        AppSettings.shared.speakerEnabled = enabled
+        rtspClient.setMuted(!enabled)
+    }
+
     /// Bumps `reattachNonce` a few times after the focus-exit transition so the
     /// stream view re-attaches its display layer once the cell has settled back
     /// into the grid. Without this the previously-focused tile can stay black.
@@ -483,6 +511,7 @@ struct CameraCell: View {
             // keyDown
             if event.keyCode == 3 { toggleTrueFullscreen(); return nil }    // F
             if event.keyCode == 53 { handleEscape(); return nil }
+            if event.keyCode == 46 { toggleMute(); return nil }             // M
             if event.isARepeat, isPtzKey(event.keyCode) { return nil } // consume repeats
             if handlePtzKeyDown(event.keyCode) { return nil }
             return event
@@ -498,6 +527,7 @@ struct CameraCell: View {
             // keyDown
             if event.keyCode == 3 { DispatchQueue.main.async { toggleTrueFullscreen() } }    // F
             if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
+            if event.keyCode == 46 { DispatchQueue.main.async { toggleMute() } }             // M
             if !event.isARepeat { _ = handlePtzKeyDown(event.keyCode) }
         }
     }
@@ -746,8 +776,11 @@ struct CameraCell: View {
                 isPtz: camera.isPtz,
                 fillMode: $focusFillMode,
                 now: clockTick,
+                hasAudio: rtspClient.hasAudio,
+                isMuted: rtspClient.isMuted,
                 onBack: { exitFocus() },
-                onToggleFullscreen: { toggleTrueFullscreen() }
+                onToggleFullscreen: { toggleTrueFullscreen() },
+                onToggleMute: { toggleMute() }
             )
             .padding(.horizontal, 12)
             .padding(.top, 12)
@@ -757,7 +790,8 @@ struct CameraCell: View {
             HStack(alignment: .bottom) {
                 if showOverlayControls {
                     AuroraFocusHints(showPtzHint: camera.isPtz,
-                                     showZoomHint: camera.canZoom)
+                                     showZoomHint: camera.canZoom,
+                                     showAudioHint: rtspClient.hasAudio)
                         .padding(.leading, 12).padding(.bottom, 12)
                 }
                 Spacer()

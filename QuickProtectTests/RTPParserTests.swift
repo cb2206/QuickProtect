@@ -202,3 +202,123 @@ final class AVCCTests: XCTestCase {
         XCTAssertEqual(avcc[3], 0x2C)
     }
 }
+
+final class BitReaderTests: XCTestCase {
+
+    func testReadAcrossByteBoundary() {
+        var reader = RTPParser.BitReader([0b1010_1100, 0b1111_0000])
+        XCTAssertEqual(reader.read(3), 0b101)
+        XCTAssertEqual(reader.read(5), 0b01100)
+        XCTAssertEqual(reader.read(4), 0b1111)
+    }
+
+    func testReadPastEndReturnsNil() {
+        var reader = RTPParser.BitReader([0xFF])
+        XCTAssertEqual(reader.read(8), 0xFF)
+        XCTAssertNil(reader.read(1))
+    }
+}
+
+final class AudioSpecificConfigTests: XCTestCase {
+
+    func testAACLC16kMono() {
+        // 0x1408: objectType=2 (AAC-LC), freqIndex=8 (16000), channels=1
+        let asc = RTPParser.parseAudioSpecificConfig([0x14, 0x08])
+        XCTAssertEqual(asc?.objectType, 2)
+        XCTAssertEqual(asc?.sampleRate, 16000)
+        XCTAssertEqual(asc?.channels, 1)
+    }
+
+    func testAACLC48kStereo() {
+        // 0x1190: objectType=2, freqIndex=3 (48000), channels=2
+        let asc = RTPParser.parseAudioSpecificConfig([0x11, 0x90])
+        XCTAssertEqual(asc?.objectType, 2)
+        XCTAssertEqual(asc?.sampleRate, 48000)
+        XCTAssertEqual(asc?.channels, 2)
+    }
+
+    func testTruncatedReturnsNil() {
+        XCTAssertNil(RTPParser.parseAudioSpecificConfig([0x14]))
+    }
+}
+
+final class AACDepacketizeTests: XCTestCase {
+
+    func testSingleAU() {
+        // AU-headers-length = 16 bits; one AU-header (size=3<<3=... ) → size 3, index 0
+        // size field 13 bits = 3, index 3 bits = 0 → 0b0000000000011_000 = 0x00 0x18
+        let payload: [UInt8] = [0x00, 0x10, 0x00, 0x18, 0xAA, 0xBB, 0xCC]
+        let aus = RTPParser.depacketizeAAC(payload, sizeLength: 13, indexLength: 3, indexDeltaLength: 3)
+        XCTAssertEqual(aus.count, 1)
+        XCTAssertEqual(aus[0], [0xAA, 0xBB, 0xCC])
+    }
+
+    func testTwoAUs() {
+        // Two AU-headers (32 bits): AU0 size=2 idx=0, AU1 size=1 idxDelta=1
+        // header0: 0000000000010_000 = 0x00 0x10 ; header1: 0000000000001_001 = 0x00 0x09
+        let payload: [UInt8] = [0x00, 0x20, 0x00, 0x10, 0x00, 0x09, 0xAA, 0xBB, 0xCC]
+        let aus = RTPParser.depacketizeAAC(payload, sizeLength: 13, indexLength: 3, indexDeltaLength: 3)
+        XCTAssertEqual(aus.count, 2)
+        XCTAssertEqual(aus[0], [0xAA, 0xBB])
+        XCTAssertEqual(aus[1], [0xCC])
+    }
+
+    func testFragmentedAUDropped() {
+        // One AU-header declares size 10 but only 3 data bytes present → dropped.
+        let payload: [UInt8] = [0x00, 0x10, 0x00, 0x50, 0xAA, 0xBB, 0xCC]
+        let aus = RTPParser.depacketizeAAC(payload, sizeLength: 13, indexLength: 3, indexDeltaLength: 3)
+        XCTAssertEqual(aus.count, 0)
+    }
+
+    func testAUSizesReported() {
+        let payload: [UInt8] = [0x00, 0x10, 0x00, 0x50, 0xAA, 0xBB, 0xCC]
+        let info = RTPParser.aacAUSizes(payload, sizeLength: 13, indexLength: 3, indexDeltaLength: 3)
+        XCTAssertEqual(info?.sizes, [10])
+        XCTAssertEqual(info?.dataOffset, 4)
+    }
+}
+
+final class AACDepacketizerTests: XCTestCase {
+
+    private func makeDepacketizer() -> RTPParser.AACDepacketizer {
+        RTPParser.AACDepacketizer(sizeLength: 13, indexLength: 3, indexDeltaLength: 3)
+    }
+
+    // AU-header for a declared size: 13-bit size + 3-bit index(0). 16-bit headers-length.
+    private func packet(declaredSize: Int, data: [UInt8]) -> [UInt8] {
+        let header = UInt16(declaredSize) << 3   // size in top 13 bits, index 0 in low 3
+        return [0x00, 0x10, UInt8(header >> 8), UInt8(header & 0xFF)] + data
+    }
+
+    func testCompleteSingleAU() {
+        var dep = makeDepacketizer()
+        let aus = dep.receive(packet(declaredSize: 3, data: [0xAA, 0xBB, 0xCC]), marker: true)
+        XCTAssertEqual(aus, [[0xAA, 0xBB, 0xCC]])
+    }
+
+    func testTwoPacketFragment() {
+        var dep = makeDepacketizer()
+        // Declared AU size 10, delivered as 6 + 4 bytes across two packets.
+        let first  = dep.receive(packet(declaredSize: 10, data: [0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5]), marker: false)
+        XCTAssertEqual(first, [])   // mid-fragment, nothing yet
+        let second = dep.receive(packet(declaredSize: 10, data: [0xB0, 0xB1, 0xB2, 0xB3]), marker: true)
+        XCTAssertEqual(second, [[0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xB0, 0xB1, 0xB2, 0xB3]])
+    }
+
+    func testThreePacketFragment() {
+        var dep = makeDepacketizer()
+        XCTAssertEqual(dep.receive(packet(declaredSize: 9, data: [1, 2, 3]), marker: false), [])
+        XCTAssertEqual(dep.receive(packet(declaredSize: 9, data: [4, 5, 6]), marker: false), [])
+        XCTAssertEqual(dep.receive(packet(declaredSize: 9, data: [7, 8, 9]), marker: true),
+                       [[1, 2, 3, 4, 5, 6, 7, 8, 9]])
+    }
+
+    func testCompleteAUAfterFragment() {
+        var dep = makeDepacketizer()
+        _ = dep.receive(packet(declaredSize: 6, data: [1, 2, 3]), marker: false)
+        _ = dep.receive(packet(declaredSize: 6, data: [4, 5, 6]), marker: true)
+        // Reassembler is clean again: a normal complete AU passes straight through.
+        let aus = dep.receive(packet(declaredSize: 2, data: [0xEE, 0xFF]), marker: true)
+        XCTAssertEqual(aus, [[0xEE, 0xFF]])
+    }
+}

@@ -7,8 +7,12 @@ struct AuroraFocusTopBar: View {
     let isPtz: Bool
     @Binding var fillMode: Bool
     let now: Date
+    /// Whether this stream carries an audio track (gates the speaker button).
+    var hasAudio: Bool = false
+    var isMuted: Bool = true
     let onBack: () -> Void
     let onToggleFullscreen: () -> Void
+    var onToggleMute: () -> Void = {}
 
     private static let timestampFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -57,6 +61,12 @@ struct AuroraFocusTopBar: View {
                 .font(.system(size: 11))
                 .monospacedDigit()
                 .foregroundStyle(.white.opacity(0.55))
+
+            if hasAudio {
+                AuroraFocusIconButton(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                                       help: isMuted ? String(localized: "Unmute (M)") : String(localized: "Mute (M)"),
+                                       action: onToggleMute)
+            }
 
             AuroraFocusIconButton(systemName: fillMode ? "rectangle.inset.filled" : "rectangle",
                                    help: fillMode ? String(localized: "Fit to frame") : String(localized: "Fill frame")) {
@@ -273,6 +283,8 @@ struct AuroraFullscreenHUD: View {
     let isPtz: Bool
     let now: Date
     let visible: Bool
+    var hasAudio: Bool = false
+    var isMuted: Bool = true
 
     private static let clockFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -332,6 +344,14 @@ struct AuroraFullscreenHUD: View {
                 .background(Capsule().fill(Color(red: 10/255, green: 132/255, blue: 255/255).opacity(0.22)))
             }
             Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
+            if hasAudio {
+                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.85))
+                KbdKey("M")
+                Text(isMuted ? "unmute" : "mute").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+                Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
+            }
             KbdKey("F"); Text("exit fullscreen").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
             KbdKey("esc"); Text("back to popover").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
         }
@@ -367,11 +387,15 @@ struct AuroraFullscreenHUD: View {
 struct AuroraFocusHints: View {
     let showPtzHint: Bool
     var showZoomHint: Bool = false
+    var showAudioHint: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
             Hint(keys: ["F"], label: String(localized: "Fullscreen"))
             Hint(keys: ["esc"], label: String(localized: "Back"))
+            if showAudioHint {
+                Hint(keys: ["M"], label: String(localized: "Mute"))
+            }
             if showPtzHint {
                 Hint(keys: ["←", "→", "↑", "↓"], label: String(localized: "Pan / tilt"))
             }

@@ -295,6 +295,273 @@ enum RTPParser {
         return SDPVideoInfo(codec: codec, trackControl: trackControl, spropSPS: spropSPS, spropPPS: spropPPS)
     }
 
+    // MARK: - RTSP Transport header
+
+    /// Extract the lower (RTP) channel from an RTSP `Transport` header's
+    /// `interleaved=A-B` parameter. Returns nil if absent or malformed.
+    static func interleavedRTPChannel(_ transport: String) -> UInt8? {
+        for param in transport.components(separatedBy: ";") {
+            let kv = param.trimmingCharacters(in: .whitespaces).components(separatedBy: "=")
+            guard kv.count == 2, kv[0].lowercased() == "interleaved" else { continue }
+            let lower = kv[1].components(separatedBy: "-").first ?? kv[1]
+            return UInt8(lower.trimmingCharacters(in: .whitespaces))
+        }
+        return nil
+    }
+
+    // MARK: - SDP audio parsing (RFC 3640 — MPEG4-GENERIC / AAC-hbr)
+
+    struct SDPAudioInfo: Equatable {
+        let codec: String           // "AAC"
+        let trackControl: String
+        let sampleRate: Int         // RTP clock rate == AAC sample rate
+        let channels: Int
+        let config: [UInt8]?        // AudioSpecificConfig bytes (fmtp `config=`)
+        let sizeLength: Int         // AU-size field width, bits  (AAC-hbr: 13)
+        let indexLength: Int        // first AU-Index width, bits (AAC-hbr: 3)
+        let indexDeltaLength: Int   // subsequent AU-Index-delta width, bits
+    }
+
+    /// Parse the SDP for an AAC (MPEG4-GENERIC) audio track. A stream may carry
+    /// several `m=audio` sections (e.g. AAC plus Opus); each is parsed in
+    /// isolation and only the MPEG4-GENERIC one is returned, so a co-advertised
+    /// Opus track can't bleed its rtpmap/control into the AAC result.
+    static func parseAudioTrack(sdp: String) -> SDPAudioInfo? {
+        let lines = sdp.components(separatedBy: "\n").map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // Split into media sections, each beginning at an `m=` line.
+        var sections: [[String]] = []
+        var current: [String] = []
+        for line in lines {
+            if line.hasPrefix("m=") {
+                if !current.isEmpty { sections.append(current) }
+                current = [line]
+            } else if !current.isEmpty {
+                current.append(line)
+            }
+        }
+        if !current.isEmpty { sections.append(current) }
+
+        for section in sections where section.first?.hasPrefix("m=audio") == true {
+            if let info = parseAudioSection(section) { return info }
+        }
+        return nil
+    }
+
+    /// Parse a single `m=audio` section, returning AAC info only if its rtpmap is
+    /// MPEG4-GENERIC. Returns nil for any other codec (Opus, PCMU, …).
+    private static func parseAudioSection(_ lines: [String]) -> SDPAudioInfo? {
+        var isAAC = false
+        var trackControl = ""
+        var sampleRate = 0
+        var channels = 1
+        var config: [UInt8]?
+        var sizeLength = 13
+        var indexLength = 3
+        var indexDeltaLength = 3
+
+        for line in lines {
+            if line.hasPrefix("a=rtpmap:") {
+                // a=rtpmap:97 MPEG4-GENERIC/48000/1
+                let value = line.components(separatedBy: " ").dropFirst().first ?? ""
+                let parts = value.components(separatedBy: "/")
+                let name = parts.first?.uppercased() ?? ""
+                if name == "MPEG4-GENERIC" { isAAC = true }
+                if parts.count >= 2 { sampleRate = Int(parts[1]) ?? 0 }
+                if parts.count >= 3 { channels = Int(parts[2]) ?? 1 }
+            }
+            if line.hasPrefix("a=control:") {
+                let ctrl = String(line.dropFirst("a=control:".count))
+                if ctrl != "*" && !ctrl.isEmpty { trackControl = ctrl }
+            }
+            if line.hasPrefix("a=fmtp:") {
+                for param in line.components(separatedBy: ";") {
+                    let kv = param.components(separatedBy: "=")
+                    guard kv.count >= 2 else { continue }
+                    let key = kv[0].trimmingCharacters(in: .whitespaces).lowercased()
+                    let val = kv[1].trimmingCharacters(in: .whitespaces)
+                    switch key {
+                    case "config":           config = hexToBytes(val)
+                    case "sizelength":       sizeLength = Int(val) ?? sizeLength
+                    case "indexlength":      indexLength = Int(val) ?? indexLength
+                    case "indexdeltalength": indexDeltaLength = Int(val) ?? indexDeltaLength
+                    default: break
+                    }
+                }
+            }
+        }
+
+        guard isAAC, sampleRate > 0 else { return nil }
+        return SDPAudioInfo(codec: "AAC", trackControl: trackControl, sampleRate: sampleRate,
+                            channels: channels, config: config, sizeLength: sizeLength,
+                            indexLength: indexLength, indexDeltaLength: indexDeltaLength)
+    }
+
+    /// Decode an even-length hex string to bytes. Returns nil on malformed input.
+    static func hexToBytes(_ hex: String) -> [UInt8]? {
+        let chars = Array(hex)
+        guard chars.count % 2 == 0 else { return nil }
+        var bytes = [UInt8](); bytes.reserveCapacity(chars.count / 2)
+        var i = 0
+        while i < chars.count {
+            guard let hi = chars[i].hexDigitValue, let lo = chars[i + 1].hexDigitValue else { return nil }
+            bytes.append(UInt8(hi << 4 | lo)); i += 2
+        }
+        return bytes
+    }
+
+    // MARK: - AudioSpecificConfig parsing (ISO/IEC 14496-3)
+
+    struct AudioSpecificConfig: Equatable {
+        let objectType: Int     // 2 = AAC-LC, 5 = HE-AAC (SBR)
+        let sampleRate: Int
+        let channels: Int
+    }
+
+    private static let aacSampleRates =
+        [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350]
+
+    /// Parse the first bytes of an AudioSpecificConfig: object type, sample rate, channel config.
+    static func parseAudioSpecificConfig(_ bytes: [UInt8]) -> AudioSpecificConfig? {
+        var reader = BitReader(bytes)
+        guard var objectType = reader.read(5) else { return nil }
+        if objectType == 31 {
+            guard let ext = reader.read(6) else { return nil }
+            objectType = 32 + ext
+        }
+        guard let freqIndex = reader.read(4) else { return nil }
+        let sampleRate: Int
+        if freqIndex == 15 {
+            guard let explicit = reader.read(24) else { return nil }
+            sampleRate = explicit
+        } else {
+            guard freqIndex < aacSampleRates.count else { return nil }
+            sampleRate = aacSampleRates[freqIndex]
+        }
+        guard let channelConfig = reader.read(4) else { return nil }
+        return AudioSpecificConfig(objectType: objectType, sampleRate: sampleRate, channels: channelConfig)
+    }
+
+    // MARK: - AAC RTP depacketization (RFC 3640, AAC-hbr)
+
+    /// Read the AU-header section and return each AU's declared size (bytes) plus the
+    /// offset where AU payload data begins. Returns nil if the headers don't fit.
+    static func aacAUSizes(_ payload: [UInt8], sizeLength: Int, indexLength: Int,
+                           indexDeltaLength: Int) -> (sizes: [Int], dataOffset: Int)? {
+        guard payload.count >= 2, sizeLength > 0 else { return nil }
+        let headerBits = Int(payload[0]) << 8 | Int(payload[1])
+        let headerBytes = (headerBits + 7) / 8
+        let dataOffset = 2 + headerBytes
+        guard dataOffset <= payload.count else { return nil }
+
+        var reader = BitReader(Array(payload[2..<dataOffset]))
+        var sizes: [Int] = []
+        var consumed = 0
+        var first = true
+        while consumed + sizeLength <= headerBits {
+            guard let size = reader.read(sizeLength) else { break }
+            let idxWidth = first ? indexLength : indexDeltaLength
+            if idxWidth > 0 { _ = reader.read(idxWidth) }
+            consumed += sizeLength + idxWidth
+            sizes.append(size)
+            first = false
+        }
+        return (sizes, dataOffset)
+    }
+
+    /// Split an AAC-hbr RTP payload into its constituent AAC access units.
+    /// Trailing access units whose declared size overruns the packet are dropped
+    /// (those indicate cross-packet fragmentation, handled statefully by the caller).
+    static func depacketizeAAC(_ payload: [UInt8], sizeLength: Int, indexLength: Int,
+                               indexDeltaLength: Int) -> [[UInt8]] {
+        guard let (sizes, dataOffset) = aacAUSizes(payload, sizeLength: sizeLength,
+                                                   indexLength: indexLength,
+                                                   indexDeltaLength: indexDeltaLength) else { return [] }
+        var aus: [[UInt8]] = []
+        var pos = dataOffset
+        for size in sizes {
+            guard size > 0, pos + size <= payload.count else { break }
+            aus.append(Array(payload[pos..<(pos + size)])); pos += size
+        }
+        return aus
+    }
+
+    /// Stateful AAC-hbr depacketizer that reassembles access units fragmented
+    /// across several RTP packets (RFC 3640 §3.3.6). A fragmented AU is signalled
+    /// by a single AU-header whose declared size exceeds the packet's data; the
+    /// RTP marker bit closes the final fragment. Non-fragmented packets pass
+    /// straight through. Feed one packet at a time in arrival order.
+    struct AACDepacketizer {
+        let sizeLength: Int
+        let indexLength: Int
+        let indexDeltaLength: Int
+        /// Guard against a runaway/hostile fragment that never sees its marker.
+        private let maxFragmentBytes = 64 * 1024
+        private var fragment: [UInt8]?
+
+        init(sizeLength: Int, indexLength: Int, indexDeltaLength: Int) {
+            self.sizeLength = sizeLength
+            self.indexLength = indexLength
+            self.indexDeltaLength = indexDeltaLength
+        }
+
+        /// Feed one RTP payload (bytes after the RTP header) with its marker bit.
+        /// Returns the complete AAC access units this packet produced (often one,
+        /// sometimes several, or none mid-fragment).
+        mutating func receive(_ payload: [UInt8], marker: Bool) -> [[UInt8]] {
+            guard let (sizes, dataOffset) = RTPParser.aacAUSizes(
+                payload, sizeLength: sizeLength, indexLength: indexLength,
+                indexDeltaLength: indexDeltaLength) else { return [] }
+            let data = dataOffset < payload.count ? Array(payload[dataOffset...]) : []
+
+            // Continuation of an AU already in progress.
+            if fragment != nil {
+                fragment!.append(contentsOf: data)
+                if fragment!.count > maxFragmentBytes { fragment = nil; return [] }
+                guard marker else { return [] }
+                let complete = fragment!; fragment = nil
+                return [complete]
+            }
+
+            // First fragment: a lone AU whose declared size overruns this packet.
+            if sizes.count == 1, sizes[0] > data.count, !marker {
+                fragment = data
+                return []
+            }
+
+            // One or more complete AUs carried whole in this packet.
+            var aus: [[UInt8]] = []
+            var pos = 0
+            for size in sizes {
+                guard size > 0, pos + size <= data.count else { break }
+                aus.append(Array(data[pos ..< (pos + size)])); pos += size
+            }
+            return aus
+        }
+    }
+
+    /// Minimal MSB-first bit reader over a byte array.
+    struct BitReader {
+        private let bytes: [UInt8]
+        private var bitPos = 0
+        init(_ bytes: [UInt8]) { self.bytes = bytes }
+
+        /// Read `count` bits (0...32) as an unsigned value, or nil if out of range.
+        mutating func read(_ count: Int) -> Int? {
+            guard count >= 0, count <= 32 else { return nil }
+            guard bitPos + count <= bytes.count * 8 else { return nil }
+            var value = 0
+            for _ in 0..<count {
+                let byte = bytes[bitPos >> 3]
+                let bit = (Int(byte) >> (7 - (bitPos & 7))) & 1
+                value = value << 1 | bit
+                bitPos += 1
+            }
+            return value
+        }
+    }
+
     // MARK: - Version comparison
 
     /// Compare semantic version strings. Returns true if remote > local.
