@@ -1008,6 +1008,38 @@ _snapshot = {
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _snapshot.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
+# ---------------------------------------------------------------------------
+# PiP / audio / HUD strings that predate the snapshot feature but were never
+# registered. Same standard: de=du, fr=vous, es=tú, nl=je, it=tu, pt-BR=você;
+# straight apostrophes (U+0027). Notes:
+#   • "Picture-in-picture when focused": "focused" is the enlarge feature, so it
+#     reuses the catalog's enlarge terminology (Großansicht / vue agrandie /
+#     vista ampliada / vergrote weergave / vista ingrandita / visualização
+#     ampliada), never optical-focus wording. PiP itself uses each locale's
+#     Apple platform term.
+#   • "LIVE" is left untranslated in every locale — it's a universal status
+#     indicator (same convention as on-air badges everywhere); translating it
+#     would only reduce recognizability.
+#   • "pan / tilt" and "zoom" are the lowercase HUD variants. The catalog
+#     already has the capitalized "Pan / tilt" and "Zoom" used by the focus
+#     hints; these add the lowercase forms so the HUD keeps its own casing.
+#     German nouns are normally capitalized, but the HUD's deliberate lowercase
+#     styling is preserved here on purpose. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_pip_audio = {
+    "Swap with main view (C)": ("Mit der Hauptansicht tauschen (C)", "Permuter avec la vue principale (C)", "Intercambiar con la vista principal (C)", "Wisselen met de hoofdweergave (C)", "Scambia con la vista principale (C)", "Trocar com a visualização principal (C)"),
+    "Picture-in-picture when focused": ("Bild-in-Bild in der Großansicht", "Image dans l'image en vue agrandie", "Imagen en imagen en la vista ampliada", "Beeld-in-beeld bij vergrote weergave", "Immagine nell'immagine nella vista ingrandita", "Imagem sobre imagem na visualização ampliada"),
+    "Also show on the grid tile": ("Auch auf der Rasterkachel anzeigen", "Afficher aussi sur la tuile de la grille", "Mostrar también en el mosaico de la cuadrícula", "Ook op de rastertegel tonen", "Mostra anche sul riquadro della griglia", "Mostrar também no bloco da grade"),
+    "Unmute (M)": ("Stummschaltung aufheben (M)", "Réactiver le son (M)", "Activar sonido (M)", "Dempen opheffen (M)", "Attiva audio (M)", "Ativar som (M)"),
+    "Mute (M)": ("Stummschalten (M)", "Couper le son (M)", "Silenciar (M)", "Dempen (M)", "Disattiva audio (M)", "Desativar som (M)"),
+    "Mute": ("Stummschalten", "Couper le son", "Silenciar", "Dempen", "Disattiva audio", "Desativar som"),
+    "LIVE": ("LIVE", "LIVE", "LIVE", "LIVE", "LIVE", "LIVE"),
+    "pan / tilt": ("schwenken / neigen", "panoramique / inclinaison", "giro / inclinación", "pannen / kantelen", "brandeggio / inclinazione", "girar / inclinar"),
+    "zoom": ("zoom", "zoom", "zoom", "zoom", "zoom", "zoom"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _pip_audio.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 
 # ---------------------------------------------------------------------------
