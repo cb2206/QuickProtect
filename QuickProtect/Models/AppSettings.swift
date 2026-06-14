@@ -166,6 +166,20 @@ final class AppSettings: ObservableObject {
         UserDefaults.standard.set(dict, forKey: Keys.secondaryLensPip)
     }
 
+    /// Whether the secondary-lens PiP is also shown on the camera's grid tile
+    /// (not just the focus/fullscreen view). Defaults to `false`: a grid PiP is
+    /// tiny and keeps a second stream running whenever the grid is visible.
+    func showsSecondaryLensPipInGrid(for id: String) -> Bool {
+        let dict = UserDefaults.standard.dictionary(forKey: Keys.secondaryLensPipGrid) as? [String: Bool]
+        return dict?[id] ?? false
+    }
+
+    func setShowsSecondaryLensPipInGrid(_ on: Bool, for id: String) {
+        var dict = (UserDefaults.standard.dictionary(forKey: Keys.secondaryLensPipGrid) as? [String: Bool]) ?? [:]
+        dict[id] = on
+        UserDefaults.standard.set(dict, forKey: Keys.secondaryLensPipGrid)
+    }
+
     // MARK: - Cached video dimensions (for stable initial layout)
 
     func cachedAspectRatio(for cameraId: String) -> CGFloat? {
@@ -291,6 +305,7 @@ final class AppSettings: ObservableObject {
         static let videoDimensions = "unifi.videoDimensions"
         static let cameraFillModes = "unifi.cameraFillModes"
         static let secondaryLensPip = "unifi.secondaryLensPip"
+        static let secondaryLensPipGrid = "unifi.secondaryLensPipGrid"
         static let hotkeyCode     = "unifi.hotkeyCode"
         static let hotkeyMods     = "unifi.hotkeyMods"
         static let username       = "unifi.username"

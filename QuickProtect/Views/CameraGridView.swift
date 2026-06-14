@@ -289,11 +289,27 @@ struct CameraCell: View {
     /// The client shown in the small picture-in-picture window.
     private var pipClient: RTSPClient { secondaryIsPrimary ? rtspClient : secondaryClient }
 
-    /// Whether the secondary-lens PiP should be visible right now: a focused
-    /// multi-lens camera whose per-camera PiP setting is on.
-    private var showsPip: Bool {
+    /// Swappable PiP over the focused / fullscreen view.
+    private var showsFocusPip: Bool {
         isFocused && camera.secondaryLens != nil
             && AppSettings.shared.showsSecondaryLensPip(for: camera.id)
+    }
+
+    /// Display-only PiP on the grid tile, shown once the tile is live.
+    private var showsGridPip: Bool {
+        !isFocused && mode == .playing && camera.secondaryLens != nil
+            && AppSettings.shared.showsSecondaryLensPipInGrid(for: camera.id)
+    }
+
+    private var showsPip: Bool { showsFocusPip || showsGridPip }
+
+    /// Whether the secondary stream should currently be connected — either the
+    /// grid PiP is on (runs whenever the tile is visible) or the camera is
+    /// focused with the focus PiP on.
+    private var wantsSecondaryStream: Bool {
+        guard camera.secondaryLens != nil else { return false }
+        if AppSettings.shared.showsSecondaryLensPipInGrid(for: camera.id) { return true }
+        return isFocused && AppSettings.shared.showsSecondaryLensPip(for: camera.id)
     }
 
     private var isFocused: Bool { focusedCameraId == camera.id }
@@ -399,8 +415,10 @@ struct CameraCell: View {
                 installKeyMonitor(); startClockTimer()
                 activateAudio()
                 secondaryIsPrimary = false
-                startSecondaryStream()
             }
+            // Self-gates on `wantsSecondaryStream`, so this also starts the grid
+            // PiP stream for an unfocused tile when that setting is on.
+            startSecondaryStream()
         }
         .onDisappear {
             streamTask?.cancel()
@@ -415,6 +433,7 @@ struct CameraCell: View {
         .onChange(of: service.isPopoverOpen) { open in
             if open {
                 startStream()
+                startSecondaryStream()
             } else {
                 streamTask?.cancel()
                 streamTask = nil
@@ -457,7 +476,10 @@ struct CameraCell: View {
                 removeMouseMonitor()
                 hudHideWorkItem?.cancel()
                 deactivateAudio()
-                stopSecondaryStream()
+                // Leaving focus ends the swappable focus PiP, but the grid PiP
+                // (if enabled) keeps streaming — reconcile rather than hard-stop.
+                secondaryIsPrimary = false
+                reconcileSecondaryStream()
                 isTrueFullscreen = false
                 hudVisible = true
                 zoomScale = 1.0
@@ -818,11 +840,17 @@ struct CameraCell: View {
 
     // MARK: - Secondary lens (package camera) lifecycle
 
-    /// Lazily connect the secondary lens stream when the camera is focused and
-    /// the PiP is enabled for it. No-op for single-lens cameras.
+    /// Start or stop the secondary stream to match `wantsSecondaryStream`.
+    /// Called whenever focus changes so the grid PiP keeps streaming after the
+    /// camera leaves focus (and the focus-only PiP stops).
+    private func reconcileSecondaryStream() {
+        if wantsSecondaryStream { startSecondaryStream() } else { stopSecondaryStream() }
+    }
+
+    /// Lazily connect the secondary lens stream when a PiP that needs it is (or
+    /// is about to be) visible. No-op for single-lens cameras.
     private func startSecondaryStream() {
-        guard let lens = camera.secondaryLens,
-              AppSettings.shared.showsSecondaryLensPip(for: camera.id) else { return }
+        guard let lens = camera.secondaryLens, wantsSecondaryStream else { return }
         if secondaryClient.hasFrame { return }
         guard secondaryStreamTask == nil else { return }
         guard service.isPopoverOpen, camera.isOnline else { return }
@@ -869,8 +897,14 @@ struct CameraCell: View {
     // MARK: - Secondary lens picture-in-picture
 
     private var secondaryLensPiP: some View {
-        let width = max(120, cellSize.width * 0.26)
+        // Grid tiles are small and the PiP there is a non-interactive thumbnail;
+        // the focused/fullscreen PiP is larger, labelled, and tap-to-swap.
+        let compact = !isFocused
+        let width = compact ? max(56, cellSize.width * 0.30)
+                            : max(120, cellSize.width * 0.26)
         let height = width * 3 / 4   // package lens is 1600×1200 (4:3)
+        let radius: CGFloat = compact ? 5 : 7
+        let outerPad: CGFloat = compact ? 6 : 16
 
         return ZStack(alignment: .bottomLeading) {
             ProtectStreamView(
@@ -887,27 +921,32 @@ struct CameraCell: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            Text(pipLabel)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(Color.black.opacity(0.6))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .padding(6)
+            if !compact {
+                Text(pipLabel)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .padding(6)
+            }
         }
         .frame(width: width, height: height)
-        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .clipShape(RoundedRectangle(cornerRadius: radius))
         .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(Color.white.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: radius)
+                .stroke(Color.white.opacity(compact ? 0.25 : 0.35), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.45), radius: 8, y: 3)
-        .contentShape(RoundedRectangle(cornerRadius: 7))
+        .shadow(color: .black.opacity(0.45), radius: compact ? 4 : 8, y: compact ? 1 : 3)
+        .contentShape(RoundedRectangle(cornerRadius: radius))
         .onTapGesture { swapLenses() }
         .help(String(localized: "Swap with main view (S)"))
+        // In the grid the PiP must not swallow the tile's tap (which focuses the
+        // camera) — let taps fall through. In focus it's tappable to swap.
+        .allowsHitTesting(!compact)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-        .padding(16)
+        .padding(outerPad)
     }
 
     // MARK: - Focus overlay (Aurora top bar + PTZ d-pad + kbd hints)

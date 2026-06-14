@@ -390,6 +390,7 @@ struct SettingsView: View {
                         size: settings.cameraSize(for: cam.id),
                         hidden: settings.isHidden(cam.id),
                         showsPip: settings.showsSecondaryLensPip(for: cam.id),
+                        showsGridPip: settings.showsSecondaryLensPipInGrid(for: cam.id),
                         isLast: idx == cams.count - 1,
                         onSize: { s in
                             settings.setCameraSize(s, for: cam.id)
@@ -401,6 +402,10 @@ struct SettingsView: View {
                         },
                         onTogglePip: { on in
                             settings.setShowsSecondaryLensPip(on, for: cam.id)
+                            service.objectWillChange.send()
+                        },
+                        onToggleGridPip: { on in
+                            settings.setShowsSecondaryLensPipInGrid(on, for: cam.id)
                             service.objectWillChange.send()
                         }
                     )
@@ -807,10 +812,12 @@ private struct CameraRow: View {
     let size: AppSettings.CameraSize?
     let hidden: Bool
     let showsPip: Bool
+    let showsGridPip: Bool
     let isLast: Bool
     let onSize: (AppSettings.CameraSize?) -> Void
     let onHide: (Bool) -> Void
     let onTogglePip: (Bool) -> Void
+    let onToggleGridPip: (Bool) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
@@ -863,29 +870,41 @@ private struct CameraRow: View {
         }
     }
 
-    /// Indented sub-row, shown only for cameras with a second lens, toggling
-    /// whether its picture-in-picture appears in the focus and fullscreen views.
+    /// Indented sub-rows, shown only for cameras with a second lens: one toggle
+    /// for the focus/fullscreen PiP and one for showing it on the grid tile too.
     @ViewBuilder
     private func secondaryLensRow(_ lens: Camera.SecondaryLens) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "pip")
-                .font(.system(size: 11))
-                .foregroundColor(palette.subtext)
-            VStack(alignment: .leading, spacing: 1) {
+        VStack(spacing: 7) {
+            HStack(spacing: 10) {
+                Image(systemName: "pip")
+                    .font(.system(size: 11))
+                    .foregroundColor(palette.subtext)
                 Text(lens.label)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(palette.text)
-                Text("Show as picture-in-picture when focused")
-                    .font(.system(size: 10.5))
-                    .foregroundColor(palette.subtext)
+                Spacer()
             }
-            Spacer()
-            Toggle("", isOn: Binding(get: { showsPip }, set: onTogglePip))
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .help(showsPip ? "Hide picture-in-picture" : "Show picture-in-picture")
+            pipToggle(title: String(localized: "Picture-in-picture when focused"),
+                      isOn: showsPip, set: onTogglePip)
+            pipToggle(title: String(localized: "Also show on the grid tile"),
+                      isOn: showsGridPip, set: onToggleGridPip)
         }
         .padding(.leading, 31).padding(.trailing, 14)
         .padding(.bottom, 9)
+    }
+
+    @ViewBuilder
+    private func pipToggle(title: String, isOn: Bool, set: @escaping (Bool) -> Void) -> some View {
+        HStack(spacing: 10) {
+            Text(title)
+                .font(.system(size: 11.5))
+                .foregroundColor(palette.subtext)
+            Spacer()
+            Toggle("", isOn: Binding(get: { isOn }, set: set))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+        }
+        .padding(.leading, 21)
     }
 }
