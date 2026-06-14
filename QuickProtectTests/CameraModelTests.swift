@@ -266,4 +266,26 @@ final class CameraModelTests: XCTestCase {
         // isPtz is lost in round-trip since featureFlags isn't encoded — expected
         XCTAssertFalse(decoded.isPtz)
     }
+
+    // MARK: - StreamQuality
+
+    func testStreamQualityAutoResolvesByFocus() {
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: false), .low)
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: true), .high)
+    }
+
+    func testStreamQualityExplicitResolvesUnchanged() {
+        for q in [StreamQuality.high, .medium, .low] {
+            XCTAssertEqual(q.resolve(focused: false), q)
+            XCTAssertEqual(q.resolve(focused: true), q)
+        }
+    }
+
+    func testStreamQualityApiValue() {
+        XCTAssertEqual(StreamQuality.high.apiValue, "high")
+        XCTAssertEqual(StreamQuality.medium.apiValue, "medium")
+        XCTAssertEqual(StreamQuality.low.apiValue, "low")
+        // A raw .auto that escapes resolution falls back to medium, never "auto".
+        XCTAssertEqual(StreamQuality.auto.apiValue, "medium")
+    }
 }

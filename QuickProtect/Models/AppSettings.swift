@@ -41,6 +41,12 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(snapshotDestination.rawValue, forKey: Keys.snapshotDestination) }
     }
 
+    /// Global fallback stream quality, used for any camera without a per-camera
+    /// override (see `streamQuality(for:)`). Defaults to `.auto`.
+    @Published var defaultStreamQuality: StreamQuality {
+        didSet { UserDefaults.standard.set(defaultStreamQuality.rawValue, forKey: Keys.defaultStreamQuality) }
+    }
+
     /// Security-scoped bookmark to the folder where snapshots are saved.
     /// Used when `snapshotDestination` is `.folder`. The sandbox requires a
     /// bookmark to regain write access to a user-chosen folder across launches.
@@ -208,6 +214,34 @@ final class AppSettings: ObservableObject {
         var dict = (UserDefaults.standard.dictionary(forKey: Keys.cameraFillModes) as? [String: Bool]) ?? [:]
         dict[id] = fill
         UserDefaults.standard.set(dict, forKey: Keys.cameraFillModes)
+    }
+
+    // MARK: - Per-camera stream quality
+
+    /// This camera's explicit stream-quality override, or `nil` when it should
+    /// follow `defaultStreamQuality`. The dict only holds cameras the user has
+    /// explicitly set.
+    func streamQuality(for id: String) -> StreamQuality? {
+        let dict = UserDefaults.standard.dictionary(forKey: Keys.cameraStreamQualities) as? [String: String]
+        return dict?[id].flatMap(StreamQuality.init(rawValue:))
+    }
+
+    /// Set (or, with `nil`, clear) this camera's quality override.
+    func setStreamQuality(_ quality: StreamQuality?, for id: String) {
+        var dict = (UserDefaults.standard.dictionary(forKey: Keys.cameraStreamQualities) as? [String: String]) ?? [:]
+        if let quality {
+            dict[id] = quality.rawValue
+        } else {
+            dict.removeValue(forKey: id)
+        }
+        UserDefaults.standard.set(dict, forKey: Keys.cameraStreamQualities)
+    }
+
+    /// The quality a camera actually streams at: its override if set, else the
+    /// global default. Still `.auto` when that's the effective choice — callers
+    /// resolve to a concrete substream with `StreamQuality.resolve(focused:)`.
+    func effectiveStreamQuality(for id: String) -> StreamQuality {
+        streamQuality(for: id) ?? defaultStreamQuality
     }
 
     // MARK: - Per-camera secondary-lens picture-in-picture
@@ -379,6 +413,8 @@ final class AppSettings: ObservableObject {
         static let speakerEnabled = "unifi.speakerEnabled"
         static let snapshotDestination = "unifi.snapshotDestination"
         static let snapshotFolderBookmark = "unifi.snapshotFolderBookmark"
+        static let defaultStreamQuality = "unifi.defaultStreamQuality"
+        static let cameraStreamQualities = "unifi.cameraStreamQualities"
     }
 
     /// Loads a sensitive value from the Keychain. On first run after upgrading,
@@ -413,6 +449,8 @@ final class AppSettings: ObservableObject {
         speakerEnabled = UserDefaults.standard.bool(forKey: Keys.speakerEnabled)
         snapshotDestination = SnapshotDestination(
             rawValue: UserDefaults.standard.integer(forKey: Keys.snapshotDestination)) ?? .clipboard
+        defaultStreamQuality = StreamQuality(
+            rawValue: UserDefaults.standard.string(forKey: Keys.defaultStreamQuality) ?? "") ?? .auto
         snapshotFolderBookmark = UserDefaults.standard.data(forKey: Keys.snapshotFolderBookmark)
     }
 }

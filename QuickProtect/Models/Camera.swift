@@ -1,5 +1,24 @@
 import Foundation
 
+/// User-selectable RTSP stream quality. `.high`/`.medium`/`.low` map directly to
+/// the `qualities` key the rtsps-stream endpoint accepts; `.auto` is a UI-level
+/// choice that resolves to a concrete quality based on whether the camera is
+/// enlarged (low in the grid, high in focus) — see `resolve(focused:)`.
+enum StreamQuality: String, CaseIterable, Codable {
+    case auto, high, medium, low
+
+    /// Concrete substream key for the rtsps-stream endpoint. `.auto` must be
+    /// resolved with `resolve(focused:)` before reaching the network layer; if a
+    /// raw `.auto` slips through it falls back to `.medium`.
+    var apiValue: String { self == .auto ? "medium" : rawValue }
+
+    /// Resolve `.auto` to a concrete quality for the current view state. Pass-through
+    /// for the explicit cases so callers can resolve unconditionally.
+    func resolve(focused: Bool) -> StreamQuality {
+        self == .auto ? (focused ? .high : .low) : self
+    }
+}
+
 struct Camera: Identifiable {
     let id: String
     let name: String
