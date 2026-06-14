@@ -14,7 +14,8 @@ DerivedData/
 # IDE
 .idea/
 *.xcuserdata/
-.claude/
+.claude/*
+!.claude/settings.json
 .build/
 
 # Fastlane secrets & generated output
