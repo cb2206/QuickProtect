@@ -12,6 +12,20 @@ struct Camera: Identifiable {
     /// without pan/tilt motors). Enriched the same way as `isPtz`.
     var canZoom: Bool = false
 
+    /// Secondary lens descriptor for multi-sensor cameras (currently the
+    /// doorbell package camera). `nil` for ordinary single-lens cameras.
+    /// Decoded straight from the Integration API list, so the rest of the app
+    /// stays lens-agnostic: it only needs the stream quality and a UI label.
+    var secondaryLens: SecondaryLens?
+
+    /// A camera's additional fixed lens, streamed as its own RTSP quality.
+    struct SecondaryLens: Equatable {
+        /// The `qualities` key passed to the rtsps-stream endpoint (e.g. "package").
+        let quality: String
+        /// Human-readable label for the picture-in-picture and Settings row.
+        let label: String
+    }
+
     struct Channel {
         let id: Int
         let name: String
@@ -72,6 +86,15 @@ extension Camera: Codable {
             isPtz = false
             canZoom = false
         }
+        // hasPackageCamera (Integration API list) → the only secondary lens
+        // current firmware exposes. Mapping it here keeps the view/stream layers
+        // generic; new secondary-lens types slot in by extending this branch.
+        if (try? c.decode(Bool.self, forKey: .hasPackageCamera)) == true {
+            secondaryLens = SecondaryLens(quality: "package",
+                                          label: String(localized: "Package Camera"))
+        } else {
+            secondaryLens = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -80,11 +103,13 @@ extension Camera: Codable {
         try c.encode(name, forKey: .name)
         try c.encode(state, forKey: .state)
         try c.encode(channels, forKey: .channels)
+        // Round-trip the secondary-lens flag so a cached list keeps its PiP.
+        try c.encode(secondaryLens?.quality == "package", forKey: .hasPackageCamera)
         // isPtz/canZoom are enriched at runtime; featureFlags is decode-only
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, state, channels, featureFlags
+        case id, name, state, channels, featureFlags, hasPackageCamera
     }
 }
 

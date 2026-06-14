@@ -228,8 +228,15 @@ struct CameraCell: View {
     @Binding var focusedCameraId: String?
 
     @ObservedObject private var rtspClient: RTSPClient
+    /// Second lens stream (e.g. doorbell package camera). For single-lens
+    /// cameras this is an unused throwaway client that never connects.
+    @ObservedObject private var secondaryClient: RTSPClient
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
+    @State private var secondaryStreamTask: Task<Void, Never>?
+    /// When true, the secondary lens fills the frame and the main lens moves
+    /// into the PiP. Reset to false every time the camera (re)enters focus.
+    @State private var secondaryIsPrimary = false
 
     // Zoom & pan (only active when focused)
     @State private var zoomScale: CGFloat = 1.0
@@ -263,6 +270,30 @@ struct CameraCell: View {
         self.loadOrder = loadOrder
         self._focusedCameraId = focusedCameraId
         self._rtspClient = ObservedObject(wrappedValue: clientManager.client(for: camera.id))
+        if let lens = camera.secondaryLens {
+            self._secondaryClient = ObservedObject(
+                wrappedValue: clientManager.client(for: camera.id, lens: lens.quality))
+        } else {
+            // Single-lens camera: bind a shared, never-connected client so the
+            // view struct can be cheaply recreated without allocating per render.
+            self._secondaryClient = ObservedObject(wrappedValue: Self.idleSecondaryClient)
+        }
+    }
+
+    /// Placeholder secondary client for single-lens cameras. Never connected and
+    /// never displayed (its PiP is gated behind `camera.secondaryLens != nil`).
+    private static let idleSecondaryClient = RTSPClient()
+
+    /// The client whose frame fills the main viewport (swaps with the PiP).
+    private var primaryClient: RTSPClient { secondaryIsPrimary ? secondaryClient : rtspClient }
+    /// The client shown in the small picture-in-picture window.
+    private var pipClient: RTSPClient { secondaryIsPrimary ? rtspClient : secondaryClient }
+
+    /// Whether the secondary-lens PiP should be visible right now: a focused
+    /// multi-lens camera whose per-camera PiP setting is on.
+    private var showsPip: Bool {
+        isFocused && camera.secondaryLens != nil
+            && AppSettings.shared.showsSecondaryLensPip(for: camera.id)
     }
 
     private var isFocused: Bool { focusedCameraId == camera.id }
@@ -272,7 +303,7 @@ struct CameraCell: View {
             // Stream view: use .resizeAspect when focused to preserve full frame
             GeometryReader { geo in
                 ProtectStreamView(
-                    displayLayer: rtspClient.displayLayer,
+                    displayLayer: primaryClient.displayLayer,
                     videoGravity: isFocused ? (focusFillMode ? .resizeAspectFill : .resizeAspect) : .resizeAspectFill,
                     reattachNonce: reattachNonce,
                     onZoom: isFocused ? { delta in
@@ -300,6 +331,7 @@ struct CameraCell: View {
                         if keyCode == 3 { toggleTrueFullscreen() }     // F
                         else if keyCode == 53 { handleEscape() }       // Escape
                         else if keyCode == 46 { toggleMute() }         // M
+                        else if keyCode == 1, showsPip { swapLenses() } // S
                         // PTZ keys are handled by the NSEvent monitors (keyDown + keyUp)
                     } : nil
                 )
@@ -337,6 +369,13 @@ struct CameraCell: View {
                         .transition(.opacity)
                 }
             }
+
+            // Rendered last so the PiP sits above the focus chrome and the
+            // fullscreen HUD, keeping it visible and first to receive taps.
+            if showsPip {
+                secondaryLensPiP
+                    .transition(.opacity)
+            }
         }
         // The parent always supplies an explicit width AND height (grid cells get
         // an aspect-shaped frame; focus gets the full geometry), so this view never
@@ -359,6 +398,8 @@ struct CameraCell: View {
                 focusFillMode = AppSettings.shared.cameraFillMode(for: camera.id) ?? false
                 installKeyMonitor(); startClockTimer()
                 activateAudio()
+                secondaryIsPrimary = false
+                startSecondaryStream()
             }
         }
         .onDisappear {
@@ -369,6 +410,7 @@ struct CameraCell: View {
             removeMouseMonitor()
             hudHideWorkItem?.cancel()
             deactivateAudio()
+            stopSecondaryStream()
         }
         .onChange(of: service.isPopoverOpen) { open in
             if open {
@@ -377,6 +419,7 @@ struct CameraCell: View {
                 streamTask?.cancel()
                 streamTask = nil
                 mode = .connecting
+                stopSecondaryStream()
             }
         }
         .onChange(of: rtspClient.hasFrame) { ready in
@@ -399,6 +442,9 @@ struct CameraCell: View {
                 installKeyMonitor()
                 startClockTimer()
                 activateAudio()
+                // Always reopen with the main lens large (matches Protect).
+                secondaryIsPrimary = false
+                startSecondaryStream()
             } else {
                 // Only the previously-focused cell holds a key monitor; make
                 // sure no axis keeps moving after focus is gone (a held key's
@@ -411,6 +457,7 @@ struct CameraCell: View {
                 removeMouseMonitor()
                 hudHideWorkItem?.cancel()
                 deactivateAudio()
+                stopSecondaryStream()
                 isTrueFullscreen = false
                 hudVisible = true
                 zoomScale = 1.0
@@ -513,6 +560,7 @@ struct CameraCell: View {
             if event.keyCode == 3 { toggleTrueFullscreen(); return nil }    // F
             if event.keyCode == 53 { handleEscape(); return nil }
             if event.keyCode == 46 { toggleMute(); return nil }             // M
+            if event.keyCode == 1, showsPip { swapLenses(); return nil }    // S
             if event.isARepeat, isPtzKey(event.keyCode) { return nil } // consume repeats
             if handlePtzKeyDown(event.keyCode) { return nil }
             return event
@@ -529,6 +577,7 @@ struct CameraCell: View {
             if event.keyCode == 3 { DispatchQueue.main.async { toggleTrueFullscreen() } }    // F
             if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
             if event.keyCode == 46 { DispatchQueue.main.async { toggleMute() } }             // M
+            if event.keyCode == 1 { DispatchQueue.main.async { if showsPip { swapLenses() } } } // S
             if !event.isARepeat { _ = handlePtzKeyDown(event.keyCode) }
         }
     }
@@ -765,6 +814,100 @@ struct CameraCell: View {
         streamTask = nil
         rtspClient.disconnect()
         mode = .connecting
+    }
+
+    // MARK: - Secondary lens (package camera) lifecycle
+
+    /// Lazily connect the secondary lens stream when the camera is focused and
+    /// the PiP is enabled for it. No-op for single-lens cameras.
+    private func startSecondaryStream() {
+        guard let lens = camera.secondaryLens,
+              AppSettings.shared.showsSecondaryLensPip(for: camera.id) else { return }
+        if secondaryClient.hasFrame { return }
+        guard secondaryStreamTask == nil else { return }
+        guard service.isPopoverOpen, camera.isOnline else { return }
+
+        secondaryStreamTask = Task {
+            guard let url = await service.createRtspStreamURL(for: camera, quality: lens.quality) else {
+                secondaryStreamTask = nil
+                return
+            }
+            guard !Task.isCancelled else { secondaryStreamTask = nil; return }
+            secondaryStreamTask = nil
+            secondaryClient.connect(to: url)
+        }
+    }
+
+    /// Disconnect the secondary lens and release its server-side allocation.
+    /// Safe to call for single-lens cameras (throwaway client, no allocation).
+    private func stopSecondaryStream() {
+        secondaryStreamTask?.cancel()
+        secondaryStreamTask = nil
+        secondaryClient.disconnect()
+        if let lens = camera.secondaryLens {
+            service.releaseStream(for: camera.id, quality: lens.quality)
+        }
+        secondaryIsPrimary = false
+    }
+
+    /// Swap which lens fills the frame. Both streams stay live, so this is an
+    /// instant view reassignment — no reconnect. Resets zoom/pan to the new
+    /// primary's natural frame.
+    private func swapLenses() {
+        withAnimation(.easeInOut(duration: 0.2)) { secondaryIsPrimary.toggle() }
+        zoomScale = 1.0
+        panOffset = .zero
+        lastPanOffset = .zero
+        reattachNonce &+= 1   // force both stream views to re-attach swapped layers
+    }
+
+    /// Label for whichever lens currently sits in the PiP.
+    private var pipLabel: String {
+        secondaryIsPrimary ? camera.name : (camera.secondaryLens?.label ?? "")
+    }
+
+    // MARK: - Secondary lens picture-in-picture
+
+    private var secondaryLensPiP: some View {
+        let width = max(120, cellSize.width * 0.26)
+        let height = width * 3 / 4   // package lens is 1600×1200 (4:3)
+
+        return ZStack(alignment: .bottomLeading) {
+            ProtectStreamView(
+                displayLayer: pipClient.displayLayer,
+                videoGravity: .resizeAspectFill,
+                reattachNonce: reattachNonce
+            )
+            .background(Color(white: 0.05))
+
+            if !pipClient.hasFrame {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            Text(pipLabel)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .padding(.horizontal, 6).padding(.vertical, 3)
+                .background(Color.black.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .padding(6)
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.white.opacity(0.35), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.45), radius: 8, y: 3)
+        .contentShape(RoundedRectangle(cornerRadius: 7))
+        .onTapGesture { swapLenses() }
+        .help(String(localized: "Swap with main view (S)"))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .padding(16)
     }
 
     // MARK: - Focus overlay (Aurora top bar + PTZ d-pad + kbd hints)

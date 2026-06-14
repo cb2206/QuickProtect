@@ -17,10 +17,15 @@ final class ProtectService: NSObject, ObservableObject {
 
     private let settings = AppSettings.shared
 
-    /// Camera IDs that have an active server-side RTSP stream allocation.
+    /// Active server-side RTSP stream allocations keyed as "<cameraId>:<quality>".
     /// Used to send DELETE requests on cleanup, preventing stale sessions from
-    /// accumulating on the UDM when the panel is closed or the app quits.
-    private var activeStreamCameraIds: Set<String> = []
+    /// accumulating on the UDM when the panel is closed or the app quits. A
+    /// camera can hold more than one (e.g. a doorbell's main + package lens).
+    private var activeStreams: Set<String> = []
+
+    private func streamKey(_ cameraId: String, _ quality: String) -> String {
+        "\(cameraId):\(quality)"
+    }
 
     /// Guards the classic-API credential fields below, which are read and written
     /// from concurrent PTZ `Task`s and the fetch path.
@@ -90,8 +95,10 @@ final class ProtectService: NSObject, ObservableObject {
 
     /// POSTs to the Integration API to create an on-demand RTSP stream.
     /// Returns a playable URL for AVPlayer (plain rtsp:// or rtsps:// per settings).
-    func createRtspStreamURL(for camera: Camera) async -> URL? {
-        RTSPClient.log("[Stream] createRtspStreamURL called for \(camera.name)")
+    /// `quality` is the stream key the endpoint returns (e.g. "medium", or
+    /// "package" for a doorbell's secondary lens).
+    func createRtspStreamURL(for camera: Camera, quality: String = "medium") async -> URL? {
+        RTSPClient.log("[Stream] createRtspStreamURL(\(quality)) called for \(camera.name)")
         guard let url = makeURL(
             path: "proxy/protect/integration/v1/cameras/\(camera.id)/rtsps-stream"
         ) else { RTSPClient.log("[Stream] makeURL failed"); return nil }
@@ -102,7 +109,7 @@ final class ProtectService: NSObject, ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try? JSONSerialization.data(
-            withJSONObject: ["qualities": ["medium"]]
+            withJSONObject: ["qualities": [quality]]
         )
 
         guard let (data, resp) = try? await tlsSession.data(for: request) else {
@@ -116,11 +123,11 @@ final class ProtectService: NSObject, ObservableObject {
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rtspsString = json["medium"] as? String else { return nil }
+              let rtspsString = json[quality] as? String else { return nil }
 
-        activeStreamCameraIds.insert(camera.id)
+        activeStreams.insert(streamKey(camera.id, quality))
         let playable = toPlayableURL(rtspsString)
-        RTSPClient.log("[Stream] Created for \(camera.name): \(playable?.absoluteString ?? "nil")")
+        RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable?.absoluteString ?? "nil")")
         return playable
     }
 
@@ -129,18 +136,27 @@ final class ProtectService: NSObject, ObservableObject {
     /// Sends DELETE requests for all server-side stream allocations.
     /// Call when the panel closes to prevent stale sessions accumulating on the UDM.
     func cleanupStreams() {
-        let ids = activeStreamCameraIds
-        activeStreamCameraIds.removeAll()
-        for id in ids {
-            deleteRtspStream(for: id)
+        let keys = activeStreams
+        activeStreams.removeAll()
+        for key in keys {
+            let parts = key.split(separator: ":", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            deleteRtspStream(for: String(parts[0]), quality: String(parts[1]))
         }
+    }
+
+    /// Releases a single secondary allocation (e.g. a doorbell's package lens)
+    /// when its picture-in-picture closes, without tearing down the main stream.
+    func releaseStream(for cameraId: String, quality: String) {
+        guard activeStreams.remove(streamKey(cameraId, quality)) != nil else { return }
+        deleteRtspStream(for: cameraId, quality: quality)
     }
 
     /// Fire-and-forget DELETE to release a server-side RTSP stream allocation.
     /// The API requires the `qualities` query parameter matching what was created.
-    private func deleteRtspStream(for cameraId: String) {
+    private func deleteRtspStream(for cameraId: String, quality: String) {
         guard let url = makeURL(
-            path: "proxy/protect/integration/v1/cameras/\(cameraId)/rtsps-stream?qualities=medium"
+            path: "proxy/protect/integration/v1/cameras/\(cameraId)/rtsps-stream?qualities=\(quality)"
         ) else { return }
 
         var request = URLRequest(url: url, timeoutInterval: 5)

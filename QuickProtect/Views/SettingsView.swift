@@ -389,6 +389,7 @@ struct SettingsView: View {
                         camera: cam,
                         size: settings.cameraSize(for: cam.id),
                         hidden: settings.isHidden(cam.id),
+                        showsPip: settings.showsSecondaryLensPip(for: cam.id),
                         isLast: idx == cams.count - 1,
                         onSize: { s in
                             settings.setCameraSize(s, for: cam.id)
@@ -396,6 +397,10 @@ struct SettingsView: View {
                         },
                         onHide: { h in
                             settings.setHidden(h, for: cam.id)
+                            service.objectWillChange.send()
+                        },
+                        onTogglePip: { on in
+                            settings.setShowsSecondaryLensPip(on, for: cam.id)
                             service.objectWillChange.send()
                         }
                     )
@@ -801,9 +806,11 @@ private struct CameraRow: View {
     let camera: Camera
     let size: AppSettings.CameraSize?
     let hidden: Bool
+    let showsPip: Bool
     let isLast: Bool
     let onSize: (AppSettings.CameraSize?) -> Void
     let onHide: (Bool) -> Void
+    let onTogglePip: (Bool) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
@@ -849,7 +856,36 @@ private struct CameraRow: View {
                     .help(hidden ? "Show in grid" : "Hide from grid")
             }
             .padding(.horizontal, 14).padding(.vertical, 9)
+            if let lens = camera.secondaryLens {
+                secondaryLensRow(lens)
+            }
             if !isLast { AuroraHairline(color: palette.divider) }
         }
+    }
+
+    /// Indented sub-row, shown only for cameras with a second lens, toggling
+    /// whether its picture-in-picture appears in the focus and fullscreen views.
+    @ViewBuilder
+    private func secondaryLensRow(_ lens: Camera.SecondaryLens) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "pip")
+                .font(.system(size: 11))
+                .foregroundColor(palette.subtext)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(lens.label)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(palette.text)
+                Text("Show as picture-in-picture when focused")
+                    .font(.system(size: 10.5))
+                    .foregroundColor(palette.subtext)
+            }
+            Spacer()
+            Toggle("", isOn: Binding(get: { showsPip }, set: onTogglePip))
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .help(showsPip ? "Hide picture-in-picture" : "Show picture-in-picture")
+        }
+        .padding(.leading, 31).padding(.trailing, 14)
+        .padding(.bottom, 9)
     }
 }

@@ -125,6 +125,50 @@ final class CameraModelTests: XCTestCase {
         XCTAssertFalse(camera.canZoom)
     }
 
+    // MARK: - Secondary lens (package camera)
+
+    func testDecodeSecondaryLensFromPackageFlag() throws {
+        let json = """
+        {
+            "id": "doorbell1",
+            "name": "Doorbell",
+            "state": "CONNECTED",
+            "channels": [],
+            "hasPackageCamera": true
+        }
+        """.data(using: .utf8)!
+
+        let camera = try JSONDecoder().decode(Camera.self, from: json)
+        XCTAssertNotNil(camera.secondaryLens)
+        XCTAssertEqual(camera.secondaryLens?.quality, "package")
+    }
+
+    func testDecodeNoSecondaryLensByDefault() throws {
+        let json = """
+        { "id": "cam1", "name": "Front", "state": "CONNECTED", "channels": [] }
+        """.data(using: .utf8)!
+
+        let camera = try JSONDecoder().decode(Camera.self, from: json)
+        XCTAssertNil(camera.secondaryLens)
+    }
+
+    func testSecondaryLensSurvivesRoundTrip() throws {
+        let json = """
+        {
+            "id": "doorbell2",
+            "name": "Doorbell",
+            "state": "CONNECTED",
+            "channels": [],
+            "hasPackageCamera": true
+        }
+        """.data(using: .utf8)!
+
+        let original = try JSONDecoder().decode(Camera.self, from: json)
+        let encoded = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(Camera.self, from: encoded)
+        XCTAssertEqual(decoded.secondaryLens?.quality, "package")
+    }
+
     // MARK: - Partial/missing fields
 
     func testDecodeMissingState() throws {

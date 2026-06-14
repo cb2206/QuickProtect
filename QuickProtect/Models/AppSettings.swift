@@ -150,6 +150,22 @@ final class AppSettings: ObservableObject {
         UserDefaults.standard.set(dict, forKey: Keys.cameraFillModes)
     }
 
+    // MARK: - Per-camera secondary-lens picture-in-picture
+
+    /// Whether the secondary-lens PiP (e.g. doorbell package camera) is shown
+    /// when this camera is focused. Defaults to `true` — the dict only holds
+    /// entries the user has explicitly turned off.
+    func showsSecondaryLensPip(for id: String) -> Bool {
+        let dict = UserDefaults.standard.dictionary(forKey: Keys.secondaryLensPip) as? [String: Bool]
+        return dict?[id] ?? true
+    }
+
+    func setShowsSecondaryLensPip(_ on: Bool, for id: String) {
+        var dict = (UserDefaults.standard.dictionary(forKey: Keys.secondaryLensPip) as? [String: Bool]) ?? [:]
+        dict[id] = on
+        UserDefaults.standard.set(dict, forKey: Keys.secondaryLensPip)
+    }
+
     // MARK: - Cached video dimensions (for stable initial layout)
 
     func cachedAspectRatio(for cameraId: String) -> CGFloat? {
@@ -274,6 +290,7 @@ final class AppSettings: ObservableObject {
         static let hiddenCameras  = "unifi.hiddenCameras"
         static let videoDimensions = "unifi.videoDimensions"
         static let cameraFillModes = "unifi.cameraFillModes"
+        static let secondaryLensPip = "unifi.secondaryLensPip"
         static let hotkeyCode     = "unifi.hotkeyCode"
         static let hotkeyMods     = "unifi.hotkeyMods"
         static let username       = "unifi.username"
