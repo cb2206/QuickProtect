@@ -327,6 +327,7 @@ struct CameraCell: View {
                         isPtz: camera.isPtz,
                         now: clockTick,
                         visible: hudVisible,
+                        canZoom: camera.canZoom,
                         hasAudio: rtspClient.hasAudio,
                         isMuted: rtspClient.isMuted
                     )

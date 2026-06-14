@@ -283,6 +283,7 @@ struct AuroraFullscreenHUD: View {
     let isPtz: Bool
     let now: Date
     let visible: Bool
+    var canZoom: Bool = false
     var hasAudio: Bool = false
     var isMuted: Bool = true
 
@@ -344,6 +345,16 @@ struct AuroraFullscreenHUD: View {
                 .background(Capsule().fill(Color(red: 10/255, green: 132/255, blue: 255/255).opacity(0.22)))
             }
             Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
+            if isPtz {
+                KbdKey("←"); KbdKey("→"); KbdKey("↑"); KbdKey("↓")
+                Text("pan / tilt").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+                Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
+            }
+            if canZoom {
+                KbdKey("I"); KbdKey("O")
+                Text("zoom").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+                Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
+            }
             if hasAudio {
                 Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                     .font(.system(size: 11))
