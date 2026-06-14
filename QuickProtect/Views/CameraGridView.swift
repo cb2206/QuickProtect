@@ -347,7 +347,7 @@ struct CameraCell: View {
                         if keyCode == 3 { toggleTrueFullscreen() }     // F
                         else if keyCode == 53 { handleEscape() }       // Escape
                         else if keyCode == 46 { toggleMute() }         // M
-                        else if keyCode == 1, showsPip { swapLenses() } // S
+                        else if keyCode == 8, showsPip { swapLenses() } // C
                         // PTZ keys are handled by the NSEvent monitors (keyDown + keyUp)
                     } : nil
                 )
@@ -582,7 +582,7 @@ struct CameraCell: View {
             if event.keyCode == 3 { toggleTrueFullscreen(); return nil }    // F
             if event.keyCode == 53 { handleEscape(); return nil }
             if event.keyCode == 46 { toggleMute(); return nil }             // M
-            if event.keyCode == 1, showsPip { swapLenses(); return nil }    // S
+            if event.keyCode == 8, showsPip { swapLenses(); return nil }    // C
             if event.isARepeat, isPtzKey(event.keyCode) { return nil } // consume repeats
             if handlePtzKeyDown(event.keyCode) { return nil }
             return event
@@ -599,7 +599,7 @@ struct CameraCell: View {
             if event.keyCode == 3 { DispatchQueue.main.async { toggleTrueFullscreen() } }    // F
             if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
             if event.keyCode == 46 { DispatchQueue.main.async { toggleMute() } }             // M
-            if event.keyCode == 1 { DispatchQueue.main.async { if showsPip { swapLenses() } } } // S
+            if event.keyCode == 8 { DispatchQueue.main.async { if showsPip { swapLenses() } } } // C
             if !event.isARepeat { _ = handlePtzKeyDown(event.keyCode) }
         }
     }
@@ -922,14 +922,26 @@ struct CameraCell: View {
             }
 
             if !compact {
-                Text(pipLabel)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .padding(6)
+                HStack(spacing: 5) {
+                    Text(pipLabel)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                    Text("C")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.18)))
+                        .overlay(RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+                }
+                .padding(.horizontal, 6).padding(.vertical, 3)
+                .background(Color.black.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .padding(6)
             }
         }
         .frame(width: width, height: height)
@@ -941,7 +953,7 @@ struct CameraCell: View {
         .shadow(color: .black.opacity(0.45), radius: compact ? 4 : 8, y: compact ? 1 : 3)
         .contentShape(RoundedRectangle(cornerRadius: radius))
         .onTapGesture { swapLenses() }
-        .help(String(localized: "Swap with main view (S)"))
+        .help(String(localized: "Swap with main view (C)"))
         // In the grid the PiP must not swallow the tile's tap (which focuses the
         // camera) — let taps fall through. In focus it's tappable to swap.
         .allowsHitTesting(!compact)
