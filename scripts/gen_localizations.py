@@ -979,6 +979,35 @@ pt_br = {
     "⌘+scroll": "⌘+rolagem",
 }
 
+# ---------------------------------------------------------------------------
+# Snapshot capture (S), added 2026-06-14. Register per standard: de=du, es=tú,
+# nl=je, it=tu, pt-BR=você, fr=vous. "focused / in focus" uses the catalog's
+# enlarge terminology (Großansicht / vue agrandie / vista ampliada / vergroot /
+# ingrandita / ampliada) — never optical-focus wording. Columns: de, fr, es,
+# nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_snapshot = {
+    "Snapshot":    ("Schnappschuss", "Instantané", "Instantánea", "Momentopname", "Istantanea", "Instantâneo"),
+    "snapshot":    ("Schnappschuss", "instantané", "instantánea", "momentopname", "istantanea", "instantâneo"),
+    "Snapshots":   ("Schnappschüsse", "Instantanés", "Instantáneas", "Momentopnamen", "Istantanee", "Instantâneos"),
+    "Destination": ("Ziel", "Destination", "Destino", "Bestemming", "Destinazione", "Destino"),
+    "Clipboard":   ("Zwischenablage", "Presse-papiers", "Portapapeles", "Klembord", "Appunti", "Área de transferência"),
+    "Folder":      ("Ordner", "Dossier", "Carpeta", "Map", "Cartella", "Pasta"),
+    "Save folder": ("Speicherordner", "Dossier d'enregistrement", "Carpeta de guardado", "Opslagmap", "Cartella di salvataggio", "Pasta de salvamento"),
+    "Choose":      ("Auswählen", "Choisir", "Elegir", "Kiezen", "Scegli", "Escolher"),
+    "Choose…":     ("Auswählen…", "Choisir…", "Elegir…", "Kiezen…", "Scegli…", "Escolher…"),
+    "Choose a folder for saved snapshots": ("Wähle einen Ordner für gespeicherte Schnappschüsse", "Choisissez un dossier pour les instantanés enregistrés", "Elige una carpeta para las instantáneas guardadas", "Kies een map voor opgeslagen momentopnamen", "Scegli una cartella per le istantanee salvate", "Escolha uma pasta para os instantâneos salvos"),
+    "Choose a snapshot folder in Settings": ("Wähle in den Einstellungen einen Schnappschuss-Ordner", "Choisissez un dossier d'instantanés dans les Réglages", "Elige una carpeta de instantáneas en Ajustes", "Kies een momentopnamemap in Instellingen", "Scegli una cartella per le istantanee nelle Impostazioni", "Escolha uma pasta de instantâneos em Ajustes"),
+    "Snapshots are saved here as PNG files.": ("Schnappschüsse werden hier als PNG-Dateien gespeichert.", "Les instantanés sont enregistrés ici sous forme de fichiers PNG.", "Las instantáneas se guardan aquí como archivos PNG.", "Momentopnamen worden hier opgeslagen als PNG-bestanden.", "Le istantanee vengono salvate qui come file PNG.", "Os instantâneos são salvos aqui como arquivos PNG."),
+    "Press S on a focused camera to capture a snapshot.": ("Drücke S in der Großansicht, um einen Schnappschuss aufzunehmen.", "Appuyez sur S sur une caméra en vue agrandie pour capturer un instantané.", "Pulsa S en una cámara en vista ampliada para capturar una instantánea.", "Druk op S wanneer een camera vergroot is om een momentopname te maken.", "Premi S quando una telecamera è ingrandita per acquisire un'istantanea.", "Pressione S quando uma câmera estiver ampliada para capturar um instantâneo."),
+    "Capturing…":  ("Aufnahme läuft…", "Capture en cours…", "Capturando…", "Bezig met vastleggen…", "Acquisizione…", "Capturando…"),
+    "Copied to clipboard": ("In die Zwischenablage kopiert", "Copié dans le presse-papiers", "Copiado al portapapeles", "Gekopieerd naar klembord", "Copiato negli appunti", "Copiado para a área de transferência"),
+    "Snapshot saved": ("Schnappschuss gespeichert", "Instantané enregistré", "Instantánea guardada", "Momentopname opgeslagen", "Istantanea salvata", "Instantâneo salvo"),
+    "Snapshot failed": ("Schnappschuss fehlgeschlagen", "Échec de l'instantané", "Error en la instantánea", "Momentopname mislukt", "Istantanea non riuscita", "Falha no instantâneo"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _snapshot.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 
 # ---------------------------------------------------------------------------
