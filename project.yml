@@ -44,7 +44,9 @@ targets:
         # Menu-bar agent: no Dock icon, no main window.
         LSUIElement: true
         CFBundleIconFile: QuickProtect
-        CFBundleShortVersionString: "1.1"
+        # Marketing version (bump on release). project.yml is the source of truth —
+        # `xcodegen generate` writes these into Info.plist, so never hand-edit the plist.
+        CFBundleShortVersionString: "1.2"
         CFBundleVersion: "2"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
