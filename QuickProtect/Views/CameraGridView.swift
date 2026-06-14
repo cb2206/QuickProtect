@@ -234,6 +234,10 @@ struct CameraCell: View {
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
     @State private var secondaryStreamTask: Task<Void, Never>?
+    /// Concrete quality the primary client is currently connected (or connecting)
+    /// at. Tracks the resolved substream so a quality change can release the old
+    /// server allocation instead of leaking it until cleanup.
+    @State private var primaryQuality: StreamQuality?
     /// When true, the secondary lens fills the frame and the main lens moves
     /// into the PiP. Reset to false every time the camera (re)enters focus.
     @State private var secondaryIsPrimary = false
@@ -322,6 +326,13 @@ struct CameraCell: View {
     }
 
     private var isFocused: Bool { focusedCameraId == camera.id }
+
+    /// The concrete substream this tile should be playing right now: the camera's
+    /// effective quality (override or global default) resolved for the current
+    /// focus state — so `.auto` is low in the grid and high when enlarged.
+    private var desiredPrimaryQuality: StreamQuality {
+        AppSettings.shared.effectiveStreamQuality(for: camera.id).resolve(focused: isFocused)
+    }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -508,6 +519,9 @@ struct CameraCell: View {
                 // toolbar Refresh did manually).
                 scheduleReattach()
             }
+            // Auto cameras stream low in the grid and high in focus; this swaps
+            // the substream on either transition. No-op for explicit qualities.
+            reconcilePrimaryQuality()
         }
         .onChange(of: focusFillMode) { newValue in
             // Persist the user's fit/fill choice per camera while focused.
@@ -832,6 +846,9 @@ struct CameraCell: View {
         }
         mode = .connecting
 
+        let quality = desiredPrimaryQuality
+        primaryQuality = quality
+
         // Stagger connects by grid position so tiles light up as a calm
         // top-left → bottom-right cascade rather than a random scatter. Cap the
         // delay so large grids don't leave the last tiles waiting too long.
@@ -841,7 +858,7 @@ struct CameraCell: View {
             try? await Task.sleep(nanoseconds: stagger)
             guard !Task.isCancelled else { return }
 
-            guard let streamURL = await service.createRtspStreamURL(for: camera) else {
+            guard let streamURL = await service.createRtspStreamURL(for: camera, quality: quality.apiValue) else {
                 mode = .failed
                 streamTask = nil
                 return
@@ -858,6 +875,26 @@ struct CameraCell: View {
         streamTask = nil
         rtspClient.disconnect()
         mode = .connecting
+    }
+
+    /// Reconnect the primary stream when its effective quality no longer matches
+    /// what's playing — an `.auto` camera entering/leaving focus, or the user
+    /// changing the per-camera quality. Releases the previous server-side
+    /// allocation so it doesn't linger until `cleanupStreams()`. No-op when the
+    /// resolved quality is unchanged, so explicit-quality tiles don't churn on
+    /// focus. (Auto's mid-animation reconnect is smoothed into a cross-fade in a
+    /// later step.)
+    private func reconcilePrimaryQuality() {
+        let desired = desiredPrimaryQuality
+        guard desired != primaryQuality else { return }
+        let previous = primaryQuality
+        streamTask?.cancel()
+        streamTask = nil
+        rtspClient.disconnect()
+        if let previous {
+            service.releaseStream(for: camera.id, quality: previous.apiValue)
+        }
+        startStream()
     }
 
     // MARK: - Secondary lens (package camera) lifecycle
