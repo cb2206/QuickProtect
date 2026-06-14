@@ -915,15 +915,18 @@ struct CameraCell: View {
             try? await Task.sleep(nanoseconds: stagger)
             guard !Task.isCancelled else { return }
 
-            guard let streamURL = await service.createRtspStreamURL(for: camera, quality: quality.apiValue) else {
+            guard let stream = await service.createRtspStreamURL(for: camera, quality: quality.apiValue) else {
                 mode = .failed
                 streamTask = nil
                 return
             }
             guard !Task.isCancelled else { streamTask = nil; return }
 
+            // Track the quality the server actually served (a fallback may differ
+            // from what we asked for) so the next switch releases the right key.
+            primaryQuality = StreamQuality(rawValue: stream.quality) ?? quality
             streamTask = nil
-            rtspClient.connect(to: streamURL)
+            rtspClient.connect(to: stream.url)
         }
     }
 
@@ -996,13 +999,15 @@ struct CameraCell: View {
         guard service.isPopoverOpen, camera.isOnline else { return }
 
         secondaryStreamTask = Task {
-            guard let url = await service.createRtspStreamURL(for: camera, quality: lens.quality) else {
+            // The package lens is its own quality with no fallback, so the served
+            // quality always matches lens.quality — only the URL is needed here.
+            guard let stream = await service.createRtspStreamURL(for: camera, quality: lens.quality) else {
                 secondaryStreamTask = nil
                 return
             }
             guard !Task.isCancelled else { secondaryStreamTask = nil; return }
             secondaryStreamTask = nil
-            secondaryClient.connect(to: url)
+            secondaryClient.connect(to: stream.url)
         }
     }
 
