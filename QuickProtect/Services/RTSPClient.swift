@@ -2,6 +2,7 @@ import Foundation
 import Network
 import AVFoundation
 import CoreMedia
+import VideoToolbox
 
 /// RTSP/RTP client using NWConnection.
 /// All data processing runs on a dedicated serial queue to keep the main thread free.
@@ -82,6 +83,19 @@ final class RTSPClient: ObservableObject {
     private var audioMuted    = true
     private var aacDepacketizer: RTPParser.AACDepacketizer?
     private var audioLoggedFirstAU = false   // queue-only: one-shot enqueue log
+
+    // Snapshot capture. The display layer decodes internally and can't be read
+    // back, so when active we run a parallel VTDecompressionSession that keeps
+    // only the latest decoded frame. Session state is queue-only; the frame
+    // itself is read from the main thread, so it's guarded by a lock.
+    // Enabled only for the focused camera to avoid decoding every grid tile.
+    private var captureActive = false                          // queue-only
+    private var decompressionSession: VTDecompressionSession?  // queue-only
+    private var decompressionFormat: CMVideoFormatDescription? // queue-only
+    private let latestFrameLock = NSLock()
+    private var latestPixelBuffer: CVImageBuffer?              // lock-guarded
+    private var captureLoggedFirstFrame = false               // one-shot debug log
+    private var captureSeenKeyframe = false                   // gate decode until first IDR
 
     // MARK: - Init
 
@@ -268,6 +282,101 @@ final class RTSPClient: ObservableObject {
         Self.dbg("[RTSP] audio renderer \(audioRenderer == nil ? "FAILED" : "started") muted=\(audioMuted)")
     }
 
+    // MARK: - Snapshot capture (called from main thread)
+
+    /// Enable/disable decoding a copy of the video into a pixel buffer so the UI
+    /// can grab a still of the current frame at the streamed resolution. Only the
+    /// focused camera turns this on, to avoid decoding every grid tile.
+    func setCaptureActive(_ active: Bool) {
+        queue.async { [self] in
+            guard captureActive != active else { return }
+            captureActive = active
+            Self.dbg("[Snapshot] capture active=\(active)")
+            if !active { teardownCaptureSession() }
+        }
+    }
+
+    /// A CGImage of the most recently decoded frame, or nil if capture is off or
+    /// no frame has been decoded yet. Safe to call from the main thread.
+    func snapshotCGImage() -> CGImage? {
+        latestFrameLock.lock()
+        let pixelBuffer = latestPixelBuffer
+        latestFrameLock.unlock()
+        guard let pixelBuffer else { return nil }
+        var image: CGImage?
+        VTCreateCGImageFromCVPixelBuffer(pixelBuffer, options: nil, imageOut: &image)
+        return image
+    }
+
+    /// Decode one access unit into the capture pixel buffer. Queue-only.
+    /// Re-creates the decompression session when the format description changes,
+    /// and only starts decoding at a keyframe — feeding P-frames to a fresh
+    /// session just yields kVTVideoDecoderReferenceMissingErr until the next IDR.
+    private func decodeForCapture(_ sampleBuffer: CMSampleBuffer, format: CMVideoFormatDescription, isKeyframe: Bool) {
+        if decompressionSession == nil
+            || !CMFormatDescriptionEqual(decompressionFormat, otherFormatDescription: format) {
+            teardownCaptureSession()
+            let attrs: [CFString: Any] = [
+                kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferIOSurfacePropertiesKey: [CFString: Any]()
+            ]
+            var session: VTDecompressionSession?
+            let status = VTDecompressionSessionCreate(
+                allocator: kCFAllocatorDefault,
+                formatDescription: format,
+                decoderSpecification: nil,
+                imageBufferAttributes: attrs as CFDictionary,
+                outputCallback: nil,
+                decompressionSessionOut: &session)
+            guard status == noErr, let session else {
+                Self.dbg("[Snapshot] VTDecompressionSessionCreate failed: \(status)")
+                return
+            }
+            decompressionSession = session
+            decompressionFormat = format
+            captureLoggedFirstFrame = false
+            captureSeenKeyframe = false
+            Self.dbg("[Snapshot] capture session created")
+        }
+        // Wait for the first keyframe before feeding the decoder; once it has a
+        // reference, subsequent P-frames decode normally.
+        if !captureSeenKeyframe {
+            guard isKeyframe else { return }
+            captureSeenKeyframe = true
+        }
+        guard let session = decompressionSession else { return }
+        _ = VTDecompressionSessionDecodeFrame(
+            session, sampleBuffer: sampleBuffer,
+            flags: [._EnableAsynchronousDecompression], infoFlagsOut: nil
+        ) { [weak self] status, _, imageBuffer, _, _ in
+            guard let self else { return }
+            guard status == noErr, let imageBuffer else {
+                if !self.captureLoggedFirstFrame { Self.dbg("[Snapshot] decode status=\(status)") }
+                return
+            }
+            self.latestFrameLock.lock()
+            self.latestPixelBuffer = imageBuffer
+            self.latestFrameLock.unlock()
+            if !self.captureLoggedFirstFrame {
+                self.captureLoggedFirstFrame = true
+                Self.dbg("[Snapshot] first capture frame \(CVPixelBufferGetWidth(imageBuffer))x\(CVPixelBufferGetHeight(imageBuffer))")
+            }
+        }
+    }
+
+    /// Tear down the decompression session and drop the retained frame. Queue-only.
+    private func teardownCaptureSession() {
+        if let session = decompressionSession {
+            VTDecompressionSessionWaitForAsynchronousFrames(session)
+            VTDecompressionSessionInvalidate(session)
+        }
+        decompressionSession = nil
+        decompressionFormat = nil
+        latestFrameLock.lock()
+        latestPixelBuffer = nil
+        latestFrameLock.unlock()
+    }
+
     // MARK: - Internal disconnect (must be called on queue)
 
     private func disconnectOnQueue() {
@@ -292,6 +401,7 @@ final class RTSPClient: ObservableObject {
         audioRenderer?.stop()
         audioRenderer = nil
         aacDepacketizer = nil
+        teardownCaptureSession()
         displayLayer.flush()
         DispatchQueue.main.async { [self] in
             isConnected = false
@@ -782,15 +892,15 @@ final class RTSPClient: ObservableObject {
             sampleSizeEntryCount: 0, sampleSizeArray: nil, sampleBufferOut: &sb)
 
         if let sb {
+            let firstNAL = nals[0]
+            let isKeyframe: Bool
+            if codec == "H265", firstNAL.count >= 2 {
+                if case .keyframe = RTPParser.classifyH265NAL(firstNAL[0]) { isKeyframe = true }
+                else { isKeyframe = false }
+            } else {
+                isKeyframe = RTPParser.classifyH264NAL(firstNAL[0]) == .idr
+            }
             if let attachments = CMSampleBufferGetSampleAttachmentsArray(sb, createIfNecessary: true) as? [NSMutableDictionary] {
-                let firstNAL = nals[0]
-                let isKeyframe: Bool
-                if codec == "H265", firstNAL.count >= 2 {
-                    if case .keyframe = RTPParser.classifyH265NAL(firstNAL[0]) { isKeyframe = true }
-                    else { isKeyframe = false }
-                } else {
-                    isKeyframe = RTPParser.classifyH264NAL(firstNAL[0]) == .idr
-                }
                 for dict in attachments {
                     dict[kCMSampleAttachmentKey_DependsOnOthers] = !isKeyframe
                     dict[kCMSampleAttachmentKey_DisplayImmediately] = true
@@ -798,6 +908,7 @@ final class RTSPClient: ObservableObject {
             }
             if displayLayer.status == .failed { displayLayer.flush() }
             displayLayer.enqueue(sb)
+            if captureActive { decodeForCapture(sb, format: formatDescription, isKeyframe: isKeyframe) }
             if !hasFrameSignalled {
                 hasFrameSignalled = true
                 DispatchQueue.main.async { self.hasFrame = true }

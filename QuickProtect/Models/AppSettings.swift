@@ -32,6 +32,66 @@ final class AppSettings: ObservableObject {
         didSet { KeychainStore.set(password, account: Keys.password) }
     }
 
+    /// Where a captured snapshot goes: the clipboard, or a user-picked folder.
+    enum SnapshotDestination: Int { case clipboard = 0, folder = 1 }
+
+    /// Snapshot destination. Defaults to the clipboard; `.folder` additionally
+    /// requires `snapshotFolderBookmark` to be set.
+    @Published var snapshotDestination: SnapshotDestination {
+        didSet { UserDefaults.standard.set(snapshotDestination.rawValue, forKey: Keys.snapshotDestination) }
+    }
+
+    /// Security-scoped bookmark to the folder where snapshots are saved.
+    /// Used when `snapshotDestination` is `.folder`. The sandbox requires a
+    /// bookmark to regain write access to a user-chosen folder across launches.
+    @Published var snapshotFolderBookmark: Data? {
+        didSet {
+            if let data = snapshotFolderBookmark {
+                UserDefaults.standard.set(data, forKey: Keys.snapshotFolderBookmark)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Keys.snapshotFolderBookmark)
+            }
+        }
+    }
+
+    // MARK: - Snapshot folder
+
+    /// Resolves the saved bookmark to a folder URL, refreshing it if stale.
+    /// Returns nil when no folder is configured or the bookmark can't be resolved.
+    func resolveSnapshotFolder() -> URL? {
+        guard let data = snapshotFolderBookmark else { return nil }
+        do {
+            var isStale = false
+            let url = try URL(resolvingBookmarkData: data,
+                              options: [.withSecurityScope],
+                              relativeTo: nil,
+                              bookmarkDataIsStale: &isStale)
+            if isStale { setSnapshotFolder(url) }
+            return url
+        } catch {
+            NSLog("[Snapshot] bookmark resolve failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Stores a user-picked folder as a security-scoped bookmark, or clears it when nil.
+    func setSnapshotFolder(_ url: URL?) {
+        guard let url else { snapshotFolderBookmark = nil; return }
+        do {
+            snapshotFolderBookmark = try url.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil)
+        } catch {
+            NSLog("[Snapshot] bookmark create failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Human-readable path of the configured folder, or "" when none is set.
+    var snapshotFolderDisplayPath: String {
+        resolveSnapshotFolder()?.path ?? ""
+    }
+
     // MARK: - Display identification
 
     /// Stable display key derived from CGDirectDisplayID.
@@ -317,6 +377,8 @@ final class AppSettings: ObservableObject {
         static let hasCompletedOnboarding = "unifi.hasCompletedOnboarding"
         static let showFocusOverlayControls = "unifi.showFocusOverlayControls"
         static let speakerEnabled = "unifi.speakerEnabled"
+        static let snapshotDestination = "unifi.snapshotDestination"
+        static let snapshotFolderBookmark = "unifi.snapshotFolderBookmark"
     }
 
     /// Loads a sensitive value from the Keychain. On first run after upgrading,
@@ -349,6 +411,9 @@ final class AppSettings: ObservableObject {
             ? UserDefaults.standard.bool(forKey: Keys.showFocusOverlayControls)
             : true
         speakerEnabled = UserDefaults.standard.bool(forKey: Keys.speakerEnabled)
+        snapshotDestination = SnapshotDestination(
+            rawValue: UserDefaults.standard.integer(forKey: Keys.snapshotDestination)) ?? .clipboard
+        snapshotFolderBookmark = UserDefaults.standard.data(forKey: Keys.snapshotFolderBookmark)
     }
 }
 

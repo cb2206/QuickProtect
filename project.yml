@@ -75,6 +75,8 @@ targets:
         com.apple.security.app-sandbox: true
         # Outgoing connections: HTTPS to the controller + RTSP/RTSPS streams.
         com.apple.security.network.client: true
+        # Write snapshots to a user-chosen folder (persisted via security-scoped bookmark).
+        com.apple.security.files.user-selected.read-write: true
 
     settings:
       base:

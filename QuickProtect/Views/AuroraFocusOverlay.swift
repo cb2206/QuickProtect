@@ -363,6 +363,8 @@ struct AuroraFullscreenHUD: View {
                 Text(isMuted ? "unmute" : "mute").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
                 Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
             }
+            KbdKey("S"); Text("snapshot").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.5, height: 14)
             KbdKey("F"); Text("exit fullscreen").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
             KbdKey("esc"); Text("back to popover").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
         }
@@ -404,6 +406,7 @@ struct AuroraFocusHints: View {
         HStack(spacing: 14) {
             Hint(keys: ["F"], label: String(localized: "Fullscreen"))
             Hint(keys: ["esc"], label: String(localized: "Back"))
+            Hint(keys: ["S"], label: String(localized: "Snapshot"))
             if showAudioHint {
                 Hint(keys: ["M"], label: String(localized: "Mute"))
             }

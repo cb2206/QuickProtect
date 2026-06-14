@@ -54,7 +54,13 @@ struct SettingsView: View {
     @ObservedObject var service: ProtectService
     @ObservedObject var updateChecker: UpdateChecker
 
-    @State private var tab: SettingsTab = .connection
+    /// Last tab the user viewed, remembered for the lifetime of the app process.
+    /// Resets to General on relaunch (it is not persisted), so the first open
+    /// after starting the app lands on General while later opens within the same
+    /// session restore the previous selection.
+    static var sessionTab: SettingsTab = .general
+
+    @State private var tab: SettingsTab = SettingsView.sessionTab
     @State private var isTesting = false
     @State private var testResult: TestResult?
     @State private var isTestingPtz = false
@@ -74,6 +80,7 @@ struct SettingsView: View {
             detailPane
         }
         .frame(minWidth: 760, idealWidth: 820, minHeight: 540, idealHeight: 600)
+        .onChange(of: tab) { SettingsView.sessionTab = $0 }
         .background(palette.popoverBg)
         .accentColor(Color(hex: settings.accentColorHex))
         .preferredColorScheme(settings.appearance.preferredColorScheme)
@@ -284,6 +291,53 @@ struct SettingsView: View {
                     Toggle("", isOn: $settings.showFocusOverlayControls)
                         .toggleStyle(.switch)
                         .labelsHidden()
+                }
+            }
+
+            AuroraSettingsSection(String(localized: "Snapshots")) {
+                AuroraSettingsRow(
+                    String(localized: "Destination"),
+                    hint: String(localized: "Press S on a focused camera to capture a snapshot."),
+                    isLast: settings.snapshotDestination == .clipboard
+                ) {
+                    AuroraSegmented(
+                        options: [
+                            (String(localized: "Clipboard"), AppSettings.SnapshotDestination.clipboard),
+                            (String(localized: "Folder"), AppSettings.SnapshotDestination.folder)
+                        ],
+                        selection: Binding(
+                            get: { settings.snapshotDestination },
+                            set: { newValue in
+                                settings.snapshotDestination = newValue
+                                // Folder mode requires a picked folder — prompt
+                                // immediately and revert to clipboard if cancelled.
+                                if newValue == .folder, settings.resolveSnapshotFolder() == nil {
+                                    chooseSnapshotFolder(revertToClipboardIfCancelled: true)
+                                }
+                            }
+                        )
+                    )
+                }
+                if settings.snapshotDestination == .folder {
+                    AuroraSettingsRow(
+                        String(localized: "Save folder"),
+                        hint: String(localized: "Snapshots are saved here as PNG files."),
+                        isLast: true,
+                        labelExpands: true
+                    ) {
+                        HStack(spacing: 8) {
+                            if !settings.snapshotFolderDisplayPath.isEmpty {
+                                Text((settings.snapshotFolderDisplayPath as NSString).lastPathComponent)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                            AuroraSecondaryButton(title: String(localized: "Choose…")) {
+                                chooseSnapshotFolder(revertToClipboardIfCancelled: false)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -596,6 +650,23 @@ struct SettingsView: View {
             } onCancel: {
                 isRecordingHotkey = false
             }
+        }
+    }
+
+    // MARK: - Snapshot folder
+
+    private func chooseSnapshotFolder(revertToClipboardIfCancelled: Bool) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose a folder for saved snapshots")
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.setSnapshotFolder(url)
+        } else if revertToClipboardIfCancelled, settings.resolveSnapshotFolder() == nil {
+            // Folder mode needs a folder; with none picked, fall back to clipboard.
+            settings.snapshotDestination = .clipboard
         }
     }
 
