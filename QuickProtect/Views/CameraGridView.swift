@@ -761,7 +761,7 @@ struct CameraCell: View {
         Section("Stream quality") {
             // Follow the global default; the label spells out what that is.
             Button { setStreamQuality(nil) } label: {
-                Label(String(localized: "Use default (\(AppSettings.shared.defaultStreamQuality.displayName))"),
+                Label("\(String(localized: "Use default")) (\(AppSettings.shared.defaultStreamQuality.displayName))",
                       systemImage: quality == nil ? "checkmark" : "")
             }
             ForEach(StreamQuality.allCases, id: \.self) { q in

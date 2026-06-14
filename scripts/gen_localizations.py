@@ -1040,6 +1040,31 @@ _pip_audio = {
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _pip_audio.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
+# ---------------------------------------------------------------------------
+# Stream quality selection. "Auto" and "Medium" already exist (reused). The
+# High/Low quality words take the feminine forms that agree with "quality"
+# (qualité/calidad/qualità/qualidade) in the romance locales. The hint uses the
+# catalog's enlarge terminology (Großansicht / vue agrandie / …), never optical
+# focus, and German keeps full du-imperatives. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_streaming = {
+    "High": ("Hoch", "Haute", "Alta", "Hoog", "Alta", "Alta"),
+    "Low": ("Niedrig", "Basse", "Baja", "Laag", "Bassa", "Baixa"),
+    "Streaming": ("Streaming", "Diffusion", "Transmisión", "Streamen", "Streaming", "Transmissão"),
+    "Stream quality": ("Streamqualität", "Qualité du flux", "Calidad del flujo", "Streamkwaliteit", "Qualità dello stream", "Qualidade da transmissão"),
+    "Use default": ("Standard verwenden", "Utiliser la valeur par défaut", "Usar predeterminada", "Standaard gebruiken", "Usa predefinita", "Usar padrão"),
+    "Default stream quality": ("Standard-Streamqualität", "Qualité du flux par défaut", "Calidad de flujo predeterminada", "Standaard streamkwaliteit", "Qualità stream predefinita", "Qualidade de transmissão padrão"),
+    "Auto streams low quality in the grid and high quality when a camera is enlarged — saving CPU and bandwidth. Override per camera by right-clicking its tile.": (
+        "Auto streamt im Raster in niedriger Qualität und in der Großansicht in hoher Qualität – das spart CPU und Bandbreite. Überschreibe die Einstellung pro Kamera per Rechtsklick auf die Kachel.",
+        "Auto diffuse en basse qualité dans la grille et en haute qualité lorsqu'une caméra est agrandie, ce qui économise le processeur et la bande passante. Remplacez ce réglage par caméra d'un clic droit sur sa tuile.",
+        "Auto transmite en baja calidad en la cuadrícula y en alta calidad cuando se amplía una cámara, lo que ahorra CPU y ancho de banda. Anula este ajuste por cámara haciendo clic derecho en su mosaico.",
+        "Auto streamt in lage kwaliteit in het raster en in hoge kwaliteit wanneer een camera vergroot is — dat bespaart CPU en bandbreedte. Overschrijf dit per camera door rechts te klikken op de tegel.",
+        "Auto trasmette in bassa qualità nella griglia e in alta qualità quando una telecamera è ingrandita, risparmiando CPU e larghezza di banda. Sostituisci l'impostazione per telecamera facendo clic con il tasto destro sul riquadro.",
+        "Auto transmite em baixa qualidade na grade e em alta qualidade quando uma câmera é ampliada — economizando CPU e largura de banda. Substitua por câmera clicando com o botão direito no bloco."),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _streaming.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 
 # ---------------------------------------------------------------------------
