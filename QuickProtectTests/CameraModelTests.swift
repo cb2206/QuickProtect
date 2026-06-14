@@ -281,6 +281,14 @@ final class CameraModelTests: XCTestCase {
         }
     }
 
+    func testStreamQualityRankOrdersResolutions() {
+        XCTAssertLessThan(StreamQuality.low.rank, StreamQuality.medium.rank)
+        XCTAssertLessThan(StreamQuality.medium.rank, StreamQuality.high.rank)
+        // Leaving focus (high → low resolved) is a downgrade…
+        XCTAssertLessThan(StreamQuality.auto.resolve(focused: false).rank,
+                          StreamQuality.auto.resolve(focused: true).rank)
+    }
+
     func testStreamQualityApiValue() {
         XCTAssertEqual(StreamQuality.high.apiValue, "high")
         XCTAssertEqual(StreamQuality.medium.apiValue, "medium")

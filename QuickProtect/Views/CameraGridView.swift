@@ -238,6 +238,14 @@ struct CameraCell: View {
     /// at. Tracks the resolved substream so a quality change can release the old
     /// server allocation instead of leaking it until cleanup.
     @State private var primaryQuality: StreamQuality?
+    /// Last decoded frame, held as a still over an auto/manual quality switch so
+    /// the reconnect dissolves through a frozen image instead of flashing black
+    /// (disconnect flushes the display layer). Nil when no switch is in flight.
+    @State private var freezeFrame: CGImage?
+    /// Pending auto down-switch (high → low on leaving focus), delayed so a quick
+    /// focus → unfocus → focus doesn't churn the grid stream. Cancelled if focus
+    /// returns first.
+    @State private var downSwitchWork: DispatchWorkItem?
     /// When true, the secondary lens fills the frame and the main lens moves
     /// into the PiP. Reset to false every time the camera (re)enters focus.
     @State private var secondaryIsPrimary = false
@@ -380,7 +388,21 @@ struct CameraCell: View {
             }
             .background(Color(white: 0.05))
 
-            if mode != .playing {
+            // Frozen still bridging a quality switch — sits over the (flushed)
+            // video so the reconnect dissolves through it rather than to black.
+            if let freezeFrame {
+                Image(decorative: freezeFrame, scale: 1.0)
+                    .resizable()
+                    .aspectRatio(contentMode: isFocused && !focusFillMode ? .fit : .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+
+            // While a frozen frame covers the video, suppress the connecting
+            // spinner so a quality switch reads as a clean dissolve, not a reload.
+            if mode != .playing && freezeFrame == nil {
                 stateOverlay
                     .transition(.opacity)
             }
@@ -449,6 +471,9 @@ struct CameraCell: View {
         .onDisappear {
             streamTask?.cancel()
             streamTask = nil
+            downSwitchWork?.cancel()
+            downSwitchWork = nil
+            freezeFrame = nil
             removeKeyMonitor()
             stopClockTimer()
             removeMouseMonitor()
@@ -463,6 +488,9 @@ struct CameraCell: View {
             } else {
                 streamTask?.cancel()
                 streamTask = nil
+                downSwitchWork?.cancel()
+                downSwitchWork = nil
+                freezeFrame = nil
                 mode = .connecting
                 stopSecondaryStream()
             }
@@ -470,10 +498,18 @@ struct CameraCell: View {
         .onChange(of: rtspClient.hasFrame) { ready in
             // Reveal the picture only once a real frame exists, fading the
             // connecting overlay out so video doesn't pop in over black.
-            if ready { withAnimation(.easeOut(duration: 0.25)) { mode = .playing } }
+            if ready {
+                withAnimation(.easeOut(duration: 0.25)) { mode = .playing }
+                // New-quality frame is up — dissolve the frozen still away.
+                if freezeFrame != nil {
+                    withAnimation(.easeOut(duration: 0.3)) { freezeFrame = nil }
+                }
+            }
         }
         .onChange(of: rtspClient.error) { err in
-            if err != nil { mode = .failed }
+            // Drop the frozen still so a genuine failure surfaces its overlay
+            // instead of leaving a stale frame on screen.
+            if err != nil { mode = .failed; freezeFrame = nil }
         }
         .onChange(of: rtspClient.videoDimensions) { dims in
             if dims.width > 0 && dims.height > 0 {
@@ -894,21 +930,45 @@ struct CameraCell: View {
     private func stopStream() {
         streamTask?.cancel()
         streamTask = nil
+        downSwitchWork?.cancel()
+        downSwitchWork = nil
+        freezeFrame = nil
         rtspClient.disconnect()
         mode = .connecting
     }
 
     /// Reconnect the primary stream when its effective quality no longer matches
     /// what's playing — an `.auto` camera entering/leaving focus, or the user
-    /// changing the per-camera quality. Releases the previous server-side
-    /// allocation so it doesn't linger until `cleanupStreams()`. No-op when the
-    /// resolved quality is unchanged, so explicit-quality tiles don't churn on
-    /// focus. (Auto's mid-animation reconnect is smoothed into a cross-fade in a
-    /// later step.)
+    /// changing the per-camera quality. No-op when the resolved quality is
+    /// unchanged, so explicit-quality tiles don't churn on focus.
+    ///
+    /// Upgrades (entering focus) apply immediately so high-res arrives ASAP;
+    /// downgrades (leaving focus) are delayed so a quick focus → unfocus → focus
+    /// keeps the high stream rather than reconnecting twice. A frozen frame masks
+    /// the reconnect either way (see `applyQualitySwitch`).
     private func reconcilePrimaryQuality() {
+        downSwitchWork?.cancel()
+        downSwitchWork = nil
         let desired = desiredPrimaryQuality
         guard desired != primaryQuality else { return }
+
+        let isDowngrade = primaryQuality.map { desired.rank < $0.rank } ?? false
+        if isDowngrade {
+            let work = DispatchWorkItem { applyQualitySwitch() }
+            downSwitchWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+        } else {
+            applyQualitySwitch()
+        }
+    }
+
+    /// Freeze the current frame, tear down the primary stream (releasing its
+    /// server allocation), and reconnect at the now-desired quality. The frozen
+    /// still is cleared when the new stream lands its first frame.
+    private func applyQualitySwitch() {
+        downSwitchWork = nil
         let previous = primaryQuality
+        freezeFrame = rtspClient.snapshotCGImage()
         streamTask?.cancel()
         streamTask = nil
         rtspClient.disconnect()

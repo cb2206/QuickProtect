@@ -18,6 +18,17 @@ enum StreamQuality: String, CaseIterable, Codable {
         self == .auto ? (focused ? .high : .low) : self
     }
 
+    /// Resolution ordering (low < medium < high) used to tell an upgrade from a
+    /// downgrade. `.auto` sits with medium; it's only meaningful once resolved.
+    var rank: Int {
+        switch self {
+        case .low:    return 0
+        case .auto:   return 1
+        case .medium: return 1
+        case .high:   return 2
+        }
+    }
+
     /// Localized name for menus and settings.
     var displayName: String {
         switch self {
