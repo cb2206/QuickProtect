@@ -12,7 +12,8 @@ Rules:
 
 ## Loop protocol
 
-Every task runs as a loop, not a line:
+Every **code change** runs as a loop, not a line. Sessions with no code changes
+(brainstorming, design, planning, config review) skip this loop entirely.
 
 1. Write the change.
 2. Run the checks: `xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet`,
@@ -27,6 +28,13 @@ Stop conditions:
 
 Never report "done" without check output from this session.
 Never fix a test by weakening it. Fix the code, not the test.
+
+Hook enforcement (see .claude/settings.json):
+- Editing a `.swift` file marks the session "dirty" (a `/tmp/qp-dirty-$SESSION_ID`
+  marker) and runs a fast per-file lint that blocks only on **error-severity** violations.
+- On Stop, if the session is dirty, the full gate runs automatically: `xcodebuild test`
+  then `swiftlint --strict` (whole project). Either failure blocks the stop and is fed
+  back for fixing. A clean (non-code) session stops immediately with no checks.
 
 SwiftLint baseline: .swiftlint.yml disables rules the legacy code still violates.
 Don't add new violations of those rules; re-enable rules as files get cleaned up.
