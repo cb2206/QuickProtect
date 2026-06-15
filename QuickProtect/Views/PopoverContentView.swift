@@ -105,6 +105,7 @@ struct PopoverContentView: View {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         settings.switchProfile(to: profile.id)
                     }
+                    service.objectWillChange.send()
                 } label: {
                     if profile.id == settings.activeProfileID {
                         Label(profile.name, systemImage: "checkmark")
@@ -121,7 +122,10 @@ struct PopoverContentView: View {
                     title: String(localized: "Save Current View as Profile"),
                     initial: "",
                     confirm: String(localized: "Save")
-                ) { settings.createProfile(named: $0) }
+                ) {
+                    settings.createProfile(named: $0)
+                    service.objectWillChange.send()
+                }
             }
 
             Button(String(localized: "Rename Profile…")) {
@@ -135,6 +139,7 @@ struct PopoverContentView: View {
 
             Button(String(localized: "Delete Profile"), role: .destructive) {
                 settings.deleteProfile(settings.activeProfileID)
+                service.objectWillChange.send()
             }
             .disabled(settings.profiles().count <= 1)
         } label: {
@@ -174,6 +179,9 @@ struct PopoverContentView: View {
         field.placeholderString = String(localized: "Profile name")
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
+        // The popover panel sits at `.popUpMenu` level; lift the alert above it
+        // so the name field isn't hidden behind the popover.
+        alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
