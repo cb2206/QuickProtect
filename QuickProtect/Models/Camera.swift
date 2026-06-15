@@ -12,10 +12,14 @@ enum StreamQuality: String, CaseIterable, Codable {
     /// raw `.auto` slips through it falls back to `.medium`.
     var apiValue: String { self == .auto ? "medium" : rawValue }
 
-    /// Resolve `.auto` to a concrete quality for the current view state. Pass-through
-    /// for the explicit cases so callers can resolve unconditionally.
-    func resolve(focused: Bool) -> StreamQuality {
-        self == .auto ? (focused ? .high : .low) : self
+    /// Resolve `.auto` to a concrete quality for the current view state:
+    /// high in focus, and in the grid scaled to tile size — medium for a Large
+    /// tile (low looks too grainy enlarged), low otherwise. Pass-through for the
+    /// explicit cases so callers can resolve unconditionally.
+    func resolve(focused: Bool, gridIsLarge: Bool = false) -> StreamQuality {
+        guard self == .auto else { return self }
+        if focused { return .high }
+        return gridIsLarge ? .medium : .low
     }
 
     /// Resolution ordering (low < medium < high) used to tell an upgrade from a

@@ -274,6 +274,14 @@ final class CameraModelTests: XCTestCase {
         XCTAssertEqual(StreamQuality.auto.resolve(focused: true), .high)
     }
 
+    func testStreamQualityAutoGridScalesWithTileSize() {
+        // Large grid tiles get medium (low is too grainy enlarged); others low.
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: false, gridIsLarge: true), .medium)
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: false, gridIsLarge: false), .low)
+        // Focus always wins over size.
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: true, gridIsLarge: true), .high)
+    }
+
     func testStreamQualityExplicitResolvesUnchanged() {
         for q in [StreamQuality.high, .medium, .low] {
             XCTAssertEqual(q.resolve(focused: false), q)
