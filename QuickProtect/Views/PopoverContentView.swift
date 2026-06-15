@@ -117,9 +117,9 @@ struct PopoverContentView: View {
 
             Divider()
 
-            Button(String(localized: "Save Current View as Profile…")) {
+            Button(String(localized: "Save Current View as New Profile…")) {
                 promptForName(
-                    title: String(localized: "Save Current View as Profile"),
+                    title: String(localized: "Save Current View as New Profile"),
                     initial: "",
                     confirm: String(localized: "Save")
                 ) {
@@ -179,11 +179,16 @@ struct PopoverContentView: View {
         field.placeholderString = String(localized: "Profile name")
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
-        // The popover panel sits at `.popUpMenu` level; lift the alert above it
-        // so the name field isn't hidden behind the popover.
-        alert.window.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1)
+        // The popover panel sits at `.popUpMenu` level, which draws above the
+        // modal alert. Temporarily drop it (and any other elevated app windows)
+        // to normal level so the name field is reachable, then restore.
+        let elevated = NSApp.windows.filter { $0.isVisible && $0.level.rawValue >= NSWindow.Level.popUpMenu.rawValue }
+        let savedLevels = elevated.map(\.level)
+        elevated.forEach { $0.level = .normal }
         NSApp.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let response = alert.runModal()
+        zip(elevated, savedLevels).forEach { $0.level = $1 }
+        guard response == .alertFirstButtonReturn else { return }
         let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { onConfirm(name) }
     }

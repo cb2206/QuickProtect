@@ -4,6 +4,12 @@ import Combine
 import ServiceManagement
 import Security
 
+extension Notification.Name {
+    /// Posted when the active layout profile changes, so the open panel can
+    /// restore that profile's saved window size for the current display.
+    static let layoutProfileChanged = Notification.Name("layoutProfileChanged")
+}
+
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
@@ -176,6 +182,8 @@ final class AppSettings: ObservableObject {
     func switchProfile(to id: String) {
         guard profiles().contains(where: { $0.id == id }) else { return }
         activeProfileID = id
+        // Let the panel restore this profile's saved window size for the display.
+        NotificationCenter.default.post(name: .layoutProfileChanged, object: nil)
     }
 
     /// Creates a new profile by snapshotting the active profile's current layout,
@@ -228,6 +236,16 @@ final class AppSettings: ObservableObject {
         return cameras.sorted { (indexMap[$0.id] ?? Int.max) < (indexMap[$1.id] ?? Int.max) }
     }
 
+    /// Unhides `id` and appends it to the end of the active profile's grid.
+    /// `visibleOrder` is the current on-screen order of visible camera ids, so
+    /// the camera lands last regardless of any stale position in stored order.
+    func addHiddenCamera(_ id: String, visibleOrder: [String]) {
+        setHidden(false, for: id)
+        var order = visibleOrder.filter { $0 != id }
+        order.append(id)
+        setCameraOrder(order)
+    }
+
     // MARK: - Camera sizes (per-profile)
 
     enum CameraSize: Int, CaseIterable { case small = 1, medium = 2, large = 4 }
@@ -244,23 +262,32 @@ final class AppSettings: ObservableObject {
         setProfileLayoutValue(activeProfileID, subKey: "sizes", value: sizes)
     }
 
-    // MARK: - Panel size (per-display)
+    // MARK: - Panel size (per-profile, per-display)
+
+    /// Storage key combining the active profile and a display. Profile ids are
+    /// UUIDs / "default" (no "@"); display keys are numeric, so the two never
+    /// collide with a bare legacy display key.
+    private func panelKey(display: String) -> String { "\(activeProfileID)@\(display)" }
 
     func panelSize(display: String? = nil) -> NSSize? {
         let dk = display ?? Self.displayKey()
-        guard let d = displayDict(Keys.perDisplay, display: dk),
-              let w = d["panelW"] as? Double,
-              let h = d["panelH"] as? Double else { return nil }
+        // Prefer the profile-scoped size; fall back to a legacy per-display size
+        // (written before panel sizes became per-profile) so existing windows
+        // keep their dimensions on first switch.
+        let d = displayDict(Keys.perDisplay, display: panelKey(display: dk))
+            ?? displayDict(Keys.perDisplay, display: dk)
+        guard let d, let w = d["panelW"] as? Double, let h = d["panelH"] as? Double else { return nil }
         return NSSize(width: w, height: h)
     }
 
     func setPanelSize(_ size: NSSize, display: String? = nil) {
         let dk = display ?? Self.displayKey()
+        let key = panelKey(display: dk)
         var all = (UserDefaults.standard.dictionary(forKey: Keys.perDisplay) as? [String: [String: Any]]) ?? [:]
-        var sub = all[dk] ?? [:]
+        var sub = all[key] ?? [:]
         sub["panelW"] = Double(size.width)
         sub["panelH"] = Double(size.height)
-        all[dk] = sub
+        all[key] = sub
         UserDefaults.standard.set(all, forKey: Keys.perDisplay)
     }
 

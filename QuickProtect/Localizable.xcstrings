@@ -124,6 +124,47 @@
         }
       }
     },
+    "Add Camera": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kamera hinzufügen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter une caméra"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir cámara"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera toevoegen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi telecamera"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar câmera"
+          }
+        }
+      }
+    },
     "All set": {
       "extractionState": "manual",
       "localizations": {
@@ -5536,84 +5577,84 @@
         }
       }
     },
-    "Save Current View as Profile": {
+    "Save Current View as New Profile": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aktuelle Ansicht als Profil sichern"
+            "value": "Aktuelle Ansicht als neues Profil sichern"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enregistrer la vue actuelle comme profil"
+            "value": "Enregistrer la vue actuelle comme nouveau profil"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Guardar vista actual como perfil"
+            "value": "Guardar vista actual como nuevo perfil"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Huidige weergave als profiel bewaren"
+            "value": "Huidige weergave als nieuw profiel bewaren"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Salva vista attuale come profilo"
+            "value": "Salva vista attuale come nuovo profilo"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Salvar visualização atual como perfil"
+            "value": "Salvar visualização atual como novo perfil"
           }
         }
       }
     },
-    "Save Current View as Profile…": {
+    "Save Current View as New Profile…": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aktuelle Ansicht als Profil sichern…"
+            "value": "Aktuelle Ansicht als neues Profil sichern…"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enregistrer la vue actuelle comme profil…"
+            "value": "Enregistrer la vue actuelle comme nouveau profil…"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Guardar vista actual como perfil…"
+            "value": "Guardar vista actual como nuevo perfil…"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Huidige weergave als profiel bewaren…"
+            "value": "Huidige weergave als nieuw profiel bewaren…"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Salva vista attuale come profilo…"
+            "value": "Salva vista attuale come nuovo profilo…"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Salvar visualização atual como perfil…"
+            "value": "Salvar visualização atual como novo perfil…"
           }
         }
       }

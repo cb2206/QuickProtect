@@ -36,6 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NotificationCenter.default.addObserver(forName: .exitTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
             self?.exitPanelFullscreen()
         }
+        NotificationCenter.default.addObserver(forName: .layoutProfileChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.applyProfilePanelSize()
+        }
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
@@ -219,16 +222,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let size = savedPanelSize()
         panel?.setContentSize(size)
 
-        // Position below the status bar button, clamped to screen
-        let buttonRect = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
-        let panelSize = panel!.frame.size
-        var x = buttonRect.midX - panelSize.width / 2
-        let y = buttonRect.minY - panelSize.height - 4
-        if let screen = NSScreen.main {
-            let sf = screen.visibleFrame
-            x = max(sf.minX + 4, min(x, sf.maxX - panelSize.width - 4))
-        }
-        panel?.setFrameOrigin(NSPoint(x: x, y: y))
+        positionPanelBelowStatusItem()
 
         service.isPopoverOpen = true
         panel?.makeKeyAndOrderFront(nil)
@@ -241,6 +235,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         Task { await service.fetchCameras() }
+    }
+
+    /// Anchor the panel under the status-bar button, clamped to the screen.
+    private func positionPanelBelowStatusItem() {
+        guard let panel, let button = statusItem?.button else { return }
+        let buttonRect = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
+        let size = panel.frame.size
+        var x = buttonRect.midX - size.width / 2
+        let y = buttonRect.minY - size.height - 4
+        if let screen = NSScreen.main {
+            let sf = screen.visibleFrame
+            x = max(sf.minX + 4, min(x, sf.maxX - size.width - 4))
+        }
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    /// On a profile switch, restore that profile's saved window size for the
+    /// current display. A profile with no saved size adopts the current size.
+    private func applyProfilePanelSize() {
+        guard let panel, panel.isVisible, !isInTrueFullscreen else { return }
+        if let size = AppSettings.shared.panelSize() {
+            guard size != panel.frame.size else { return }
+            panel.setContentSize(size)
+            positionPanelBelowStatusItem()
+        } else {
+            AppSettings.shared.setPanelSize(panel.frame.size)
+        }
     }
 
     private func closePanel() {
@@ -275,7 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowDidResize(_ notification: Notification) {
-        guard let win = notification.object as? NSPanel, win === panel else { return }
+        guard let win = notification.object as? NSPanel, win === panel, !isInTrueFullscreen else { return }
         AppSettings.shared.setPanelSize(win.frame.size)
     }
 

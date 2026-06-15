@@ -804,6 +804,19 @@ struct CameraCell: View {
 
         Divider()
 
+        let hiddenCameras = service.cameras
+            .filter { AppSettings.shared.isHidden($0.id) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        if !hiddenCameras.isEmpty {
+            Menu {
+                ForEach(hiddenCameras) { cam in
+                    Button { addCamera(cam.id) } label: { Text(cam.name) }
+                }
+            } label: {
+                Label("Add Camera", systemImage: "plus")
+            }
+        }
+
         Button {
             AppSettings.shared.setHidden(true, for: camera.id)
             service.objectWillChange.send()
@@ -813,6 +826,15 @@ struct CameraCell: View {
         Button { setSize(nil) } label: {
             Label("Reset size to Auto", systemImage: "arrow.counterclockwise")
         }
+    }
+
+    /// Unhide a camera and append it to the end of the current profile's grid.
+    private func addCamera(_ id: String) {
+        let visibleOrder = AppSettings.shared
+            .orderedCameras(AppSettings.shared.visibleCameras(service.cameras))
+            .map(\.id)
+        AppSettings.shared.addHiddenCamera(id, visibleOrder: visibleOrder)
+        service.objectWillChange.send()
     }
 
     private func openInProtect() {

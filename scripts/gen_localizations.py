@@ -5,8 +5,9 @@ import json, collections, sys, os
 # German (informal "du") — the existing, reviewed translation.
 # ---------------------------------------------------------------------------
 de = {
-    "Save Current View as Profile…": "Aktuelle Ansicht als Profil sichern…",
-    "Save Current View as Profile": "Aktuelle Ansicht als Profil sichern",
+    "Save Current View as New Profile…": "Aktuelle Ansicht als neues Profil sichern…",
+    "Save Current View as New Profile": "Aktuelle Ansicht als neues Profil sichern",
+    "Add Camera": "Kamera hinzufügen",
     "Save": "Sichern",
     "Rename Profile…": "Profil umbenennen…",
     "Rename Profile": "Profil umbenennen",
@@ -179,8 +180,9 @@ de = {
 # French (formal "vous" — macOS norm)
 # ---------------------------------------------------------------------------
 fr = {
-    "Save Current View as Profile…": "Enregistrer la vue actuelle comme profil…",
-    "Save Current View as Profile": "Enregistrer la vue actuelle comme profil",
+    "Save Current View as New Profile…": "Enregistrer la vue actuelle comme nouveau profil…",
+    "Save Current View as New Profile": "Enregistrer la vue actuelle comme nouveau profil",
+    "Add Camera": "Ajouter une caméra",
     "Save": "Enregistrer",
     "Rename Profile…": "Renommer le profil…",
     "Rename Profile": "Renommer le profil",
@@ -353,8 +355,9 @@ fr = {
 # Spanish (informal "tú")
 # ---------------------------------------------------------------------------
 es = {
-    "Save Current View as Profile…": "Guardar vista actual como perfil…",
-    "Save Current View as Profile": "Guardar vista actual como perfil",
+    "Save Current View as New Profile…": "Guardar vista actual como nuevo perfil…",
+    "Save Current View as New Profile": "Guardar vista actual como nuevo perfil",
+    "Add Camera": "Añadir cámara",
     "Save": "Guardar",
     "Rename Profile…": "Cambiar nombre del perfil…",
     "Rename Profile": "Cambiar nombre del perfil",
@@ -527,8 +530,9 @@ es = {
 # Dutch (informal "je")
 # ---------------------------------------------------------------------------
 nl = {
-    "Save Current View as Profile…": "Huidige weergave als profiel bewaren…",
-    "Save Current View as Profile": "Huidige weergave als profiel bewaren",
+    "Save Current View as New Profile…": "Huidige weergave als nieuw profiel bewaren…",
+    "Save Current View as New Profile": "Huidige weergave als nieuw profiel bewaren",
+    "Add Camera": "Camera toevoegen",
     "Save": "Bewaar",
     "Rename Profile…": "Profiel hernoemen…",
     "Rename Profile": "Profiel hernoemen",
@@ -701,8 +705,9 @@ nl = {
 # Italian (informal "tu")
 # ---------------------------------------------------------------------------
 it = {
-    "Save Current View as Profile…": "Salva vista attuale come profilo…",
-    "Save Current View as Profile": "Salva vista attuale come profilo",
+    "Save Current View as New Profile…": "Salva vista attuale come nuovo profilo…",
+    "Save Current View as New Profile": "Salva vista attuale come nuovo profilo",
+    "Add Camera": "Aggiungi telecamera",
     "Save": "Salva",
     "Rename Profile…": "Rinomina profilo…",
     "Rename Profile": "Rinomina profilo",
@@ -875,8 +880,9 @@ it = {
 # Brazilian Portuguese ("você")
 # ---------------------------------------------------------------------------
 pt_br = {
-    "Save Current View as Profile…": "Salvar visualização atual como perfil…",
-    "Save Current View as Profile": "Salvar visualização atual como perfil",
+    "Save Current View as New Profile…": "Salvar visualização atual como novo perfil…",
+    "Save Current View as New Profile": "Salvar visualização atual como novo perfil",
+    "Add Camera": "Adicionar câmera",
     "Save": "Salvar",
     "Rename Profile…": "Renomear perfil…",
     "Rename Profile": "Renomear perfil",
