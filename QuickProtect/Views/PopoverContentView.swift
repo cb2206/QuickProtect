@@ -41,6 +41,8 @@ struct PopoverContentView: View {
             statusPill
                 .padding(.leading, 2)
 
+            profileMenu
+
             Spacer(minLength: 8)
 
             if service.isLoading {
@@ -92,6 +94,90 @@ struct PopoverContentView: View {
         .padding(.horizontal, 8).padding(.vertical, 3)
         .foregroundColor(green)
         .background(Capsule().fill(bg))
+    }
+
+    // MARK: - Layout profile switcher
+
+    private var profileMenu: some View {
+        Menu {
+            ForEach(settings.profiles()) { profile in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        settings.switchProfile(to: profile.id)
+                    }
+                } label: {
+                    if profile.id == settings.activeProfileID {
+                        Label(profile.name, systemImage: "checkmark")
+                    } else {
+                        Text(profile.name)
+                    }
+                }
+            }
+
+            Divider()
+
+            Button(String(localized: "Save Current View as Profile…")) {
+                promptForName(
+                    title: String(localized: "Save Current View as Profile"),
+                    initial: "",
+                    confirm: String(localized: "Save")
+                ) { settings.createProfile(named: $0) }
+            }
+
+            Button(String(localized: "Rename Profile…")) {
+                let current = settings.activeProfile
+                promptForName(
+                    title: String(localized: "Rename Profile"),
+                    initial: current.name,
+                    confirm: String(localized: "Rename")
+                ) { settings.renameProfile(current.id, to: $0) }
+            }
+
+            Button(String(localized: "Delete Profile"), role: .destructive) {
+                settings.deleteProfile(settings.activeProfileID)
+            }
+            .disabled(settings.profiles().count <= 1)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "rectangle.3.group")
+                    .font(.system(size: 10, weight: .medium))
+                Text(settings.activeProfile.name)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 7, weight: .bold))
+            }
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .foregroundColor(palette.subtext)
+            .background(
+                Capsule().fill(colorScheme == .dark
+                               ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+            )
+            .contentShape(Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(String(localized: "Switch layout profile"))
+    }
+
+    /// Prompts for a profile name with a modal alert. The popover stays open —
+    /// its dismiss-on-outside-click monitor only fires for events outside the app.
+    private func promptForName(title: String, initial: String, confirm: String,
+                               onConfirm: @escaping (String) -> Void) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.addButton(withTitle: confirm)
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.stringValue = initial
+        field.placeholderString = String(localized: "Profile name")
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { onConfirm(name) }
     }
 
     private var searchField: some View {

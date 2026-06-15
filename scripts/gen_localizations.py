@@ -5,6 +5,17 @@ import json, collections, sys, os
 # German (informal "du") — the existing, reviewed translation.
 # ---------------------------------------------------------------------------
 de = {
+    "Save Current View as Profile…": "Aktuelle Ansicht als Profil sichern…",
+    "Save Current View as Profile": "Aktuelle Ansicht als Profil sichern",
+    "Save": "Sichern",
+    "Rename Profile…": "Profil umbenennen…",
+    "Rename Profile": "Profil umbenennen",
+    "Rename": "Umbenennen",
+    "Delete Profile": "Profil löschen",
+    "Switch layout profile": "Layout-Profil wechseln",
+    "Profile name": "Profilname",
+    "Default": "Standard",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Sichtbarkeit, Größe und Reihenfolge gelten für das Profil „%@“. Wechsle Profile über die Kopfzeile des Popovers.",
     "Certificate": "Zertifikat",
     "Certificate changed": "Zertifikat geändert",
     "PTZ unavailable — check the username and password in Settings.": "PTZ nicht verfügbar – prüfe Benutzername und Passwort in den Einstellungen.",
@@ -168,6 +179,17 @@ de = {
 # French (formal "vous" — macOS norm)
 # ---------------------------------------------------------------------------
 fr = {
+    "Save Current View as Profile…": "Enregistrer la vue actuelle comme profil…",
+    "Save Current View as Profile": "Enregistrer la vue actuelle comme profil",
+    "Save": "Enregistrer",
+    "Rename Profile…": "Renommer le profil…",
+    "Rename Profile": "Renommer le profil",
+    "Rename": "Renommer",
+    "Delete Profile": "Supprimer le profil",
+    "Switch layout profile": "Changer de profil de disposition",
+    "Profile name": "Nom du profil",
+    "Default": "Par défaut",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "La visibilité, la taille et l'ordre s'appliquent au profil « %@ ». Changez de profil depuis l'en-tête du popover.",
     "Certificate": "Certificat",
     "Certificate changed": "Certificat modifié",
     "PTZ unavailable — check the username and password in Settings.": "PTZ indisponible — vérifiez le nom d'utilisateur et le mot de passe dans les réglages.",
@@ -331,6 +353,17 @@ fr = {
 # Spanish (informal "tú")
 # ---------------------------------------------------------------------------
 es = {
+    "Save Current View as Profile…": "Guardar vista actual como perfil…",
+    "Save Current View as Profile": "Guardar vista actual como perfil",
+    "Save": "Guardar",
+    "Rename Profile…": "Cambiar nombre del perfil…",
+    "Rename Profile": "Cambiar nombre del perfil",
+    "Rename": "Cambiar nombre",
+    "Delete Profile": "Eliminar perfil",
+    "Switch layout profile": "Cambiar de perfil de diseño",
+    "Profile name": "Nombre del perfil",
+    "Default": "Predeterminado",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "La visibilidad, el tamaño y el orden se aplican al perfil «%@». Cambia de perfil desde la cabecera del popover.",
     "Certificate": "Certificado",
     "Certificate changed": "Certificado cambiado",
     "PTZ unavailable — check the username and password in Settings.": "PTZ no disponible — comprueba el usuario y la contraseña en los ajustes.",
@@ -494,6 +527,17 @@ es = {
 # Dutch (informal "je")
 # ---------------------------------------------------------------------------
 nl = {
+    "Save Current View as Profile…": "Huidige weergave als profiel bewaren…",
+    "Save Current View as Profile": "Huidige weergave als profiel bewaren",
+    "Save": "Bewaar",
+    "Rename Profile…": "Profiel hernoemen…",
+    "Rename Profile": "Profiel hernoemen",
+    "Rename": "Hernoem",
+    "Delete Profile": "Profiel verwijderen",
+    "Switch layout profile": "Lay-outprofiel wisselen",
+    "Profile name": "Profielnaam",
+    "Default": "Standaard",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Zichtbaarheid, grootte en volgorde gelden voor het profiel ‘%@’. Wissel van profiel via de kop van de popover.",
     "Certificate": "Certificaat",
     "Certificate changed": "Certificaat gewijzigd",
     "PTZ unavailable — check the username and password in Settings.": "PTZ niet beschikbaar — controleer gebruikersnaam en wachtwoord in de instellingen.",
@@ -657,6 +701,17 @@ nl = {
 # Italian (informal "tu")
 # ---------------------------------------------------------------------------
 it = {
+    "Save Current View as Profile…": "Salva vista attuale come profilo…",
+    "Save Current View as Profile": "Salva vista attuale come profilo",
+    "Save": "Salva",
+    "Rename Profile…": "Rinomina profilo…",
+    "Rename Profile": "Rinomina profilo",
+    "Rename": "Rinomina",
+    "Delete Profile": "Elimina profilo",
+    "Switch layout profile": "Cambia profilo di layout",
+    "Profile name": "Nome del profilo",
+    "Default": "Predefinito",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Visibilità, dimensione e ordine si applicano al profilo «%@». Cambia profilo dall'intestazione del popover.",
     "Certificate": "Certificato",
     "Certificate changed": "Certificato modificato",
     "PTZ unavailable — check the username and password in Settings.": "PTZ non disponibile — controlla nome utente e password nelle impostazioni.",
@@ -820,6 +875,17 @@ it = {
 # Brazilian Portuguese ("você")
 # ---------------------------------------------------------------------------
 pt_br = {
+    "Save Current View as Profile…": "Salvar visualização atual como perfil…",
+    "Save Current View as Profile": "Salvar visualização atual como perfil",
+    "Save": "Salvar",
+    "Rename Profile…": "Renomear perfil…",
+    "Rename Profile": "Renomear perfil",
+    "Rename": "Renomear",
+    "Delete Profile": "Excluir perfil",
+    "Switch layout profile": "Alternar perfil de layout",
+    "Profile name": "Nome do perfil",
+    "Default": "Padrão",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Visibilidade, tamanho e ordem se aplicam ao perfil “%@”. Alterne entre perfis pelo cabeçalho do popover.",
     "Certificate": "Certificado",
     "Certificate changed": "Certificado alterado",
     "PTZ unavailable — check the username and password in Settings.": "PTZ indisponível — verifique o usuário e a senha nos ajustes.",

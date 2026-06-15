@@ -443,6 +443,18 @@ struct SettingsView: View {
     // MARK: Cameras
 
     private var camerasTab: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if settings.profiles().count > 1 {
+                Text("Visibility, size, and order apply to the “\(settings.activeProfile.name)” profile. Switch profiles from the popover header.")
+                    .font(.system(size: 11))
+                    .foregroundColor(palette.subtext)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            cameraListSection
+        }
+    }
+
+    private var cameraListSection: some View {
         AuroraSettingsSection {
             if service.cameras.isEmpty {
                 AuroraSettingsRow(isLast: true) {
