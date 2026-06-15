@@ -1,5 +1,49 @@
 import Foundation
 
+/// User-selectable RTSP stream quality. `.high`/`.medium`/`.low` map directly to
+/// the `qualities` key the rtsps-stream endpoint accepts; `.auto` is a UI-level
+/// choice that resolves to a concrete quality based on whether the camera is
+/// enlarged (low in the grid, high in focus) — see `resolve(focused:)`.
+enum StreamQuality: String, CaseIterable, Codable {
+    case auto, high, medium, low
+
+    /// Concrete substream key for the rtsps-stream endpoint. `.auto` must be
+    /// resolved with `resolve(focused:)` before reaching the network layer; if a
+    /// raw `.auto` slips through it falls back to `.medium`.
+    var apiValue: String { self == .auto ? "medium" : rawValue }
+
+    /// Resolve `.auto` to a concrete quality for the current view state:
+    /// high in focus, and in the grid scaled to tile size — medium for a Large
+    /// tile (low looks too grainy enlarged), low otherwise. Pass-through for the
+    /// explicit cases so callers can resolve unconditionally.
+    func resolve(focused: Bool, gridIsLarge: Bool = false) -> StreamQuality {
+        guard self == .auto else { return self }
+        if focused { return .high }
+        return gridIsLarge ? .medium : .low
+    }
+
+    /// Resolution ordering (low < medium < high) used to tell an upgrade from a
+    /// downgrade. `.auto` sits with medium; it's only meaningful once resolved.
+    var rank: Int {
+        switch self {
+        case .low:    return 0
+        case .auto:   return 1
+        case .medium: return 1
+        case .high:   return 2
+        }
+    }
+
+    /// Localized name for menus and settings.
+    var displayName: String {
+        switch self {
+        case .auto:   return String(localized: "Auto")
+        case .high:   return String(localized: "High")
+        case .medium: return String(localized: "Medium")
+        case .low:    return String(localized: "Low")
+        }
+    }
+}
+
 struct Camera: Identifiable {
     let id: String
     let name: String

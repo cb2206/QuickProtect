@@ -153,11 +153,16 @@ final class RTSPClient: ObservableObject {
         }
     }
 
-    func connect(to url: URL) {
+    /// `keepLastFrame` leaves the display layer's current image in place while the
+    /// new stream connects (no flush), so a quality switch dissolves into the new
+    /// feed instead of flashing the layer's clear colour. Frames carry
+    /// DisplayImmediately, so the new stream replaces the held frame on its first
+    /// enqueue regardless of timestamps.
+    func connect(to url: URL, keepLastFrame: Bool = false) {
         Self.dbg("[RTSP] connect called: \(url)")
         DispatchQueue.main.async { self.hasFrame = false }
         queue.async { [self] in
-            disconnectOnQueue()
+            disconnectOnQueue(flushDisplay: !keepLastFrame)
             currentURL       = url
             inRTPMode        = false
             buffer           = []
@@ -379,7 +384,7 @@ final class RTSPClient: ObservableObject {
 
     // MARK: - Internal disconnect (must be called on queue)
 
-    private func disconnectOnQueue() {
+    private func disconnectOnQueue(flushDisplay: Bool = true) {
         // Send TEARDOWN to free server-side resources before closing the connection
         if let conn = connection, let url = currentURL, !sessionId.isEmpty {
             let seq = nextCSeq()
@@ -402,7 +407,7 @@ final class RTSPClient: ObservableObject {
         audioRenderer = nil
         aacDepacketizer = nil
         teardownCaptureSession()
-        displayLayer.flush()
+        if flushDisplay { displayLayer.flush() }
         DispatchQueue.main.async { [self] in
             isConnected = false
             hasFrame    = false

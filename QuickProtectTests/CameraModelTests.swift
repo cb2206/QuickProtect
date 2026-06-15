@@ -266,4 +266,42 @@ final class CameraModelTests: XCTestCase {
         // isPtz is lost in round-trip since featureFlags isn't encoded — expected
         XCTAssertFalse(decoded.isPtz)
     }
+
+    // MARK: - StreamQuality
+
+    func testStreamQualityAutoResolvesByFocus() {
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: false), .low)
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: true), .high)
+    }
+
+    func testStreamQualityAutoGridScalesWithTileSize() {
+        // Large grid tiles get medium (low is too grainy enlarged); others low.
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: false, gridIsLarge: true), .medium)
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: false, gridIsLarge: false), .low)
+        // Focus always wins over size.
+        XCTAssertEqual(StreamQuality.auto.resolve(focused: true, gridIsLarge: true), .high)
+    }
+
+    func testStreamQualityExplicitResolvesUnchanged() {
+        for q in [StreamQuality.high, .medium, .low] {
+            XCTAssertEqual(q.resolve(focused: false), q)
+            XCTAssertEqual(q.resolve(focused: true), q)
+        }
+    }
+
+    func testStreamQualityRankOrdersResolutions() {
+        XCTAssertLessThan(StreamQuality.low.rank, StreamQuality.medium.rank)
+        XCTAssertLessThan(StreamQuality.medium.rank, StreamQuality.high.rank)
+        // Leaving focus (high → low resolved) is a downgrade…
+        XCTAssertLessThan(StreamQuality.auto.resolve(focused: false).rank,
+                          StreamQuality.auto.resolve(focused: true).rank)
+    }
+
+    func testStreamQualityApiValue() {
+        XCTAssertEqual(StreamQuality.high.apiValue, "high")
+        XCTAssertEqual(StreamQuality.medium.apiValue, "medium")
+        XCTAssertEqual(StreamQuality.low.apiValue, "low")
+        // A raw .auto that escapes resolution falls back to medium, never "auto".
+        XCTAssertEqual(StreamQuality.auto.apiValue, "medium")
+    }
 }

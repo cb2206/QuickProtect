@@ -93,12 +93,41 @@ final class ProtectService: NSObject, ObservableObject {
 
     // MARK: - RTSP stream creation (Integration API)
 
-    /// POSTs to the Integration API to create an on-demand RTSP stream.
-    /// Returns a playable URL for AVPlayer (plain rtsp:// or rtsps:// per settings).
-    /// `quality` is the stream key the endpoint returns (e.g. "medium", or
-    /// "package" for a doorbell's secondary lens).
-    func createRtspStreamURL(for camera: Camera, quality: String = "medium") async -> URL? {
-        RTSPClient.log("[Stream] createRtspStreamURL(\(quality)) called for \(camera.name)")
+    /// Creates an on-demand RTSP stream, degrading through the remaining quality
+    /// tiers if the requested one isn't available on this camera, so a sensor
+    /// that doesn't expose every substream still plays. Returns the playable URL
+    /// together with the quality that actually succeeded — the caller tracks that
+    /// for `releaseStream(for:quality:)`. `nil` only if every tier fails.
+    func createRtspStreamURL(for camera: Camera,
+                             quality: String = "medium") async -> (url: URL, quality: String)? {
+        for tier in Self.qualityFallbackLadder(from: quality) {
+            if let url = await requestRtspStreamURL(for: camera, quality: tier) {
+                if tier != quality {
+                    RTSPClient.log("[Stream] \(quality) unavailable for \(camera.name); using \(tier)")
+                }
+                return (url, tier)
+            }
+        }
+        return nil
+    }
+
+    /// Quality tiers to try, in order. The high/medium/low tiers fall through to
+    /// the others so a missing substream degrades gracefully; any other quality
+    /// (e.g. "package", a distinct lens rather than a level) is tried alone so a
+    /// secondary lens never silently becomes the main feed.
+    private static func qualityFallbackLadder(from quality: String) -> [String] {
+        switch quality {
+        case "high":   return ["high", "medium", "low"]
+        case "medium": return ["medium", "low", "high"]
+        case "low":    return ["low", "medium", "high"]
+        default:       return [quality]
+        }
+    }
+
+    /// Single POST attempt for one quality. Returns the playable URL, or `nil` if
+    /// the endpoint errors or doesn't offer that quality.
+    private func requestRtspStreamURL(for camera: Camera, quality: String) async -> URL? {
+        RTSPClient.log("[Stream] requestRtspStreamURL(\(quality)) for \(camera.name)")
         guard let url = makeURL(
             path: "proxy/protect/integration/v1/cameras/\(camera.id)/rtsps-stream"
         ) else { RTSPClient.log("[Stream] makeURL failed"); return nil }

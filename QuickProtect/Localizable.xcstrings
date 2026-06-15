@@ -329,6 +329,47 @@
         }
       }
     },
+    "Auto streams low quality in the grid and high quality when a camera is enlarged — saving CPU and bandwidth. Override per camera by right-clicking its tile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto streamt im Raster in niedriger Qualität und in der Großansicht in hoher Qualität – das spart CPU und Bandbreite. Überschreibe die Einstellung pro Kamera per Rechtsklick auf die Kachel."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto diffuse en basse qualité dans la grille et en haute qualité lorsqu'une caméra est agrandie, ce qui économise le processeur et la bande passante. Remplacez ce réglage par caméra d'un clic droit sur sa tuile."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto transmite en baja calidad en la cuadrícula y en alta calidad cuando se amplía una cámara, lo que ahorra CPU y ancho de banda. Anula este ajuste por cámara haciendo clic derecho en su mosaico."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto streamt in lage kwaliteit in het raster en in hoge kwaliteit wanneer een camera vergroot is — dat bespaart CPU en bandbreedte. Overschrijf dit per camera door rechts te klikken op de tegel."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto trasmette in bassa qualità nella griglia e in alta qualità quando una telecamera è ingrandita, risparmiando CPU e larghezza di banda. Sostituisci l'impostazione per telecamera facendo clic con il tasto destro sul riquadro."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto transmite em baixa qualidade na grade e em alta qualidade quando uma câmera é ampliada — economizando CPU e largura de banda. Substitua por câmera clicando com o botão direito no bloco."
+          }
+        }
+      }
+    },
     "Automatically start QuickProtect when you log in.": {
       "extractionState": "manual",
       "localizations": {
@@ -1641,6 +1682,47 @@
         }
       }
     },
+    "Default stream quality": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard-Streamqualität"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualité du flux par défaut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calidad de flujo predeterminada"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standaard streamkwaliteit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualità stream predefinita"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualidade de transmissão padrão"
+          }
+        }
+      }
+    },
     "Destination": {
       "extractionState": "manual",
       "localizations": {
@@ -2789,6 +2871,47 @@
         }
       }
     },
+    "High": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoch"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haute"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alta"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoog"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alta"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alta"
+          }
+        }
+      }
+    },
     "IP Address": {
       "extractionState": "manual",
       "localizations": {
@@ -3523,6 +3646,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Falha no login — verifique o usuário e a senha"
+          }
+        }
+      }
+    },
+    "Low": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niedrig"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basse"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baja"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laag"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bassa"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baixa"
           }
         }
       }
@@ -6069,6 +6233,47 @@
         }
       }
     },
+    "Stream quality": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streamqualität"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualité du flux"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calidad del flujo"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streamkwaliteit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualità dello stream"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualidade da transmissão"
+          }
+        }
+      }
+    },
     "Stream unavailable": {
       "extractionState": "manual",
       "localizations": {
@@ -6106,6 +6311,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transmissão indisponível"
+          }
+        }
+      }
+    },
+    "Streaming": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diffusion"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transmisión"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streamen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transmissão"
           }
         }
       }
@@ -6598,6 +6844,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Atualizações"
+          }
+        }
+      }
+    },
+    "Use default": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard verwenden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser la valeur par défaut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar predeterminada"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standaard gebruiken"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa predefinita"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar padrão"
           }
         }
       }

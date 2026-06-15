@@ -281,6 +281,20 @@ struct SettingsView: View {
                 }
             }
 
+            AuroraSettingsSection(String(localized: "Streaming")) {
+                AuroraSettingsRow(
+                    String(localized: "Default stream quality"),
+                    hint: String(localized: "Auto streams low quality in the grid and high quality when a camera is enlarged — saving CPU and bandwidth. Override per camera by right-clicking its tile."),
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    AuroraSegmented(
+                        options: StreamQuality.allCases.map { ($0.displayName, $0) },
+                        selection: $settings.defaultStreamQuality
+                    )
+                }
+            }
+
             AuroraSettingsSection(String(localized: "Focus view")) {
                 AuroraSettingsRow(
                     String(localized: "Show overlay controls"),

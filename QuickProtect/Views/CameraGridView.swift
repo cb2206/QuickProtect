@@ -234,6 +234,19 @@ struct CameraCell: View {
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
     @State private var secondaryStreamTask: Task<Void, Never>?
+    /// Concrete quality the primary client is currently connected (or connecting)
+    /// at. Tracks the resolved substream so a quality change can release the old
+    /// server allocation instead of leaking it until cleanup.
+    @State private var primaryQuality: StreamQuality?
+    /// True while a quality switch reconnects with the previous frame left on the
+    /// display layer (see `RTSPClient.connect(keepLastFrame:)`). Suppresses the
+    /// connecting overlay so the held frame shows through until the new feed
+    /// arrives, instead of a grey spinner.
+    @State private var preservingFrame = false
+    /// Pending auto down-switch (high → low on leaving focus), delayed so a quick
+    /// focus → unfocus → focus doesn't churn the grid stream. Cancelled if focus
+    /// returns first.
+    @State private var downSwitchWork: DispatchWorkItem?
     /// When true, the secondary lens fills the frame and the main lens moves
     /// into the PiP. Reset to false every time the camera (re)enters focus.
     @State private var secondaryIsPrimary = false
@@ -306,7 +319,7 @@ struct CameraCell: View {
 
     /// Display-only PiP on the grid tile, shown once the tile is live.
     private var showsGridPip: Bool {
-        !isFocused && mode == .playing && camera.secondaryLens != nil
+        !isFocused && appearsLive && camera.secondaryLens != nil
             && AppSettings.shared.showsSecondaryLensPipInGrid(for: camera.id)
     }
 
@@ -322,6 +335,20 @@ struct CameraCell: View {
     }
 
     private var isFocused: Bool { focusedCameraId == camera.id }
+
+    /// The concrete substream this tile should be playing right now: the camera's
+    /// effective quality (override or global default) resolved for the current
+    /// focus state — so `.auto` is low in the grid and high when enlarged.
+    private var desiredPrimaryQuality: StreamQuality {
+        AppSettings.shared.effectiveStreamQuality(for: camera.id)
+            .resolve(focused: isFocused,
+                     gridIsLarge: AppSettings.shared.cameraSize(for: camera.id) == .large)
+    }
+
+    /// The tile reads as live whenever it's playing or holding the previous frame
+    /// through a quality switch — used to keep the rec dot and grid PiP from
+    /// blinking during an auto down-switch reconnect (which dips `mode`).
+    private var appearsLive: Bool { mode == .playing || preservingFrame }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -369,7 +396,10 @@ struct CameraCell: View {
             }
             .background(Color(white: 0.05))
 
-            if mode != .playing {
+            // During a quality switch the previous frame is held on the display
+            // layer (keepLastFrame), so suppress the connecting spinner — the held
+            // frame shows through until the new feed replaces it.
+            if mode != .playing && !preservingFrame {
                 stateOverlay
                     .transition(.opacity)
             }
@@ -438,6 +468,9 @@ struct CameraCell: View {
         .onDisappear {
             streamTask?.cancel()
             streamTask = nil
+            downSwitchWork?.cancel()
+            downSwitchWork = nil
+            preservingFrame = false
             removeKeyMonitor()
             stopClockTimer()
             removeMouseMonitor()
@@ -452,6 +485,9 @@ struct CameraCell: View {
             } else {
                 streamTask?.cancel()
                 streamTask = nil
+                downSwitchWork?.cancel()
+                downSwitchWork = nil
+                preservingFrame = false
                 mode = .connecting
                 stopSecondaryStream()
             }
@@ -459,10 +495,16 @@ struct CameraCell: View {
         .onChange(of: rtspClient.hasFrame) { ready in
             // Reveal the picture only once a real frame exists, fading the
             // connecting overlay out so video doesn't pop in over black.
-            if ready { withAnimation(.easeOut(duration: 0.25)) { mode = .playing } }
+            if ready {
+                withAnimation(.easeOut(duration: 0.25)) { mode = .playing }
+                // New feed is up — stop holding the previous frame.
+                preservingFrame = false
+            }
         }
         .onChange(of: rtspClient.error) { err in
-            if err != nil { mode = .failed }
+            // Stop preserving so a genuine failure surfaces its overlay instead of
+            // leaving a stale frame on screen.
+            if err != nil { mode = .failed; preservingFrame = false }
         }
         .onChange(of: rtspClient.videoDimensions) { dims in
             if dims.width > 0 && dims.height > 0 {
@@ -508,6 +550,9 @@ struct CameraCell: View {
                 // toolbar Refresh did manually).
                 scheduleReattach()
             }
+            // Auto cameras stream low in the grid and high in focus; this swaps
+            // the substream on either transition. No-op for explicit qualities.
+            reconcilePrimaryQuality()
         }
         .onChange(of: focusFillMode) { newValue in
             // Persist the user's fit/fill choice per camera while focused.
@@ -743,6 +788,20 @@ struct CameraCell: View {
             }
         }
 
+        let quality = AppSettings.shared.streamQuality(for: camera.id)
+        Section("Stream quality") {
+            // Follow the global default; the label spells out what that is.
+            Button { setStreamQuality(nil) } label: {
+                Label("\(String(localized: "Use default")) (\(AppSettings.shared.defaultStreamQuality.displayName))",
+                      systemImage: quality == nil ? "checkmark" : "")
+            }
+            ForEach(StreamQuality.allCases, id: \.self) { q in
+                Button { setStreamQuality(q) } label: {
+                    Label(q.displayName, systemImage: quality == q ? "checkmark" : "")
+                }
+            }
+        }
+
         Divider()
 
         Button {
@@ -767,6 +826,16 @@ struct CameraCell: View {
     private func setSize(_ size: AppSettings.CameraSize?) {
         AppSettings.shared.setCameraSize(size, for: camera.id)
         service.objectWillChange.send()   // trigger grid re-layout
+        // An auto camera's grid quality scales with tile size (Large → medium),
+        // so a resize may warrant a stream switch.
+        reconcilePrimaryQuality()
+    }
+
+    /// Apply a per-camera quality override (or `nil` to follow the global
+    /// default) and switch the live stream to match.
+    private func setStreamQuality(_ quality: StreamQuality?) {
+        AppSettings.shared.setStreamQuality(quality, for: camera.id)
+        reconcilePrimaryQuality()
     }
 
     // MARK: - State overlay
@@ -823,14 +892,23 @@ struct CameraCell: View {
 
     // MARK: - Stream lifecycle
 
-    private func startStream() {
-        if rtspClient.hasFrame { mode = .playing; return }
-        guard streamTask == nil else { return }
+    /// `force` skips the "already playing" shortcut — required right after a
+    /// `disconnect()`, whose `hasFrame = false` lands asynchronously on the RTSP
+    /// queue, so a synchronous reconnect would otherwise see a stale `true` and
+    /// bail without connecting (e.g. an auto camera staying low on focus).
+    /// `keepLastFrame` holds the current frame on the display layer through the
+    /// reconnect (a quality switch) instead of flashing grey.
+    private func startStream(force: Bool = false, keepLastFrame: Bool = false) {
+        if !force, rtspClient.hasFrame { mode = .playing; return }
+        guard streamTask == nil else { preservingFrame = false; return }
         guard service.isPopoverOpen, camera.isOnline else {
             mode = camera.isOnline ? .connecting : .failed
             return
         }
         mode = .connecting
+
+        let quality = desiredPrimaryQuality
+        primaryQuality = quality
 
         // Stagger connects by grid position so tiles light up as a calm
         // top-left → bottom-right cascade rather than a random scatter. Cap the
@@ -841,23 +919,75 @@ struct CameraCell: View {
             try? await Task.sleep(nanoseconds: stagger)
             guard !Task.isCancelled else { return }
 
-            guard let streamURL = await service.createRtspStreamURL(for: camera) else {
+            guard let stream = await service.createRtspStreamURL(for: camera, quality: quality.apiValue) else {
                 mode = .failed
+                preservingFrame = false
                 streamTask = nil
                 return
             }
             guard !Task.isCancelled else { streamTask = nil; return }
 
+            // Track the quality the server actually served (a fallback may differ
+            // from what we asked for) so the next switch releases the right key.
+            primaryQuality = StreamQuality(rawValue: stream.quality) ?? quality
             streamTask = nil
-            rtspClient.connect(to: streamURL)
+            rtspClient.connect(to: stream.url, keepLastFrame: keepLastFrame)
         }
     }
 
     private func stopStream() {
         streamTask?.cancel()
         streamTask = nil
+        downSwitchWork?.cancel()
+        downSwitchWork = nil
+        preservingFrame = false
         rtspClient.disconnect()
         mode = .connecting
+    }
+
+    /// Reconnect the primary stream when its effective quality no longer matches
+    /// what's playing — an `.auto` camera entering/leaving focus, or the user
+    /// changing the per-camera quality. No-op when the resolved quality is
+    /// unchanged, so explicit-quality tiles don't churn on focus.
+    ///
+    /// Upgrades (entering focus) apply immediately so high-res arrives ASAP;
+    /// downgrades (leaving focus) are delayed so a quick focus → unfocus → focus
+    /// keeps the high stream rather than reconnecting twice. A frozen frame masks
+    /// the reconnect either way (see `applyQualitySwitch`).
+    private func reconcilePrimaryQuality() {
+        downSwitchWork?.cancel()
+        downSwitchWork = nil
+        let desired = desiredPrimaryQuality
+        guard desired != primaryQuality else { return }
+
+        let isDowngrade = primaryQuality.map { desired.rank < $0.rank } ?? false
+        if isDowngrade {
+            let work = DispatchWorkItem { applyQualitySwitch() }
+            downSwitchWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+        } else {
+            applyQualitySwitch()
+        }
+    }
+
+    /// Reconnect the primary stream at the now-desired quality, holding the
+    /// current frame on the display layer through the switch so it dissolves into
+    /// the new feed rather than flashing grey. Releases the previous server-side
+    /// allocation; `connect(keepLastFrame:)` sends the RTSP TEARDOWN for the old
+    /// session without flushing the layer.
+    private func applyQualitySwitch() {
+        downSwitchWork = nil
+        let previous = primaryQuality
+        preservingFrame = true
+        streamTask?.cancel()
+        streamTask = nil
+        if let previous {
+            service.releaseStream(for: camera.id, quality: previous.apiValue)
+        }
+        // Force past the hasFrame shortcut: hasFrame is still true from the feed
+        // we're replacing, so a plain startStream() would assume it's playing and
+        // skip the reconnect.
+        startStream(force: true, keepLastFrame: true)
     }
 
     // MARK: - Secondary lens (package camera) lifecycle
@@ -878,13 +1008,15 @@ struct CameraCell: View {
         guard service.isPopoverOpen, camera.isOnline else { return }
 
         secondaryStreamTask = Task {
-            guard let url = await service.createRtspStreamURL(for: camera, quality: lens.quality) else {
+            // The package lens is its own quality with no fallback, so the served
+            // quality always matches lens.quality — only the URL is needed here.
+            guard let stream = await service.createRtspStreamURL(for: camera, quality: lens.quality) else {
                 secondaryStreamTask = nil
                 return
             }
             guard !Task.isCancelled else { secondaryStreamTask = nil; return }
             secondaryStreamTask = nil
-            secondaryClient.connect(to: url)
+            secondaryClient.connect(to: stream.url)
         }
     }
 
@@ -1247,7 +1379,7 @@ struct CameraCell: View {
 
     private var nameBadge: some View {
         HStack(spacing: 6) {
-            if camera.isOnline && mode == .playing {
+            if camera.isOnline && appearsLive {
                 AuroraRecDot(size: 5)
             } else if !camera.isOnline {
                 Circle().fill(AuroraTokens.statusOrange).frame(width: 5, height: 5)
