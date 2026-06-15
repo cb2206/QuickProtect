@@ -21,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Owned here (not by the SwiftUI tree) so closePanel() can disconnect
     /// streams deterministically before the view hierarchy is destroyed.
     let clientManager = RTSPClientManager()
+    /// Owns pinned always-on-top camera windows. Their streams are independent
+    /// of the popover's, so they keep running while the popover is closed.
+    private(set) lazy var pinnedWindows = PinnedWindowManager(service: service)
 
     // MARK: - Lifecycle
 
@@ -39,6 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NotificationCenter.default.addObserver(forName: .layoutProfileChanged, object: nil, queue: .main) { [weak self] _ in
             self?.applyProfilePanelSize()
         }
+        // Instantiate before the first fetch so the manager's camera-list
+        // subscription is in place to restore persisted pins when cameras load.
+        _ = pinnedWindows
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
@@ -55,6 +61,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Release camera streams (RTSP TEARDOWN + server-side DELETE) so the
         // controller doesn't keep sessions alive against a dead process.
         closePanel()
+        // Pinned windows hold their own streams — tear them down too. Their
+        // persistence is kept so they reopen on next launch.
+        pinnedWindows.closeAll()
         // Those requests are dispatched asynchronously; give them a brief
         // window to reach the controller before the process exits.
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))

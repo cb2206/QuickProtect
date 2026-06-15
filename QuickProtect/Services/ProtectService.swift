@@ -23,6 +23,12 @@ final class ProtectService: NSObject, ObservableObject {
     /// camera can hold more than one (e.g. a doorbell's main + package lens).
     private var activeStreams: Set<String> = []
 
+    /// Server-side allocations held by pinned floating windows, tracked
+    /// separately from `activeStreams` so the popover's `cleanupStreams()` never
+    /// tears down a pinned window's feed. Released individually on unpin/close
+    /// and en masse by `cleanupPinnedStreams()` on app termination.
+    private var pinnedStreams: Set<String> = []
+
     private func streamKey(_ cameraId: String, _ quality: String) -> String {
         "\(cameraId):\(quality)"
     }
@@ -111,6 +117,23 @@ final class ProtectService: NSObject, ObservableObject {
         return nil
     }
 
+    /// Stream-URL creation for a pinned floating window. Identical to
+    /// `createRtspStreamURL` but the resulting server-side allocation is tracked
+    /// in `pinnedStreams`, so closing the popover (`cleanupStreams()`) leaves the
+    /// pinned feed running. The caller releases it with `releasePinnedStream`.
+    func createPinnedStreamURL(for camera: Camera,
+                               quality: String = "high") async -> (url: URL, quality: String)? {
+        for tier in Self.qualityFallbackLadder(from: quality) {
+            if let url = await requestRtspStreamURL(for: camera, quality: tier, pinned: true) {
+                if tier != quality {
+                    RTSPClient.log("[Stream] pinned \(quality) unavailable for \(camera.name); using \(tier)")
+                }
+                return (url, tier)
+            }
+        }
+        return nil
+    }
+
     /// Quality tiers to try, in order. The high/medium/low tiers fall through to
     /// the others so a missing substream degrades gracefully; any other quality
     /// (e.g. "package", a distinct lens rather than a level) is tried alone so a
@@ -126,7 +149,8 @@ final class ProtectService: NSObject, ObservableObject {
 
     /// Single POST attempt for one quality. Returns the playable URL, or `nil` if
     /// the endpoint errors or doesn't offer that quality.
-    private func requestRtspStreamURL(for camera: Camera, quality: String) async -> URL? {
+    private func requestRtspStreamURL(for camera: Camera, quality: String,
+                                      pinned: Bool = false) async -> URL? {
         RTSPClient.log("[Stream] requestRtspStreamURL(\(quality)) for \(camera.name)")
         guard let url = makeURL(
             path: "proxy/protect/integration/v1/cameras/\(camera.id)/rtsps-stream"
@@ -154,7 +178,11 @@ final class ProtectService: NSObject, ObservableObject {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let rtspsString = json[quality] as? String else { return nil }
 
-        activeStreams.insert(streamKey(camera.id, quality))
+        if pinned {
+            pinnedStreams.insert(streamKey(camera.id, quality))
+        } else {
+            activeStreams.insert(streamKey(camera.id, quality))
+        }
         let playable = toPlayableURL(rtspsString)
         RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable?.absoluteString ?? "nil")")
         return playable
@@ -179,6 +207,26 @@ final class ProtectService: NSObject, ObservableObject {
     func releaseStream(for cameraId: String, quality: String) {
         guard activeStreams.remove(streamKey(cameraId, quality)) != nil else { return }
         deleteRtspStream(for: cameraId, quality: quality)
+    }
+
+    /// Releases a pinned floating window's server-side allocation when it's
+    /// unpinned or closed. Tracked apart from `activeStreams`, so this is the
+    /// only path that frees it (never `cleanupStreams()`).
+    func releasePinnedStream(for cameraId: String, quality: String) {
+        guard pinnedStreams.remove(streamKey(cameraId, quality)) != nil else { return }
+        deleteRtspStream(for: cameraId, quality: quality)
+    }
+
+    /// DELETEs every pinned allocation. Called on app termination so pinned
+    /// windows don't leave sessions alive on the controller.
+    func cleanupPinnedStreams() {
+        let keys = pinnedStreams
+        pinnedStreams.removeAll()
+        for key in keys {
+            let parts = key.split(separator: ":", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            deleteRtspStream(for: String(parts[0]), quality: String(parts[1]))
+        }
     }
 
     /// Fire-and-forget DELETE to release a server-side RTSP stream allocation.

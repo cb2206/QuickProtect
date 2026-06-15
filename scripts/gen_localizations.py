@@ -1137,6 +1137,21 @@ _streaming = {
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _streaming.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
+# ---------------------------------------------------------------------------
+# Pinned floating windows (picture-in-picture). Menu items use neutral
+# imperatives; German keeps the informal-du register. "Save snapshot" is the
+# pinned window's hover button (the toast strings are reused from the focus
+# view). Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_pinned = {
+    "Pin as Floating Window": ("Als schwebendes Fenster anheften", "Épingler comme fenêtre flottante", "Fijar como ventana flotante", "Vastmaken als zwevend venster", "Blocca come finestra mobile", "Fixar como janela flutuante"),
+    "Unpin Floating Window": ("Schwebendes Fenster lösen", "Détacher la fenêtre flottante", "Desfijar ventana flotante", "Zwevend venster losmaken", "Sblocca finestra mobile", "Desafixar janela flutuante"),
+    "Save snapshot": ("Schnappschuss sichern", "Enregistrer la capture", "Guardar instantánea", "Momentopname bewaren", "Salva istantanea", "Salvar instantâneo"),
+    "Drag to resize": ("Zum Anpassen ziehen", "Glisser pour redimensionner", "Arrastra para cambiar el tamaño", "Sleep om te vergroten/verkleinen", "Trascina per ridimensionare", "Arraste para redimensionar"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _pinned.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 
 # ---------------------------------------------------------------------------
