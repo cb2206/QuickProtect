@@ -773,6 +773,19 @@ struct CameraCell: View {
         }
         .keyboardShortcut(.return, modifiers: .command)
 
+        if let pinned = (NSApp.delegate as? AppDelegate)?.pinnedWindows {
+            let isPinned = pinned.isPinned(camera.id)
+            Button {
+                // Use the live (enriched) camera so the pinned window picks up
+                // the latest name/state, not this cell's possibly-stale copy.
+                pinned.togglePin(service.cameras.first { $0.id == camera.id } ?? camera)
+            } label: {
+                Label(isPinned ? String(localized: "Unpin Floating Window")
+                               : String(localized: "Pin as Floating Window"),
+                      systemImage: isPinned ? "pin.slash" : "pin")
+            }
+        }
+
         Divider()
 
         let current = AppSettings.shared.cameraSize(for: camera.id)

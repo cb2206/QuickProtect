@@ -383,6 +383,46 @@ final class AppSettings: ObservableObject {
         UserDefaults.standard.set(dict, forKey: Keys.secondaryLensPipGrid)
     }
 
+    // MARK: - Pinned floating windows (global, not per-profile)
+
+    /// All currently pinned cameras with their saved frames. Order is
+    /// unspecified (dictionary-backed); callers reconcile against the live
+    /// camera list. Global on purpose — a pinned window is a standalone
+    /// always-on-top thing, independent of the active layout profile.
+    func pinnedCameras() -> [PinnedCameraState] {
+        let dict = (UserDefaults.standard.dictionary(forKey: Keys.pinnedCameras) as? [String: [String: Double]]) ?? [:]
+        return dict.map { PinnedCameraState(cameraId: $0.key, dictionary: $0.value) }
+    }
+
+    func isPinned(_ cameraId: String) -> Bool {
+        let dict = (UserDefaults.standard.dictionary(forKey: Keys.pinnedCameras) as? [String: [String: Double]]) ?? [:]
+        return dict[cameraId] != nil
+    }
+
+    /// Pin a camera, optionally recording its window frame. A `nil` frame marks
+    /// the camera as pinned but not yet positioned (the controller computes a
+    /// default and writes it back on first layout).
+    func setPinned(_ cameraId: String, frame: NSRect? = nil) {
+        var dict = (UserDefaults.standard.dictionary(forKey: Keys.pinnedCameras) as? [String: [String: Double]]) ?? [:]
+        dict[cameraId] = PinnedCameraState(cameraId: cameraId, frame: frame).dictionary
+        UserDefaults.standard.set(dict, forKey: Keys.pinnedCameras)
+        objectWillChange.send()
+    }
+
+    /// Persist a moved/resized pinned window's frame. No-op if not pinned, so a
+    /// late delegate callback during teardown can't resurrect an unpinned entry.
+    func setPinnedFrame(_ frame: NSRect, for cameraId: String) {
+        guard isPinned(cameraId) else { return }
+        setPinned(cameraId, frame: frame)
+    }
+
+    func removePinned(_ cameraId: String) {
+        var dict = (UserDefaults.standard.dictionary(forKey: Keys.pinnedCameras) as? [String: [String: Double]]) ?? [:]
+        guard dict.removeValue(forKey: cameraId) != nil else { return }
+        UserDefaults.standard.set(dict, forKey: Keys.pinnedCameras)
+        objectWillChange.send()
+    }
+
     // MARK: - Cached video dimensions (for stable initial layout)
 
     func cachedAspectRatio(for cameraId: String) -> CGFloat? {
@@ -527,6 +567,7 @@ final class AppSettings: ObservableObject {
         static let snapshotFolderBookmark = "unifi.snapshotFolderBookmark"
         static let defaultStreamQuality = "unifi.defaultStreamQuality"
         static let cameraStreamQualities = "unifi.cameraStreamQualities"
+        static let pinnedCameras  = "unifi.pinnedCameras"
     }
 
     /// Loads a sensitive value from the Keychain. On first run after upgrading,
@@ -593,6 +634,65 @@ final class AppSettings: ObservableObject {
         d.set(Self.defaultProfileID, forKey: Keys.activeProfileID)
         // Retire the global hidden set — visibility now lives in the profile.
         d.removeObject(forKey: Keys.hiddenCameras)
+    }
+}
+
+// MARK: - Pinned floating-window state
+
+/// Persisted state for one pinned floating window. The frame is in screen
+/// coordinates; a `nil` frame means "pinned but not yet positioned" so the
+/// window controller can compute a default on first show and write it back.
+///
+/// The dictionary conversion is pure (touches no UserDefaults), so the
+/// round-trip is unit-testable in isolation.
+struct PinnedCameraState: Equatable {
+    let cameraId: String
+    var frame: NSRect?
+
+    init(cameraId: String, frame: NSRect? = nil) {
+        self.cameraId = cameraId
+        self.frame = frame
+    }
+
+    init(cameraId: String, dictionary: [String: Double]) {
+        self.cameraId = cameraId
+        if let x = dictionary["x"], let y = dictionary["y"],
+           let w = dictionary["w"], let h = dictionary["h"], w > 0, h > 0 {
+            frame = NSRect(x: x, y: y, width: w, height: h)
+        } else {
+            frame = nil
+        }
+    }
+
+    /// UserDefaults storage form. An unpositioned entry stores an empty dict,
+    /// which still reads back as "pinned" (the key is present).
+    var dictionary: [String: Double] {
+        guard let f = frame else { return [:] }
+        return ["x": f.origin.x, "y": f.origin.y, "w": f.size.width, "h": f.size.height]
+    }
+}
+
+/// Pure geometry helpers for the pinned floating window. Kept free of AppKit
+/// window state so the sizing math can be unit-tested directly.
+enum PinnedWindowGeometry {
+    static let minWidth: CGFloat = 200
+    static let maxWidth: CGFloat = 1600
+    static let fallbackAspect: CGFloat = 16.0 / 9.0
+
+    /// Default content size for a freshly pinned window: `targetWidth` scaled to
+    /// the camera's aspect ratio (width ÷ height), clamped to a sane range.
+    static func defaultSize(aspectRatio: CGFloat, targetWidth: CGFloat = 360) -> NSSize {
+        let ar = aspectRatio > 0 ? aspectRatio : fallbackAspect
+        let w = min(maxWidth, max(minWidth, targetWidth)).rounded()
+        return NSSize(width: w, height: (w / ar).rounded())
+    }
+
+    /// Constrain a proposed size to `aspectRatio`, driving from width so a
+    /// corner drag keeps the camera's proportions. Width is clamped to range.
+    static func constrain(_ proposed: NSSize, toAspectRatio aspectRatio: CGFloat) -> NSSize {
+        let ar = aspectRatio > 0 ? aspectRatio : fallbackAspect
+        let w = min(maxWidth, max(minWidth, proposed.width)).rounded()
+        return NSSize(width: w, height: (w / ar).rounded())
     }
 }
 
