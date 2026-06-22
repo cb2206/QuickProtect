@@ -16,8 +16,10 @@ App Store Connect field limits (per localization):
 
 Notes:
 - **App Name** is kept as `QuickProtect` in every locale (brand name, well under 30 chars).
-- Keywords intentionally omit words already in the App Name/Subtitle (Apple indexes those automatically) and reuse brand/technical tokens (UniFi, Protect, Ubiquiti, RTSP, PTZ, CCTV, NVR) across locales.
-- Each description ends with a **non-affiliation disclaimer**. Apple often requires this when third-party trademarks (UniFi / Ubiquiti) appear in metadata — keep it.
+- Keywords use technical tokens plus the *product* names used nominatively (UniFi, Protect). The **company** name (Ubiquiti) was removed from keywords for Guideline 5.2.1 — a company trademark as a keyword is the clearest trigger.
+- Each description ends with a **non-affiliation disclaimer** — required when third-party trademarks (UniFi / Ubiquiti) appear in metadata; keep it.
+- **Subtitles are brand-free** (Guideline 5.2.1): the subtitle is name-adjacent, so it must not carry the trademark. The trademark appears only nominatively in the description body + REQUIREMENTS.
+- **Operational source of truth is `fastlane/metadata/`** (what `fastlane deliver` uploads). This file mirrors it for reference.
 - Re-check Subtitle/Keyword character counts in App Store Connect after any edit; some languages run long.
 
 ---
@@ -31,7 +33,7 @@ QuickProtect
 
 **Subtitle**
 ```
-Live UniFi Protect cameras
+Live cameras in your menu bar
 ```
 
 **Promotional Text**
@@ -41,14 +43,14 @@ Your UniFi Protect cameras, one click from the menu bar. Live feeds, PTZ control
 
 **Keywords**
 ```
-UniFi,Protect,Ubiquiti,camera,security,surveillance,CCTV,NVR,RTSP,PTZ,menu bar,live,IP camera
+UniFi,Protect,camera,security,surveillance,CCTV,NVR,RTSP,PTZ,menu bar,live,IP camera
 ```
 
 **Description**
 ```
 QuickProtect puts your UniFi Protect cameras one click away — right in your Mac's menu bar.
 
-Click the menu-bar icon to see every camera in a live grid. Click a camera to focus it, double-click to open it in Protect, and press F for fullscreen. For PTZ cameras, pan and tilt with the arrow keys or the on-screen pad.
+Click the menu-bar icon to see every camera in a live grid. Click a camera to focus it, and press F for fullscreen. For PTZ cameras, pan and tilt with the arrow keys or the on-screen pad.
 
 QuickProtect talks directly to your controller on your local network over RTSP/RTSPS. No cloud, no account, no tracking — your video never leaves your network.
 
@@ -88,7 +90,7 @@ QuickProtect
 
 **Subtitle**
 ```
-UniFi-Protect-Kameras live
+Kameras in der Menüleiste
 ```
 
 **Promotional Text**
@@ -98,14 +100,14 @@ Deine UniFi-Protect-Kameras, nur einen Klick entfernt. Live-Feeds, PTZ-Steuerung
 
 **Keywords**
 ```
-UniFi,Protect,Ubiquiti,Kamera,Sicherheit,Überwachung,CCTV,NVR,RTSP,PTZ,Menüleiste,live,IP-Kamera
+UniFi,Protect,Kamera,Sicherheit,Überwachung,CCTV,NVR,RTSP,PTZ,Menüleiste,live,IP-Kamera
 ```
 
 **Description**
 ```
 QuickProtect bringt deine UniFi-Protect-Kameras mit nur einem Klick direkt in die Menüleiste deines Macs.
 
-Klicke auf das Menüleistensymbol, um alle Kameras in einem Live-Raster zu sehen. Klicke auf eine Kamera, um sie zu vergrößern, doppelklicke, um sie in Protect zu öffnen, und drücke F für Vollbild. PTZ-Kameras schwenkst und neigst du mit den Pfeiltasten oder dem Steuerkreuz auf dem Bildschirm.
+Klicke auf das Menüleistensymbol, um alle Kameras in einem Live-Raster zu sehen. Klicke auf eine Kamera, um sie zu vergrößern, und drücke F für Vollbild. PTZ-Kameras schwenkst und neigst du mit den Pfeiltasten oder dem Steuerkreuz auf dem Bildschirm.
 
 QuickProtect kommuniziert direkt mit deinem Controller im lokalen Netzwerk über RTSP/RTSPS. Keine Cloud, kein Konto, kein Tracking – dein Video verlässt nie dein Netzwerk.
 
@@ -145,7 +147,7 @@ QuickProtect
 
 **Subtitle**
 ```
-UniFi Protect en direct
+Caméras dans la barre de menus
 ```
 
 **Promotional Text**
@@ -155,14 +157,14 @@ Vos caméras UniFi Protect, à un clic de la barre des menus. Flux en direct, co
 
 **Keywords**
 ```
-UniFi,Protect,Ubiquiti,caméra,sécurité,surveillance,CCTV,NVR,RTSP,PTZ,barre des menus,caméra IP
+UniFi,Protect,caméra,sécurité,surveillance,CCTV,NVR,RTSP,PTZ,barre des menus,caméra IP
 ```
 
 **Description**
 ```
 QuickProtect place vos caméras UniFi Protect à un clic — directement dans la barre des menus de votre Mac.
 
-Cliquez sur l'icône de la barre des menus pour voir toutes vos caméras dans une grille en direct. Cliquez sur une caméra pour l'agrandir, double-cliquez pour l'ouvrir dans Protect et appuyez sur F pour le plein écran. Pour les caméras PTZ, effectuez un panoramique et inclinez avec les touches fléchées ou le pavé à l'écran.
+Cliquez sur l'icône de la barre des menus pour voir toutes vos caméras dans une grille en direct. Cliquez sur une caméra pour l'agrandir et appuyez sur F pour le plein écran. Pour les caméras PTZ, effectuez un panoramique et inclinez avec les touches fléchées ou le pavé à l'écran.
 
 QuickProtect communique directement avec votre contrôleur sur votre réseau local via RTSP/RTSPS. Pas de cloud, pas de compte, pas de suivi — votre vidéo ne quitte jamais votre réseau.
 
@@ -202,7 +204,7 @@ QuickProtect
 
 **Subtitle**
 ```
-Cámaras UniFi Protect en vivo
+Cámaras en la barra de menús
 ```
 
 **Promotional Text**
@@ -212,14 +214,14 @@ Tus cámaras UniFi Protect, a un clic de la barra de menús. Transmisiones en vi
 
 **Keywords**
 ```
-UniFi,Protect,Ubiquiti,cámara,seguridad,vigilancia,CCTV,NVR,RTSP,PTZ,barra de menús,cámara IP
+UniFi,Protect,cámara,seguridad,vigilancia,CCTV,NVR,RTSP,PTZ,barra de menús,cámara IP
 ```
 
 **Description**
 ```
 QuickProtect pone tus cámaras UniFi Protect a un clic, directamente en la barra de menús de tu Mac.
 
-Haz clic en el icono de la barra de menús para ver todas tus cámaras en una cuadrícula en vivo. Haz clic en una cámara para ampliarla, doble clic para abrirla en Protect y pulsa F para pantalla completa. Con las cámaras PTZ, gira e inclina con las teclas de flecha o el panel en pantalla.
+Haz clic en el icono de la barra de menús para ver todas tus cámaras en una cuadrícula en vivo. Haz clic en una cámara para ampliarla y pulsa F para pantalla completa. Con las cámaras PTZ, gira e inclina con las teclas de flecha o el panel en pantalla.
 
 QuickProtect se comunica directamente con tu controlador en tu red local mediante RTSP/RTSPS. Sin nube, sin cuenta, sin rastreo: tu vídeo nunca sale de tu red.
 
@@ -259,7 +261,7 @@ QuickProtect
 
 **Subtitle**
 ```
-UniFi Protect-camera's live
+Camera's in de menubalk
 ```
 
 **Promotional Text**
@@ -269,14 +271,14 @@ Je UniFi Protect-camera's, één klik vanaf de menubalk. Live beelden, PTZ-bedie
 
 **Keywords**
 ```
-UniFi,Protect,Ubiquiti,camera,beveiliging,bewaking,CCTV,NVR,RTSP,PTZ,menubalk,live,IP-camera
+UniFi,Protect,camera,beveiliging,bewaking,CCTV,NVR,RTSP,PTZ,menubalk,live,IP-camera
 ```
 
 **Description**
 ```
 QuickProtect zet je UniFi Protect-camera's op één klik afstand — direct in de menubalk van je Mac.
 
-Klik op het menubalksymbool om al je camera's in een live raster te zien. Klik op een camera om die te vergroten, dubbelklik om die in Protect te openen en druk op F voor volledig scherm. PTZ-camera's pan en kantel je met de pijltoetsen of het bedieningspaneel op het scherm.
+Klik op het menubalksymbool om al je camera's in een live raster te zien. Klik op een camera om die te vergroten en druk op F voor volledig scherm. PTZ-camera's pan en kantel je met de pijltoetsen of het bedieningspaneel op het scherm.
 
 QuickProtect communiceert rechtstreeks met je controller op je lokale netwerk via RTSP/RTSPS. Geen cloud, geen account, geen tracking — je video verlaat nooit je netwerk.
 
@@ -316,7 +318,7 @@ QuickProtect
 
 **Subtitle**
 ```
-UniFi Protect dal vivo
+Telecamere nella barra menu
 ```
 
 **Promotional Text**
@@ -326,14 +328,14 @@ Le tue telecamere UniFi Protect, a un clic dalla barra dei menu. Feed dal vivo, 
 
 **Keywords**
 ```
-UniFi,Protect,Ubiquiti,telecamera,sicurezza,sorveglianza,CCTV,NVR,RTSP,PTZ,barra dei menu,IP
+UniFi,Protect,telecamera,sicurezza,sorveglianza,CCTV,NVR,RTSP,PTZ,barra dei menu,IP
 ```
 
 **Description**
 ```
 QuickProtect mette le tue telecamere UniFi Protect a un clic di distanza, direttamente nella barra dei menu del tuo Mac.
 
-Fai clic sull'icona nella barra dei menu per vedere tutte le telecamere in una griglia dal vivo. Fai clic su una telecamera per ingrandirla, doppio clic per aprirla in Protect e premi F per lo schermo intero. Per le telecamere PTZ, effettua il brandeggio e l'inclinazione con i tasti freccia o il pad sullo schermo.
+Fai clic sull'icona nella barra dei menu per vedere tutte le telecamere in una griglia dal vivo. Fai clic su una telecamera per ingrandirla e premi F per lo schermo intero. Per le telecamere PTZ, effettua il brandeggio e l'inclinazione con i tasti freccia o il pad sullo schermo.
 
 QuickProtect comunica direttamente con il tuo controller sulla rete locale tramite RTSP/RTSPS. Niente cloud, niente account, niente tracciamento: il tuo video non lascia mai la tua rete.
 
@@ -373,7 +375,7 @@ QuickProtect
 
 **Subtitle**
 ```
-Câmeras UniFi Protect ao vivo
+Câmeras na barra de menus
 ```
 
 **Promotional Text**
@@ -383,14 +385,14 @@ Suas câmeras UniFi Protect, a um clique da barra de menus. Transmissões ao viv
 
 **Keywords**
 ```
-UniFi,Protect,Ubiquiti,câmera,segurança,vigilância,CCTV,NVR,RTSP,PTZ,barra de menus,câmera IP
+UniFi,Protect,câmera,segurança,vigilância,CCTV,NVR,RTSP,PTZ,barra de menus,câmera IP
 ```
 
 **Description**
 ```
 O QuickProtect coloca suas câmeras UniFi Protect a um clique de distância, direto na barra de menus do seu Mac.
 
-Clique no ícone da barra de menus para ver todas as câmeras em uma grade ao vivo. Clique em uma câmera para ampliá-la, dê um clique duplo para abri-la no Protect e pressione F para tela cheia. Nas câmeras PTZ, use pan e tilt com as teclas de seta ou o painel na tela.
+Clique no ícone da barra de menus para ver todas as câmeras em uma grade ao vivo. Clique em uma câmera para ampliá-la e pressione F para tela cheia. Nas câmeras PTZ, use pan e tilt com as teclas de seta ou o painel na tela.
 
 O QuickProtect se comunica diretamente com o seu controlador na rede local via RTSP/RTSPS. Sem nuvem, sem conta, sem rastreamento: seu vídeo nunca sai da sua rede.
 

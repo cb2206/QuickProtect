@@ -1,1 +1,1 @@
-UniFi,Protect,Ubiquiti,camera,beveiliging,bewaking,CCTV,NVR,RTSP,PTZ,menubalk,live,IP-camera
+UniFi,Protect,camera,beveiliging,bewaking,CCTV,NVR,RTSP,PTZ,menubalk,live,IP-camera

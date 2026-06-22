@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 extension Notification.Name {
@@ -11,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var panel: NSPanel?
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var promoWindow: NSWindow?
+    private var updateSubscription: AnyCancellable?
     private var clickMonitor: Any?
     private var savedPanelFrame: NSRect?
     private var savedPanelLevel: NSWindow.Level?
@@ -53,8 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             showOnboarding()
         } else {
             promptAutoStartIfNeeded()
+            showAppStorePromoIfFirstTime()
         }
         updateChecker.startPeriodicChecks()
+        observeUpdatesForAppStorePromo()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -387,6 +392,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.setActivationPolicy(.regular)
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - App Store promo (non-App-Store builds only)
+
+    /// One-time, on the first launch after this version ships: nudge GitHub-build
+    /// users toward the App Store edition. Never shown in App Store builds.
+    private func showAppStorePromoIfFirstTime() {
+        guard !AppDistribution.isAppStore,
+              !AppSettings.shared.hasShownAppStorePromo else { return }
+        AppSettings.shared.hasShownAppStorePromo = true
+        showAppStorePromo(updateVersion: nil)
+    }
+
+    /// When a newer GitHub release is found, surface the App Store option once per
+    /// new version (alongside the manual download). App Store builds never check.
+    private func observeUpdatesForAppStorePromo() {
+        guard !AppDistribution.isAppStore else { return }
+        updateSubscription = updateChecker.$updateAvailable
+            .receive(on: RunLoop.main)
+            .sink { [weak self] available in
+                guard let self, available else { return }
+                let version = self.updateChecker.latestVersion
+                guard !version.isEmpty,
+                      version != AppSettings.shared.lastPromotedUpdateVersion else { return }
+                AppSettings.shared.lastPromotedUpdateVersion = version
+                self.showAppStorePromo(updateVersion: version)
+            }
+    }
+
+    private func showAppStorePromo(updateVersion: String?) {
+        guard promoWindow == nil else { return }
+        let onGitHub: (() -> Void)? = updateVersion == nil ? nil : { [weak self] in
+            self?.updateChecker.openReleasePage()
+            self?.promoWindow?.close()
+        }
+        let view = AppStorePromoView(
+            updateVersion: updateVersion,
+            onAppStore: { [weak self] in
+                AppStorePromo.open()
+                self?.promoWindow?.close()
+            },
+            onGitHub: onGitHub,
+            onDismiss: { [weak self] in self?.promoWindow?.close() }
+        )
+        let win = NSWindow(contentViewController: NSHostingController(rootView: view))
+        win.title = "QuickProtect"
+        win.styleMask = [.titled, .closable, .fullSizeContentView]
+        win.titlebarAppearsTransparent = true
+        win.titleVisibility = .hidden
+        win.isReleasedWhenClosed = false
+        win.center()
+        promoWindow = win
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: win,
+            queue: .main
+        ) { [weak self] _ in
+            self?.promoWindow = nil
+            NSApp.setActivationPolicy(.accessory)
+        }
+        NSApp.setActivationPolicy(.regular)
+        // Activating mid-launch is racy for an agent app and can leave the window
+        // behind the frontmost app — defer a tick and force it forward.
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            win.makeKeyAndOrderFront(nil)
+            win.orderFrontRegardless()
+        }
     }
 
     // MARK: - Settings window

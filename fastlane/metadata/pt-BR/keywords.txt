@@ -1,1 +1,1 @@
-UniFi,Protect,Ubiquiti,câmera,segurança,vigilância,CCTV,NVR,RTSP,PTZ,barra de menus,câmera IP
+UniFi,Protect,câmera,segurança,vigilância,CCTV,NVR,RTSP,PTZ,barra de menus,câmera IP

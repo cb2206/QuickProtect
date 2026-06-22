@@ -42,9 +42,9 @@ FIELDS = {
 }
 
 # Per-locale URL + global metadata. Adjust as needed.
-SUPPORT_URL = "https://github.com/cb2206/QuickProtect"
-MARKETING_URL = "https://github.com/cb2206/QuickProtect"
-PRIVACY_URL = "https://github.com/cb2206/QuickProtect/blob/main/PRIVACY.md"
+SUPPORT_URL = "https://quickprotect.app/support/"
+MARKETING_URL = "https://quickprotect.app/"
+PRIVACY_URL = "https://quickprotect.app/support/privacy.html"
 COPYRIGHT = "2026 Christian Bartels"
 PRIMARY_CATEGORY = "UTILITIES"
 

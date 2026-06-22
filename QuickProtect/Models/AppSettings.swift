@@ -516,6 +516,20 @@ final class AppSettings: ObservableObject {
         set { UserDefaults.standard.set(newValue, forKey: Keys.autoStartPromptShown) }
     }
 
+    /// Whether the one-time "QuickProtect is on the App Store" nudge has been
+    /// shown at launch. Non-App-Store builds only — see `AppDistribution`.
+    var hasShownAppStorePromo: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.appStorePromoShown) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.appStorePromoShown) }
+    }
+
+    /// The newest GitHub release the user has already been nudged about, so the
+    /// App Store suggestion appears at most once per new version.
+    var lastPromotedUpdateVersion: String {
+        get { UserDefaults.standard.string(forKey: Keys.lastPromotedUpdateVersion) ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.lastPromotedUpdateVersion) }
+    }
+
     func updateLoginItem() {
         let svc = SMAppService.mainApp
         do {
@@ -568,6 +582,8 @@ final class AppSettings: ObservableObject {
         static let defaultStreamQuality = "unifi.defaultStreamQuality"
         static let cameraStreamQualities = "unifi.cameraStreamQualities"
         static let pinnedCameras  = "unifi.pinnedCameras"
+        static let appStorePromoShown = "unifi.appStorePromoShown"
+        static let lastPromotedUpdateVersion = "unifi.lastPromotedUpdateVersion"
     }
 
     /// Loads a sensitive value from the Keychain. On first run after upgrading,

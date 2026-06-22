@@ -46,8 +46,8 @@ targets:
         CFBundleIconFile: QuickProtect
         # Marketing version (bump on release). project.yml is the source of truth —
         # `xcodegen generate` writes these into Info.plist, so never hand-edit the plist.
-        CFBundleShortVersionString: "1.2"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "1.2.1"
+        CFBundleVersion: "4"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
         # Advertise the languages the app ships (English + German) so the system

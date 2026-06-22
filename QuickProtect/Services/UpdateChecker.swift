@@ -26,6 +26,19 @@ enum AppDistribution {
     }
 }
 
+/// The Mac App Store listing for QuickProtect. Non-App-Store builds nudge users
+/// toward it (automatic updates, an Apple-signed install, and supporting
+/// development). Shown only when `!AppDistribution.isAppStore`.
+enum AppStorePromo {
+    static let urlString = "https://apps.apple.com/app/id6776899427"
+
+    /// Opens the App Store listing (the App Store app handles apps.apple.com URLs).
+    static func open() {
+        guard let url = URL(string: urlString) else { return }
+        NSWorkspace.shared.open(url)
+    }
+}
+
 /// Checks GitHub for a newer release and surfaces it in Settings. Notify-only:
 /// it does not download or install anything. The user opens the release page and
 /// updates manually (the GitHub build is intentionally unsigned, so auto-install

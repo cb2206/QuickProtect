@@ -561,6 +561,19 @@ struct SettingsView: View {
 
     private var updatesTab: some View {
         VStack(alignment: .leading, spacing: 18) {
+            AuroraSettingsSection(String(localized: "Mac App Store")) {
+                AuroraSettingsRow(
+                    String(localized: "Get the App Store edition"),
+                    hint: String(localized: "Automatic updates, an Apple-signed install with no security warnings, and it supports development."),
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    AuroraPrimaryButton(title: String(localized: "View on the App Store")) {
+                        AppStorePromo.open()
+                    }
+                }
+            }
+
             AuroraSettingsSection(String(localized: "Version")) {
                 AuroraSettingsRow(String(localized: "Installed")) {
                     HStack(spacing: 8) {
