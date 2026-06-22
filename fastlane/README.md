@@ -31,6 +31,22 @@ Read-only: verify API auth and print current App Store version states
 
 Read-only: show version states + recent build processing status
 
+### mac review_subs
+
+```sh
+[bundle exec] fastlane mac review_subs
+```
+
+Read-only: list review submissions (state + platform + items)
+
+### mac review_detail
+
+```sh
+[bundle exec] fastlane mac review_detail
+```
+
+Read-only: dump the App Review contact + notes for every version
+
 ### mac cancel_review
 
 ```sh
@@ -46,6 +62,14 @@ Remove the current version from App Store review (frees the slot to ship a new v
 ```
 
 Ship 1.1: set version to 1.1, push all localized metadata, attach build 2, and submit for review
+
+### mac submit_v12
+
+```sh
+[bundle exec] fastlane mac submit_v12
+```
+
+Ship 1.2: set version to 1.2, push metadata, attach build 3, set review notes, submit
 
 ### mac delete_stray_ios
 

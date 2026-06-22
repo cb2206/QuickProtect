@@ -1,5 +1,49 @@
 import Foundation
 
+/// User-selectable RTSP stream quality. `.high`/`.medium`/`.low` map directly to
+/// the `qualities` key the rtsps-stream endpoint accepts; `.auto` is a UI-level
+/// choice that resolves to a concrete quality based on whether the camera is
+/// enlarged (low in the grid, high in focus) — see `resolve(focused:)`.
+enum StreamQuality: String, CaseIterable, Codable {
+    case auto, high, medium, low
+
+    /// Concrete substream key for the rtsps-stream endpoint. `.auto` must be
+    /// resolved with `resolve(focused:)` before reaching the network layer; if a
+    /// raw `.auto` slips through it falls back to `.medium`.
+    var apiValue: String { self == .auto ? "medium" : rawValue }
+
+    /// Resolve `.auto` to a concrete quality for the current view state:
+    /// high in focus, and in the grid scaled to tile size — medium for a Large
+    /// tile (low looks too grainy enlarged), low otherwise. Pass-through for the
+    /// explicit cases so callers can resolve unconditionally.
+    func resolve(focused: Bool, gridIsLarge: Bool = false) -> StreamQuality {
+        guard self == .auto else { return self }
+        if focused { return .high }
+        return gridIsLarge ? .medium : .low
+    }
+
+    /// Resolution ordering (low < medium < high) used to tell an upgrade from a
+    /// downgrade. `.auto` sits with medium; it's only meaningful once resolved.
+    var rank: Int {
+        switch self {
+        case .low:    return 0
+        case .auto:   return 1
+        case .medium: return 1
+        case .high:   return 2
+        }
+    }
+
+    /// Localized name for menus and settings.
+    var displayName: String {
+        switch self {
+        case .auto:   return String(localized: "Auto")
+        case .high:   return String(localized: "High")
+        case .medium: return String(localized: "Medium")
+        case .low:    return String(localized: "Low")
+        }
+    }
+}
+
 struct Camera: Identifiable {
     let id: String
     let name: String
@@ -11,6 +55,20 @@ struct Camera: Identifiable {
     /// True if the camera has an optical zoom lens (may be true on cameras
     /// without pan/tilt motors). Enriched the same way as `isPtz`.
     var canZoom: Bool = false
+
+    /// Secondary lens descriptor for multi-sensor cameras (currently the
+    /// doorbell package camera). `nil` for ordinary single-lens cameras.
+    /// Decoded straight from the Integration API list, so the rest of the app
+    /// stays lens-agnostic: it only needs the stream quality and a UI label.
+    var secondaryLens: SecondaryLens?
+
+    /// A camera's additional fixed lens, streamed as its own RTSP quality.
+    struct SecondaryLens: Equatable {
+        /// The `qualities` key passed to the rtsps-stream endpoint (e.g. "package").
+        let quality: String
+        /// Human-readable label for the picture-in-picture and Settings row.
+        let label: String
+    }
 
     struct Channel {
         let id: Int
@@ -72,6 +130,15 @@ extension Camera: Codable {
             isPtz = false
             canZoom = false
         }
+        // hasPackageCamera (Integration API list) → the only secondary lens
+        // current firmware exposes. Mapping it here keeps the view/stream layers
+        // generic; new secondary-lens types slot in by extending this branch.
+        if (try? c.decode(Bool.self, forKey: .hasPackageCamera)) == true {
+            secondaryLens = SecondaryLens(quality: "package",
+                                          label: String(localized: "Package Camera"))
+        } else {
+            secondaryLens = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -80,11 +147,13 @@ extension Camera: Codable {
         try c.encode(name, forKey: .name)
         try c.encode(state, forKey: .state)
         try c.encode(channels, forKey: .channels)
+        // Round-trip the secondary-lens flag so a cached list keeps its PiP.
+        try c.encode(secondaryLens?.quality == "package", forKey: .hasPackageCamera)
         // isPtz/canZoom are enriched at runtime; featureFlags is decode-only
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, state, channels, featureFlags
+        case id, name, state, channels, featureFlags, hasPackageCamera
     }
 }
 

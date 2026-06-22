@@ -1,6 +1,6 @@
 QuickProtect puts your UniFi Protect cameras one click away — right in your Mac's menu bar.
 
-Click the menu-bar icon to see every camera in a live grid. Click a camera to focus it, double-click to open it in Protect, and press F for fullscreen. For PTZ cameras, pan and tilt with the arrow keys or the on-screen pad.
+Click the menu-bar icon to see every camera in a live grid. Click a camera to focus it, and press F for fullscreen. For PTZ cameras, pan and tilt with the arrow keys or the on-screen pad.
 
 QuickProtect talks directly to your controller on your local network over RTSP/RTSPS. No cloud, no account, no tracking — your video never leaves your network.
 

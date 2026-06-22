@@ -228,8 +228,28 @@ struct CameraCell: View {
     @Binding var focusedCameraId: String?
 
     @ObservedObject private var rtspClient: RTSPClient
+    /// Second lens stream (e.g. doorbell package camera). For single-lens
+    /// cameras this is an unused throwaway client that never connects.
+    @ObservedObject private var secondaryClient: RTSPClient
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
+    @State private var secondaryStreamTask: Task<Void, Never>?
+    /// Concrete quality the primary client is currently connected (or connecting)
+    /// at. Tracks the resolved substream so a quality change can release the old
+    /// server allocation instead of leaking it until cleanup.
+    @State private var primaryQuality: StreamQuality?
+    /// True while a quality switch reconnects with the previous frame left on the
+    /// display layer (see `RTSPClient.connect(keepLastFrame:)`). Suppresses the
+    /// connecting overlay so the held frame shows through until the new feed
+    /// arrives, instead of a grey spinner.
+    @State private var preservingFrame = false
+    /// Pending auto down-switch (high → low on leaving focus), delayed so a quick
+    /// focus → unfocus → focus doesn't churn the grid stream. Cancelled if focus
+    /// returns first.
+    @State private var downSwitchWork: DispatchWorkItem?
+    /// When true, the secondary lens fills the frame and the main lens moves
+    /// into the PiP. Reset to false every time the camera (re)enters focus.
+    @State private var secondaryIsPrimary = false
 
     // Zoom & pan (only active when focused)
     @State private var zoomScale: CGFloat = 1.0
@@ -248,8 +268,17 @@ struct CameraCell: View {
     @State private var hudVisible = true
     @State private var hudHideWorkItem: DispatchWorkItem?
     @State private var mouseMonitor: Any?
+    @State private var snapshotToast: SnapshotToast?
+    @State private var snapshotToastGen = 0
+    @State private var snapshotInFlight = false        // armed, waiting for a frame
 
     enum Mode { case connecting, playing, failed }
+
+    /// Transient confirmation shown after pressing S.
+    struct SnapshotToast: Equatable {
+        let text: String
+        let ok: Bool
+    }
 
     /// Grid ↔ focus expansion. A spring settles more naturally than easeInOut;
     /// a high damping fraction keeps it from overshooting (no bounce on video).
@@ -263,16 +292,70 @@ struct CameraCell: View {
         self.loadOrder = loadOrder
         self._focusedCameraId = focusedCameraId
         self._rtspClient = ObservedObject(wrappedValue: clientManager.client(for: camera.id))
+        if let lens = camera.secondaryLens {
+            self._secondaryClient = ObservedObject(
+                wrappedValue: clientManager.client(for: camera.id, lens: lens.quality))
+        } else {
+            // Single-lens camera: bind a shared, never-connected client so the
+            // view struct can be cheaply recreated without allocating per render.
+            self._secondaryClient = ObservedObject(wrappedValue: Self.idleSecondaryClient)
+        }
+    }
+
+    /// Placeholder secondary client for single-lens cameras. Never connected and
+    /// never displayed (its PiP is gated behind `camera.secondaryLens != nil`).
+    private static let idleSecondaryClient = RTSPClient()
+
+    /// The client whose frame fills the main viewport (swaps with the PiP).
+    private var primaryClient: RTSPClient { secondaryIsPrimary ? secondaryClient : rtspClient }
+    /// The client shown in the small picture-in-picture window.
+    private var pipClient: RTSPClient { secondaryIsPrimary ? rtspClient : secondaryClient }
+
+    /// Swappable PiP over the focused / fullscreen view.
+    private var showsFocusPip: Bool {
+        isFocused && camera.secondaryLens != nil
+            && AppSettings.shared.showsSecondaryLensPip(for: camera.id)
+    }
+
+    /// Display-only PiP on the grid tile, shown once the tile is live.
+    private var showsGridPip: Bool {
+        !isFocused && appearsLive && camera.secondaryLens != nil
+            && AppSettings.shared.showsSecondaryLensPipInGrid(for: camera.id)
+    }
+
+    private var showsPip: Bool { showsFocusPip || showsGridPip }
+
+    /// Whether the secondary stream should currently be connected — either the
+    /// grid PiP is on (runs whenever the tile is visible) or the camera is
+    /// focused with the focus PiP on.
+    private var wantsSecondaryStream: Bool {
+        guard camera.secondaryLens != nil else { return false }
+        if AppSettings.shared.showsSecondaryLensPipInGrid(for: camera.id) { return true }
+        return isFocused && AppSettings.shared.showsSecondaryLensPip(for: camera.id)
     }
 
     private var isFocused: Bool { focusedCameraId == camera.id }
+
+    /// The concrete substream this tile should be playing right now: the camera's
+    /// effective quality (override or global default) resolved for the current
+    /// focus state — so `.auto` is low in the grid and high when enlarged.
+    private var desiredPrimaryQuality: StreamQuality {
+        AppSettings.shared.effectiveStreamQuality(for: camera.id)
+            .resolve(focused: isFocused,
+                     gridIsLarge: AppSettings.shared.cameraSize(for: camera.id) == .large)
+    }
+
+    /// The tile reads as live whenever it's playing or holding the previous frame
+    /// through a quality switch — used to keep the rec dot and grid PiP from
+    /// blinking during an auto down-switch reconnect (which dips `mode`).
+    private var appearsLive: Bool { mode == .playing || preservingFrame }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             // Stream view: use .resizeAspect when focused to preserve full frame
             GeometryReader { geo in
                 ProtectStreamView(
-                    displayLayer: rtspClient.displayLayer,
+                    displayLayer: primaryClient.displayLayer,
                     videoGravity: isFocused ? (focusFillMode ? .resizeAspectFill : .resizeAspect) : .resizeAspectFill,
                     reattachNonce: reattachNonce,
                     onZoom: isFocused ? { delta in
@@ -299,6 +382,9 @@ struct CameraCell: View {
                     onKeyPress: isFocused ? { keyCode in
                         if keyCode == 3 { toggleTrueFullscreen() }     // F
                         else if keyCode == 53 { handleEscape() }       // Escape
+                        else if keyCode == 46 { toggleMute() }         // M
+                        else if keyCode == 8, showsPip { swapLenses() } // C
+                        else if keyCode == 1 { captureSnapshot() }      // S
                         // PTZ keys are handled by the NSEvent monitors (keyDown + keyUp)
                     } : nil
                 )
@@ -310,7 +396,10 @@ struct CameraCell: View {
             }
             .background(Color(white: 0.05))
 
-            if mode != .playing {
+            // During a quality switch the previous frame is held on the display
+            // layer (keepLastFrame), so suppress the connecting spinner — the held
+            // frame shows through until the new feed replaces it.
+            if mode != .playing && !preservingFrame {
                 stateOverlay
                     .transition(.opacity)
             }
@@ -325,13 +414,28 @@ struct CameraCell: View {
                         cameraName: camera.name,
                         isPtz: camera.isPtz,
                         now: clockTick,
-                        visible: hudVisible
+                        visible: hudVisible,
+                        canZoom: camera.canZoom,
+                        hasAudio: rtspClient.hasAudio,
+                        isMuted: rtspClient.isMuted
                     )
                     .transition(.opacity)
                 } else {
                     focusOverlay
                         .transition(.opacity)
                 }
+            }
+
+            // Rendered last so the PiP sits above the focus chrome and the
+            // fullscreen HUD, keeping it visible and first to receive taps.
+            if showsPip {
+                secondaryLensPiP
+                    .transition(.opacity)
+            }
+
+            // Snapshot confirmation, topmost so it reads over the PiP and HUD.
+            if isFocused {
+                snapshotToastView
             }
         }
         // The parent always supplies an explicit width AND height (grid cells get
@@ -354,32 +458,53 @@ struct CameraCell: View {
             if isFocused {
                 focusFillMode = AppSettings.shared.cameraFillMode(for: camera.id) ?? false
                 installKeyMonitor(); startClockTimer()
+                activateAudio()
+                secondaryIsPrimary = false
             }
+            // Self-gates on `wantsSecondaryStream`, so this also starts the grid
+            // PiP stream for an unfocused tile when that setting is on.
+            startSecondaryStream()
         }
         .onDisappear {
             streamTask?.cancel()
             streamTask = nil
+            downSwitchWork?.cancel()
+            downSwitchWork = nil
+            preservingFrame = false
             removeKeyMonitor()
             stopClockTimer()
             removeMouseMonitor()
             hudHideWorkItem?.cancel()
+            deactivateAudio()
+            stopSecondaryStream()
         }
         .onChange(of: service.isPopoverOpen) { open in
             if open {
                 startStream()
+                startSecondaryStream()
             } else {
                 streamTask?.cancel()
                 streamTask = nil
+                downSwitchWork?.cancel()
+                downSwitchWork = nil
+                preservingFrame = false
                 mode = .connecting
+                stopSecondaryStream()
             }
         }
         .onChange(of: rtspClient.hasFrame) { ready in
             // Reveal the picture only once a real frame exists, fading the
             // connecting overlay out so video doesn't pop in over black.
-            if ready { withAnimation(.easeOut(duration: 0.25)) { mode = .playing } }
+            if ready {
+                withAnimation(.easeOut(duration: 0.25)) { mode = .playing }
+                // New feed is up — stop holding the previous frame.
+                preservingFrame = false
+            }
         }
         .onChange(of: rtspClient.error) { err in
-            if err != nil { mode = .failed }
+            // Stop preserving so a genuine failure surfaces its overlay instead of
+            // leaving a stale frame on screen.
+            if err != nil { mode = .failed; preservingFrame = false }
         }
         .onChange(of: rtspClient.videoDimensions) { dims in
             if dims.width > 0 && dims.height > 0 {
@@ -392,6 +517,10 @@ struct CameraCell: View {
                 focusFillMode = AppSettings.shared.cameraFillMode(for: camera.id) ?? false
                 installKeyMonitor()
                 startClockTimer()
+                activateAudio()
+                // Always reopen with the main lens large (matches Protect).
+                secondaryIsPrimary = false
+                startSecondaryStream()
             } else {
                 // Only the previously-focused cell holds a key monitor; make
                 // sure no axis keeps moving after focus is gone (a held key's
@@ -403,6 +532,11 @@ struct CameraCell: View {
                 stopClockTimer()
                 removeMouseMonitor()
                 hudHideWorkItem?.cancel()
+                deactivateAudio()
+                // Leaving focus ends the swappable focus PiP, but the grid PiP
+                // (if enabled) keeps streaming — reconcile rather than hard-stop.
+                secondaryIsPrimary = false
+                reconcileSecondaryStream()
                 isTrueFullscreen = false
                 hudVisible = true
                 zoomScale = 1.0
@@ -416,6 +550,9 @@ struct CameraCell: View {
                 // toolbar Refresh did manually).
                 scheduleReattach()
             }
+            // Auto cameras stream low in the grid and high in focus; this swaps
+            // the substream on either transition. No-op for explicit qualities.
+            reconcilePrimaryQuality()
         }
         .onChange(of: focusFillMode) { newValue in
             // Persist the user's fit/fill choice per camera while focused.
@@ -458,6 +595,32 @@ struct CameraCell: View {
         }
     }
 
+    // MARK: - Audio
+
+    /// Begin audio playback for the focused stream, honoring the global speaker
+    /// preference. Negotiation already happened at connect, so this never reconnects.
+    private func activateAudio() {
+        rtspClient.setMuted(!AppSettings.shared.speakerEnabled)
+        rtspClient.setAudioActive(true)
+        // Decode a still-capture copy of whichever lens is on screen (snapshot).
+        rtspClient.setCaptureActive(true)
+        secondaryClient.setCaptureActive(true)
+    }
+
+    private func deactivateAudio() {
+        rtspClient.setAudioActive(false)
+        rtspClient.setCaptureActive(false)
+        secondaryClient.setCaptureActive(false)
+    }
+
+    /// Flip the global speaker preference and apply it to the focused stream.
+    private func toggleMute() {
+        guard rtspClient.hasAudio else { return }
+        let enabled = !AppSettings.shared.speakerEnabled
+        AppSettings.shared.speakerEnabled = enabled
+        rtspClient.setMuted(!enabled)
+    }
+
     /// Bumps `reattachNonce` a few times after the focus-exit transition so the
     /// stream view re-attaches its display layer once the cell has settled back
     /// into the grid. Without this the previously-focused tile can stay black.
@@ -483,6 +646,9 @@ struct CameraCell: View {
             // keyDown
             if event.keyCode == 3 { toggleTrueFullscreen(); return nil }    // F
             if event.keyCode == 53 { handleEscape(); return nil }
+            if event.keyCode == 46 { toggleMute(); return nil }             // M
+            if event.keyCode == 8, showsPip { swapLenses(); return nil }    // C
+            if event.keyCode == 1 { captureSnapshot(); return nil }         // S
             if event.isARepeat, isPtzKey(event.keyCode) { return nil } // consume repeats
             if handlePtzKeyDown(event.keyCode) { return nil }
             return event
@@ -498,6 +664,9 @@ struct CameraCell: View {
             // keyDown
             if event.keyCode == 3 { DispatchQueue.main.async { toggleTrueFullscreen() } }    // F
             if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
+            if event.keyCode == 46 { DispatchQueue.main.async { toggleMute() } }             // M
+            if event.keyCode == 8 { DispatchQueue.main.async { if showsPip { swapLenses() } } } // C
+            if event.keyCode == 1 { DispatchQueue.main.async { captureSnapshot() } }            // S
             if !event.isARepeat { _ = handlePtzKeyDown(event.keyCode) }
         }
     }
@@ -604,6 +773,19 @@ struct CameraCell: View {
         }
         .keyboardShortcut(.return, modifiers: .command)
 
+        if let pinned = (NSApp.delegate as? AppDelegate)?.pinnedWindows {
+            let isPinned = pinned.isPinned(camera.id)
+            Button {
+                // Use the live (enriched) camera so the pinned window picks up
+                // the latest name/state, not this cell's possibly-stale copy.
+                pinned.togglePin(service.cameras.first { $0.id == camera.id } ?? camera)
+            } label: {
+                Label(isPinned ? String(localized: "Unpin Floating Window")
+                               : String(localized: "Pin as Floating Window"),
+                      systemImage: isPinned ? "pin.slash" : "pin")
+            }
+        }
+
         Divider()
 
         let current = AppSettings.shared.cameraSize(for: camera.id)
@@ -619,7 +801,34 @@ struct CameraCell: View {
             }
         }
 
+        let quality = AppSettings.shared.streamQuality(for: camera.id)
+        Section("Stream quality") {
+            // Follow the global default; the label spells out what that is.
+            Button { setStreamQuality(nil) } label: {
+                Label("\(String(localized: "Use default")) (\(AppSettings.shared.defaultStreamQuality.displayName))",
+                      systemImage: quality == nil ? "checkmark" : "")
+            }
+            ForEach(StreamQuality.allCases, id: \.self) { q in
+                Button { setStreamQuality(q) } label: {
+                    Label(q.displayName, systemImage: quality == q ? "checkmark" : "")
+                }
+            }
+        }
+
         Divider()
+
+        let hiddenCameras = service.cameras
+            .filter { AppSettings.shared.isHidden($0.id) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        if !hiddenCameras.isEmpty {
+            Menu {
+                ForEach(hiddenCameras) { cam in
+                    Button { addCamera(cam.id) } label: { Text(cam.name) }
+                }
+            } label: {
+                Label("Add Camera", systemImage: "plus")
+            }
+        }
 
         Button {
             AppSettings.shared.setHidden(true, for: camera.id)
@@ -630,6 +839,15 @@ struct CameraCell: View {
         Button { setSize(nil) } label: {
             Label("Reset size to Auto", systemImage: "arrow.counterclockwise")
         }
+    }
+
+    /// Unhide a camera and append it to the end of the current profile's grid.
+    private func addCamera(_ id: String) {
+        let visibleOrder = AppSettings.shared
+            .orderedCameras(AppSettings.shared.visibleCameras(service.cameras))
+            .map(\.id)
+        AppSettings.shared.addHiddenCamera(id, visibleOrder: visibleOrder)
+        service.objectWillChange.send()
     }
 
     private func openInProtect() {
@@ -643,6 +861,16 @@ struct CameraCell: View {
     private func setSize(_ size: AppSettings.CameraSize?) {
         AppSettings.shared.setCameraSize(size, for: camera.id)
         service.objectWillChange.send()   // trigger grid re-layout
+        // An auto camera's grid quality scales with tile size (Large → medium),
+        // so a resize may warrant a stream switch.
+        reconcilePrimaryQuality()
+    }
+
+    /// Apply a per-camera quality override (or `nil` to follow the global
+    /// default) and switch the live stream to match.
+    private func setStreamQuality(_ quality: StreamQuality?) {
+        AppSettings.shared.setStreamQuality(quality, for: camera.id)
+        reconcilePrimaryQuality()
     }
 
     // MARK: - State overlay
@@ -699,14 +927,23 @@ struct CameraCell: View {
 
     // MARK: - Stream lifecycle
 
-    private func startStream() {
-        if rtspClient.hasFrame { mode = .playing; return }
-        guard streamTask == nil else { return }
+    /// `force` skips the "already playing" shortcut — required right after a
+    /// `disconnect()`, whose `hasFrame = false` lands asynchronously on the RTSP
+    /// queue, so a synchronous reconnect would otherwise see a stale `true` and
+    /// bail without connecting (e.g. an auto camera staying low on focus).
+    /// `keepLastFrame` holds the current frame on the display layer through the
+    /// reconnect (a quality switch) instead of flashing grey.
+    private func startStream(force: Bool = false, keepLastFrame: Bool = false) {
+        if !force, rtspClient.hasFrame { mode = .playing; return }
+        guard streamTask == nil else { preservingFrame = false; return }
         guard service.isPopoverOpen, camera.isOnline else {
             mode = camera.isOnline ? .connecting : .failed
             return
         }
         mode = .connecting
+
+        let quality = desiredPrimaryQuality
+        primaryQuality = quality
 
         // Stagger connects by grid position so tiles light up as a calm
         // top-left → bottom-right cascade rather than a random scatter. Cap the
@@ -717,23 +954,336 @@ struct CameraCell: View {
             try? await Task.sleep(nanoseconds: stagger)
             guard !Task.isCancelled else { return }
 
-            guard let streamURL = await service.createRtspStreamURL(for: camera) else {
+            guard let stream = await service.createRtspStreamURL(for: camera, quality: quality.apiValue) else {
                 mode = .failed
+                preservingFrame = false
                 streamTask = nil
                 return
             }
             guard !Task.isCancelled else { streamTask = nil; return }
 
+            // Track the quality the server actually served (a fallback may differ
+            // from what we asked for) so the next switch releases the right key.
+            primaryQuality = StreamQuality(rawValue: stream.quality) ?? quality
             streamTask = nil
-            rtspClient.connect(to: streamURL)
+            rtspClient.connect(to: stream.url, keepLastFrame: keepLastFrame)
         }
     }
 
     private func stopStream() {
         streamTask?.cancel()
         streamTask = nil
+        downSwitchWork?.cancel()
+        downSwitchWork = nil
+        preservingFrame = false
         rtspClient.disconnect()
         mode = .connecting
+    }
+
+    /// Reconnect the primary stream when its effective quality no longer matches
+    /// what's playing — an `.auto` camera entering/leaving focus, or the user
+    /// changing the per-camera quality. No-op when the resolved quality is
+    /// unchanged, so explicit-quality tiles don't churn on focus.
+    ///
+    /// Upgrades (entering focus) apply immediately so high-res arrives ASAP;
+    /// downgrades (leaving focus) are delayed so a quick focus → unfocus → focus
+    /// keeps the high stream rather than reconnecting twice. A frozen frame masks
+    /// the reconnect either way (see `applyQualitySwitch`).
+    private func reconcilePrimaryQuality() {
+        downSwitchWork?.cancel()
+        downSwitchWork = nil
+        let desired = desiredPrimaryQuality
+        guard desired != primaryQuality else { return }
+
+        let isDowngrade = primaryQuality.map { desired.rank < $0.rank } ?? false
+        if isDowngrade {
+            let work = DispatchWorkItem { applyQualitySwitch() }
+            downSwitchWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+        } else {
+            applyQualitySwitch()
+        }
+    }
+
+    /// Reconnect the primary stream at the now-desired quality, holding the
+    /// current frame on the display layer through the switch so it dissolves into
+    /// the new feed rather than flashing grey. Releases the previous server-side
+    /// allocation; `connect(keepLastFrame:)` sends the RTSP TEARDOWN for the old
+    /// session without flushing the layer.
+    private func applyQualitySwitch() {
+        downSwitchWork = nil
+        let previous = primaryQuality
+        preservingFrame = true
+        streamTask?.cancel()
+        streamTask = nil
+        if let previous {
+            service.releaseStream(for: camera.id, quality: previous.apiValue)
+        }
+        // Force past the hasFrame shortcut: hasFrame is still true from the feed
+        // we're replacing, so a plain startStream() would assume it's playing and
+        // skip the reconnect.
+        startStream(force: true, keepLastFrame: true)
+    }
+
+    // MARK: - Secondary lens (package camera) lifecycle
+
+    /// Start or stop the secondary stream to match `wantsSecondaryStream`.
+    /// Called whenever focus changes so the grid PiP keeps streaming after the
+    /// camera leaves focus (and the focus-only PiP stops).
+    private func reconcileSecondaryStream() {
+        if wantsSecondaryStream { startSecondaryStream() } else { stopSecondaryStream() }
+    }
+
+    /// Lazily connect the secondary lens stream when a PiP that needs it is (or
+    /// is about to be) visible. No-op for single-lens cameras.
+    private func startSecondaryStream() {
+        guard let lens = camera.secondaryLens, wantsSecondaryStream else { return }
+        if secondaryClient.hasFrame { return }
+        guard secondaryStreamTask == nil else { return }
+        guard service.isPopoverOpen, camera.isOnline else { return }
+
+        secondaryStreamTask = Task {
+            // The package lens is its own quality with no fallback, so the served
+            // quality always matches lens.quality — only the URL is needed here.
+            guard let stream = await service.createRtspStreamURL(for: camera, quality: lens.quality) else {
+                secondaryStreamTask = nil
+                return
+            }
+            guard !Task.isCancelled else { secondaryStreamTask = nil; return }
+            secondaryStreamTask = nil
+            secondaryClient.connect(to: stream.url)
+        }
+    }
+
+    /// Disconnect the secondary lens and release its server-side allocation.
+    /// Safe to call for single-lens cameras (throwaway client, no allocation).
+    private func stopSecondaryStream() {
+        secondaryStreamTask?.cancel()
+        secondaryStreamTask = nil
+        secondaryClient.disconnect()
+        if let lens = camera.secondaryLens {
+            service.releaseStream(for: camera.id, quality: lens.quality)
+        }
+        secondaryIsPrimary = false
+    }
+
+    /// Swap which lens fills the frame. Both streams stay live, so this is an
+    /// instant view reassignment — no reconnect. Resets zoom/pan to the new
+    /// primary's natural frame.
+    private func swapLenses() {
+        withAnimation(.easeInOut(duration: 0.2)) { secondaryIsPrimary.toggle() }
+        zoomScale = 1.0
+        panOffset = .zero
+        lastPanOffset = .zero
+        reattachNonce &+= 1   // force both stream views to re-attach swapped layers
+    }
+
+    /// Label for whichever lens currently sits in the PiP.
+    private var pipLabel: String {
+        secondaryIsPrimary ? camera.name : (camera.secondaryLens?.label ?? "")
+    }
+
+    // MARK: - Snapshot capture (S)
+
+    /// Filename timestamp: QuickProtect-YYYY-MM-DD-HH-mm-ss.png (24-hour clock).
+    /// All-dashes: a colon is the legacy macOS path separator (Finder shows it
+    /// as a slash), so the time uses dashes too.
+    /// POSIX locale keeps the format stable regardless of the user's region.
+    private static let snapshotTimestamp: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd-HH-mm-ss"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    /// Capture the frame currently on screen at the streamed resolution and send
+    /// it to the configured destination — the clipboard or the selected folder.
+    private func captureSnapshot() {
+        RTSPClient.log("[Snapshot] S pressed focused=\(isFocused) cam=\(camera.name)")
+        guard isFocused, !snapshotInFlight else { return }
+        let destination = AppSettings.shared.snapshotDestination
+        if destination == .folder, AppSettings.shared.resolveSnapshotFolder() == nil {
+            showSnapshotToast(String(localized: "Choose a snapshot folder in Settings"), ok: false)
+            return
+        }
+        // Snapshot whichever lens is shown as the primary view (respects a swap).
+        let source = secondaryIsPrimary ? secondaryClient : rtspClient
+        if source.snapshotCGImage() != nil {
+            finishSnapshot(from: source, destination: destination)
+        } else {
+            // No frame decoded yet — the capture session is still waiting for a
+            // keyframe. Arm the capture and complete as soon as one arrives.
+            snapshotInFlight = true
+            showSnapshotToast(String(localized: "Capturing…"), ok: true)
+            awaitFrame(from: source, destination: destination, attempt: 0)
+        }
+    }
+
+    /// Poll for the first decoded frame (up to ~6s) after S is pressed before a
+    /// keyframe is available, then complete the capture.
+    private func awaitFrame(from source: RTSPClient,
+                            destination: AppSettings.SnapshotDestination, attempt: Int) {
+        guard snapshotInFlight else { return }
+        guard isFocused else { snapshotInFlight = false; return }
+        if source.snapshotCGImage() != nil {
+            snapshotInFlight = false
+            finishSnapshot(from: source, destination: destination)
+        } else if attempt < 250 {
+            // Some cameras have a long keyframe interval (10s+), so the capture
+            // session can take a while to produce its first frame after focus.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                awaitFrame(from: source, destination: destination, attempt: attempt + 1)
+            }
+        } else {
+            snapshotInFlight = false
+            RTSPClient.log("[Snapshot] timed out waiting for a frame")
+            showSnapshotToast(String(localized: "Snapshot failed"), ok: false)
+        }
+    }
+
+    private func finishSnapshot(from source: RTSPClient,
+                                destination: AppSettings.SnapshotDestination) {
+        guard let image = source.snapshotCGImage() else {
+            showSnapshotToast(String(localized: "Snapshot failed"), ok: false)
+            return
+        }
+        RTSPClient.log("[Snapshot] captured \(image.width)x\(image.height) dest=\(destination == .clipboard ? "clipboard" : "folder")")
+        switch destination {
+        case .clipboard:
+            let nsImage = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.writeObjects([nsImage])
+            showSnapshotToast(String(localized: "Copied to clipboard"), ok: true)
+        case .folder:
+            if saveSnapshotToFolder(image) {
+                showSnapshotToast(String(localized: "Snapshot saved"), ok: true)
+            } else {
+                showSnapshotToast(String(localized: "Snapshot failed"), ok: false)
+            }
+        }
+    }
+
+    /// Writes the captured frame as a PNG into the configured folder.
+    private func saveSnapshotToFolder(_ image: CGImage) -> Bool {
+        guard let folder = AppSettings.shared.resolveSnapshotFolder() else { return false }
+        let rep = NSBitmapImageRep(cgImage: image)
+        guard let png = rep.representation(using: .png, properties: [:]) else { return false }
+
+        let name = "QuickProtect-\(Self.snapshotTimestamp.string(from: Date())).png"
+        let didAccess = folder.startAccessingSecurityScopedResource()
+        defer { if didAccess { folder.stopAccessingSecurityScopedResource() } }
+        do {
+            try png.write(to: folder.appendingPathComponent(name))
+            return true
+        } catch {
+            RTSPClient.log("[Snapshot] save failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    private func showSnapshotToast(_ text: String, ok: Bool) {
+        snapshotToastGen &+= 1
+        let gen = snapshotToastGen
+        withAnimation(.easeInOut(duration: 0.2)) {
+            snapshotToast = SnapshotToast(text: text, ok: ok)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            if gen == snapshotToastGen {
+                withAnimation(.easeInOut(duration: 0.3)) { snapshotToast = nil }
+            }
+        }
+    }
+
+    private var snapshotToastView: some View {
+        VStack {
+            if let toast = snapshotToast {
+                HStack(spacing: 7) {
+                    Image(systemName: toast.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(toast.ok ? Color.green : Color.orange)
+                    Text(toast.text)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Color(red: 18/255, green: 18/255, blue: 20/255).opacity(0.85))
+                .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 0.5))
+                .clipShape(Capsule())
+                .padding(.top, 64)
+                .transition(.opacity)
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
+    }
+
+    // MARK: - Secondary lens picture-in-picture
+
+    private var secondaryLensPiP: some View {
+        // Grid tiles are small and the PiP there is a non-interactive thumbnail;
+        // the focused/fullscreen PiP is larger, labelled, and tap-to-swap.
+        let compact = !isFocused
+        let width = compact ? max(56, cellSize.width * 0.30)
+                            : max(120, cellSize.width * 0.26)
+        let height = width * 3 / 4   // package lens is 1600×1200 (4:3)
+        let radius: CGFloat = compact ? 5 : 7
+        let outerPad: CGFloat = compact ? 6 : 16
+
+        return ZStack(alignment: .bottomLeading) {
+            ProtectStreamView(
+                displayLayer: pipClient.displayLayer,
+                videoGravity: .resizeAspectFill,
+                reattachNonce: reattachNonce
+            )
+            .background(Color(white: 0.05))
+
+            if !pipClient.hasFrame {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            if !compact {
+                HStack(spacing: 5) {
+                    Text(pipLabel)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                    Text("C")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.18)))
+                        .overlay(RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+                }
+                .padding(.horizontal, 6).padding(.vertical, 3)
+                .background(Color.black.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .padding(6)
+            }
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: radius))
+        .overlay(
+            RoundedRectangle(cornerRadius: radius)
+                .stroke(Color.white.opacity(compact ? 0.25 : 0.35), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.45), radius: compact ? 4 : 8, y: compact ? 1 : 3)
+        .contentShape(RoundedRectangle(cornerRadius: radius))
+        .onTapGesture { swapLenses() }
+        .help(String(localized: "Swap with main view (C)"))
+        // In the grid the PiP must not swallow the tile's tap (which focuses the
+        // camera) — let taps fall through. In focus it's tappable to swap.
+        .allowsHitTesting(!compact)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .padding(outerPad)
     }
 
     // MARK: - Focus overlay (Aurora top bar + PTZ d-pad + kbd hints)
@@ -746,8 +1296,11 @@ struct CameraCell: View {
                 isPtz: camera.isPtz,
                 fillMode: $focusFillMode,
                 now: clockTick,
+                hasAudio: rtspClient.hasAudio,
+                isMuted: rtspClient.isMuted,
                 onBack: { exitFocus() },
-                onToggleFullscreen: { toggleTrueFullscreen() }
+                onToggleFullscreen: { toggleTrueFullscreen() },
+                onToggleMute: { toggleMute() }
             )
             .padding(.horizontal, 12)
             .padding(.top, 12)
@@ -757,7 +1310,8 @@ struct CameraCell: View {
             HStack(alignment: .bottom) {
                 if showOverlayControls {
                     AuroraFocusHints(showPtzHint: camera.isPtz,
-                                     showZoomHint: camera.canZoom)
+                                     showZoomHint: camera.canZoom,
+                                     showAudioHint: rtspClient.hasAudio)
                         .padding(.leading, 12).padding(.bottom, 12)
                 }
                 Spacer()
@@ -860,7 +1414,7 @@ struct CameraCell: View {
 
     private var nameBadge: some View {
         HStack(spacing: 6) {
-            if camera.isOnline && mode == .playing {
+            if camera.isOnline && appearsLive {
                 AuroraRecDot(size: 5)
             } else if !camera.isOnline {
                 Circle().fill(AuroraTokens.statusOrange).frame(width: 5, height: 5)

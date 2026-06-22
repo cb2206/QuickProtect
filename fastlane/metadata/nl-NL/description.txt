@@ -1,6 +1,6 @@
 QuickProtect zet je UniFi Protect-camera's op één klik afstand — direct in de menubalk van je Mac.
 
-Klik op het menubalksymbool om al je camera's in een live raster te zien. Klik op een camera om die te vergroten, dubbelklik om die in Protect te openen en druk op F voor volledig scherm. PTZ-camera's pan en kantel je met de pijltoetsen of het bedieningspaneel op het scherm.
+Klik op het menubalksymbool om al je camera's in een live raster te zien. Klik op een camera om die te vergroten en druk op F voor volledig scherm. PTZ-camera's pan en kantel je met de pijltoetsen of het bedieningspaneel op het scherm.
 
 QuickProtect communiceert rechtstreeks met je controller op je lokale netwerk via RTSP/RTSPS. Geen cloud, geen account, geen tracking — je video verlaat nooit je netwerk.
 

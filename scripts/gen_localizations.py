@@ -5,6 +5,18 @@ import json, collections, sys, os
 # German (informal "du") — the existing, reviewed translation.
 # ---------------------------------------------------------------------------
 de = {
+    "Save Current View as New Profile…": "Aktuelle Ansicht als neues Profil sichern…",
+    "Save Current View as New Profile": "Aktuelle Ansicht als neues Profil sichern",
+    "Add Camera": "Kamera hinzufügen",
+    "Save": "Sichern",
+    "Rename Profile…": "Profil umbenennen…",
+    "Rename Profile": "Profil umbenennen",
+    "Rename": "Umbenennen",
+    "Delete Profile": "Profil löschen",
+    "Switch layout profile": "Layout-Profil wechseln",
+    "Profile name": "Profilname",
+    "Default": "Standard",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Sichtbarkeit, Größe und Reihenfolge gelten für das Profil „%@“. Wechsle Profile über die Kopfzeile des Popovers.",
     "Certificate": "Zertifikat",
     "Certificate changed": "Zertifikat geändert",
     "PTZ unavailable — check the username and password in Settings.": "PTZ nicht verfügbar – prüfe Benutzername und Passwort in den Einstellungen.",
@@ -168,6 +180,18 @@ de = {
 # French (formal "vous" — macOS norm)
 # ---------------------------------------------------------------------------
 fr = {
+    "Save Current View as New Profile…": "Enregistrer la vue actuelle comme nouveau profil…",
+    "Save Current View as New Profile": "Enregistrer la vue actuelle comme nouveau profil",
+    "Add Camera": "Ajouter une caméra",
+    "Save": "Enregistrer",
+    "Rename Profile…": "Renommer le profil…",
+    "Rename Profile": "Renommer le profil",
+    "Rename": "Renommer",
+    "Delete Profile": "Supprimer le profil",
+    "Switch layout profile": "Changer de profil de disposition",
+    "Profile name": "Nom du profil",
+    "Default": "Par défaut",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "La visibilité, la taille et l'ordre s'appliquent au profil « %@ ». Changez de profil depuis l'en-tête du popover.",
     "Certificate": "Certificat",
     "Certificate changed": "Certificat modifié",
     "PTZ unavailable — check the username and password in Settings.": "PTZ indisponible — vérifiez le nom d'utilisateur et le mot de passe dans les réglages.",
@@ -331,6 +355,18 @@ fr = {
 # Spanish (informal "tú")
 # ---------------------------------------------------------------------------
 es = {
+    "Save Current View as New Profile…": "Guardar vista actual como nuevo perfil…",
+    "Save Current View as New Profile": "Guardar vista actual como nuevo perfil",
+    "Add Camera": "Añadir cámara",
+    "Save": "Guardar",
+    "Rename Profile…": "Cambiar nombre del perfil…",
+    "Rename Profile": "Cambiar nombre del perfil",
+    "Rename": "Cambiar nombre",
+    "Delete Profile": "Eliminar perfil",
+    "Switch layout profile": "Cambiar de perfil de diseño",
+    "Profile name": "Nombre del perfil",
+    "Default": "Predeterminado",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "La visibilidad, el tamaño y el orden se aplican al perfil «%@». Cambia de perfil desde la cabecera del popover.",
     "Certificate": "Certificado",
     "Certificate changed": "Certificado cambiado",
     "PTZ unavailable — check the username and password in Settings.": "PTZ no disponible — comprueba el usuario y la contraseña en los ajustes.",
@@ -494,6 +530,18 @@ es = {
 # Dutch (informal "je")
 # ---------------------------------------------------------------------------
 nl = {
+    "Save Current View as New Profile…": "Huidige weergave als nieuw profiel bewaren…",
+    "Save Current View as New Profile": "Huidige weergave als nieuw profiel bewaren",
+    "Add Camera": "Camera toevoegen",
+    "Save": "Bewaar",
+    "Rename Profile…": "Profiel hernoemen…",
+    "Rename Profile": "Profiel hernoemen",
+    "Rename": "Hernoem",
+    "Delete Profile": "Profiel verwijderen",
+    "Switch layout profile": "Lay-outprofiel wisselen",
+    "Profile name": "Profielnaam",
+    "Default": "Standaard",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Zichtbaarheid, grootte en volgorde gelden voor het profiel ‘%@’. Wissel van profiel via de kop van de popover.",
     "Certificate": "Certificaat",
     "Certificate changed": "Certificaat gewijzigd",
     "PTZ unavailable — check the username and password in Settings.": "PTZ niet beschikbaar — controleer gebruikersnaam en wachtwoord in de instellingen.",
@@ -657,6 +705,18 @@ nl = {
 # Italian (informal "tu")
 # ---------------------------------------------------------------------------
 it = {
+    "Save Current View as New Profile…": "Salva vista attuale come nuovo profilo…",
+    "Save Current View as New Profile": "Salva vista attuale come nuovo profilo",
+    "Add Camera": "Aggiungi telecamera",
+    "Save": "Salva",
+    "Rename Profile…": "Rinomina profilo…",
+    "Rename Profile": "Rinomina profilo",
+    "Rename": "Rinomina",
+    "Delete Profile": "Elimina profilo",
+    "Switch layout profile": "Cambia profilo di layout",
+    "Profile name": "Nome del profilo",
+    "Default": "Predefinito",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Visibilità, dimensione e ordine si applicano al profilo «%@». Cambia profilo dall'intestazione del popover.",
     "Certificate": "Certificato",
     "Certificate changed": "Certificato modificato",
     "PTZ unavailable — check the username and password in Settings.": "PTZ non disponibile — controlla nome utente e password nelle impostazioni.",
@@ -820,6 +880,18 @@ it = {
 # Brazilian Portuguese ("você")
 # ---------------------------------------------------------------------------
 pt_br = {
+    "Save Current View as New Profile…": "Salvar visualização atual como novo perfil…",
+    "Save Current View as New Profile": "Salvar visualização atual como novo perfil",
+    "Add Camera": "Adicionar câmera",
+    "Save": "Salvar",
+    "Rename Profile…": "Renomear perfil…",
+    "Rename Profile": "Renomear perfil",
+    "Rename": "Renomear",
+    "Delete Profile": "Excluir perfil",
+    "Switch layout profile": "Alternar perfil de layout",
+    "Profile name": "Nome do perfil",
+    "Default": "Padrão",
+    "Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header.": "Visibilidade, tamanho e ordem se aplicam ao perfil “%@”. Alterne entre perfis pelo cabeçalho do popover.",
     "Certificate": "Certificado",
     "Certificate changed": "Certificado alterado",
     "PTZ unavailable — check the username and password in Settings.": "PTZ indisponível — verifique o usuário e a senha nos ajustes.",
@@ -978,6 +1050,107 @@ pt_br = {
     "© 2026 Christian Bartels · Released under the MIT License.": "© 2026 Christian Bartels · Lançado sob a licença MIT.",
     "⌘+scroll": "⌘+rolagem",
 }
+
+# ---------------------------------------------------------------------------
+# Snapshot capture (S), added 2026-06-14. Register per standard: de=du, es=tú,
+# nl=je, it=tu, pt-BR=você, fr=vous. "focused / in focus" uses the catalog's
+# enlarge terminology (Großansicht / vue agrandie / vista ampliada / vergroot /
+# ingrandita / ampliada) — never optical-focus wording. Columns: de, fr, es,
+# nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_snapshot = {
+    "Snapshot":    ("Schnappschuss", "Instantané", "Instantánea", "Momentopname", "Istantanea", "Instantâneo"),
+    "snapshot":    ("Schnappschuss", "instantané", "instantánea", "momentopname", "istantanea", "instantâneo"),
+    "Snapshots":   ("Schnappschüsse", "Instantanés", "Instantáneas", "Momentopnamen", "Istantanee", "Instantâneos"),
+    "Destination": ("Ziel", "Destination", "Destino", "Bestemming", "Destinazione", "Destino"),
+    "Clipboard":   ("Zwischenablage", "Presse-papiers", "Portapapeles", "Klembord", "Appunti", "Área de transferência"),
+    "Folder":      ("Ordner", "Dossier", "Carpeta", "Map", "Cartella", "Pasta"),
+    "Save folder": ("Speicherordner", "Dossier d'enregistrement", "Carpeta de guardado", "Opslagmap", "Cartella di salvataggio", "Pasta de salvamento"),
+    "Choose":      ("Auswählen", "Choisir", "Elegir", "Kiezen", "Scegli", "Escolher"),
+    "Choose…":     ("Auswählen…", "Choisir…", "Elegir…", "Kiezen…", "Scegli…", "Escolher…"),
+    "Choose a folder for saved snapshots": ("Wähle einen Ordner für gespeicherte Schnappschüsse", "Choisissez un dossier pour les instantanés enregistrés", "Elige una carpeta para las instantáneas guardadas", "Kies een map voor opgeslagen momentopnamen", "Scegli una cartella per le istantanee salvate", "Escolha uma pasta para os instantâneos salvos"),
+    "Choose a snapshot folder in Settings": ("Wähle in den Einstellungen einen Schnappschuss-Ordner", "Choisissez un dossier d'instantanés dans les Réglages", "Elige una carpeta de instantáneas en Ajustes", "Kies een momentopnamemap in Instellingen", "Scegli una cartella per le istantanee nelle Impostazioni", "Escolha uma pasta de instantâneos em Ajustes"),
+    "Snapshots are saved here as PNG files.": ("Schnappschüsse werden hier als PNG-Dateien gespeichert.", "Les instantanés sont enregistrés ici sous forme de fichiers PNG.", "Las instantáneas se guardan aquí como archivos PNG.", "Momentopnamen worden hier opgeslagen als PNG-bestanden.", "Le istantanee vengono salvate qui come file PNG.", "Os instantâneos são salvos aqui como arquivos PNG."),
+    "Press S on a focused camera to capture a snapshot.": ("Drücke S in der Großansicht, um einen Schnappschuss aufzunehmen.", "Appuyez sur S sur une caméra en vue agrandie pour capturer un instantané.", "Pulsa S en una cámara en vista ampliada para capturar una instantánea.", "Druk op S wanneer een camera vergroot is om een momentopname te maken.", "Premi S quando una telecamera è ingrandita per acquisire un'istantanea.", "Pressione S quando uma câmera estiver ampliada para capturar um instantâneo."),
+    "Capturing…":  ("Aufnahme läuft…", "Capture en cours…", "Capturando…", "Bezig met vastleggen…", "Acquisizione…", "Capturando…"),
+    "Copied to clipboard": ("In die Zwischenablage kopiert", "Copié dans le presse-papiers", "Copiado al portapapeles", "Gekopieerd naar klembord", "Copiato negli appunti", "Copiado para a área de transferência"),
+    "Snapshot saved": ("Schnappschuss gespeichert", "Instantané enregistré", "Instantánea guardada", "Momentopname opgeslagen", "Istantanea salvata", "Instantâneo salvo"),
+    "Snapshot failed": ("Schnappschuss fehlgeschlagen", "Échec de l'instantané", "Error en la instantánea", "Momentopname mislukt", "Istantanea non riuscita", "Falha no instantâneo"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _snapshot.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
+# ---------------------------------------------------------------------------
+# PiP / audio / HUD strings that predate the snapshot feature but were never
+# registered. Same standard: de=du, fr=vous, es=tú, nl=je, it=tu, pt-BR=você;
+# straight apostrophes (U+0027). Notes:
+#   • "Picture-in-picture when focused": "focused" is the enlarge feature, so it
+#     reuses the catalog's enlarge terminology (Großansicht / vue agrandie /
+#     vista ampliada / vergrote weergave / vista ingrandita / visualização
+#     ampliada), never optical-focus wording. PiP itself uses each locale's
+#     Apple platform term.
+#   • "LIVE" is left untranslated in every locale — it's a universal status
+#     indicator (same convention as on-air badges everywhere); translating it
+#     would only reduce recognizability.
+#   • "pan / tilt" and "zoom" are the lowercase HUD variants. The catalog
+#     already has the capitalized "Pan / tilt" and "Zoom" used by the focus
+#     hints; these add the lowercase forms so the HUD keeps its own casing.
+#     German nouns are normally capitalized, but the HUD's deliberate lowercase
+#     styling is preserved here on purpose. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_pip_audio = {
+    "Swap with main view (C)": ("Mit der Hauptansicht tauschen (C)", "Permuter avec la vue principale (C)", "Intercambiar con la vista principal (C)", "Wisselen met de hoofdweergave (C)", "Scambia con la vista principale (C)", "Trocar com a visualização principal (C)"),
+    "Picture-in-picture when focused": ("Bild-in-Bild in der Großansicht", "Image dans l'image en vue agrandie", "Imagen en imagen en la vista ampliada", "Beeld-in-beeld bij vergrote weergave", "Immagine nell'immagine nella vista ingrandita", "Imagem sobre imagem na visualização ampliada"),
+    "Also show on the grid tile": ("Auch auf der Rasterkachel anzeigen", "Afficher aussi sur la tuile de la grille", "Mostrar también en el mosaico de la cuadrícula", "Ook op de rastertegel tonen", "Mostra anche sul riquadro della griglia", "Mostrar também no bloco da grade"),
+    "Unmute (M)": ("Stummschaltung aufheben (M)", "Réactiver le son (M)", "Activar sonido (M)", "Dempen opheffen (M)", "Attiva audio (M)", "Ativar som (M)"),
+    "Mute (M)": ("Stummschalten (M)", "Couper le son (M)", "Silenciar (M)", "Dempen (M)", "Disattiva audio (M)", "Desativar som (M)"),
+    "Mute": ("Stummschalten", "Couper le son", "Silenciar", "Dempen", "Disattiva audio", "Desativar som"),
+    "LIVE": ("LIVE", "LIVE", "LIVE", "LIVE", "LIVE", "LIVE"),
+    "pan / tilt": ("schwenken / neigen", "panoramique / inclinaison", "giro / inclinación", "pannen / kantelen", "brandeggio / inclinazione", "girar / inclinar"),
+    "zoom": ("zoom", "zoom", "zoom", "zoom", "zoom", "zoom"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _pip_audio.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
+# ---------------------------------------------------------------------------
+# Stream quality selection. "Auto" and "Medium" already exist (reused). The
+# High/Low quality words take the feminine forms that agree with "quality"
+# (qualité/calidad/qualità/qualidade) in the romance locales. The hint uses the
+# catalog's enlarge terminology (Großansicht / vue agrandie / …), never optical
+# focus, and German keeps full du-imperatives. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_streaming = {
+    "High": ("Hoch", "Haute", "Alta", "Hoog", "Alta", "Alta"),
+    "Low": ("Niedrig", "Basse", "Baja", "Laag", "Bassa", "Baixa"),
+    "Streaming": ("Streaming", "Diffusion", "Transmisión", "Streamen", "Streaming", "Transmissão"),
+    "Stream quality": ("Streamqualität", "Qualité du flux", "Calidad del flujo", "Streamkwaliteit", "Qualità dello stream", "Qualidade da transmissão"),
+    "Use default": ("Standard verwenden", "Utiliser la valeur par défaut", "Usar predeterminada", "Standaard gebruiken", "Usa predefinita", "Usar padrão"),
+    "Default stream quality": ("Standard-Streamqualität", "Qualité du flux par défaut", "Calidad de flujo predeterminada", "Standaard streamkwaliteit", "Qualità stream predefinita", "Qualidade de transmissão padrão"),
+    "Auto streams low quality in the grid and high quality when a camera is enlarged — saving CPU and bandwidth. Override per camera by right-clicking its tile.": (
+        "Auto streamt im Raster in niedriger Qualität und in der Großansicht in hoher Qualität – das spart CPU und Bandbreite. Überschreibe die Einstellung pro Kamera per Rechtsklick auf die Kachel.",
+        "Auto diffuse en basse qualité dans la grille et en haute qualité lorsqu'une caméra est agrandie, ce qui économise le processeur et la bande passante. Remplacez ce réglage par caméra d'un clic droit sur sa tuile.",
+        "Auto transmite en baja calidad en la cuadrícula y en alta calidad cuando se amplía una cámara, lo que ahorra CPU y ancho de banda. Anula este ajuste por cámara haciendo clic derecho en su mosaico.",
+        "Auto streamt in lage kwaliteit in het raster en in hoge kwaliteit wanneer een camera vergroot is — dat bespaart CPU en bandbreedte. Overschrijf dit per camera door rechts te klikken op de tegel.",
+        "Auto trasmette in bassa qualità nella griglia e in alta qualità quando una telecamera è ingrandita, risparmiando CPU e larghezza di banda. Sostituisci l'impostazione per telecamera facendo clic con il tasto destro sul riquadro.",
+        "Auto transmite em baixa qualidade na grade e em alta qualidade quando uma câmera é ampliada — economizando CPU e largura de banda. Substitua por câmera clicando com o botão direito no bloco."),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _streaming.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
+# ---------------------------------------------------------------------------
+# Pinned floating windows (picture-in-picture). Menu items use neutral
+# imperatives; German keeps the informal-du register. "Save snapshot" is the
+# pinned window's hover button (the toast strings are reused from the focus
+# view). Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_pinned = {
+    "Pin as Floating Window": ("Als schwebendes Fenster anheften", "Épingler comme fenêtre flottante", "Fijar como ventana flotante", "Vastmaken als zwevend venster", "Blocca come finestra mobile", "Fixar como janela flutuante"),
+    "Unpin Floating Window": ("Schwebendes Fenster lösen", "Détacher la fenêtre flottante", "Desfijar ventana flotante", "Zwevend venster losmaken", "Sblocca finestra mobile", "Desafixar janela flutuante"),
+    "Save snapshot": ("Schnappschuss sichern", "Enregistrer la capture", "Guardar instantánea", "Momentopname bewaren", "Salva istantanea", "Salvar instantâneo"),
+    "Drag to resize": ("Zum Anpassen ziehen", "Glisser pour redimensionner", "Arrastra para cambiar el tamaño", "Sleep om te vergroten/verkleinen", "Trascina per ridimensionare", "Arraste para redimensionar"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _pinned.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 

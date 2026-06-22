@@ -4,6 +4,12 @@ A lightweight macOS status bar app for viewing live camera feeds from a UniFi Pr
 
 Click the camera icon in your menu bar to instantly see all your cameras in a resizable popover — no browser or UniFi Protect app needed.
 
+<p>
+  <a href="https://apps.apple.com/app/id6776899427"><img alt="Download QuickProtect on the App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="52"></a>
+</p>
+
+**Looking for a signed binary?** [Download QuickProtect from the App Store](https://apps.apple.com/app/id6776899427) — sandboxed, auto-updating, and notarized by Apple. The [GitHub release](https://github.com/cb2206/QuickProtect/releases) DMG is intentionally unsigned (see [Installing an Unsigned App](#installing-an-unsigned-app)).
+
 ![QuickProtect](screenshots/appstore-1.png)
 
 ## Features

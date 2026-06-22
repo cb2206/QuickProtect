@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 extension Notification.Name {
@@ -11,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var panel: NSPanel?
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var promoWindow: NSWindow?
+    private var updateSubscription: AnyCancellable?
     private var clickMonitor: Any?
     private var savedPanelFrame: NSRect?
     private var savedPanelLevel: NSWindow.Level?
@@ -21,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Owned here (not by the SwiftUI tree) so closePanel() can disconnect
     /// streams deterministically before the view hierarchy is destroyed.
     let clientManager = RTSPClientManager()
+    /// Owns pinned always-on-top camera windows. Their streams are independent
+    /// of the popover's, so they keep running while the popover is closed.
+    private(set) lazy var pinnedWindows = PinnedWindowManager(service: service)
 
     // MARK: - Lifecycle
 
@@ -36,6 +42,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NotificationCenter.default.addObserver(forName: .exitTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
             self?.exitPanelFullscreen()
         }
+        NotificationCenter.default.addObserver(forName: .layoutProfileChanged, object: nil, queue: .main) { [weak self] _ in
+            self?.applyProfilePanelSize()
+        }
+        // Instantiate before the first fetch so the manager's camera-list
+        // subscription is in place to restore persisted pins when cameras load.
+        _ = pinnedWindows
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
@@ -44,14 +56,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             showOnboarding()
         } else {
             promptAutoStartIfNeeded()
+            showAppStorePromoIfFirstTime()
         }
         updateChecker.startPeriodicChecks()
+        observeUpdatesForAppStorePromo()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         // Release camera streams (RTSP TEARDOWN + server-side DELETE) so the
         // controller doesn't keep sessions alive against a dead process.
         closePanel()
+        // Pinned windows hold their own streams — tear them down too. Their
+        // persistence is kept so they reopen on next launch.
+        pinnedWindows.closeAll()
         // Those requests are dispatched asynchronously; give them a brief
         // window to reach the controller before the process exits.
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
@@ -219,16 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let size = savedPanelSize()
         panel?.setContentSize(size)
 
-        // Position below the status bar button, clamped to screen
-        let buttonRect = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
-        let panelSize = panel!.frame.size
-        var x = buttonRect.midX - panelSize.width / 2
-        let y = buttonRect.minY - panelSize.height - 4
-        if let screen = NSScreen.main {
-            let sf = screen.visibleFrame
-            x = max(sf.minX + 4, min(x, sf.maxX - panelSize.width - 4))
-        }
-        panel?.setFrameOrigin(NSPoint(x: x, y: y))
+        positionPanelBelowStatusItem()
 
         service.isPopoverOpen = true
         panel?.makeKeyAndOrderFront(nil)
@@ -241,6 +249,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         Task { await service.fetchCameras() }
+    }
+
+    /// Anchor the panel under the status-bar button, clamped to the screen.
+    private func positionPanelBelowStatusItem() {
+        guard let panel, let button = statusItem?.button else { return }
+        let buttonRect = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
+        let size = panel.frame.size
+        var x = buttonRect.midX - size.width / 2
+        let y = buttonRect.minY - size.height - 4
+        if let screen = NSScreen.main {
+            let sf = screen.visibleFrame
+            x = max(sf.minX + 4, min(x, sf.maxX - size.width - 4))
+        }
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    /// On a profile switch, restore that profile's saved window size for the
+    /// current display. A profile with no saved size adopts the current size.
+    private func applyProfilePanelSize() {
+        guard let panel, panel.isVisible, !isInTrueFullscreen else { return }
+        if let size = AppSettings.shared.panelSize() {
+            guard size != panel.frame.size else { return }
+            panel.setContentSize(size)
+            positionPanelBelowStatusItem()
+        } else {
+            AppSettings.shared.setPanelSize(panel.frame.size)
+        }
     }
 
     private func closePanel() {
@@ -275,7 +310,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowDidResize(_ notification: Notification) {
-        guard let win = notification.object as? NSPanel, win === panel else { return }
+        guard let win = notification.object as? NSPanel, win === panel, !isInTrueFullscreen else { return }
         AppSettings.shared.setPanelSize(win.frame.size)
     }
 
@@ -357,6 +392,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.setActivationPolicy(.regular)
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - App Store promo (non-App-Store builds only)
+
+    /// One-time, on the first launch after this version ships: nudge GitHub-build
+    /// users toward the App Store edition. Never shown in App Store builds.
+    private func showAppStorePromoIfFirstTime() {
+        guard !AppDistribution.isAppStore,
+              !AppSettings.shared.hasShownAppStorePromo else { return }
+        AppSettings.shared.hasShownAppStorePromo = true
+        showAppStorePromo(updateVersion: nil)
+    }
+
+    /// When a newer GitHub release is found, surface the App Store option once per
+    /// new version (alongside the manual download). App Store builds never check.
+    private func observeUpdatesForAppStorePromo() {
+        guard !AppDistribution.isAppStore else { return }
+        updateSubscription = updateChecker.$updateAvailable
+            .receive(on: RunLoop.main)
+            .sink { [weak self] available in
+                guard let self, available else { return }
+                let version = self.updateChecker.latestVersion
+                guard !version.isEmpty,
+                      version != AppSettings.shared.lastPromotedUpdateVersion else { return }
+                AppSettings.shared.lastPromotedUpdateVersion = version
+                self.showAppStorePromo(updateVersion: version)
+            }
+    }
+
+    private func showAppStorePromo(updateVersion: String?) {
+        guard promoWindow == nil else { return }
+        let onGitHub: (() -> Void)? = updateVersion == nil ? nil : { [weak self] in
+            self?.updateChecker.openReleasePage()
+            self?.promoWindow?.close()
+        }
+        let view = AppStorePromoView(
+            updateVersion: updateVersion,
+            onAppStore: { [weak self] in
+                AppStorePromo.open()
+                self?.promoWindow?.close()
+            },
+            onGitHub: onGitHub,
+            onDismiss: { [weak self] in self?.promoWindow?.close() }
+        )
+        let win = NSWindow(contentViewController: NSHostingController(rootView: view))
+        win.title = "QuickProtect"
+        win.styleMask = [.titled, .closable, .fullSizeContentView]
+        win.titlebarAppearsTransparent = true
+        win.titleVisibility = .hidden
+        win.isReleasedWhenClosed = false
+        win.center()
+        promoWindow = win
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: win,
+            queue: .main
+        ) { [weak self] _ in
+            self?.promoWindow = nil
+            NSApp.setActivationPolicy(.accessory)
+        }
+        NSApp.setActivationPolicy(.regular)
+        // Activating mid-launch is racy for an agent app and can leave the window
+        // behind the frontmost app — defer a tick and force it forward.
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            win.makeKeyAndOrderFront(nil)
+            win.orderFrontRegardless()
+        }
     }
 
     // MARK: - Settings window

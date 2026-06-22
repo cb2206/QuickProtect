@@ -54,7 +54,13 @@ struct SettingsView: View {
     @ObservedObject var service: ProtectService
     @ObservedObject var updateChecker: UpdateChecker
 
-    @State private var tab: SettingsTab = .connection
+    /// Last tab the user viewed, remembered for the lifetime of the app process.
+    /// Resets to General on relaunch (it is not persisted), so the first open
+    /// after starting the app lands on General while later opens within the same
+    /// session restore the previous selection.
+    static var sessionTab: SettingsTab = .general
+
+    @State private var tab: SettingsTab = SettingsView.sessionTab
     @State private var isTesting = false
     @State private var testResult: TestResult?
     @State private var isTestingPtz = false
@@ -74,6 +80,7 @@ struct SettingsView: View {
             detailPane
         }
         .frame(minWidth: 760, idealWidth: 820, minHeight: 540, idealHeight: 600)
+        .onChange(of: tab) { SettingsView.sessionTab = $0 }
         .background(palette.popoverBg)
         .accentColor(Color(hex: settings.accentColorHex))
         .preferredColorScheme(settings.appearance.preferredColorScheme)
@@ -274,6 +281,20 @@ struct SettingsView: View {
                 }
             }
 
+            AuroraSettingsSection(String(localized: "Streaming")) {
+                AuroraSettingsRow(
+                    String(localized: "Default stream quality"),
+                    hint: String(localized: "Auto streams low quality in the grid and high quality when a camera is enlarged — saving CPU and bandwidth. Override per camera by right-clicking its tile."),
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    AuroraSegmented(
+                        options: StreamQuality.allCases.map { ($0.displayName, $0) },
+                        selection: $settings.defaultStreamQuality
+                    )
+                }
+            }
+
             AuroraSettingsSection(String(localized: "Focus view")) {
                 AuroraSettingsRow(
                     String(localized: "Show overlay controls"),
@@ -284,6 +305,53 @@ struct SettingsView: View {
                     Toggle("", isOn: $settings.showFocusOverlayControls)
                         .toggleStyle(.switch)
                         .labelsHidden()
+                }
+            }
+
+            AuroraSettingsSection(String(localized: "Snapshots")) {
+                AuroraSettingsRow(
+                    String(localized: "Destination"),
+                    hint: String(localized: "Press S on a focused camera to capture a snapshot."),
+                    isLast: settings.snapshotDestination == .clipboard
+                ) {
+                    AuroraSegmented(
+                        options: [
+                            (String(localized: "Clipboard"), AppSettings.SnapshotDestination.clipboard),
+                            (String(localized: "Folder"), AppSettings.SnapshotDestination.folder)
+                        ],
+                        selection: Binding(
+                            get: { settings.snapshotDestination },
+                            set: { newValue in
+                                settings.snapshotDestination = newValue
+                                // Folder mode requires a picked folder — prompt
+                                // immediately and revert to clipboard if cancelled.
+                                if newValue == .folder, settings.resolveSnapshotFolder() == nil {
+                                    chooseSnapshotFolder(revertToClipboardIfCancelled: true)
+                                }
+                            }
+                        )
+                    )
+                }
+                if settings.snapshotDestination == .folder {
+                    AuroraSettingsRow(
+                        String(localized: "Save folder"),
+                        hint: String(localized: "Snapshots are saved here as PNG files."),
+                        isLast: true,
+                        labelExpands: true
+                    ) {
+                        HStack(spacing: 8) {
+                            if !settings.snapshotFolderDisplayPath.isEmpty {
+                                Text((settings.snapshotFolderDisplayPath as NSString).lastPathComponent)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                            AuroraSecondaryButton(title: String(localized: "Choose…")) {
+                                chooseSnapshotFolder(revertToClipboardIfCancelled: false)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -375,6 +443,18 @@ struct SettingsView: View {
     // MARK: Cameras
 
     private var camerasTab: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if settings.profiles().count > 1 {
+                Text("Visibility, size, and order apply to the “\(settings.activeProfile.name)” profile. Switch profiles from the popover header.")
+                    .font(.system(size: 11))
+                    .foregroundColor(palette.subtext)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            cameraListSection
+        }
+    }
+
+    private var cameraListSection: some View {
         AuroraSettingsSection {
             if service.cameras.isEmpty {
                 AuroraSettingsRow(isLast: true) {
@@ -389,6 +469,8 @@ struct SettingsView: View {
                         camera: cam,
                         size: settings.cameraSize(for: cam.id),
                         hidden: settings.isHidden(cam.id),
+                        showsPip: settings.showsSecondaryLensPip(for: cam.id),
+                        showsGridPip: settings.showsSecondaryLensPipInGrid(for: cam.id),
                         isLast: idx == cams.count - 1,
                         onSize: { s in
                             settings.setCameraSize(s, for: cam.id)
@@ -396,6 +478,14 @@ struct SettingsView: View {
                         },
                         onHide: { h in
                             settings.setHidden(h, for: cam.id)
+                            service.objectWillChange.send()
+                        },
+                        onTogglePip: { on in
+                            settings.setShowsSecondaryLensPip(on, for: cam.id)
+                            service.objectWillChange.send()
+                        },
+                        onToggleGridPip: { on in
+                            settings.setShowsSecondaryLensPipInGrid(on, for: cam.id)
                             service.objectWillChange.send()
                         }
                     )
@@ -471,6 +561,19 @@ struct SettingsView: View {
 
     private var updatesTab: some View {
         VStack(alignment: .leading, spacing: 18) {
+            AuroraSettingsSection(String(localized: "Mac App Store")) {
+                AuroraSettingsRow(
+                    String(localized: "Get the App Store edition"),
+                    hint: String(localized: "Automatic updates, an Apple-signed install with no security warnings, and it supports development."),
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    AuroraPrimaryButton(title: String(localized: "View on the App Store")) {
+                        AppStorePromo.open()
+                    }
+                }
+            }
+
             AuroraSettingsSection(String(localized: "Version")) {
                 AuroraSettingsRow(String(localized: "Installed")) {
                     HStack(spacing: 8) {
@@ -586,6 +689,23 @@ struct SettingsView: View {
             } onCancel: {
                 isRecordingHotkey = false
             }
+        }
+    }
+
+    // MARK: - Snapshot folder
+
+    private func chooseSnapshotFolder(revertToClipboardIfCancelled: Bool) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose a folder for saved snapshots")
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.setSnapshotFolder(url)
+        } else if revertToClipboardIfCancelled, settings.resolveSnapshotFolder() == nil {
+            // Folder mode needs a folder; with none picked, fall back to clipboard.
+            settings.snapshotDestination = .clipboard
         }
     }
 
@@ -801,9 +921,13 @@ private struct CameraRow: View {
     let camera: Camera
     let size: AppSettings.CameraSize?
     let hidden: Bool
+    let showsPip: Bool
+    let showsGridPip: Bool
     let isLast: Bool
     let onSize: (AppSettings.CameraSize?) -> Void
     let onHide: (Bool) -> Void
+    let onTogglePip: (Bool) -> Void
+    let onToggleGridPip: (Bool) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
@@ -849,7 +973,48 @@ private struct CameraRow: View {
                     .help(hidden ? "Show in grid" : "Hide from grid")
             }
             .padding(.horizontal, 14).padding(.vertical, 9)
+            if let lens = camera.secondaryLens {
+                secondaryLensRow(lens)
+            }
             if !isLast { AuroraHairline(color: palette.divider) }
         }
+    }
+
+    /// Indented sub-rows, shown only for cameras with a second lens: one toggle
+    /// for the focus/fullscreen PiP and one for showing it on the grid tile too.
+    @ViewBuilder
+    private func secondaryLensRow(_ lens: Camera.SecondaryLens) -> some View {
+        VStack(spacing: 7) {
+            HStack(spacing: 10) {
+                Image(systemName: "pip")
+                    .font(.system(size: 11))
+                    .foregroundColor(palette.subtext)
+                Text(lens.label)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(palette.text)
+                Spacer()
+            }
+            pipToggle(title: String(localized: "Picture-in-picture when focused"),
+                      isOn: showsPip, set: onTogglePip)
+            pipToggle(title: String(localized: "Also show on the grid tile"),
+                      isOn: showsGridPip, set: onToggleGridPip)
+        }
+        .padding(.leading, 31).padding(.trailing, 14)
+        .padding(.bottom, 9)
+    }
+
+    @ViewBuilder
+    private func pipToggle(title: String, isOn: Bool, set: @escaping (Bool) -> Void) -> some View {
+        HStack(spacing: 10) {
+            Text(title)
+                .font(.system(size: 11.5))
+                .foregroundColor(palette.subtext)
+            Spacer()
+            Toggle("", isOn: Binding(get: { isOn }, set: set))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+        }
+        .padding(.leading, 21)
     }
 }

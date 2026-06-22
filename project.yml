@@ -44,8 +44,10 @@ targets:
         # Menu-bar agent: no Dock icon, no main window.
         LSUIElement: true
         CFBundleIconFile: QuickProtect
-        CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "2"
+        # Marketing version (bump on release). project.yml is the source of truth —
+        # `xcodegen generate` writes these into Info.plist, so never hand-edit the plist.
+        CFBundleShortVersionString: "1.2.1"
+        CFBundleVersion: "4"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
         # Advertise the languages the app ships (English + German) so the system
@@ -73,6 +75,8 @@ targets:
         com.apple.security.app-sandbox: true
         # Outgoing connections: HTTPS to the controller + RTSP/RTSPS streams.
         com.apple.security.network.client: true
+        # Write snapshots to a user-chosen folder (persisted via security-scoped bookmark).
+        com.apple.security.files.user-selected.read-write: true
 
     settings:
       base:
