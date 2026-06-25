@@ -32,17 +32,24 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     private string? _activeQuality;
     private bool _starting;
     private readonly bool _pinned;
+    private readonly string? _fixedQuality;
 
     /// <param name="pinned">
     /// When true the tile drives a pinned floating window: it uses the pinned
     /// server-side allocation lifecycle (created/released independently of the
     /// popover's streams) and always streams at high quality.
     /// </param>
-    public CameraTileViewModel(Camera camera, ProtectService service, AppSettings settings, bool pinned = false)
+    /// <param name="fixedQuality">
+    /// When set (e.g. "package"), the tile streams exactly this quality instead of
+    /// resolving from settings — used for the secondary-lens picture-in-picture.
+    /// </param>
+    public CameraTileViewModel(Camera camera, ProtectService service, AppSettings settings,
+                               bool pinned = false, string? fixedQuality = null)
     {
         _service = service;
         _settings = settings;
         _pinned = pinned;
+        _fixedQuality = fixedQuality;
         Camera = camera;
         _name = camera.Name;
         _isOnline = camera.IsOnline;
@@ -138,10 +145,12 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         try
         {
             var gridIsLarge = _settings.SizeFor(Camera.Id) == AppSettings.CameraSize.Large;
-            // Pinned and focused views both run at high quality.
-            var quality = _settings.EffectiveStreamQuality(Camera.Id)
-                .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
-                .ApiValue();
+            // A fixed quality (secondary lens) bypasses resolution; otherwise pinned
+            // and focused views both run at high quality.
+            var quality = _fixedQuality
+                ?? _settings.EffectiveStreamQuality(Camera.Id)
+                    .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
+                    .ApiValue();
 
             var result = _pinned
                 ? await _service.CreatePinnedStreamUrlAsync(Camera, quality)

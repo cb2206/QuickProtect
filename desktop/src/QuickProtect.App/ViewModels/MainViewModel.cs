@@ -37,6 +37,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsFocusMode => FocusTile != null;
     public bool IsGridMode => FocusTile == null;
 
+    /// <summary>Secondary-lens PiP (e.g. doorbell package camera) shown in focus, or null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSecondary))]
+    private CameraTileViewModel? _secondaryTile;
+
+    public bool HasSecondary => SecondaryTile != null;
+
     /// <summary>Transient status line (e.g. "Saved snapshot"), auto-clears.</summary>
     [ObservableProperty] private string? _statusToast;
     private int _toastToken;
@@ -121,6 +128,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ft.SetFocused(true);
         FocusTile = ft;
         _ = ft.StartAsync();
+
+        // Secondary-lens picture-in-picture (e.g. doorbell package camera).
+        if (camera.Secondary is { } sec && _settings.ShowsSecondaryLensPip(camera.Id))
+        {
+            var pip = new CameraTileViewModel(camera, _service, _settings, fixedQuality: sec.Quality);
+            SecondaryTile = pip;
+            _ = pip.StartAsync();
+        }
     }
 
     /// <summary>Leave focus mode, stop PTZ motion, and restart the grid.</summary>
@@ -128,6 +143,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (FocusTile is not { } ft) return;
         ft.PtzStopAll();
+        SecondaryTile?.Dispose();
+        SecondaryTile = null;
         ft.Dispose();
         FocusTile = null;
         StartAll();
@@ -138,19 +155,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         FocusTile?.PtzStopAll();
         FocusTile?.Stop();
+        SecondaryTile?.Stop();
         foreach (var tile in Tiles) tile.Stop();
         _service.CleanupStreams();
     }
 
     public void StartAll()
     {
-        if (IsFocusMode) { _ = FocusTile!.StartAsync(); return; }
+        if (IsFocusMode) { _ = FocusTile!.StartAsync(); if (SecondaryTile is { } s) _ = s.StartAsync(); return; }
         foreach (var tile in Tiles) _ = tile.StartAsync();
     }
 
     public void Dispose()
     {
         _service.PropertyChanged -= OnServiceChanged;
+        SecondaryTile?.Dispose();
         FocusTile?.Dispose();
         foreach (var tile in Tiles) tile.Dispose();
         Tiles.Clear();

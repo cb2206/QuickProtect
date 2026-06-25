@@ -178,8 +178,19 @@
         <TextBlock Text="{Binding StatusToast}" Foreground="White" FontSize="12" />
       </Border>
 
-      <!-- Video fills the remaining center region -->
-      <vlc:VideoView MediaPlayer="{Binding FocusTile.Player}" />
+      <!-- Video fills the remaining center region. The secondary lens (e.g. a
+           doorbell package camera) gets its own side column so both native
+           VideoView surfaces render without overlapping. -->
+      <Grid ColumnDefinitions="*,Auto">
+        <vlc:VideoView Grid.Column="0" MediaPlayer="{Binding FocusTile.Player}" />
+        <Border Grid.Column="1" Width="200" Background="#141416" IsVisible="{Binding HasSecondary}">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="Package camera" Foreground="#CCFFFFFF"
+                       FontSize="11" Margin="8,5" />
+            <vlc:VideoView MediaPlayer="{Binding SecondaryTile.Player}" />
+          </DockPanel>
+        </Border>
+      </Grid>
     </DockPanel>
   </Grid>
 
