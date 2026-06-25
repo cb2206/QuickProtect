@@ -48,6 +48,23 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         IsOnline = camera.IsOnline;
     }
 
+    public bool IsPtz => Camera.IsPtz;
+    public bool CanZoom => Camera.CanZoom;
+
+    public void SetFocused(bool focused) => IsFocused = focused;
+
+    // MARK: - PTZ (direction → axis mapping lives in Core's PtzMapping)
+
+    /// <summary>Start moving along the given direction (pointer-down / key-down).</summary>
+    public void PtzPress(PtzDirection d) => Send(PtzMapping.Press(d));
+
+    /// <summary>Stop the axis the direction belongs to (pointer-up / key-up).</summary>
+    public void PtzRelease(PtzDirection d) => Send(PtzMapping.Release(d));
+
+    private void Send(PtzMapping.Axes a) => _service.PtzSetAxes(Camera.Id, a.Pan, a.Tilt, a.Zoom);
+
+    public void PtzStopAll() => _service.PtzStopAll(Camera.Id);
+
     /// <summary>Resolve the effective quality for the current view state and start playback.</summary>
     public async Task StartAsync()
     {

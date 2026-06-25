@@ -3,6 +3,7 @@ using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Avalonia.Threading;
+using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App.ViewModels;
@@ -22,6 +23,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string? _errorMessage;
     [ObservableProperty] private bool _hasCameras;
+
+    /// <summary>
+    /// The camera shown enlarged in focus mode, or null for the grid. Focus uses
+    /// a dedicated tile (its own high-quality stream + player) so it never shares
+    /// a <c>MediaPlayer</c> with a grid tile.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFocusMode))]
+    [NotifyPropertyChangedFor(nameof(IsGridMode))]
+    private CameraTileViewModel? _focusTile;
+
+    public bool IsFocusMode => FocusTile != null;
+    public bool IsGridMode => FocusTile == null;
 
     public MainViewModel(ProtectService service, AppSettings settings)
     {
@@ -80,21 +94,52 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task Refresh() => await _service.FetchCamerasAsync();
 
+    /// <summary>
+    /// Enter focus mode for <paramref name="camera"/>: stop the grid streams to
+    /// free resources, then start a dedicated high-quality stream for the focused
+    /// camera. Mirrors the macOS grid→focus transition.
+    /// </summary>
+    public void Focus(Camera camera)
+    {
+        if (IsFocusMode) return;
+        foreach (var tile in Tiles) tile.Stop();
+        _service.CleanupStreams();
+
+        var ft = new CameraTileViewModel(camera, _service, _settings);
+        ft.SetFocused(true);
+        FocusTile = ft;
+        _ = ft.StartAsync();
+    }
+
+    /// <summary>Leave focus mode, stop PTZ motion, and restart the grid.</summary>
+    public void ExitFocus()
+    {
+        if (FocusTile is not { } ft) return;
+        ft.PtzStopAll();
+        ft.Dispose();
+        FocusTile = null;
+        StartAll();
+    }
+
     /// <summary>Stop all tiles and release their server-side allocations (panel hidden).</summary>
     public void StopAll()
     {
+        FocusTile?.PtzStopAll();
+        FocusTile?.Stop();
         foreach (var tile in Tiles) tile.Stop();
         _service.CleanupStreams();
     }
 
     public void StartAll()
     {
+        if (IsFocusMode) { _ = FocusTile!.StartAsync(); return; }
         foreach (var tile in Tiles) _ = tile.StartAsync();
     }
 
     public void Dispose()
     {
         _service.PropertyChanged -= OnServiceChanged;
+        FocusTile?.Dispose();
         foreach (var tile in Tiles) tile.Dispose();
         Tiles.Clear();
     }

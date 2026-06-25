@@ -10,64 +10,172 @@
         Background="{StaticResource AuroraBackgroundBrush}"
         WindowStartupLocation="CenterScreen">
 
-  <Grid RowDefinitions="Auto,*">
+  <Grid>
 
-    <!-- Header -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,10">
-      <TextBlock Text="Cameras" FontSize="16" FontWeight="SemiBold" Foreground="White"
-                 VerticalAlignment="Center" />
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-        <ProgressBar IsIndeterminate="True" Width="80" Height="4"
-                     IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
-        <Button Content="Refresh" Command="{Binding RefreshCommand}" />
-      </StackPanel>
+    <!-- ============ GRID MODE ============ -->
+    <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsGridMode}">
+
+      <!-- Header -->
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,10">
+        <TextBlock Text="Cameras" FontSize="16" FontWeight="SemiBold" Foreground="White"
+                   VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <ProgressBar IsIndeterminate="True" Width="80" Height="4"
+                       IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
+          <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+        </StackPanel>
+      </Grid>
+
+      <!-- Error banner -->
+      <Border Grid.Row="1" Background="#33FF3B30" Padding="12,8" VerticalAlignment="Top" Margin="14"
+              IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+              ZIndex="10">
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="White" TextWrapping="Wrap" />
+      </Border>
+
+      <!-- Empty state -->
+      <TextBlock Grid.Row="1" Text="No cameras yet. Open Settings to connect your controller."
+                 Foreground="#99FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"
+                 IsVisible="{Binding !HasCameras}" />
+
+      <!-- Camera grid. Each tile's footer is a button (reliable click target — the
+           native VideoView surface does not forward pointer events). -->
+      <ScrollViewer Grid.Row="1" IsVisible="{Binding HasCameras}">
+        <ItemsControl ItemsSource="{Binding Tiles}" Margin="10">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CameraTileViewModel">
+              <Border Width="240" Height="168" Margin="6" CornerRadius="8"
+                      Background="Black" ClipToBounds="True">
+                <DockPanel>
+                  <!-- Footer: click to focus -->
+                  <Button DockPanel.Dock="Bottom" Click="Tile_Focus"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                          Background="#CC141416" Foreground="White" Padding="8,5"
+                          BorderThickness="0" CornerRadius="0">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="●" Foreground="#FF3B30" FontSize="8" VerticalAlignment="Center"
+                                 IsVisible="{Binding IsOnline}" />
+                      <TextBlock Text="{Binding Name}" FontSize="12" />
+                      <TextBlock Text="PTZ" FontSize="9" Foreground="#60A5FA"
+                                 VerticalAlignment="Center" IsVisible="{Binding IsPtz}" />
+                    </StackPanel>
+                  </Button>
+
+                  <Grid>
+                    <vlc:VideoView MediaPlayer="{Binding Player}" />
+                    <ProgressBar IsIndeterminate="True" Width="60" Height="4"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 IsVisible="{Binding IsLoading}" />
+                    <TextBlock Text="Offline" Foreground="#99FFFFFF"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsOnline}" />
+                  </Grid>
+                </DockPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
     </Grid>
 
-    <!-- Error banner -->
-    <Border Grid.Row="1" Background="#33FF3B30" Padding="12,8" VerticalAlignment="Top" Margin="14"
-            IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-            ZIndex="10">
-      <TextBlock Text="{Binding ErrorMessage}" Foreground="White" TextWrapping="Wrap" />
-    </Border>
+    <!-- ============ FOCUS MODE ============ -->
+    <DockPanel IsVisible="{Binding IsFocusMode}" Background="Black">
 
-    <!-- Empty state -->
-    <TextBlock Grid.Row="1" Text="No cameras yet. Open Settings to connect your controller."
-               Foreground="#99FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
-               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"
-               IsVisible="{Binding !HasCameras}" />
-
-    <!-- Camera grid -->
-    <ScrollViewer Grid.Row="1" IsVisible="{Binding HasCameras}">
-      <ItemsControl ItemsSource="{Binding Tiles}" Margin="10">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <WrapPanel />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:CameraTileViewModel">
-            <Border Width="240" Height="150" Margin="6" CornerRadius="8"
-                    Background="Black" ClipToBounds="True">
-              <Grid>
-                <vlc:VideoView MediaPlayer="{Binding Player}" />
-
-                <!-- Loading / offline overlay -->
-                <ProgressBar IsIndeterminate="True" Width="60" Height="4"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                             IsVisible="{Binding IsLoading}" />
-                <TextBlock Text="Offline" Foreground="#99FFFFFF"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           IsVisible="{Binding !IsOnline}" />
-
-                <!-- Name label -->
-                <Border VerticalAlignment="Bottom" Background="#88000000" Padding="8,4">
-                  <TextBlock Text="{Binding Name}" Foreground="White" FontSize="12" />
-                </Border>
-              </Grid>
+      <!-- Top bar -->
+      <Border DockPanel.Dock="Top" Background="#E6141416" Padding="10,7">
+        <Grid ColumnDefinitions="Auto,*,Auto" DataContext="{Binding FocusTile}"
+              x:DataType="vm:CameraTileViewModel">
+          <Button Grid.Column="0" Content="◀ Grid" Click="Focus_Back"
+                  Background="Transparent" Foreground="White" BorderThickness="0" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                      HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="●" Foreground="#FF3B30" FontSize="9" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="13" />
+            <Border IsVisible="{Binding IsPtz}" Background="#3A0A84FF" CornerRadius="9" Padding="7,2">
+              <TextBlock Text="PTZ · ARROW KEYS" Foreground="#CCFFFFFF" FontSize="9" />
             </Border>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </ScrollViewer>
+          </StackPanel>
+          <Button Grid.Column="2" Content="⤢ Fullscreen (F)" Click="Focus_ToggleFullscreen"
+                  Background="Transparent" Foreground="White" BorderThickness="0" />
+        </Grid>
+      </Border>
+
+      <!-- Bottom control bar: PTZ d-pad + zoom (only for capable cameras). Placed
+           outside the video region so the native VideoView never covers it. -->
+      <Border DockPanel.Dock="Bottom" Background="#E6141416" Padding="0,10"
+              DataContext="{Binding FocusTile}" x:DataType="vm:CameraTileViewModel">
+        <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Center">
+
+          <!-- d-pad -->
+          <Grid IsVisible="{Binding IsPtz}" Width="96" Height="96"
+                RowDefinitions="*,*,*" ColumnDefinitions="*,*,*">
+            <Border Grid.Row="0" Grid.Column="1" Classes="dpad" Tag="Up"
+                    PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released"
+                    PointerExited="Dpad_Exited">
+              <TextBlock Text="▲" Classes="dpadGlyph" />
+            </Border>
+            <Border Grid.Row="1" Grid.Column="0" Classes="dpad" Tag="Left"
+                    PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released"
+                    PointerExited="Dpad_Exited">
+              <TextBlock Text="◀" Classes="dpadGlyph" />
+            </Border>
+            <Border Grid.Row="1" Grid.Column="2" Classes="dpad" Tag="Right"
+                    PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released"
+                    PointerExited="Dpad_Exited">
+              <TextBlock Text="▶" Classes="dpadGlyph" />
+            </Border>
+            <Border Grid.Row="2" Grid.Column="1" Classes="dpad" Tag="Down"
+                    PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released"
+                    PointerExited="Dpad_Exited">
+              <TextBlock Text="▼" Classes="dpadGlyph" />
+            </Border>
+            <Ellipse Grid.Row="1" Grid.Column="1" Width="6" Height="6" Fill="#66FFFFFF" />
+          </Grid>
+
+          <!-- zoom -->
+          <StackPanel IsVisible="{Binding CanZoom}" VerticalAlignment="Center" Spacing="4">
+            <Border Classes="dpad" Tag="ZoomIn" Width="34" Height="34"
+                    PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released"
+                    PointerExited="Dpad_Exited">
+              <TextBlock Text="＋" Classes="dpadGlyph" />
+            </Border>
+            <Border Classes="dpad" Tag="ZoomOut" Width="34" Height="34"
+                    PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released"
+                    PointerExited="Dpad_Exited">
+              <TextBlock Text="－" Classes="dpadGlyph" />
+            </Border>
+          </StackPanel>
+
+          <TextBlock Text="Esc back · F fullscreen · arrows pan/tilt · I/O zoom"
+                     Foreground="#80FFFFFF" FontSize="11" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+
+      <!-- Video fills the remaining center region -->
+      <vlc:VideoView MediaPlayer="{Binding FocusTile.Player}" />
+    </DockPanel>
   </Grid>
+
+  <Window.Styles>
+    <Style Selector="Border.dpad">
+      <Setter Property="Background" Value="#22FFFFFF" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Margin" Value="2" />
+    </Style>
+    <Style Selector="Border.dpad:pointerover">
+      <Setter Property="Background" Value="#3AFFFFFF" />
+    </Style>
+    <Style Selector="TextBlock.dpadGlyph">
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
 </Window>

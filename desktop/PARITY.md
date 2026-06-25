@@ -19,15 +19,21 @@ Ordered roughly by user value and implementation dependency.
   (DPAPI on Windows, 0600 file on Linux) with legacy-plaintext migration.
 - **Layout data model** — profiles, hidden/order/size, pinned-camera state
   (ported and unit-tested; UI for some of it still pending).
+- **Focus (single-camera) view** — click a tile → dedicated high-quality stream,
+  back-to-grid, basic fullscreen toggle (`WindowState.FullScreen`).
+- **PTZ control** — on-screen d-pad + zoom pill (pointer hold) and keyboard
+  (arrows pan/tilt, I/O zoom). Direction→axis mapping is in Core (`PtzMapping`,
+  unit-tested) and matches the macOS sign conventions. Controls are docked
+  outside the video region because the native `VideoView` can't be overlaid.
 
 ## ⏳ Next (high value)
 
 | Feature | macOS source | Notes for the port |
 |---|---|---|
-| Focus / single-camera view | `CameraGridView`, `AuroraFocusOverlay` | enlarge a tile, switch to high quality, fit/fill toggle |
-| Fullscreen | `AppDelegate.enterPanelFullscreen` | borderless top-most window or `WindowState.FullScreen` |
-| PTZ on-screen d-pad + keys | `AuroraFocusOverlay`, `ProtectService.ptzSetAxes` | pointer/keyboard → `PtzSetAxes`/`PtzStopAll` (service is done) |
-| Snapshots | `AppSettings.snapshot*` | grab a frame from the `MediaPlayer`, clipboard or folder |
+| True-fullscreen HUD | `AuroraFullscreenHUD` | auto-hiding overlay; today fullscreen is a plain toggle |
+| Snapshots (S key) | `AppSettings.snapshot*` | grab a frame from the `MediaPlayer`, clipboard or folder |
+| Fit / fill toggle | `cameraFillMode` | `MediaPlayer` aspect / crop in focus |
+| Audio mute (M key) | `AudioRenderer` | `MediaPlayer.Mute`; needs audio-track detection |
 | Pinned floating windows | `PinnedCameraWindow`, `PinnedWindowManager` | always-on-top `Window` (`Topmost=true`); state model is ported |
 
 ## ⏳ Later

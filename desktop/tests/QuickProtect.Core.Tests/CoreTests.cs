@@ -82,6 +82,36 @@ public class CameraJsonTests
     }
 }
 
+public class PtzMappingTests
+{
+    [Theory]
+    [InlineData(PtzDirection.Left, -1.0, null, null)]
+    [InlineData(PtzDirection.Right, 1.0, null, null)]
+    [InlineData(PtzDirection.Up, null, 1.0, null)]
+    [InlineData(PtzDirection.Down, null, -1.0, null)]
+    [InlineData(PtzDirection.ZoomIn, null, null, 1.0)]
+    [InlineData(PtzDirection.ZoomOut, null, null, -1.0)]
+    public void Press_maps_direction_to_axis(PtzDirection d, double? pan, double? tilt, double? zoom)
+    {
+        var a = PtzMapping.Press(d);
+        Assert.Equal(pan, a.Pan);
+        Assert.Equal(tilt, a.Tilt);
+        Assert.Equal(zoom, a.Zoom);
+    }
+
+    [Theory]
+    [InlineData(PtzDirection.Left, 0.0, null, null)]
+    [InlineData(PtzDirection.Up, null, 0.0, null)]
+    [InlineData(PtzDirection.ZoomOut, null, null, 0.0)]
+    public void Release_zeros_only_its_axis(PtzDirection d, double? pan, double? tilt, double? zoom)
+    {
+        var a = PtzMapping.Release(d);
+        Assert.Equal(pan, a.Pan);
+        Assert.Equal(tilt, a.Tilt);
+        Assert.Equal(zoom, a.Zoom);
+    }
+}
+
 public class CertificateTrustTests
 {
     private static CertificateTrust New() => new(new InMemoryPreferences());
