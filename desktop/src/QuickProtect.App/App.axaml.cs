@@ -19,6 +19,7 @@ public partial class App : Application
     public ProtectService Service { get; private set; } = null!;
     public CertificateTrust Trust { get; private set; } = null!;
     public PinnedWindowManager PinnedWindows { get; private set; } = null!;
+    public UpdateChecker Updater { get; private set; } = null!;
 
     private TrayIcon? _tray;
     private MainWindow? _mainWindow;
@@ -40,6 +41,8 @@ public partial class App : Application
         Service.CertificateChanged += (_, message) =>
             Dispatcher.UIThread.Post(() => Service_ShowError(message));
         PinnedWindows = new PinnedWindowManager(Service, Settings);
+        Updater = new UpdateChecker(CurrentVersion());
+        Updater.StartPeriodicChecks();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -139,11 +142,17 @@ public partial class App : Application
     {
         if (_settingsWindow == null)
         {
-            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(Service, Settings, Trust) };
+            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(Service, Settings, Trust, Updater) };
             _settingsWindow.Closing += (_, e) => { e.Cancel = true; _settingsWindow!.Hide(); };
         }
         _settingsWindow.Show();
         _settingsWindow.Activate();
+    }
+
+    private static string CurrentVersion()
+    {
+        var v = typeof(App).Assembly.GetName().Version;
+        return v == null ? "0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
     }
 
     private void ApplyHotkey()
@@ -168,6 +177,7 @@ public partial class App : Application
     {
         // Release server-side stream allocations before the process dies.
         _hotkey?.Dispose();
+        Updater.Dispose();
         PinnedWindows.CloseAll();
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();

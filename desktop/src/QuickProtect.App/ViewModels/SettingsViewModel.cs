@@ -18,6 +18,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ProtectService _service;
     private readonly AppSettings _settings;
     private readonly CertificateTrust _trust;
+    private readonly UpdateChecker _updater;
 
     [ObservableProperty] private string _ipAddress;
     [ObservableProperty] private string _apiKey;
@@ -29,18 +30,32 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _hasPendingCert;
     [ObservableProperty] private string _hotkeyDisplay = "Not set";
     [ObservableProperty] private bool _isRecordingHotkey;
+    [ObservableProperty] private bool _updateAvailable;
+    [ObservableProperty] private string _updateVersion = "";
 
     public string[] QualityOptions { get; } = { "Auto", "High", "Medium", "Low" };
 
     /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
     public LayoutViewModel Layout { get; }
 
-    public SettingsViewModel(ProtectService service, AppSettings settings, CertificateTrust trust)
+    public SettingsViewModel(ProtectService service, AppSettings settings, CertificateTrust trust, UpdateChecker updater)
     {
         _service = service;
         _settings = settings;
         _trust = trust;
+        _updater = updater;
         Layout = new LayoutViewModel(service, settings);
+        _updateAvailable = updater.UpdateAvailable;
+        _updateVersion = updater.LatestVersion;
+        updater.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(UpdateChecker.UpdateAvailable) or nameof(UpdateChecker.LatestVersion))
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    UpdateAvailable = updater.UpdateAvailable;
+                    UpdateVersion = updater.LatestVersion;
+                });
+        };
 
         _ipAddress = settings.IpAddress;
         _apiKey = settings.ApiKey;
@@ -122,6 +137,20 @@ public sealed partial class SettingsViewModel : ObservableObject
             ? $"Error: {err}"
             : $"Connected — {_service.Cameras.Count} camera(s) found.";
     }
+
+    [RelayCommand]
+    private async Task CheckForUpdates()
+    {
+        StatusMessage = "Checking for updates…";
+        await _updater.CheckForUpdateAsync();
+        StatusMessage = _updater.UpdateAvailable
+            ? $"Update available: {_updater.LatestVersion}"
+            : "You're on the latest version.";
+    }
+
+    [RelayCommand]
+    private void OpenReleasePage()
+        => UrlOpener.Open(_updater.ReleaseUrl ?? _updater.ReleasesPageUrl);
 
     [RelayCommand]
     private void TrustNewCertificate()

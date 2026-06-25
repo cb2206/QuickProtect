@@ -167,6 +167,20 @@ public class SnapshotNamingTests
     }
 }
 
+public class VersionCompareTests
+{
+    [Theory]
+    [InlineData("1.2.2", "1.2.1", true)]
+    [InlineData("1.3.0", "1.2.9", true)]
+    [InlineData("2.0.0", "1.9.9", true)]
+    [InlineData("1.2.1", "1.2.1", false)]
+    [InlineData("1.2.0", "1.2.1", false)]
+    [InlineData("1.2", "1.2.0", false)]      // shorter == treated as trailing zeros
+    [InlineData("1.2.1.1", "1.2.1", true)]   // extra component wins
+    public void IsNewer_compares_components(string remote, string local, bool expected)
+        => Assert.Equal(expected, VersionCompare.IsNewer(remote, local));
+}
+
 public class CertificateTrustTests
 {
     private static CertificateTrust New() => new(new InMemoryPreferences());

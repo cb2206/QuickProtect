@@ -83,6 +83,18 @@
 
           <TextBlock Text="{Binding StatusMessage}" Foreground="#CCFFFFFF" TextWrapping="Wrap" />
 
+          <Separator />
+
+          <TextBlock Text="Updates" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <Border Background="#3330D158" Padding="12,8" CornerRadius="6" IsVisible="{Binding UpdateAvailable}">
+            <StackPanel Spacing="8">
+              <TextBlock Foreground="White" TextWrapping="Wrap"
+                         Text="{Binding UpdateVersion, StringFormat='A new version ({0}) is available.'}" />
+              <Button Content="Open Release Page" Command="{Binding OpenReleasePageCommand}" />
+            </StackPanel>
+          </Border>
+          <Button Content="Check for Updates" Command="{Binding CheckForUpdatesCommand}" HorizontalAlignment="Left" />
+
         </StackPanel>
       </ScrollViewer>
     </TabItem>
