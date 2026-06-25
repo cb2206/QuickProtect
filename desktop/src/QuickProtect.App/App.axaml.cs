@@ -23,6 +23,7 @@ public partial class App : Application
     private TrayIcon? _tray;
     private MainWindow? _mainWindow;
     private SettingsWindow? _settingsWindow;
+    private OnboardingWindow? _onboardingWindow;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -54,7 +55,7 @@ public partial class App : Application
             _ = Service.FetchCamerasAsync();
 
         if (!Settings.HasCompletedOnboarding)
-            ShowSettings(); // onboarding wizard is a follow-up; Settings covers first-run config for now
+            ShowOnboarding();
 
         base.OnFrameworkInitializationCompleted();
     }
@@ -108,6 +109,21 @@ public partial class App : Application
         _mainWindow.Show();
         _mainWindow.Activate();
         _ = Service.FetchCamerasAsync();
+    }
+
+    private void ShowOnboarding()
+    {
+        var vm = new OnboardingViewModel(Service, Settings);
+        var window = new OnboardingWindow { DataContext = vm };
+        vm.Finished += (_, _) =>
+        {
+            window.Close();
+            _onboardingWindow = null;
+            ToggleMainWindow(); // open the grid right after setup
+        };
+        _onboardingWindow = window;
+        window.Show();
+        window.Activate();
     }
 
     public void ShowSettings()

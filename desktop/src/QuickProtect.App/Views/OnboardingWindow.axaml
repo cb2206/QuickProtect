@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        x:Class="QuickProtect.App.Views.OnboardingWindow"
+        x:DataType="vm:OnboardingViewModel"
+        Title="QuickProtect"
+        Width="640" Height="520"
+        Background="{StaticResource AuroraBackgroundBrush}"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+  <Grid RowDefinitions="*,Auto" Margin="32,28">
+
+    <StackPanel Grid.Row="0" Spacing="14">
+
+      <TextBlock Text="QuickProtect" FontSize="26" FontWeight="Bold" Foreground="White" />
+      <TextBlock Text="Live UniFi Protect feeds, one click from your tray."
+                 Foreground="#99FFFFFF" FontSize="13" />
+
+      <!-- Step 1: Connect -->
+      <StackPanel Spacing="10" IsVisible="{Binding IsStep1}">
+        <TextBlock Text="Step 1 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
+        <TextBlock Text="Connect your controller" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="Enter your UniFi Protect controller's local IP and an API key from its settings."
+                   Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
+        <TextBlock Text="IP address or hostname" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding IpAddress}" Watermark="192.168.1.1" />
+        <TextBlock Text="Integration API key" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
+        <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" />
+      </StackPanel>
+
+      <!-- Step 2: PTZ -->
+      <StackPanel Spacing="10" IsVisible="{Binding IsStep2}">
+        <TextBlock Text="Step 2 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
+        <TextBlock Text="PTZ control (optional)" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings."
+                   Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
+        <TextBlock Text="Username" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding Username}" />
+        <TextBlock Text="Password" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding Password}" PasswordChar="•" />
+      </StackPanel>
+
+      <!-- Step 3: All set -->
+      <StackPanel Spacing="10" IsVisible="{Binding IsStep3}">
+        <TextBlock Text="Step 3 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
+        <TextBlock Text="You're all set." FontSize="18" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="Click the aperture icon in your tray to open the camera grid, or press your global shortcut."
+                   Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
+        <TextBlock Text="{Binding CameraCount, StringFormat='{}{0} cameras detected.'}"
+                   Foreground="#CCFFFFFF" />
+        <CheckBox Content="Start QuickProtect at login" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+      </StackPanel>
+
+      <TextBlock Text="{Binding StatusMessage}" Foreground="#CCFFFFFF" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <!-- Nav -->
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,16,0,0">
+      <Button Grid.Column="0" Content="Back" Command="{Binding BackCommand}"
+              IsVisible="{Binding CanGoBack}" />
+      <Button Grid.Column="2" Content="Skip" Command="{Binding SkipCommand}"
+              Background="Transparent" Foreground="#99FFFFFF" BorderThickness="0" Margin="0,0,8,0" />
+      <Button Grid.Column="3" Content="{Binding ContinueLabel}" Command="{Binding ContinueCommand}"
+              Classes="accent" />
+    </Grid>
+  </Grid>
+</Window>
