@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using QuickProtect.App.Platform;
+using QuickProtect.App.Services;
 using QuickProtect.App.ViewModels;
 using QuickProtect.App.Views;
 using QuickProtect.Core.Services;
@@ -17,6 +18,7 @@ public partial class App : Application
     public AppSettings Settings { get; private set; } = null!;
     public ProtectService Service { get; private set; } = null!;
     public CertificateTrust Trust { get; private set; } = null!;
+    public PinnedWindowManager PinnedWindows { get; private set; } = null!;
 
     private TrayIcon? _tray;
     private MainWindow? _mainWindow;
@@ -35,6 +37,7 @@ public partial class App : Application
         Service = new ProtectService(Settings, Trust);
         Service.CertificateChanged += (_, message) =>
             Dispatcher.UIThread.Post(() => Service_ShowError(message));
+        PinnedWindows = new PinnedWindowManager(Service, Settings);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -133,6 +136,7 @@ public partial class App : Application
     private void OnExit()
     {
         // Release server-side stream allocations before the process dies.
+        PinnedWindows.CloseAll();
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();
         Service.Dispose();

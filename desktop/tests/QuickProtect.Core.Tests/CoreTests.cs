@@ -112,6 +112,34 @@ public class PtzMappingTests
     }
 }
 
+public class PinnedWindowGeometryTests
+{
+    [Fact]
+    public void DefaultSize_scales_width_to_aspect_ratio()
+    {
+        var s = PinnedWindowGeometry.DefaultSize(16.0 / 9.0, targetWidth: 360);
+        Assert.Equal(360, s.Width);
+        Assert.Equal(Math.Round(360 / (16.0 / 9.0)), s.Height); // 203
+    }
+
+    [Fact]
+    public void DefaultSize_clamps_width_and_falls_back_for_bad_aspect()
+    {
+        Assert.Equal(PinnedWindowGeometry.MinWidth, PinnedWindowGeometry.DefaultSize(1.0, targetWidth: 10).Width);
+        Assert.Equal(PinnedWindowGeometry.MaxWidth, PinnedWindowGeometry.DefaultSize(1.0, targetWidth: 9999).Width);
+        var fb = PinnedWindowGeometry.DefaultSize(0); // non-positive aspect → 16:9 fallback
+        Assert.Equal(Math.Round(fb.Width / PinnedWindowGeometry.FallbackAspect), fb.Height);
+    }
+
+    [Fact]
+    public void Constrain_drives_height_from_width()
+    {
+        var s = PinnedWindowGeometry.Constrain(800, 2.0);
+        Assert.Equal(800, s.Width);
+        Assert.Equal(400, s.Height);
+    }
+}
+
 public class CertificateTrustTests
 {
     private static CertificateTrust New() => new(new InMemoryPreferences());

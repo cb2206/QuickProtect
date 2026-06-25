@@ -101,8 +101,13 @@
               <TextBlock Text="PTZ · ARROW KEYS" Foreground="#CCFFFFFF" FontSize="9" />
             </Border>
           </StackPanel>
-          <Button Grid.Column="2" Content="⤢ Fullscreen (F)" Click="Focus_ToggleFullscreen"
-                  Background="Transparent" Foreground="White" BorderThickness="0" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+            <Button Content="📌 Pin" Click="Focus_Pin"
+                    Background="Transparent" Foreground="White" BorderThickness="0"
+                    ToolTip.Tip="Pin as an always-on-top window" />
+            <Button Content="⤢ Fullscreen (F)" Click="Focus_ToggleFullscreen"
+                    Background="Transparent" Foreground="White" BorderThickness="0" />
+          </StackPanel>
         </Grid>
       </Border>
 

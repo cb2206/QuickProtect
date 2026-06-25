@@ -27,11 +27,18 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     private string? _activeQuality;
     private bool _starting;
+    private readonly bool _pinned;
 
-    public CameraTileViewModel(Camera camera, ProtectService service, AppSettings settings)
+    /// <param name="pinned">
+    /// When true the tile drives a pinned floating window: it uses the pinned
+    /// server-side allocation lifecycle (created/released independently of the
+    /// popover's streams) and always streams at high quality.
+    /// </param>
+    public CameraTileViewModel(Camera camera, ProtectService service, AppSettings settings, bool pinned = false)
     {
         _service = service;
         _settings = settings;
+        _pinned = pinned;
         Camera = camera;
         _name = camera.Name;
         _isOnline = camera.IsOnline;
@@ -74,11 +81,14 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         try
         {
             var gridIsLarge = _settings.SizeFor(Camera.Id) == AppSettings.CameraSize.Large;
+            // Pinned and focused views both run at high quality.
             var quality = _settings.EffectiveStreamQuality(Camera.Id)
-                .Resolve(focused: IsFocused, gridIsLarge: gridIsLarge)
+                .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
                 .ApiValue();
 
-            var result = await _service.CreateRtspStreamUrlAsync(Camera, quality);
+            var result = _pinned
+                ? await _service.CreatePinnedStreamUrlAsync(Camera, quality)
+                : await _service.CreateRtspStreamUrlAsync(Camera, quality);
             if (result is not { } r) { IsLoading = false; return; }
             _activeQuality = r.quality;
 
@@ -98,7 +108,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         if (Player.IsPlaying) Player.Stop();
         if (_activeQuality is { } q)
         {
-            _service.ReleaseStream(Camera.Id, q);
+            if (_pinned) _service.ReleasePinnedStream(Camera.Id, q);
+            else _service.ReleaseStream(Camera.Id, q);
             _activeQuality = null;
         }
         IsPlaying = false;

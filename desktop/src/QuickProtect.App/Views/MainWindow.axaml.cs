@@ -48,6 +48,11 @@ public partial class MainWindow : Window
 
     private void Focus_ToggleFullscreen(object? sender, RoutedEventArgs e) => ToggleFullscreen();
 
+    private void Focus_Pin(object? sender, RoutedEventArgs e)
+    {
+        if (Vm?.FocusTile is { } ft) App.Instance.PinnedWindows.Pin(ft.Camera);
+    }
+
     private void ToggleFullscreen()
         => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
 

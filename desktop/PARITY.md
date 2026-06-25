@@ -25,6 +25,11 @@ Ordered roughly by user value and implementation dependency.
   (arrows pan/tilt, I/O zoom). Direction→axis mapping is in Core (`PtzMapping`,
   unit-tested) and matches the macOS sign conventions. Controls are docked
   outside the video region because the native `VideoView` can't be overlaid.
+- **Pinned always-on-top windows** — pin from the focus bar; each pinned window
+  is borderless, top-most, draggable, independently streamed (pinned allocation),
+  with frame persistence and restore-on-launch. Sizing math is in Core
+  (`PinnedWindowGeometry`, unit-tested). `PinnedWindowManager` mirrors the macOS
+  manager. (Aspect-lock-on-resize is still a follow-up — resize is currently free.)
 
 ## ⏳ Next (high value)
 
@@ -34,7 +39,7 @@ Ordered roughly by user value and implementation dependency.
 | Snapshots (S key) | `AppSettings.snapshot*` | grab a frame from the `MediaPlayer`, clipboard or folder |
 | Fit / fill toggle | `cameraFillMode` | `MediaPlayer` aspect / crop in focus |
 | Audio mute (M key) | `AudioRenderer` | `MediaPlayer.Mute`; needs audio-track detection |
-| Pinned floating windows | `PinnedCameraWindow`, `PinnedWindowManager` | always-on-top `Window` (`Topmost=true`); state model is ported |
+| Pinned-window aspect lock | `PinnedWindowGeometry.constrain` | constrain resize to the camera aspect (helper ported; not wired to resize yet) |
 
 ## ⏳ Later
 
