@@ -24,6 +24,7 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private SettingsWindow? _settingsWindow;
     private OnboardingWindow? _onboardingWindow;
+    private IGlobalHotkey? _hotkey;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -49,6 +50,14 @@ public partial class App : Application
         }
 
         SetupTray();
+
+        // Global hotkey toggles the panel; re-applied whenever the binding changes.
+        _hotkey = GlobalHotkeyFactory.Create(ToggleMainWindow);
+        ApplyHotkey();
+        Settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == "GlobalHotkey") Dispatcher.UIThread.Post(ApplyHotkey);
+        };
 
         // Kick off an initial fetch when credentials already exist.
         if (!string.IsNullOrEmpty(Settings.IpAddress) && !string.IsNullOrEmpty(Settings.ApiKey))
@@ -137,6 +146,12 @@ public partial class App : Application
         _settingsWindow.Activate();
     }
 
+    private void ApplyHotkey()
+    {
+        var hk = Settings.GlobalHotkey();
+        _hotkey?.Update(hk?.keyCode, hk?.modifiers);
+    }
+
     private void Service_ShowError(string message)
     {
         // Lightweight surface for now; a styled alert is a follow-up.
@@ -152,6 +167,7 @@ public partial class App : Application
     private void OnExit()
     {
         // Release server-side stream allocations before the process dies.
+        _hotkey?.Dispose();
         PinnedWindows.CloseAll();
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();

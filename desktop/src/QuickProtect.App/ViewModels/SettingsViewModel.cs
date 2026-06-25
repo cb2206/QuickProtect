@@ -1,5 +1,7 @@
+using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using QuickProtect.App.Platform;
 using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
@@ -25,6 +27,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int _defaultQualityIndex;
     [ObservableProperty] private string _statusMessage = "";
     [ObservableProperty] private bool _hasPendingCert;
+    [ObservableProperty] private string _hotkeyDisplay = "Not set";
+    [ObservableProperty] private bool _isRecordingHotkey;
 
     public string[] QualityOptions { get; } = { "Auto", "High", "Medium", "Low" };
 
@@ -45,6 +49,46 @@ public sealed partial class SettingsViewModel : ObservableObject
         _launchAtLogin = settings.LaunchAtLogin;
         _defaultQualityIndex = (int)settings.DefaultStreamQuality;
         RefreshCertState();
+        RefreshHotkey();
+    }
+
+    // MARK: - Global hotkey capture
+
+    private void RefreshHotkey()
+    {
+        var hk = _settings.GlobalHotkey();
+        HotkeyDisplay = HotkeyCodec.Display(hk?.keyCode, hk?.modifiers);
+    }
+
+    [RelayCommand]
+    private void RecordHotkey()
+    {
+        IsRecordingHotkey = true;
+        HotkeyDisplay = "Press a key combination…";
+    }
+
+    [RelayCommand]
+    private void ClearHotkey()
+    {
+        _settings.ClearGlobalHotkey();
+        IsRecordingHotkey = false;
+        RefreshHotkey();
+    }
+
+    /// <summary>Called by the window while recording; stores the captured combo.</summary>
+    public void CaptureHotkey(Key key, KeyModifiers modifiers)
+    {
+        if (!IsRecordingHotkey) return;
+        if (HotkeyCodec.IsModifierKey(key)) return; // wait for a non-modifier key
+        if (key == Key.Escape) { IsRecordingHotkey = false; RefreshHotkey(); return; }
+        if (HotkeyCodec.VirtualKey(key) is not { } vk)
+        {
+            StatusMessage = "Unsupported key — use a letter, number, or function key.";
+            return;
+        }
+        _settings.SetGlobalHotkey(vk, HotkeyCodec.Modifiers(modifiers));
+        IsRecordingHotkey = false;
+        RefreshHotkey();
     }
 
     partial void OnDefaultQualityIndexChanged(int value)

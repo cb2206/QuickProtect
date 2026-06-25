@@ -54,6 +54,19 @@
 
           <CheckBox Content="Start QuickProtect at login" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
 
+          <StackPanel Spacing="4">
+            <TextBlock Text="Global shortcut (toggle camera panel)" Foreground="#CCFFFFFF" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Border Background="#1AFFFFFF" CornerRadius="6" Padding="10,5" MinWidth="160">
+                <TextBlock Text="{Binding HotkeyDisplay}" Foreground="White" VerticalAlignment="Center" />
+              </Border>
+              <Button Content="Record" Command="{Binding RecordHotkeyCommand}" />
+              <Button Content="Clear" Command="{Binding ClearHotkeyCommand}" />
+            </StackPanel>
+            <TextBlock Text="Windows only for now (letter, number, or function key with modifiers)."
+                       Foreground="#80FFFFFF" FontSize="11" />
+          </StackPanel>
+
           <Border Background="#33FF9500" Padding="12,8" CornerRadius="6"
                   IsVisible="{Binding HasPendingCert}">
             <StackPanel Spacing="8">
