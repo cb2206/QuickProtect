@@ -55,6 +55,10 @@ public partial class MainWindow : Window
 
     private void Focus_Snapshot(object? sender, RoutedEventArgs e) => CaptureSnapshot();
 
+    private void Focus_Mute(object? sender, RoutedEventArgs e) => Vm?.FocusTile?.ToggleMute();
+
+    private void Focus_Fill(object? sender, RoutedEventArgs e) => Vm?.FocusTile?.ToggleFill();
+
     private void CaptureSnapshot()
     {
         if (Vm?.FocusTile is not { } ft) return;
@@ -95,6 +99,7 @@ public partial class MainWindow : Window
         if (e.Key == Key.Escape && vm.IsFocusMode) { ExitFocus(); e.Handled = true; return; }
         if (e.Key == Key.F && vm.IsFocusMode) { ToggleFullscreen(); e.Handled = true; return; }
         if (e.Key == Key.S && vm.IsFocusMode) { CaptureSnapshot(); e.Handled = true; return; }
+        if (e.Key == Key.M && vm.IsFocusMode) { vm.FocusTile?.ToggleMute(); e.Handled = true; return; }
 
         if (vm.FocusTile is not { } ft) return;
         if (MapKey(e.Key, ft) is not { } d) return;

@@ -24,6 +24,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isPlaying;
     [ObservableProperty] private bool _isFocused;
+    [ObservableProperty] private bool _isMuted;
+    [ObservableProperty] private bool _fillMode;
 
     private string? _activeQuality;
     private bool _starting;
@@ -42,10 +44,54 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         Camera = camera;
         _name = camera.Name;
         _isOnline = camera.IsOnline;
+        _isMuted = !settings.SpeakerEnabled;
+        _fillMode = settings.CameraFillMode(camera.Id) ?? false;
         Player = new MediaPlayer(VlcManager.Shared.LibVLC) { EnableHardwareDecoding = true };
-        Player.Playing += (_, _) => { IsPlaying = true; IsLoading = false; };
+        Player.Playing += (_, _) =>
+        {
+            IsPlaying = true;
+            IsLoading = false;
+            ApplyMute();
+            ApplyFill();
+        };
         Player.EncounteredError += (_, _) => IsLoading = false;
         Player.Stopped += (_, _) => IsPlaying = false;
+    }
+
+    // MARK: - Audio mute / fit-fill (applied to the player; persisted to settings)
+
+    /// <summary>Toggle audio. Persists the global speaker preference (default muted).</summary>
+    public void ToggleMute()
+    {
+        IsMuted = !IsMuted;
+        _settings.SpeakerEnabled = !IsMuted;
+        ApplyMute();
+    }
+
+    private void ApplyMute() => Player.Mute = IsMuted;
+
+    /// <summary>Toggle fit (letterbox) vs. fill (crop) for the focused frame.</summary>
+    public void ToggleFill()
+    {
+        FillMode = !FillMode;
+        _settings.SetCameraFillMode(FillMode, Camera.Id);
+        ApplyFill();
+    }
+
+    private void ApplyFill()
+    {
+        // Fill crops to the camera's aspect so the frame is filled; fit lets libVLC
+        // letterbox (Scale 0 = auto-fit). Best-effort — tuned on-device.
+        if (FillMode)
+        {
+            var ar = _settings.CachedAspectRatio(Camera.Id);
+            Player.CropGeometry = ar is { } r && r > 0 ? $"{(int)Math.Round(r * 1000)}:1000" : null;
+        }
+        else
+        {
+            Player.CropGeometry = null;
+            Player.Scale = 0;
+        }
     }
 
     public void UpdateFrom(Camera camera)

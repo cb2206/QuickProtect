@@ -102,6 +102,12 @@
             </Border>
           </StackPanel>
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+            <Button Content="◳ Fit/Fill" Click="Focus_Fill"
+                    Background="Transparent" Foreground="White" BorderThickness="0"
+                    ToolTip.Tip="Toggle fit vs. fill" />
+            <Button Content="🔈 Mute (M)" Click="Focus_Mute"
+                    Background="Transparent" Foreground="White" BorderThickness="0"
+                    ToolTip.Tip="Toggle audio" />
             <Button Content="⤓ Snapshot (S)" Click="Focus_Snapshot"
                     Background="Transparent" Foreground="White" BorderThickness="0"
                     ToolTip.Tip="Save a still frame" />

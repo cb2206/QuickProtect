@@ -171,6 +171,38 @@ public sealed class AppSettings : INotifyPropertyChanged
 
     public StreamQuality EffectiveStreamQuality(string id) => StreamQualityFor(id) ?? DefaultStreamQuality;
 
+    // MARK: - Per-camera fill mode (fit vs. fill the focus frame)
+
+    /// <summary>true = fill (crop), false = fit, null = never set (caller defaults to fit).</summary>
+    public bool? CameraFillMode(string id)
+    {
+        var dict = _prefs.GetJson<Dictionary<string, bool>>(Keys.CameraFillModes);
+        return dict != null && dict.TryGetValue(id, out var v) ? v : null;
+    }
+
+    public void SetCameraFillMode(bool fill, string id)
+    {
+        var dict = _prefs.GetJson<Dictionary<string, bool>>(Keys.CameraFillModes) ?? new();
+        dict[id] = fill;
+        _prefs.SetJson(Keys.CameraFillModes, dict);
+    }
+
+    // MARK: - Per-camera secondary-lens picture-in-picture
+
+    /// <summary>Whether the secondary-lens PiP is shown in focus. Defaults to true.</summary>
+    public bool ShowsSecondaryLensPip(string id)
+    {
+        var dict = _prefs.GetJson<Dictionary<string, bool>>(Keys.SecondaryLensPip);
+        return dict != null && dict.TryGetValue(id, out var v) ? v : true;
+    }
+
+    public void SetShowsSecondaryLensPip(bool on, string id)
+    {
+        var dict = _prefs.GetJson<Dictionary<string, bool>>(Keys.SecondaryLensPip) ?? new();
+        dict[id] = on;
+        _prefs.SetJson(Keys.SecondaryLensPip, dict);
+    }
+
     // MARK: - Layout profiles
 
     public const string DefaultProfileId = "default";
@@ -466,6 +498,8 @@ public sealed class AppSettings : INotifyPropertyChanged
         public const string SnapshotFolder = "unifi.snapshotFolder";
         public const string DefaultStreamQuality = "unifi.defaultStreamQuality";
         public const string CameraStreamQualities = "unifi.cameraStreamQualities";
+        public const string CameraFillModes = "unifi.cameraFillModes";
+        public const string SecondaryLensPip = "unifi.secondaryLensPip";
         public const string PinnedCameras = "unifi.pinnedCameras";
     }
 }
