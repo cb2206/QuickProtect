@@ -37,6 +37,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsFocusMode => FocusTile != null;
     public bool IsGridMode => FocusTile == null;
 
+    /// <summary>Transient status line (e.g. "Saved snapshot"), auto-clears.</summary>
+    [ObservableProperty] private string? _statusToast;
+    private int _toastToken;
+
+    public async void ShowToast(string message)
+    {
+        StatusToast = message;
+        var token = ++_toastToken;
+        await Task.Delay(2500);
+        if (token == _toastToken) StatusToast = null;
+    }
+
     public MainViewModel(ProtectService service, AppSettings settings)
     {
         _service = service;

@@ -53,6 +53,15 @@ public partial class MainWindow : Window
         if (Vm?.FocusTile is { } ft) App.Instance.PinnedWindows.Pin(ft.Camera);
     }
 
+    private void Focus_Snapshot(object? sender, RoutedEventArgs e) => CaptureSnapshot();
+
+    private void CaptureSnapshot()
+    {
+        if (Vm?.FocusTile is not { } ft) return;
+        var result = Services.SnapshotService.Capture(ft.Player, ft.Name);
+        Vm.ShowToast(result.Message);
+    }
+
     private void ToggleFullscreen()
         => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
 
@@ -85,6 +94,7 @@ public partial class MainWindow : Window
 
         if (e.Key == Key.Escape && vm.IsFocusMode) { ExitFocus(); e.Handled = true; return; }
         if (e.Key == Key.F && vm.IsFocusMode) { ToggleFullscreen(); e.Handled = true; return; }
+        if (e.Key == Key.S && vm.IsFocusMode) { CaptureSnapshot(); e.Handled = true; return; }
 
         if (vm.FocusTile is not { } ft) return;
         if (MapKey(e.Key, ft) is not { } d) return;

@@ -30,13 +30,17 @@ Ordered roughly by user value and implementation dependency.
   with frame persistence and restore-on-launch. Sizing math is in Core
   (`PinnedWindowGeometry`, unit-tested). `PinnedWindowManager` mirrors the macOS
   manager. (Aspect-lock-on-resize is still a follow-up — resize is currently free.)
+- **Snapshots (S key + button)** — capture a still from the focused stream via
+  libVLC `TakeSnapshot` into the configured folder (or OS Pictures), with a
+  toast. Filename logic is in Core (`SnapshotNaming`, unit-tested). Clipboard
+  image output is still a follow-up.
 
 ## ⏳ Next (high value)
 
 | Feature | macOS source | Notes for the port |
 |---|---|---|
 | True-fullscreen HUD | `AuroraFullscreenHUD` | auto-hiding overlay; today fullscreen is a plain toggle |
-| Snapshots (S key) | `AppSettings.snapshot*` | grab a frame from the `MediaPlayer`, clipboard or folder |
+| Snapshot to clipboard | `AppSettings.snapshotDestination` | image-clipboard is platform-specific in Avalonia; file output works today |
 | Fit / fill toggle | `cameraFillMode` | `MediaPlayer` aspect / crop in focus |
 | Audio mute (M key) | `AudioRenderer` | `MediaPlayer.Mute`; needs audio-track detection |
 | Pinned-window aspect lock | `PinnedWindowGeometry.constrain` | constrain resize to the camera aspect (helper ported; not wired to resize yet) |

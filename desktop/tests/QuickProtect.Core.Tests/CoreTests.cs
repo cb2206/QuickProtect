@@ -140,6 +140,33 @@ public class PinnedWindowGeometryTests
     }
 }
 
+public class SnapshotNamingTests
+{
+    [Fact]
+    public void FileName_is_timestamped_and_sanitized()
+    {
+        // space → '-', '/' → '_' (any non-alphanumeric that isn't space/-/_).
+        var name = SnapshotNaming.FileName("Front Door / Porch", new DateTime(2026, 6, 25, 14, 30, 5));
+        Assert.Equal("QuickProtect_Front-Door-_-Porch_2026-06-25_14-30-05.png", name);
+    }
+
+    [Fact]
+    public void FileName_falls_back_for_empty_name()
+    {
+        var name = SnapshotNaming.FileName("   ", new DateTime(2026, 1, 1, 0, 0, 0));
+        Assert.StartsWith("QuickProtect_Camera_", name);
+        Assert.EndsWith(".png", name);
+    }
+
+    [Fact]
+    public void FileName_has_no_path_separators()
+    {
+        var name = SnapshotNaming.FileName("a/b\\c", new DateTime(2026, 1, 1, 0, 0, 0));
+        Assert.DoesNotContain('/', name[..name.LastIndexOf('.')]);
+        Assert.DoesNotContain('\\', name);
+    }
+}
+
 public class CertificateTrustTests
 {
     private static CertificateTrust New() => new(new InMemoryPreferences());

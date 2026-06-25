@@ -102,6 +102,9 @@
             </Border>
           </StackPanel>
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+            <Button Content="⤓ Snapshot (S)" Click="Focus_Snapshot"
+                    Background="Transparent" Foreground="White" BorderThickness="0"
+                    ToolTip.Tip="Save a still frame" />
             <Button Content="📌 Pin" Click="Focus_Pin"
                     Background="Transparent" Foreground="White" BorderThickness="0"
                     ToolTip.Tip="Pin as an always-on-top window" />
@@ -160,6 +163,13 @@
           <TextBlock Text="Esc back · F fullscreen · arrows pan/tilt · I/O zoom"
                      Foreground="#80FFFFFF" FontSize="11" VerticalAlignment="Center" />
         </StackPanel>
+      </Border>
+
+      <!-- Transient status toast (snapshot result). Docked, never over the video. -->
+      <Border DockPanel.Dock="Bottom" Background="#CC0A84FF" Padding="12,5"
+              HorizontalAlignment="Center" CornerRadius="6" Margin="0,0,0,6"
+              IsVisible="{Binding StatusToast, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding StatusToast}" Foreground="White" FontSize="12" />
       </Border>
 
       <!-- Video fills the remaining center region -->
