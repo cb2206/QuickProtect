@@ -1,0 +1,17 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="QuickProtect.App.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+
+  <Application.Resources>
+    <Color x:Key="AuroraBackground">#FF121212</Color>
+    <Color x:Key="AuroraPanel">#FF1C1C1E</Color>
+    <SolidColorBrush x:Key="AuroraBackgroundBrush" Color="{StaticResource AuroraBackground}" />
+    <SolidColorBrush x:Key="AuroraPanelBrush" Color="{StaticResource AuroraPanel}" />
+  </Application.Resources>
+
+</Application>

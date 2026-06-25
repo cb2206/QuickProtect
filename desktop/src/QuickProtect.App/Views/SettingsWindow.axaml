@@ -1,0 +1,71 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        x:Class="QuickProtect.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="QuickProtect – Settings"
+        Width="560" Height="560"
+        Background="{StaticResource AuroraBackgroundBrush}"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+  <ScrollViewer>
+    <StackPanel Margin="24" Spacing="14">
+
+      <TextBlock Text="Controller Connection" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="IP address or hostname" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding IpAddress}" Watermark="192.168.1.1" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Integration API key" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Default stream quality" Foreground="#CCFFFFFF" />
+        <ComboBox ItemsSource="{Binding QualityOptions}"
+                  SelectedIndex="{Binding DefaultQualityIndex}" HorizontalAlignment="Left" Width="160" />
+      </StackPanel>
+
+      <Separator />
+
+      <TextBlock Text="PTZ Control (optional)" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+      <TextBlock Text="Local-account username and password enable pan/tilt/zoom and zoom-lens controls."
+                 Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Username" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding Username}" />
+      </StackPanel>
+
+      <StackPanel Spacing="4">
+        <TextBlock Text="Password" Foreground="#CCFFFFFF" />
+        <TextBox Text="{Binding Password}" PasswordChar="•" />
+      </StackPanel>
+
+      <Separator />
+
+      <CheckBox Content="Start QuickProtect at login" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+
+      <Border Background="#33FF9500" Padding="12,8" CornerRadius="6"
+              IsVisible="{Binding HasPendingCert}">
+        <StackPanel Spacing="8">
+          <TextBlock Text="The controller's certificate changed since you last connected."
+                     Foreground="White" TextWrapping="Wrap" />
+          <Button Content="Trust New Certificate" Command="{Binding TrustNewCertificateCommand}" />
+        </StackPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" />
+        <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" />
+      </StackPanel>
+
+      <TextBlock Text="{Binding StatusMessage}" Foreground="#CCFFFFFF" TextWrapping="Wrap" />
+
+    </StackPanel>
+  </ScrollViewer>
+</Window>

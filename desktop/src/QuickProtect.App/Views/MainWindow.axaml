@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+        xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        x:Class="QuickProtect.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="QuickProtect"
+        Width="760" Height="520"
+        MinWidth="400" MinHeight="300"
+        Background="{StaticResource AuroraBackgroundBrush}"
+        WindowStartupLocation="CenterScreen">
+
+  <Grid RowDefinitions="Auto,*">
+
+    <!-- Header -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,10">
+      <TextBlock Text="Cameras" FontSize="16" FontWeight="SemiBold" Foreground="White"
+                 VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <ProgressBar IsIndeterminate="True" Width="80" Height="4"
+                     IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
+        <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+      </StackPanel>
+    </Grid>
+
+    <!-- Error banner -->
+    <Border Grid.Row="1" Background="#33FF3B30" Padding="12,8" VerticalAlignment="Top" Margin="14"
+            IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+            ZIndex="10">
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="White" TextWrapping="Wrap" />
+    </Border>
+
+    <!-- Empty state -->
+    <TextBlock Grid.Row="1" Text="No cameras yet. Open Settings to connect your controller."
+               Foreground="#99FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"
+               IsVisible="{Binding !HasCameras}" />
+
+    <!-- Camera grid -->
+    <ScrollViewer Grid.Row="1" IsVisible="{Binding HasCameras}">
+      <ItemsControl ItemsSource="{Binding Tiles}" Margin="10">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:CameraTileViewModel">
+            <Border Width="240" Height="150" Margin="6" CornerRadius="8"
+                    Background="Black" ClipToBounds="True">
+              <Grid>
+                <vlc:VideoView MediaPlayer="{Binding Player}" />
+
+                <!-- Loading / offline overlay -->
+                <ProgressBar IsIndeterminate="True" Width="60" Height="4"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsVisible="{Binding IsLoading}" />
+                <TextBlock Text="Offline" Foreground="#99FFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding !IsOnline}" />
+
+                <!-- Name label -->
+                <Border VerticalAlignment="Bottom" Background="#88000000" Padding="8,4">
+                  <TextBlock Text="{Binding Name}" Foreground="White" FontSize="12" />
+                </Border>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</Window>
