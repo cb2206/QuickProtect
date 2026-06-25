@@ -26,6 +26,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isFocused;
     [ObservableProperty] private bool _isMuted;
     [ObservableProperty] private bool _fillMode;
+    [ObservableProperty] private double _tileWidth;
+    [ObservableProperty] private double _tileHeight;
 
     private string? _activeQuality;
     private bool _starting;
@@ -46,6 +48,15 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         _isOnline = camera.IsOnline;
         _isMuted = !settings.SpeakerEnabled;
         _fillMode = settings.CameraFillMode(camera.Id) ?? false;
+        // Grid tile size from the active profile (small/medium/large).
+        var baseWidth = settings.SizeFor(camera.Id) switch
+        {
+            AppSettings.CameraSize.Small => 180.0,
+            AppSettings.CameraSize.Large => 380.0,
+            _ => 240.0
+        };
+        _tileWidth = baseWidth;
+        _tileHeight = Math.Round(baseWidth * 0.66);
         Player = new MediaPlayer(VlcManager.Shared.LibVLC) { EnableHardwareDecoding = true };
         Player.Playing += (_, _) =>
         {

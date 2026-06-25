@@ -50,7 +50,7 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:CameraTileViewModel">
-              <Border Width="240" Height="168" Margin="6" CornerRadius="8"
+              <Border Width="{Binding TileWidth}" Height="{Binding TileHeight}" Margin="6" CornerRadius="8"
                       Background="Black" ClipToBounds="True">
                 <DockPanel>
                   <!-- Footer: click to focus -->

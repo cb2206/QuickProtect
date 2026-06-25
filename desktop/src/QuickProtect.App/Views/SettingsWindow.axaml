@@ -4,68 +4,123 @@
         x:Class="QuickProtect.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="QuickProtect – Settings"
-        Width="560" Height="560"
+        Width="620" Height="640"
         Background="{StaticResource AuroraBackgroundBrush}"
         WindowStartupLocation="CenterScreen"
-        CanResize="False">
+        CanResize="True" MinWidth="520" MinHeight="500">
 
-  <ScrollViewer>
-    <StackPanel Margin="24" Spacing="14">
+  <TabControl Margin="8">
 
-      <TextBlock Text="Controller Connection" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+    <!-- ============ CONNECTION ============ -->
+    <TabItem Header="Connection">
+      <ScrollViewer>
+        <StackPanel Margin="16" Spacing="14">
 
-      <StackPanel Spacing="4">
-        <TextBlock Text="IP address or hostname" Foreground="#CCFFFFFF" />
-        <TextBox Text="{Binding IpAddress}" Watermark="192.168.1.1" />
-      </StackPanel>
+          <TextBlock Text="Controller Connection" FontSize="18" FontWeight="SemiBold" Foreground="White" />
 
-      <StackPanel Spacing="4">
-        <TextBlock Text="Integration API key" Foreground="#CCFFFFFF" />
-        <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
-      </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="IP address or hostname" Foreground="#CCFFFFFF" />
+            <TextBox Text="{Binding IpAddress}" Watermark="192.168.1.1" />
+          </StackPanel>
 
-      <StackPanel Spacing="4">
-        <TextBlock Text="Default stream quality" Foreground="#CCFFFFFF" />
-        <ComboBox ItemsSource="{Binding QualityOptions}"
-                  SelectedIndex="{Binding DefaultQualityIndex}" HorizontalAlignment="Left" Width="160" />
-      </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Integration API key" Foreground="#CCFFFFFF" />
+            <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
+          </StackPanel>
 
-      <Separator />
+          <StackPanel Spacing="4">
+            <TextBlock Text="Default stream quality" Foreground="#CCFFFFFF" />
+            <ComboBox ItemsSource="{Binding QualityOptions}"
+                      SelectedIndex="{Binding DefaultQualityIndex}" HorizontalAlignment="Left" Width="160" />
+          </StackPanel>
 
-      <TextBlock Text="PTZ Control (optional)" FontSize="16" FontWeight="SemiBold" Foreground="White" />
-      <TextBlock Text="Local-account username and password enable pan/tilt/zoom and zoom-lens controls."
-                 Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
+          <Separator />
 
-      <StackPanel Spacing="4">
-        <TextBlock Text="Username" Foreground="#CCFFFFFF" />
-        <TextBox Text="{Binding Username}" />
-      </StackPanel>
+          <TextBlock Text="PTZ Control (optional)" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <TextBlock Text="Local-account username and password enable pan/tilt/zoom and zoom-lens controls."
+                     Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
 
-      <StackPanel Spacing="4">
-        <TextBlock Text="Password" Foreground="#CCFFFFFF" />
-        <TextBox Text="{Binding Password}" PasswordChar="•" />
-      </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Username" Foreground="#CCFFFFFF" />
+            <TextBox Text="{Binding Username}" />
+          </StackPanel>
 
-      <Separator />
+          <StackPanel Spacing="4">
+            <TextBlock Text="Password" Foreground="#CCFFFFFF" />
+            <TextBox Text="{Binding Password}" PasswordChar="•" />
+          </StackPanel>
 
-      <CheckBox Content="Start QuickProtect at login" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+          <Separator />
 
-      <Border Background="#33FF9500" Padding="12,8" CornerRadius="6"
-              IsVisible="{Binding HasPendingCert}">
-        <StackPanel Spacing="8">
-          <TextBlock Text="The controller's certificate changed since you last connected."
-                     Foreground="White" TextWrapping="Wrap" />
-          <Button Content="Trust New Certificate" Command="{Binding TrustNewCertificateCommand}" />
+          <CheckBox Content="Start QuickProtect at login" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+
+          <Border Background="#33FF9500" Padding="12,8" CornerRadius="6"
+                  IsVisible="{Binding HasPendingCert}">
+            <StackPanel Spacing="8">
+              <TextBlock Text="The controller's certificate changed since you last connected."
+                         Foreground="White" TextWrapping="Wrap" />
+              <Button Content="Trust New Certificate" Command="{Binding TrustNewCertificateCommand}" />
+            </StackPanel>
+          </Border>
+
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" />
+            <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" />
+          </StackPanel>
+
+          <TextBlock Text="{Binding StatusMessage}" Foreground="#CCFFFFFF" TextWrapping="Wrap" />
+
         </StackPanel>
-      </Border>
+      </ScrollViewer>
+    </TabItem>
 
-      <StackPanel Orientation="Horizontal" Spacing="10">
-        <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" />
-        <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" />
-      </StackPanel>
+    <!-- ============ CAMERAS & LAYOUT ============ -->
+    <TabItem Header="Cameras &amp; Layout" DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel">
+      <DockPanel Margin="16">
 
-      <TextBlock Text="{Binding StatusMessage}" Foreground="#CCFFFFFF" TextWrapping="Wrap" />
+        <!-- Profile switcher -->
+        <StackPanel DockPanel.Dock="Top" Spacing="8">
+          <TextBlock Text="Layout profile" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ComboBox ItemsSource="{Binding ProfileNames}" SelectedIndex="{Binding SelectedProfileIndex}"
+                      MinWidth="180" />
+            <Button Content="Delete" Command="{Binding DeleteProfileCommand}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox Text="{Binding NewProfileName}" Watermark="New profile name" Width="200" />
+            <Button Content="Create" Command="{Binding CreateProfileCommand}" />
+            <Button Content="Rename" Command="{Binding RenameProfileCommand}" />
+          </StackPanel>
+          <Separator />
+          <TextBlock Text="Cameras" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <TextBlock Text="Toggle visibility, set tile size, and reorder. Applies to this profile."
+                     Foreground="#99FFFFFF" FontSize="12" />
+        </StackPanel>
 
-    </StackPanel>
-  </ScrollViewer>
+        <!-- Camera rows -->
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding Rows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:CameraRowViewModel">
+                <Border Background="#1AFFFFFF" CornerRadius="6" Padding="10,6" Margin="0,3">
+                  <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                    <CheckBox Grid.Column="0" IsChecked="{Binding IsVisible}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="White"
+                               VerticalAlignment="Center" Margin="6,0" />
+                    <ComboBox Grid.Column="2" ItemsSource="{Binding SizeOptions}"
+                              SelectedIndex="{Binding SizeIndex}" Width="110" Margin="0,0,8,0" />
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
+                      <Button Content="▲" Command="{Binding MoveUpCommand}" Padding="8,2" />
+                      <Button Content="▼" Command="{Binding MoveDownCommand}" Padding="8,2" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+    </TabItem>
+
+  </TabControl>
 </Window>

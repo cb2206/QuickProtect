@@ -28,11 +28,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public string[] QualityOptions { get; } = { "Auto", "High", "Medium", "Low" };
 
+    /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
+    public LayoutViewModel Layout { get; }
+
     public SettingsViewModel(ProtectService service, AppSettings settings, CertificateTrust trust)
     {
         _service = service;
         _settings = settings;
         _trust = trust;
+        Layout = new LayoutViewModel(service, settings);
 
         _ipAddress = settings.IpAddress;
         _apiKey = settings.ApiKey;
