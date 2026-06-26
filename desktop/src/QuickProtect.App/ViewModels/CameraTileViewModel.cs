@@ -32,6 +32,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _tileHeight;
     /// <summary>True when libVLC couldn't initialize, so the tile shows a notice instead of video.</summary>
     [ObservableProperty] private bool _videoUnavailable;
+    /// <summary>False when filtered out by the header search box.</summary>
+    [ObservableProperty] private bool _matchesSearch = true;
 
     private string? _activeQuality;
     private bool _starting;

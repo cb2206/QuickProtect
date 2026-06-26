@@ -24,6 +24,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? _errorMessage;
     [ObservableProperty] private bool _hasCameras;
 
+    /// <summary>Header search box; filters visible tiles by camera name.</summary>
+    [ObservableProperty] private string _searchQuery = "";
+
+    /// <summary>Live count of online, visible cameras (header status pill).</summary>
+    [ObservableProperty] private int _streamCount;
+
+    // In-panel layout-profile switcher (mirrors the macOS popover header menu).
+    public ObservableCollection<string> ProfileNames { get; } = new();
+    [ObservableProperty] private int _selectedProfileIndex;
+    private IReadOnlyList<AppSettings.LayoutProfile> _profiles = Array.Empty<AppSettings.LayoutProfile>();
+    private bool _suppressProfileSwitch;
+
     /// <summary>
     /// The camera shown enlarged in focus mode, or null for the grid. Focus uses
     /// a dedicated tile (its own high-quality stream + player) so it never shares
@@ -61,7 +73,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _service = service;
         _settings = settings;
         _service.PropertyChanged += OnServiceChanged;
+        RebuildProfiles();
         RebuildTiles();
+    }
+
+    private void RebuildProfiles()
+    {
+        _profiles = _settings.Profiles();
+        _suppressProfileSwitch = true;
+        ProfileNames.Clear();
+        foreach (var p in _profiles) ProfileNames.Add(p.Name);
+        var idx = _profiles.ToList().FindIndex(p => p.Id == _settings.ActiveProfileId);
+        SelectedProfileIndex = idx < 0 ? 0 : idx;
+        _suppressProfileSwitch = false;
+    }
+
+    partial void OnSelectedProfileIndexChanged(int value)
+    {
+        if (_suppressProfileSwitch || value < 0 || value >= _profiles.Count) return;
+        _settings.SwitchProfile(_profiles[value].Id);
+        RebuildTiles();
+    }
+
+    partial void OnSearchQueryChanged(string value)
+    {
+        var q = value.Trim();
+        foreach (var tile in Tiles)
+            tile.MatchesSearch = q.Length == 0
+                || tile.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
     }
 
     private void OnServiceChanged(object? sender, PropertyChangedEventArgs e)
@@ -108,6 +147,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         }
         HasCameras = Tiles.Count > 0;
+        StreamCount = Tiles.Count(t => t.IsOnline);
+        OnSearchQueryChanged(SearchQuery); // re-apply filter to any new tiles
     }
 
     [RelayCommand]

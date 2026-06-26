@@ -17,14 +17,26 @@
     <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsGridMode}">
 
       <!-- Header -->
-      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,10">
-        <TextBlock Text="Cameras" FontSize="16" FontWeight="SemiBold" Foreground="White"
-                   VerticalAlignment="Center" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-          <ProgressBar IsIndeterminate="True" Width="80" Height="4"
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="14,10" >
+        <TextBlock Grid.Column="0" Text="QuickProtect" FontSize="15" FontWeight="SemiBold" Foreground="White"
+                   VerticalAlignment="Center" Margin="0,0,8,0" />
+        <!-- Status pill: online stream count -->
+        <Border Grid.Column="1" Background="#2630D158" CornerRadius="9" Padding="8,3" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <Ellipse Width="6" Height="6" Fill="#30D158" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding StreamCount, StringFormat='{}{0} streams'}" Foreground="#9FE7B0" FontSize="11" />
+          </StackPanel>
+        </Border>
+        <!-- Layout-profile switcher -->
+        <ComboBox Grid.Column="2" ItemsSource="{Binding ProfileNames}" SelectedIndex="{Binding SelectedProfileIndex}"
+                  MinWidth="120" Margin="8,0,0,0" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <ProgressBar IsIndeterminate="True" Width="60" Height="4"
                        IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
-          <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+          <TextBox Text="{Binding SearchQuery}" Watermark="Search" Width="130" />
         </StackPanel>
+        <Button Grid.Column="5" Content="Refresh" Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
       </Grid>
 
       <!-- Error banner -->
@@ -52,7 +64,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:CameraTileViewModel">
               <Border Width="{Binding TileWidth}" Height="{Binding TileHeight}" Margin="6" CornerRadius="8"
-                      Background="Black" ClipToBounds="True">
+                      Background="Black" ClipToBounds="True" IsVisible="{Binding MatchesSearch}">
                 <DockPanel>
                   <!-- Footer: click to focus -->
                   <Button DockPanel.Dock="Bottom" Click="Tile_Focus"
