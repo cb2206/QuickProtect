@@ -25,13 +25,9 @@ public sealed class VlcManager : IDisposable
         try
         {
             // --no-osd: no on-screen libVLC overlays. Verbose off to keep logs quiet.
-            var options = new List<string> { "--no-osd", "--no-video-title-show" };
-            // On macOS we load libVLC from a system VLC.app; point it at the plugins.
-            var macPlugins = "/Applications/VLC.app/Contents/MacOS/plugins";
-            if (OperatingSystem.IsMacOS() && Directory.Exists(macPlugins))
-                options.Add($"--plugin-path={macPlugins}");
-
-            LibVLC = new LibVLC(options.ToArray());
+            // (On macOS the plugin location comes from VLC_PLUGIN_PATH, set in Program.cs —
+            // libVLC 3 dropped the --plugin-path option.)
+            LibVLC = new LibVLC("--no-osd", "--no-video-title-show");
         }
         catch (Exception ex)
         {
