@@ -32,6 +32,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _isRecordingHotkey;
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
+    [ObservableProperty] private bool _showFocusOverlayControls;
+    [ObservableProperty] private int _snapshotDestinationIndex; // 0 clipboard, 1 folder
+    [ObservableProperty] private string _snapshotFolderDisplay = "";
+
+    public string[] SnapshotDestinations { get; } =
+        { Localization.Loc.Get("Clipboard"), Localization.Loc.Get("Folder") };
+
+    /// <summary>Set by the window so the folder picker can use its StorageProvider.</summary>
+    public Func<Task<string?>>? PickFolderAsync { get; set; }
 
     public string[] QualityOptions { get; } =
     {
@@ -82,8 +91,26 @@ public sealed partial class SettingsViewModel : ObservableObject
         _launchAtLogin = settings.LaunchAtLogin;
         _defaultQualityIndex = (int)settings.DefaultStreamQuality;
         _languageIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.LanguageOverride));
+        _showFocusOverlayControls = settings.ShowFocusOverlayControls;
+        _snapshotDestinationIndex = (int)settings.SnapshotDest;
+        _snapshotFolderDisplay = settings.SnapshotFolder ?? "";
         RefreshCertState();
         RefreshHotkey();
+    }
+
+    partial void OnShowFocusOverlayControlsChanged(bool value) => _settings.ShowFocusOverlayControls = value;
+
+    partial void OnSnapshotDestinationIndexChanged(int value)
+        => _settings.SnapshotDest = (AppSettings.SnapshotDestination)Math.Clamp(value, 0, 1);
+
+    [RelayCommand]
+    private async Task ChooseSnapshotFolder()
+    {
+        if (PickFolderAsync is null) return;
+        var picked = await PickFolderAsync();
+        if (string.IsNullOrEmpty(picked)) return;
+        _settings.SnapshotFolder = picked;
+        SnapshotFolderDisplay = picked;
     }
 
     // MARK: - Global hotkey capture

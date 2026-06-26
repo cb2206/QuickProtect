@@ -60,6 +60,22 @@
           <Separator />
 
           <CheckBox Content="{loc:Loc 'Launch at login'}" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+          <CheckBox Content="Show focus-view controls (PTZ pad &amp; shortcut hints)"
+                    IsChecked="{Binding ShowFocusOverlayControls}" Foreground="White" />
+
+          <Separator />
+
+          <TextBlock Text="Snapshots" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <StackPanel Spacing="4">
+            <TextBlock Text="Save snapshots to" Foreground="#CCFFFFFF" />
+            <ComboBox ItemsSource="{Binding SnapshotDestinations}"
+                      SelectedIndex="{Binding SnapshotDestinationIndex}" HorizontalAlignment="Left" Width="160" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Choose Folder…" Command="{Binding ChooseSnapshotFolderCommand}" />
+            <TextBlock Text="{Binding SnapshotFolderDisplay}" Foreground="#99FFFFFF"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+          </StackPanel>
 
           <StackPanel Spacing="4">
             <TextBlock Text="Global shortcut (toggle camera panel)" Foreground="#CCFFFFFF" />

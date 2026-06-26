@@ -140,6 +140,7 @@
       <!-- Bottom control bar: PTZ d-pad + zoom (only for capable cameras). Placed
            outside the video region so the native VideoView never covers it. -->
       <Border DockPanel.Dock="Bottom" Background="#E6141416" Padding="0,10"
+              IsVisible="{Binding ((vm:MainViewModel)DataContext).ShowFocusControls, RelativeSource={RelativeSource AncestorType=Window}}"
               DataContext="{Binding FocusTile}" x:DataType="vm:CameraTileViewModel">
         <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Center">
 

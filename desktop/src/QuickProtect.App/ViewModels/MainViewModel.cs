@@ -49,6 +49,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsFocusMode => FocusTile != null;
     public bool IsGridMode => FocusTile == null;
 
+    /// <summary>Whether the focus view shows the on-screen PTZ pad and shortcut hints.</summary>
+    public bool ShowFocusControls => _settings.ShowFocusOverlayControls;
+
     /// <summary>Secondary-lens PiP (e.g. doorbell package camera) shown in focus, or null.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSecondary))]
