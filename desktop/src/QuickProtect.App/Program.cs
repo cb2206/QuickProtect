@@ -11,9 +11,22 @@ internal static class Program
     public static void Main(string[] args)
     {
         // Load the native libVLC libraries once, before any LibVLC object is created.
-        // On Windows these ship via the VideoLAN.LibVLC.Windows package; on Linux
-        // they come from the system 'vlc' package.
-        try { LibVLCSharp.Shared.Core.Initialize(); }
+        // Windows ships them via NuGet; Linux uses the system 'vlc' package; on macOS
+        // (where there's no arm64 libVLC NuGet) prefer a system VLC.app install.
+        try
+        {
+            var macVlcLib = "/Applications/VLC.app/Contents/MacOS/lib";
+            if (OperatingSystem.IsMacOS() && Directory.Exists(macVlcLib))
+            {
+                Environment.SetEnvironmentVariable("VLC_PLUGIN_PATH",
+                    "/Applications/VLC.app/Contents/MacOS/plugins");
+                LibVLCSharp.Shared.Core.Initialize(macVlcLib);
+            }
+            else
+            {
+                LibVLCSharp.Shared.Core.Initialize();
+            }
+        }
         catch (Exception ex) { Console.Error.WriteLine($"[libVLC] init failed: {ex.Message}"); }
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

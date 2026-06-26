@@ -6,3 +6,6 @@ obj/
 # Rider / VS
 .idea/
 .vs/
+
+# Published app bundles / artifacts
+publish/

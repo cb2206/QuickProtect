@@ -16,8 +16,10 @@ public static class SnapshotService
 {
     public sealed record Result(bool Ok, string? Path, string Message);
 
-    public static Result Capture(MediaPlayer player, string cameraName)
+    public static Result Capture(MediaPlayer? player, string cameraName)
     {
+        if (player == null)
+            return new Result(false, null, "Video is unavailable.");
         if (!player.IsPlaying)
             return new Result(false, null, "Camera isn't playing yet.");
 

@@ -17,7 +17,9 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     private readonly AppSettings _settings;
 
     public Camera Camera { get; private set; }
-    public MediaPlayer Player { get; }
+
+    /// <summary>The video player, or null when libVLC is unavailable (video disabled).</summary>
+    public MediaPlayer? Player { get; }
 
     [ObservableProperty] private string _name;
     [ObservableProperty] private bool _isOnline;
@@ -28,6 +30,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _fillMode;
     [ObservableProperty] private double _tileWidth;
     [ObservableProperty] private double _tileHeight;
+    /// <summary>True when libVLC couldn't initialize, so the tile shows a notice instead of video.</summary>
+    [ObservableProperty] private bool _videoUnavailable;
 
     private string? _activeQuality;
     private bool _starting;
@@ -64,16 +68,24 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         };
         _tileWidth = baseWidth;
         _tileHeight = Math.Round(baseWidth * 0.66);
-        Player = new MediaPlayer(VlcManager.Shared.LibVLC) { EnableHardwareDecoding = true };
-        Player.Playing += (_, _) =>
+
+        if (VlcManager.Shared.LibVLC is { } libvlc)
         {
-            IsPlaying = true;
-            IsLoading = false;
-            ApplyMute();
-            ApplyFill();
-        };
-        Player.EncounteredError += (_, _) => IsLoading = false;
-        Player.Stopped += (_, _) => IsPlaying = false;
+            Player = new MediaPlayer(libvlc) { EnableHardwareDecoding = true };
+            Player.Playing += (_, _) =>
+            {
+                IsPlaying = true;
+                IsLoading = false;
+                ApplyMute();
+                ApplyFill();
+            };
+            Player.EncounteredError += (_, _) => IsLoading = false;
+            Player.Stopped += (_, _) => IsPlaying = false;
+        }
+        else
+        {
+            _videoUnavailable = true;
+        }
     }
 
     // MARK: - Audio mute / fit-fill (applied to the player; persisted to settings)
@@ -86,7 +98,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         ApplyMute();
     }
 
-    private void ApplyMute() => Player.Mute = IsMuted;
+    private void ApplyMute() { if (Player != null) Player.Mute = IsMuted; }
 
     /// <summary>Toggle fit (letterbox) vs. fill (crop) for the focused frame.</summary>
     public void ToggleFill()
@@ -98,6 +110,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     private void ApplyFill()
     {
+        if (Player == null) return;
         // Fill crops to the camera's aspect so the frame is filled; fit lets libVLC
         // letterbox (Scale 0 = auto-fit). Best-effort — tuned on-device.
         if (FillMode)
@@ -139,7 +152,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     /// <summary>Resolve the effective quality for the current view state and start playback.</summary>
     public async Task StartAsync()
     {
-        if (_starting || Player.IsPlaying || !Camera.IsOnline) return;
+        if (Player == null || _starting || Player.IsPlaying || !Camera.IsOnline) return;
         _starting = true;
         IsLoading = true;
         try
@@ -159,6 +172,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             _activeQuality = r.quality;
 
             using var media = VlcManager.Shared.MakeMedia(r.url);
+            if (media == null) { IsLoading = false; return; }
             Player.Play(media);
         }
         catch (Exception ex)
@@ -171,7 +185,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     public void Stop()
     {
-        if (Player.IsPlaying) Player.Stop();
+        if (Player is { IsPlaying: true }) Player.Stop();
         if (_activeQuality is { } q)
         {
             if (_pinned) _service.ReleasePinnedStream(Camera.Id, q);
@@ -185,6 +199,6 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Stop();
-        Player.Dispose();
+        Player?.Dispose();
     }
 }

@@ -76,6 +76,10 @@
                     <TextBlock Text="Offline" Foreground="#99FFFFFF"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsVisible="{Binding !IsOnline}" />
+                    <TextBlock Text="Video unavailable" Foreground="#99FFFFFF" FontSize="11"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center" TextWrapping="Wrap"
+                               IsVisible="{Binding VideoUnavailable}" />
                   </Grid>
                 </DockPanel>
               </Border>
