@@ -41,6 +41,12 @@
                       SelectedIndex="{Binding LanguageIndex}" HorizontalAlignment="Left" Width="200" />
           </StackPanel>
 
+          <StackPanel Spacing="4">
+            <TextBlock Text="Accent color" Foreground="#CCFFFFFF" />
+            <ComboBox ItemsSource="{Binding AccentNames}"
+                      SelectedIndex="{Binding AccentIndex}" HorizontalAlignment="Left" Width="160" />
+          </StackPanel>
+
           <Separator />
 
           <TextBlock Text="PTZ Control (optional)" FontSize="16" FontWeight="SemiBold" Foreground="White" />

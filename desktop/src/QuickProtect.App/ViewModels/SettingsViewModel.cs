@@ -33,6 +33,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
     [ObservableProperty] private bool _showFocusOverlayControls;
+    [ObservableProperty] private int _accentIndex;
+
+    public string[] AccentNames { get; } = { "Blue", "Purple", "Pink", "Orange", "Green", "Red", "Teal" };
+    private static readonly string[] AccentHexes = { "0a84ff", "bf5af2", "ff375f", "ff9f0a", "30d158", "ff453a", "40c8e0" };
     [ObservableProperty] private int _snapshotDestinationIndex; // 0 clipboard, 1 folder
     [ObservableProperty] private string _snapshotFolderDisplay = "";
 
@@ -92,6 +96,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _defaultQualityIndex = (int)settings.DefaultStreamQuality;
         _languageIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.LanguageOverride));
         _showFocusOverlayControls = settings.ShowFocusOverlayControls;
+        _accentIndex = Math.Max(0, Array.IndexOf(AccentHexes, settings.AccentColorHex));
         _snapshotDestinationIndex = (int)settings.SnapshotDest;
         _snapshotFolderDisplay = settings.SnapshotFolder ?? "";
         RefreshCertState();
@@ -99,6 +104,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     partial void OnShowFocusOverlayControlsChanged(bool value) => _settings.ShowFocusOverlayControls = value;
+
+    partial void OnAccentIndexChanged(int value)
+    {
+        if (value < 0 || value >= AccentHexes.Length) return;
+        _settings.AccentColorHex = AccentHexes[value];
+        (Avalonia.Application.Current as App)?.ApplyAccent(AccentHexes[value]);
+    }
 
     partial void OnSnapshotDestinationIndexChanged(int value)
         => _settings.SnapshotDest = (AppSettings.SnapshotDestination)Math.Clamp(value, 0, 1);

@@ -38,6 +38,7 @@ public partial class App : Application
         Settings.LaunchManager = LaunchAtLoginFactory.Create();
         // Apply UI culture before any window/tray is built so localized strings resolve.
         Localization.Loc.ApplyCulture(Settings.LanguageOverride);
+        ApplyAccent(Settings.AccentColorHex);
         Trust = new CertificateTrust(prefs);
         Service = new ProtectService(Settings, Trust);
         Service.CertificateChanged += (_, message) =>
@@ -155,6 +156,24 @@ public partial class App : Application
     {
         var v = typeof(App).Assembly.GetName().Version;
         return v == null ? "0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+    }
+
+    /// <summary>
+    /// Apply the user's accent color to the Fluent theme (accent buttons, checkboxes,
+    /// combo selection). Mirrors the macOS app's customizable accent.
+    /// </summary>
+    public void ApplyAccent(string hex)
+    {
+        var value = hex.StartsWith('#') ? hex : "#" + hex;
+        if (!Avalonia.Media.Color.TryParse(value, out var c)) return;
+        // Set the base accent and its tint/shade variants Fluent derives states from.
+        foreach (var key in new[]
+                 {
+                     "SystemAccentColor", "SystemAccentColorLight1", "SystemAccentColorLight2",
+                     "SystemAccentColorLight3", "SystemAccentColorDark1", "SystemAccentColorDark2",
+                     "SystemAccentColorDark3"
+                 })
+            Resources[key] = c;
     }
 
     private void ApplyHotkey()
