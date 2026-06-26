@@ -49,27 +49,20 @@ Ordered roughly by user value and implementation dependency.
   high-visibility strings; remaining literals fall back to English safely and
   are wrapped incrementally.
 
-## ⏳ Next (high value)
+- **Secret storage** — DPAPI (Windows), **libsecret via `secret-tool`** (Linux,
+  GNOME Keyring/KWallet) with a 0600-file fallback.
+- **Pinned-window aspect lock** — resize is constrained to the camera aspect
+  (`PinnedWindowGeometry.Constrain`).
 
-| Feature | macOS source | Notes for the port |
-|---|---|---|
-| True-fullscreen HUD | `AuroraFullscreenHUD` | auto-hiding overlay; today fullscreen is a plain toggle |
-| Snapshot to clipboard | `AppSettings.snapshotDestination` | image-clipboard is platform-specific in Avalonia; file output works today |
-| Fit / fill toggle | `cameraFillMode` | `MediaPlayer` aspect / crop in focus |
-| Audio mute (M key) | `AudioRenderer` | `MediaPlayer.Mute`; needs audio-track detection |
-| Pinned-window aspect lock | `PinnedWindowGeometry.constrain` | constrain resize to the camera aspect (helper ported; not wired to resize yet) |
-
-## ⏳ Later
+## ⏳ Remaining (lower priority)
 
 | Feature | macOS source | Notes |
 |---|---|---|
-| Onboarding wizard | `OnboardingView` | first-run flow; today first-run just opens Settings |
-| Global hotkey | `HotkeyManager` (Carbon) | Win: `RegisterHotKey`; Linux: X11/`evdev` or DE shortcut |
-| Auto-update checker | `UpdateChecker` | GitHub releases poll + notify (no auto-install, per project policy) |
-| Secondary-lens PiP | `ProtectStreamView` | second `MediaPlayer` overlay for doorbell package cam |
-| Localization (7 languages) | String Catalog | `.resx` + `IStringLocalizer`; strings are English-only now |
-| libsecret secret store (Linux) | — | replace the 0600 file with GNOME Keyring via SecretService D-Bus |
-| Layout-profile UI | `SettingsView` profile menu | model is ported; needs the menu + resize persistence |
+| True-fullscreen HUD | `AuroraFullscreenHUD` | auto-hiding overlay; today fullscreen is a plain toggle |
+| Snapshot to clipboard | `AppSettings.snapshotDestination` | image-clipboard is platform-specific in Avalonia; file output works today |
+| Full string coverage | String Catalog | infra + 7 languages shipped; remaining literals are wrapped incrementally |
+| Aurora visual polish | `Aurora*` views | the macOS app's gradient/blur styling isn't reproduced 1:1 |
+| Drag-to-reorder grid | `CameraGridView` | reordering is via up/down buttons in Settings today |
 
 ## Distribution (future)
 

@@ -74,7 +74,8 @@ public sealed class PinnedWindowManager
         {
             DataContext = tile,
             Width = size.Width,
-            Height = size.Height
+            Height = size.Height,
+            AspectRatio = ar
         };
         if (X is { } x && Y is { } y)
             window.Position = new PixelPoint((int)x, (int)y);

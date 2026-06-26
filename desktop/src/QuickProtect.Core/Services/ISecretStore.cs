@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -18,10 +19,12 @@ public interface ISecretStore
 public static class SecretStore
 {
     /// <summary>Picks the best available backend for the current OS.</summary>
-    public static ISecretStore Create() =>
-        OperatingSystem.IsWindows()
-            ? new DpapiSecretStore()
-            : new FileSecretStore();
+    public static ISecretStore Create()
+    {
+        if (OperatingSystem.IsWindows()) return new DpapiSecretStore();
+        if (OperatingSystem.IsLinux() && LibSecretStore.IsAvailable()) return new LibSecretStore();
+        return new FileSecretStore();
+    }
 }
 
 /// <summary>
@@ -85,6 +88,65 @@ public sealed class DpapiSecretStore : ISecretStore
     }
 
     public void Remove(string account) => Set(account, null);
+}
+
+/// <summary>
+/// Linux secret store backed by the Secret Service (GNOME Keyring / KWallet) via
+/// the <c>secret-tool</c> CLI from libsecret-tools — encrypted at rest like the
+/// macOS Keychain. Used when <c>secret-tool</c> is on PATH; otherwise the app
+/// falls back to <see cref="FileSecretStore"/>.
+/// </summary>
+[SupportedOSPlatform("linux")]
+public sealed class LibSecretStore : ISecretStore
+{
+    private const string Service = "com.cb.quickprotect";
+
+    public static bool IsAvailable()
+    {
+        try { return RunSecretTool("--version", null, out _) >= 0; }
+        catch { return false; }
+    }
+
+    public string? Get(string account)
+    {
+        var code = RunSecretTool($"lookup service {Service} account {Quote(account)}", null, out var stdout);
+        return code == 0 && stdout.Length > 0 ? stdout.TrimEnd('\n') : null;
+    }
+
+    public void Set(string account, string? value)
+    {
+        if (string.IsNullOrEmpty(value)) { Remove(account); return; }
+        RunSecretTool($"store --label={Quote("QuickProtect")} service {Service} account {Quote(account)}",
+            stdin: value, out _);
+    }
+
+    public void Remove(string account)
+        => RunSecretTool($"clear service {Service} account {Quote(account)}", null, out _);
+
+    private static string Quote(string s) => "\"" + s.Replace("\"", "\\\"") + "\"";
+
+    /// <summary>Runs secret-tool, returning its exit code (or −1 if it couldn't start).</summary>
+    private static int RunSecretTool(string args, string? stdin, out string stdout)
+    {
+        stdout = "";
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("secret-tool", args)
+            {
+                RedirectStandardInput = stdin != null,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            };
+            using var p = System.Diagnostics.Process.Start(psi);
+            if (p == null) return -1;
+            if (stdin != null) { p.StandardInput.Write(stdin); p.StandardInput.Close(); }
+            stdout = p.StandardOutput.ReadToEnd();
+            p.WaitForExit(5000);
+            return p.HasExited ? p.ExitCode : -1;
+        }
+        catch { return -1; }
+    }
 }
 
 /// <summary>
