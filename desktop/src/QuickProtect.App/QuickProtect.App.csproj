@@ -22,10 +22,15 @@
     <PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.2" />
   </ItemGroup>
 
-  <!-- Native libVLC binaries. Windows: bundled via NuGet. Linux: install the
-       system 'vlc'/'libvlc-dev' package (no maintained native NuGet exists). -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == '' or $([MSBuild]::IsOSPlatform('Windows'))">
+  <!-- Native libVLC binaries, selected by the target OS.
+       Windows + macOS ship via NuGet; Linux uses the system 'vlc'/'libvlc-dev'
+       package (no maintained native NuGet exists). For a no-RID dev build we fall
+       back to the host OS so `dotnet run` works on this machine. -->
+  <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('win')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows')))">
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
+  </ItemGroup>
+  <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('osx')) or ('$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX')))">
+    <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.3.1" />
   </ItemGroup>
 
   <ItemGroup>
