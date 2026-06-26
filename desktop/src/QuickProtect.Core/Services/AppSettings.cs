@@ -102,6 +102,13 @@ public sealed class AppSettings : INotifyPropertyChanged
         set { _accentColorHex = value; _prefs.SetString(Keys.AccentColorHex, value); Raise(); }
     }
 
+    /// <summary>UI language code (e.g. "de"), or null/"" for the OS default.</summary>
+    public string? LanguageOverride
+    {
+        get => _prefs.GetString(Keys.Language);
+        set { if (string.IsNullOrEmpty(value)) _prefs.Remove(Keys.Language); else _prefs.SetString(Keys.Language, value); Raise(); }
+    }
+
     private bool _hasCompletedOnboarding;
     public bool HasCompletedOnboarding
     {
@@ -491,6 +498,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         public const string AutoStartPromptShown = "unifi.autoStartPromptShown";
         public const string Appearance = "unifi.appearance";
         public const string AccentColorHex = "unifi.accentColorHex";
+        public const string Language = "unifi.language";
         public const string HasCompletedOnboarding = "unifi.hasCompletedOnboarding";
         public const string ShowFocusOverlayControls = "unifi.showFocusOverlayControls";
         public const string SpeakerEnabled = "unifi.speakerEnabled";

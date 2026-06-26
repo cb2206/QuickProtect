@@ -37,7 +37,7 @@ public sealed partial class OnboardingViewModel : ObservableObject
     public bool IsStep2 => Step == 2;
     public bool IsStep3 => Step == 3;
     public bool CanGoBack => Step > 1;
-    public string ContinueLabel => Step < 3 ? "Continue" : "Finish";
+    public string ContinueLabel => Localization.Loc.Get(Step < 3 ? "Continue" : "Finish");
 
     public OnboardingViewModel(ProtectService service, AppSettings settings)
     {

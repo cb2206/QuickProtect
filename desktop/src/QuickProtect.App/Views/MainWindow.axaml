@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
         xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
         x:Class="QuickProtect.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="QuickProtect"
@@ -105,7 +106,7 @@
             <Button Content="◳ Fit/Fill" Click="Focus_Fill"
                     Background="Transparent" Foreground="White" BorderThickness="0"
                     ToolTip.Tip="Toggle fit vs. fill" />
-            <Button Content="🔈 Mute (M)" Click="Focus_Mute"
+            <Button Content="{loc:Loc 'Mute (M)'}" Click="Focus_Mute"
                     Background="Transparent" Foreground="White" BorderThickness="0"
                     ToolTip.Tip="Toggle audio" />
             <Button Content="⤓ Snapshot (S)" Click="Focus_Snapshot"
@@ -114,7 +115,7 @@
             <Button Content="📌 Pin" Click="Focus_Pin"
                     Background="Transparent" Foreground="White" BorderThickness="0"
                     ToolTip.Tip="Pin as an always-on-top window" />
-            <Button Content="⤢ Fullscreen (F)" Click="Focus_ToggleFullscreen"
+            <Button Content="{loc:Loc 'Fullscreen (F)'}" Click="Focus_ToggleFullscreen"
                     Background="Transparent" Foreground="White" BorderThickness="0" />
           </StackPanel>
         </Grid>

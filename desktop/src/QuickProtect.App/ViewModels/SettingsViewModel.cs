@@ -33,7 +33,25 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _updateVersion = "";
 
-    public string[] QualityOptions { get; } = { "Auto", "High", "Medium", "Low" };
+    public string[] QualityOptions { get; } =
+    {
+        Localization.Loc.Get("Auto"), Localization.Loc.Get("High"),
+        Localization.Loc.Get("Medium"), Localization.Loc.Get("Low")
+    };
+
+    // Language picker: index 0 = system default, then one per supported culture.
+    public string[] LanguageNames { get; } =
+        { "System default", "English", "Deutsch", "Français", "Español", "Nederlands", "Italiano", "Português (BR)" };
+    private static readonly string?[] LanguageCodes = { null, "en", "de", "fr", "es", "nl", "it", "pt-BR" };
+
+    [ObservableProperty] private int _languageIndex;
+
+    partial void OnLanguageIndexChanged(int value)
+    {
+        if (value < 0 || value >= LanguageCodes.Length) return;
+        _settings.LanguageOverride = LanguageCodes[value];
+        StatusMessage = "Restart QuickProtect to apply the language change.";
+    }
 
     /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
     public LayoutViewModel Layout { get; }
@@ -63,6 +81,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _password = settings.Password;
         _launchAtLogin = settings.LaunchAtLogin;
         _defaultQualityIndex = (int)settings.DefaultStreamQuality;
+        _languageIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.LanguageOverride));
         RefreshCertState();
         RefreshHotkey();
     }

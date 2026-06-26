@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
         x:Class="QuickProtect.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="QuickProtect – Settings"
@@ -29,9 +30,15 @@
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Default stream quality" Foreground="#CCFFFFFF" />
+            <TextBlock Text="{loc:Loc 'Default stream quality'}" Foreground="#CCFFFFFF" />
             <ComboBox ItemsSource="{Binding QualityOptions}"
                       SelectedIndex="{Binding DefaultQualityIndex}" HorizontalAlignment="Left" Width="160" />
+          </StackPanel>
+
+          <StackPanel Spacing="4">
+            <TextBlock Text="Language" Foreground="#CCFFFFFF" />
+            <ComboBox ItemsSource="{Binding LanguageNames}"
+                      SelectedIndex="{Binding LanguageIndex}" HorizontalAlignment="Left" Width="200" />
           </StackPanel>
 
           <Separator />
@@ -41,18 +48,18 @@
                      Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Username" Foreground="#CCFFFFFF" />
+            <TextBlock Text="{loc:Loc 'Username'}" Foreground="#CCFFFFFF" />
             <TextBox Text="{Binding Username}" />
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Password" Foreground="#CCFFFFFF" />
+            <TextBlock Text="{loc:Loc 'Password'}" Foreground="#CCFFFFFF" />
             <TextBox Text="{Binding Password}" PasswordChar="•" />
           </StackPanel>
 
           <Separator />
 
-          <CheckBox Content="Start QuickProtect at login" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+          <CheckBox Content="{loc:Loc 'Launch at login'}" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
 
           <StackPanel Spacing="4">
             <TextBlock Text="Global shortcut (toggle camera panel)" Foreground="#CCFFFFFF" />
@@ -72,12 +79,12 @@
             <StackPanel Spacing="8">
               <TextBlock Text="The controller's certificate changed since you last connected."
                          Foreground="White" TextWrapping="Wrap" />
-              <Button Content="Trust New Certificate" Command="{Binding TrustNewCertificateCommand}" />
+              <Button Content="{loc:Loc 'Trust new certificate'}" Command="{Binding TrustNewCertificateCommand}" />
             </StackPanel>
           </Border>
 
           <StackPanel Orientation="Horizontal" Spacing="10">
-            <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" />
+            <Button Content="{loc:Loc 'Test Connection'}" Command="{Binding TestConnectionCommand}" />
             <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" />
           </StackPanel>
 

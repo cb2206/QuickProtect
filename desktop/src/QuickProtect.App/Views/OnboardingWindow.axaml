@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
         x:Class="QuickProtect.App.Views.OnboardingWindow"
         x:DataType="vm:OnboardingViewModel"
         Title="QuickProtect"
@@ -20,7 +21,7 @@
       <!-- Step 1: Connect -->
       <StackPanel Spacing="10" IsVisible="{Binding IsStep1}">
         <TextBlock Text="Step 1 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
-        <TextBlock Text="Connect your controller" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="{loc:Loc 'Connect your controller'}" FontSize="18" FontWeight="SemiBold" Foreground="White" />
         <TextBlock Text="Enter your UniFi Protect controller's local IP and an API key from its settings."
                    Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
         <TextBlock Text="IP address or hostname" Foreground="#CCFFFFFF" />
@@ -33,12 +34,12 @@
       <!-- Step 2: PTZ -->
       <StackPanel Spacing="10" IsVisible="{Binding IsStep2}">
         <TextBlock Text="Step 2 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
-        <TextBlock Text="PTZ control (optional)" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+        <TextBlock Text="{loc:Loc 'PTZ control (optional)'}" FontSize="18" FontWeight="SemiBold" Foreground="White" />
         <TextBlock Text="To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings."
                    Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
-        <TextBlock Text="Username" Foreground="#CCFFFFFF" />
+        <TextBlock Text="{loc:Loc 'Username'}" Foreground="#CCFFFFFF" />
         <TextBox Text="{Binding Username}" />
-        <TextBlock Text="Password" Foreground="#CCFFFFFF" />
+        <TextBlock Text="{loc:Loc 'Password'}" Foreground="#CCFFFFFF" />
         <TextBox Text="{Binding Password}" PasswordChar="•" />
       </StackPanel>
 
@@ -60,7 +61,7 @@
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,16,0,0">
       <Button Grid.Column="0" Content="Back" Command="{Binding BackCommand}"
               IsVisible="{Binding CanGoBack}" />
-      <Button Grid.Column="2" Content="Skip" Command="{Binding SkipCommand}"
+      <Button Grid.Column="2" Content="{loc:Loc 'Skip'}" Command="{Binding SkipCommand}"
               Background="Transparent" Foreground="#99FFFFFF" BorderThickness="0" Margin="0,0,8,0" />
       <Button Grid.Column="3" Content="{Binding ContinueLabel}" Command="{Binding ContinueCommand}"
               Classes="accent" />

@@ -34,6 +34,20 @@ Ordered roughly by user value and implementation dependency.
   libVLC `TakeSnapshot` into the configured folder (or OS Pictures), with a
   toast. Filename logic is in Core (`SnapshotNaming`, unit-tested). Clipboard
   image output is still a follow-up.
+- **Focus finishers** — fit/fill toggle (libVLC crop) and audio mute (M).
+- **Cameras & Layout settings** — profile switcher (create/rename/delete) and
+  per-camera show/hide, tile size, and reorder; grid honors tile size.
+- **First-run onboarding** — 3-step wizard (Connect → PTZ → All set).
+- **Global hotkey** — native `RegisterHotKey` on Windows (record/clear in
+  Settings); Linux is a documented no-op.
+- **Notify-only update checker** — GitHub releases poll + Settings banner
+  (`VersionCompare` unit-tested).
+- **Secondary-lens PiP** — package-camera side panel in focus.
+- **Localization** — all 7 languages (en/de/fr/es/nl/it/pt-BR) imported from the
+  macOS String Catalog into embedded `.resx`; `Loc` helper + `{loc:Loc}` markup
+  extension; OS culture detection + Settings language picker. Applied to the
+  high-visibility strings; remaining literals fall back to English safely and
+  are wrapped incrementally.
 
 ## ⏳ Next (high value)
 

@@ -36,6 +36,8 @@ public partial class App : Application
         var secrets = SecretStore.Create();
         Settings = AppSettings.Configure(prefs, secrets);
         Settings.LaunchManager = LaunchAtLoginFactory.Create();
+        // Apply UI culture before any window/tray is built so localized strings resolve.
+        Localization.Loc.ApplyCulture(Settings.LanguageOverride);
         Trust = new CertificateTrust(prefs);
         Service = new ProtectService(Settings, Trust);
         Service.CertificateChanged += (_, message) =>
@@ -76,17 +78,17 @@ public partial class App : Application
     {
         var menu = new NativeMenu();
 
-        var open = new NativeMenuItem("Open QuickProtect");
+        var open = new NativeMenuItem(Localization.Loc.Get("Open QuickProtect"));
         open.Click += (_, _) => ToggleMainWindow();
         menu.Add(open);
 
-        var settings = new NativeMenuItem("Settings…");
+        var settings = new NativeMenuItem(Localization.Loc.Get("Settings…"));
         settings.Click += (_, _) => ShowSettings();
         menu.Add(settings);
 
         menu.Add(new NativeMenuItemSeparator());
 
-        var quit = new NativeMenuItem("Quit QuickProtect");
+        var quit = new NativeMenuItem(Localization.Loc.Get("Quit QuickProtect"));
         quit.Click += (_, _) => Shutdown();
         menu.Add(quit);
 
