@@ -34,6 +34,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _updateVersion = "";
     [ObservableProperty] private bool _showFocusOverlayControls;
     [ObservableProperty] private int _accentIndex;
+    [ObservableProperty] private int _appearanceIndex; // 0 auto, 1 light, 2 dark
+
+    public string[] AppearanceOptions { get; } =
+        { Localization.Loc.Get("Auto"), Localization.Loc.Get("Light"), Localization.Loc.Get("Dark") };
 
     public string[] AccentNames { get; } = { "Blue", "Purple", "Pink", "Orange", "Green", "Red", "Teal" };
     private static readonly string[] AccentHexes = { "0a84ff", "bf5af2", "ff375f", "ff9f0a", "30d158", "ff453a", "40c8e0" };
@@ -97,6 +101,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _languageIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.LanguageOverride));
         _showFocusOverlayControls = settings.ShowFocusOverlayControls;
         _accentIndex = Math.Max(0, Array.IndexOf(AccentHexes, settings.AccentColorHex));
+        _appearanceIndex = (int)settings.Appearance;
         _snapshotDestinationIndex = (int)settings.SnapshotDest;
         _snapshotFolderDisplay = settings.SnapshotFolder ?? "";
         RefreshCertState();
@@ -104,6 +109,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     partial void OnShowFocusOverlayControlsChanged(bool value) => _settings.ShowFocusOverlayControls = value;
+
+    // App subscribes to AppSettings.Appearance and updates RequestedThemeVariant live.
+    partial void OnAppearanceIndexChanged(int value)
+        => _settings.Appearance = (AppSettings.AppearanceMode)Math.Clamp(value, 0, 2);
 
     partial void OnAccentIndexChanged(int value)
     {

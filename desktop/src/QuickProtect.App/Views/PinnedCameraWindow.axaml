@@ -10,29 +10,32 @@
         Topmost="True"
         ShowInTaskbar="False"
         SystemDecorations="None"
-        Background="Black"
+        Background="{DynamicResource QpVideoBg}"
         CanResize="True">
 
-  <DockPanel>
-    <!-- Drag handle + controls. Docked so the native VideoView never covers it. -->
-    <Border DockPanel.Dock="Top" Background="#E6141416" PointerPressed="Header_Drag" Name="Header">
-      <Grid ColumnDefinitions="*,Auto" Margin="8,4">
-        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Text="●" Foreground="#FF3B30" FontSize="8" VerticalAlignment="Center"
-                     IsVisible="{Binding IsOnline}" />
-          <TextBlock Text="{Binding Name}" Foreground="White" FontSize="11" />
-        </StackPanel>
-        <Button Grid.Column="1" Content="✕" Click="Unpin_Click"
-                Background="Transparent" Foreground="#CCFFFFFF" BorderThickness="0"
-                Padding="6,0" FontSize="11" ToolTip.Tip="Unpin" />
-      </Grid>
-    </Border>
+  <!-- The whole pinned window is a video surface: pinned to the Dark variant like macOS. -->
+  <ThemeVariantScope RequestedThemeVariant="Dark">
+    <DockPanel>
+      <!-- Drag handle + controls. Docked so the native VideoView never covers it. -->
+      <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Header_Drag" Name="Header">
+        <Grid ColumnDefinitions="*,Auto" Margin="8,4">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
+                       IsVisible="{Binding IsOnline}" />
+            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontSize="11" />
+          </StackPanel>
+          <Button Grid.Column="1" Content="✕" Click="Unpin_Click"
+                  Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
+                  Padding="6,0" FontSize="11" ToolTip.Tip="Unpin" />
+        </Grid>
+      </Border>
 
-    <Grid>
-      <vlc:VideoView MediaPlayer="{Binding Player}" />
-      <ProgressBar IsIndeterminate="True" Width="50" Height="4"
-                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                   IsVisible="{Binding IsLoading}" />
-    </Grid>
-  </DockPanel>
+      <Grid>
+        <vlc:VideoView MediaPlayer="{Binding Player}" />
+        <ProgressBar IsIndeterminate="True" Width="50" Height="4"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     IsVisible="{Binding IsLoading}" />
+      </Grid>
+    </DockPanel>
+  </ThemeVariantScope>
 </Window>

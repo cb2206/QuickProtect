@@ -6,7 +6,7 @@
         x:DataType="vm:SettingsViewModel"
         Title="QuickProtect – Settings"
         Width="620" Height="640"
-        Background="{StaticResource AuroraBackgroundBrush}"
+        Background="{DynamicResource QpPopoverBg}"
         WindowStartupLocation="CenterScreen"
         CanResize="True" MinWidth="520" MinHeight="500">
 
@@ -17,90 +17,97 @@
       <ScrollViewer>
         <StackPanel Margin="16" Spacing="14">
 
-          <TextBlock Text="Controller Connection" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+          <TextBlock Text="Controller Connection" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
 
           <StackPanel Spacing="4">
-            <TextBlock Text="IP address or hostname" Foreground="#CCFFFFFF" />
+            <TextBlock Text="IP address or hostname" Foreground="{DynamicResource QpTextSecondary}" />
             <TextBox Text="{Binding IpAddress}" Watermark="192.168.1.1" />
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Integration API key" Foreground="#CCFFFFFF" />
+            <TextBlock Text="Integration API key" Foreground="{DynamicResource QpTextSecondary}" />
             <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="{loc:Loc 'Default stream quality'}" Foreground="#CCFFFFFF" />
+            <TextBlock Text="{loc:Loc 'Default stream quality'}" Foreground="{DynamicResource QpTextSecondary}" />
             <ComboBox ItemsSource="{Binding QualityOptions}"
                       SelectedIndex="{Binding DefaultQualityIndex}" HorizontalAlignment="Left" Width="160" />
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Language" Foreground="#CCFFFFFF" />
+            <TextBlock Text="Language" Foreground="{DynamicResource QpTextSecondary}" />
             <ComboBox ItemsSource="{Binding LanguageNames}"
                       SelectedIndex="{Binding LanguageIndex}" HorizontalAlignment="Left" Width="200" />
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Accent color" Foreground="#CCFFFFFF" />
+            <TextBlock Text="{loc:Loc 'Appearance'}" Foreground="{DynamicResource QpTextSecondary}" />
+            <ComboBox ItemsSource="{Binding AppearanceOptions}"
+                      SelectedIndex="{Binding AppearanceIndex}" HorizontalAlignment="Left" Width="160" />
+          </StackPanel>
+
+          <StackPanel Spacing="4">
+            <TextBlock Text="Accent color" Foreground="{DynamicResource QpTextSecondary}" />
             <ComboBox ItemsSource="{Binding AccentNames}"
                       SelectedIndex="{Binding AccentIndex}" HorizontalAlignment="Left" Width="160" />
           </StackPanel>
 
           <Separator />
 
-          <TextBlock Text="PTZ Control (optional)" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <TextBlock Text="PTZ Control (optional)" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
           <TextBlock Text="Local-account username and password enable pan/tilt/zoom and zoom-lens controls."
-                     Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
+                     Foreground="{DynamicResource QpTextTertiary}" TextWrapping="Wrap" FontSize="12" />
 
           <StackPanel Spacing="4">
-            <TextBlock Text="{loc:Loc 'Username'}" Foreground="#CCFFFFFF" />
+            <TextBlock Text="{loc:Loc 'Username'}" Foreground="{DynamicResource QpTextSecondary}" />
             <TextBox Text="{Binding Username}" />
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="{loc:Loc 'Password'}" Foreground="#CCFFFFFF" />
+            <TextBlock Text="{loc:Loc 'Password'}" Foreground="{DynamicResource QpTextSecondary}" />
             <TextBox Text="{Binding Password}" PasswordChar="•" />
           </StackPanel>
 
           <Separator />
 
-          <CheckBox Content="{loc:Loc 'Launch at login'}" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+          <CheckBox Content="{loc:Loc 'Launch at login'}" IsChecked="{Binding LaunchAtLogin}" Foreground="{DynamicResource QpTextPrimary}" />
           <CheckBox Content="Show focus-view controls (PTZ pad &amp; shortcut hints)"
-                    IsChecked="{Binding ShowFocusOverlayControls}" Foreground="White" />
+                    IsChecked="{Binding ShowFocusOverlayControls}" Foreground="{DynamicResource QpTextPrimary}" />
 
           <Separator />
 
-          <TextBlock Text="Snapshots" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <TextBlock Text="Snapshots" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
           <StackPanel Spacing="4">
-            <TextBlock Text="Save snapshots to" Foreground="#CCFFFFFF" />
+            <TextBlock Text="Save snapshots to" Foreground="{DynamicResource QpTextSecondary}" />
             <ComboBox ItemsSource="{Binding SnapshotDestinations}"
                       SelectedIndex="{Binding SnapshotDestinationIndex}" HorizontalAlignment="Left" Width="160" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button Content="Choose Folder…" Command="{Binding ChooseSnapshotFolderCommand}" />
-            <TextBlock Text="{Binding SnapshotFolderDisplay}" Foreground="#99FFFFFF"
+            <TextBlock Text="{Binding SnapshotFolderDisplay}" Foreground="{DynamicResource QpTextTertiary}"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="320" />
           </StackPanel>
 
           <StackPanel Spacing="4">
-            <TextBlock Text="Global shortcut (toggle camera panel)" Foreground="#CCFFFFFF" />
+            <TextBlock Text="Global shortcut (toggle camera panel)" Foreground="{DynamicResource QpTextSecondary}" />
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <Border Background="#1AFFFFFF" CornerRadius="6" Padding="10,5" MinWidth="160">
-                <TextBlock Text="{Binding HotkeyDisplay}" Foreground="White" VerticalAlignment="Center" />
+              <Border Background="{DynamicResource QpSubtleSurface}" CornerRadius="6" Padding="10,5" MinWidth="160"
+                      BorderBrush="{DynamicResource QpDivider}" BorderThickness="1">
+                <TextBlock Text="{Binding HotkeyDisplay}" Foreground="{DynamicResource QpTextPrimary}" VerticalAlignment="Center" />
               </Border>
               <Button Content="Record" Command="{Binding RecordHotkeyCommand}" />
               <Button Content="Clear" Command="{Binding ClearHotkeyCommand}" />
             </StackPanel>
             <TextBlock Text="Windows only for now (letter, number, or function key with modifiers)."
-                       Foreground="#80FFFFFF" FontSize="11" />
+                       Foreground="{DynamicResource QpTextHint}" FontSize="11" />
           </StackPanel>
 
-          <Border Background="#33FF9500" Padding="12,8" CornerRadius="6"
+          <Border Background="{DynamicResource QpStatusOrangeSurface}" Padding="12,8" CornerRadius="6"
                   IsVisible="{Binding HasPendingCert}">
             <StackPanel Spacing="8">
               <TextBlock Text="The controller's certificate changed since you last connected."
-                         Foreground="White" TextWrapping="Wrap" />
+                         Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
               <Button Content="{loc:Loc 'Trust new certificate'}" Command="{Binding TrustNewCertificateCommand}" />
             </StackPanel>
           </Border>
@@ -110,14 +117,14 @@
             <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" />
           </StackPanel>
 
-          <TextBlock Text="{Binding StatusMessage}" Foreground="#CCFFFFFF" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource QpTextSecondary}" TextWrapping="Wrap" />
 
           <Separator />
 
-          <TextBlock Text="Updates" FontSize="16" FontWeight="SemiBold" Foreground="White" />
-          <Border Background="#3330D158" Padding="12,8" CornerRadius="6" IsVisible="{Binding UpdateAvailable}">
+          <TextBlock Text="Updates" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
+          <Border Background="{DynamicResource QpStatusGreenSurface}" Padding="12,8" CornerRadius="6" IsVisible="{Binding UpdateAvailable}">
             <StackPanel Spacing="8">
-              <TextBlock Foreground="White" TextWrapping="Wrap"
+              <TextBlock Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap"
                          Text="{Binding UpdateVersion, StringFormat='A new version ({0}) is available.'}" />
               <Button Content="Open Release Page" Command="{Binding OpenReleasePageCommand}" />
             </StackPanel>
@@ -134,7 +141,7 @@
 
         <!-- Profile switcher -->
         <StackPanel DockPanel.Dock="Top" Spacing="8">
-          <TextBlock Text="Layout profile" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <TextBlock Text="Layout profile" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <ComboBox ItemsSource="{Binding ProfileNames}" SelectedIndex="{Binding SelectedProfileIndex}"
                       MinWidth="180" />
@@ -146,9 +153,9 @@
             <Button Content="Rename" Command="{Binding RenameProfileCommand}" />
           </StackPanel>
           <Separator />
-          <TextBlock Text="Cameras" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+          <TextBlock Text="Cameras" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
           <TextBlock Text="Toggle visibility, set tile size, and reorder. Applies to this profile."
-                     Foreground="#99FFFFFF" FontSize="12" />
+                     Foreground="{DynamicResource QpTextTertiary}" FontSize="12" />
         </StackPanel>
 
         <!-- Camera rows -->
@@ -156,10 +163,11 @@
           <ItemsControl ItemsSource="{Binding Rows}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CameraRowViewModel">
-                <Border Background="#1AFFFFFF" CornerRadius="6" Padding="10,6" Margin="0,3">
+                <Border Background="{DynamicResource QpSubtleSurface}" CornerRadius="6" Padding="10,6" Margin="0,3"
+                        BorderBrush="{DynamicResource QpChipBorder}" BorderThickness="1">
                   <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                     <CheckBox Grid.Column="0" IsChecked="{Binding IsVisible}" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="White"
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}"
                                VerticalAlignment="Center" Margin="6,0" />
                     <ComboBox Grid.Column="2" ItemsSource="{Binding SizeOptions}"
                               SelectedIndex="{Binding SizeIndex}" Width="110" Margin="0,0,8,0" />

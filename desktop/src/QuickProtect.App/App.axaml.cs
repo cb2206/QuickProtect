@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using QuickProtect.App.Platform;
 using QuickProtect.App.Services;
@@ -39,6 +41,7 @@ public partial class App : Application
         // Apply UI culture before any window/tray is built so localized strings resolve.
         Localization.Loc.ApplyCulture(Settings.LanguageOverride);
         ApplyAccent(Settings.AccentColorHex);
+        ApplyAppearance(Settings.Appearance);
         Trust = new CertificateTrust(prefs);
         Service = new ProtectService(Settings, Trust);
         // Video rtsps transport: local TLS bridge with the same TOFU trust as the API.
@@ -65,6 +68,8 @@ public partial class App : Application
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == "GlobalHotkey") Dispatcher.UIThread.Post(ApplyHotkey);
+            if (e.PropertyName == nameof(AppSettings.Appearance))
+                Dispatcher.UIThread.Post(() => ApplyAppearance(Settings.Appearance));
         };
 
         // Kick off an initial fetch when credentials already exist.
@@ -170,7 +175,7 @@ public partial class App : Application
     public void ApplyAccent(string hex)
     {
         var value = hex.StartsWith('#') ? hex : "#" + hex;
-        if (!Avalonia.Media.Color.TryParse(value, out var c)) return;
+        if (!Color.TryParse(value, out var c)) return;
         // Set the base accent and its tint/shade variants Fluent derives states from.
         foreach (var key in new[]
                  {
@@ -179,7 +184,26 @@ public partial class App : Application
                      "SystemAccentColorDark3"
                  })
             Resources[key] = c;
+
+        // Aurora accent-derived brushes (referenced via DynamicResource in views so
+        // an accent change repaints live).
+        Resources["QpAccent"] = new SolidColorBrush(c);
+        Resources["QpAccentText"] = new SolidColorBrush(c);
+        Resources["QpAccentSurface"] = new SolidColorBrush(Color.FromArgb(59, c.R, c.G, c.B));   // 23%
+        Resources["QpAccentStrong"] = new SolidColorBrush(Color.FromArgb(204, c.R, c.G, c.B));   // 80%
     }
+
+    /// <summary>
+    /// Map the persisted appearance setting onto Avalonia's theme variant.
+    /// Auto follows the OS; the video subtrees stay pinned dark via ThemeVariantScope.
+    /// </summary>
+    public void ApplyAppearance(AppSettings.AppearanceMode mode)
+        => RequestedThemeVariant = mode switch
+        {
+            AppSettings.AppearanceMode.Light => ThemeVariant.Light,
+            AppSettings.AppearanceMode.Dark => ThemeVariant.Dark,
+            _ => ThemeVariant.Default
+        };
 
     private void ApplyHotkey()
     {
