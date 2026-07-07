@@ -154,7 +154,15 @@ public partial class MainWindow : Window
         _dragVisual = null;
         _dragging = false;
         if (visual != null) visual.Opacity = 1.0;
-        if (!wasDragging || tile == null || Vm is not { } vm) return;
+        if (tile == null || Vm is not { } vm) return;
+
+        if (!wasDragging)
+        {
+            // Plain left-click anywhere on the tile (video included — it's
+            // composited now) focuses the camera, like tapping a macOS tile.
+            if (e.InitialPressMouseButton == MouseButton.Left) vm.Focus(tile.Camera);
+            return;
+        }
 
         // Drop on whichever tile the pointer is over.
         var hit = this.GetVisualsAt(e.GetPosition(this))
@@ -162,17 +170,202 @@ public partial class MainWindow : Window
             .OfType<CameraTileViewModel>()
             .FirstOrDefault(t => !ReferenceEquals(t, tile));
         if (hit != null) vm.MoveTile(tile, hit);
-        e.Handled = true; // a completed drag must not fire the footer's click
+        e.Handled = true;
+    }
+
+    // MARK: - Tile context menu (macOS grid-tile menu parity, built dynamically)
+
+    private void Tile_ContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (sender is not Border { DataContext: CameraTileViewModel tile } border || Vm is not { } vm) return;
+        e.Handled = true;
+        var flyout = new MenuFlyout();
+        var items = flyout.Items;
+
+        var fullscreen = new MenuItem { Header = Localization.Loc.Get("View fullscreen") };
+        fullscreen.Click += (_, _) => { vm.Focus(tile.Camera); if (WindowState != WindowState.FullScreen) ToggleFullscreen(); };
+        items.Add(fullscreen);
+
+        var openProtect = new MenuItem { Header = Localization.Loc.Get("Open in Protect") };
+        openProtect.Click += (_, _) => vm.OpenInProtect(tile);
+        items.Add(openProtect);
+
+        var pinned = App.Instance.PinnedWindows.IsPinned(tile.Camera.Id);
+        var pin = new MenuItem
+        {
+            Header = Localization.Loc.Get(pinned ? "Unpin Floating Window" : "Pin as Floating Window")
+        };
+        pin.Click += (_, _) =>
+        {
+            if (pinned) App.Instance.PinnedWindows.Unpin(tile.Camera.Id);
+            else App.Instance.PinnedWindows.Pin(tile.Camera);
+        };
+        items.Add(pin);
+
+        items.Add(new Separator());
+
+        // Size (Small / Medium / Large + reset)
+        var currentSize = vm.SizeFor(tile);
+        var sizeMenu = new MenuItem { Header = Localization.Loc.Get("Size") };
+        foreach (var (label, size) in new[]
+                 {
+                     ("Small", QuickProtect.Core.Services.AppSettings.CameraSize.Small),
+                     ("Medium", QuickProtect.Core.Services.AppSettings.CameraSize.Medium),
+                     ("Large", QuickProtect.Core.Services.AppSettings.CameraSize.Large)
+                 })
+        {
+            var isCurrent = currentSize == size || (currentSize == null && size == QuickProtect.Core.Services.AppSettings.CameraSize.Medium);
+            var item = new MenuItem { Header = (isCurrent ? "✓ " : "   ") + Localization.Loc.Get(label) };
+            var s = size;
+            item.Click += (_, _) => vm.SetTileSize(tile, s);
+            sizeMenu.Items.Add(item);
+        }
+        var resetSize = new MenuItem { Header = Localization.Loc.Get("Reset size to Auto") };
+        resetSize.Click += (_, _) => vm.SetTileSize(tile, null);
+        sizeMenu.Items.Add(new Separator());
+        sizeMenu.Items.Add(resetSize);
+        items.Add(sizeMenu);
+
+        // Stream quality (default + explicit tiers)
+        var currentQuality = vm.QualityFor(tile);
+        var qualityMenu = new MenuItem { Header = Localization.Loc.Get("Stream quality") };
+        var useDefault = new MenuItem
+        {
+            Header = (currentQuality == null ? "✓ " : "   ") +
+                     string.Format(Localization.Loc.Get("Use default ({0})"), vm.DefaultQuality.RawValue())
+        };
+        useDefault.Click += (_, _) => vm.SetTileQuality(tile, null);
+        qualityMenu.Items.Add(useDefault);
+        foreach (var q in new[] { StreamQuality.Auto, StreamQuality.Low, StreamQuality.Medium, StreamQuality.High })
+        {
+            var item = new MenuItem { Header = (currentQuality == q ? "✓ " : "   ") + q.RawValue() };
+            var quality = q;
+            item.Click += (_, _) => vm.SetTileQuality(tile, quality);
+            qualityMenu.Items.Add(item);
+        }
+        items.Add(qualityMenu);
+
+        items.Add(new Separator());
+
+        // Add Camera (hidden cameras in this profile)
+        var hidden = vm.HiddenCameras();
+        if (hidden.Count > 0)
+        {
+            var addMenu = new MenuItem { Header = Localization.Loc.Get("Add Camera") };
+            foreach (var cam in hidden)
+            {
+                var item = new MenuItem { Header = cam.Name };
+                var id = cam.Id;
+                item.Click += (_, _) => vm.UnhideCamera(id);
+                addMenu.Items.Add(item);
+            }
+            items.Add(addMenu);
+        }
+
+        var hide = new MenuItem { Header = Localization.Loc.Get("Hide this camera") };
+        hide.Click += (_, _) => vm.HideCamera(tile);
+        items.Add(hide);
+
+        flyout.ShowAt(border, true);
     }
 
     // MARK: - Focus entry / exit
 
-    private void Tile_Focus(object? sender, RoutedEventArgs e)
+    private void Focus_Back(object? sender, RoutedEventArgs e) => ExitFocus();
+
+    // MARK: - Focus-surface interactions (click back, double-click Protect,
+    // drag-to-pan when zoomed, scroll pan, Ctrl+scroll digital zoom)
+
+    private Point _focusPressPos;
+    private bool _focusDragPanned;
+    private CancellationTokenSource? _pendingExit;
+
+    private void FocusSurface_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is Control { DataContext: CameraTileViewModel tile }) Vm?.Focus(tile.Camera);
+        _focusPressPos = e.GetPosition(FocusSurface);
+        _focusDragPanned = false;
+        if (e.ClickCount == 2)
+        {
+            // Double-click: open in Protect (cancels the pending single-click exit).
+            _pendingExit?.Cancel();
+            _pendingExit = null;
+            if (Vm is { FocusTile: { } ft } vm) vm.OpenInProtect(ft);
+            e.Handled = true;
+        }
     }
 
-    private void Focus_Back(object? sender, RoutedEventArgs e) => ExitFocus();
+    private void FocusSurface_PointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (Vm?.FocusTile is not { IsDigitallyZoomed: true } ft) return;
+        if (!e.GetCurrentPoint(FocusSurface).Properties.IsLeftButtonPressed) return;
+        var pos = e.GetPosition(FocusSurface);
+        var delta = pos - _focusPressPos;
+        if (!_focusDragPanned && Math.Abs(delta.X) < 4 && Math.Abs(delta.Y) < 4) return;
+        _focusDragPanned = true;
+        _focusPressPos = pos;
+        var bounds = FocusSurface.Bounds;
+        if (bounds.Width < 1 || bounds.Height < 1) return;
+        // Drag moves the image with the pointer (macOS drag-to-pan).
+        ft.DigitalPan(-delta.X / bounds.Width, -delta.Y / bounds.Height);
+    }
+
+    private void FocusSurface_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_focusDragPanned || e.InitialPressMouseButton != MouseButton.Left) return;
+        // Single click on the video goes back to the grid (macOS tap behavior),
+        // deferred briefly so a double-click can cancel it.
+        _pendingExit?.Cancel();
+        var cts = new CancellationTokenSource();
+        _pendingExit = cts;
+        _ = Task.Delay(280, cts.Token).ContinueWith(t =>
+        {
+            if (!t.IsCanceled)
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (Vm?.IsFocusMode == true) ExitFocus(); });
+        });
+    }
+
+    private void FocusSurface_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (Vm?.FocusTile is not { } ft) return;
+        e.Handled = true;
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            // Ctrl+scroll (also what a touchpad pinch synthesizes on Windows).
+            ft.DigitalZoomBy(e.Delta.Y > 0 ? 1.15 : 1 / 1.15);
+        }
+        else if (ft.IsDigitallyZoomed)
+        {
+            // Two-finger scroll pans the zoomed view (macOS scroll-to-pan).
+            ft.DigitalPan(-e.Delta.X * 0.08, -e.Delta.Y * 0.08);
+        }
+    }
+
+    private void Pip_Clicked(object? sender, PointerReleasedEventArgs e)
+    {
+        e.Handled = true;
+        Vm?.SwapSecondary();
+    }
+
+    /// <summary>PiP sizing: ~26% of the focus width, 4:3, like macOS.</summary>
+    private void FocusRoot_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        var w = Math.Max(120, e.NewSize.Width * 0.26);
+        PipBorder.Width = w;
+        PipBorder.Height = w * 0.75 + 22; // + label row
+    }
+
+    // MARK: - Header actions
+
+    private void Header_Settings(object? sender, RoutedEventArgs e) => App.Instance.ShowSettings();
+
+    private void Header_Quit(object? sender, RoutedEventArgs e) => App.Instance.RequestShutdown();
+
+    private async void Header_SaveProfile(object? sender, RoutedEventArgs e)
+    {
+        var name = await NamePromptWindow.ShowAsync(this,
+            Localization.Loc.Get("Save Current View as New Profile…"));
+        if (!string.IsNullOrWhiteSpace(name)) Vm?.SaveCurrentViewAsProfile(name!);
+    }
 
     private void ExitFocus()
     {
@@ -308,6 +501,7 @@ public partial class MainWindow : Window
         if (e.Key == Key.F && vm.IsFocusMode) { ToggleFullscreen(); e.Handled = true; return; }
         if (e.Key == Key.S && vm.IsFocusMode) { CaptureSnapshot(); e.Handled = true; return; }
         if (e.Key == Key.M && vm.IsFocusMode) { vm.FocusTile?.ToggleMute(); e.Handled = true; return; }
+        if (e.Key == Key.C && vm.IsFocusMode) { vm.SwapSecondary(); e.Handled = true; return; }
 
         if (vm.FocusTile is not { } ft) return;
 

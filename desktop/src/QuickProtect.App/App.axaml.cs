@@ -229,6 +229,9 @@ public partial class App : Application
         Console.Error.WriteLine($"[QuickProtect] {message}");
     }
 
+    /// <summary>Quit the app (tray menu and the panel header's power button).</summary>
+    public void RequestShutdown() => Shutdown();
+
     private void Shutdown()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

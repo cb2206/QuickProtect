@@ -176,6 +176,59 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task Refresh() => await _service.FetchCamerasAsync();
 
+    // MARK: - Tile context-menu actions (macOS grid-tile menu parity)
+
+    /// <summary>Cameras hidden in the active profile (for the "Add Camera" submenu).</summary>
+    public IReadOnlyList<Camera> HiddenCameras()
+        => _service.Cameras.Where(c => _settings.IsHidden(c.Id)).ToList();
+
+    public void HideCamera(CameraTileViewModel tile)
+    {
+        _settings.SetHidden(true, tile.Camera.Id);
+        RebuildTiles();
+    }
+
+    public void UnhideCamera(string cameraId)
+    {
+        _settings.SetHidden(false, cameraId);
+        RebuildTiles();
+    }
+
+    public void SetTileSize(CameraTileViewModel tile, AppSettings.CameraSize? size)
+    {
+        _settings.SetSize(size, tile.Camera.Id);
+        RebuildTiles();
+    }
+
+    public AppSettings.CameraSize? SizeFor(CameraTileViewModel tile) => _settings.SizeFor(tile.Camera.Id);
+
+    public void SetTileQuality(CameraTileViewModel tile, StreamQuality? quality)
+    {
+        _settings.SetStreamQuality(quality, tile.Camera.Id);
+        _ = tile.StartAsync(); // re-resolve the desired quality in place
+    }
+
+    public StreamQuality? QualityFor(CameraTileViewModel tile) => _settings.StreamQualityFor(tile.Camera.Id);
+    public StreamQuality DefaultQuality => _settings.DefaultStreamQuality;
+
+    /// <summary>Open the camera in the controller's web UI (macOS "Open in Protect").</summary>
+    public void OpenInProtect(CameraTileViewModel tile)
+    {
+        var ip = _settings.IpAddress;
+        if (string.IsNullOrEmpty(ip)) return;
+        Platform.UrlOpener.Open($"https://{ip}/protect/dashboard/all/sidepanel/device/{tile.Camera.Id}");
+    }
+
+    /// <summary>"Save Current View as New Profile…" (header profile menu parity).</summary>
+    public void SaveCurrentViewAsProfile(string name)
+    {
+        var trimmed = name.Trim();
+        if (trimmed.Length == 0) return;
+        _settings.CreateProfile(trimmed);
+        RebuildProfiles();
+        RebuildTiles();
+    }
+
     /// <summary>
     /// Drag-reorder: move a visible tile to a new grid position and persist the
     /// profile order. Hidden cameras keep their slots — only the visible subset
