@@ -195,10 +195,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (visible.Contains(full[i]))
                 full[i] = queue.Dequeue();
         _settings.SetCameraOrder(full);
-
-        // The move recreated the tile's native video surface; restart playback
-        // once layout settles so libVLC picks up the new Hwnd.
-        Dispatcher.UIThread.Post(tile.RestartPlayback, DispatcherPriority.Background);
     }
 
     /// <summary>

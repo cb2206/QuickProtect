@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+        xmlns:video="clr-namespace:QuickProtect.App.Video"
         xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
         xmlns:loc="clr-namespace:QuickProtect.App.Localization"
         x:Class="QuickProtect.App.Views.MainWindow"
@@ -99,7 +99,7 @@
                     </Button>
 
                     <Grid>
-                      <vlc:VideoView MediaPlayer="{Binding Player}" />
+                      <video:VideoSurface Source="{Binding Client}" Fill="True" />
                       <ProgressBar IsIndeterminate="True" Width="60" Height="4"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    IsVisible="{Binding IsLoading}" />
@@ -235,7 +235,11 @@
              doorbell package camera) gets its own side column so both native
              VideoView surfaces render without overlapping. -->
         <Grid ColumnDefinitions="*,Auto">
-          <vlc:VideoView Grid.Column="0" MediaPlayer="{Binding FocusTile.Player}" />
+          <video:VideoSurface Grid.Column="0" Source="{Binding FocusTile.Client}"
+                              Fill="{Binding FocusTile.FillMode}"
+                              Zoom="{Binding FocusTile.Zoom}"
+                              ZoomCenterX="{Binding FocusTile.ZoomCenterX}"
+                              ZoomCenterY="{Binding FocusTile.ZoomCenterY}" />
           <Border Grid.Column="1" Width="200" Background="{DynamicResource QpChrome}" IsVisible="{Binding HasSecondary}">
             <DockPanel>
               <DockPanel DockPanel.Dock="Top">
@@ -245,7 +249,7 @@
                 <TextBlock Text="{loc:Loc 'Package camera'}" Foreground="{DynamicResource QpTextSecondary}"
                            FontSize="11" Margin="8,5" VerticalAlignment="Center" />
               </DockPanel>
-              <vlc:VideoView MediaPlayer="{Binding SecondaryTile.Player}" />
+              <video:VideoSurface Source="{Binding SecondaryTile.Client}" />
             </DockPanel>
           </Border>
         </Grid>

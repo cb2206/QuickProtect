@@ -1,15 +1,16 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
-using LibVLCSharp.Shared;
-using QuickProtect.App.Services;
+using QuickProtect.App.Video;
 using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App.ViewModels;
 
 /// <summary>
-/// One camera tile in the grid: owns its <see cref="MediaPlayer"/>, requests an
-/// on-demand RTSP stream from the controller, and plays it. Tracks the quality it
-/// actually got so the allocation can be released on stop.
+/// One camera tile: owns its <see cref="VideoStreamClient"/>, requests an
+/// on-demand RTSP stream from the controller, and plays it through the FFmpeg
+/// engine. Tracks the quality it actually got so the allocation can be released
+/// on stop.
 /// </summary>
 public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 {
@@ -18,8 +19,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     public Camera Camera { get; private set; }
 
-    /// <summary>The video player, or null when libVLC is unavailable (video disabled).</summary>
-    public MediaPlayer? Player { get; }
+    /// <summary>The stream client, or null when the video engine is unavailable.</summary>
+    public VideoStreamClient? Client { get; }
 
     [ObservableProperty] private string _name;
     [ObservableProperty] private bool _isOnline;
@@ -30,11 +31,18 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _fillMode;
     [ObservableProperty] private double _tileWidth;
     [ObservableProperty] private double _tileHeight;
-    /// <summary>True when libVLC couldn't initialize, so the tile shows a notice instead of video.</summary>
+    /// <summary>True when the video engine couldn't initialize (tile shows a notice).</summary>
     [ObservableProperty] private bool _videoUnavailable;
     /// <summary>False when filtered out by the header search box.</summary>
     [ObservableProperty] private bool _matchesSearch = true;
 
+    // Digital zoom viewport (bound by VideoSurface; Core math in DigitalZoom).
+    [ObservableProperty] private double _zoom = 1.0;
+    [ObservableProperty] private double _zoomCenterX = 0.5;
+    [ObservableProperty] private double _zoomCenterY = 0.5;
+    [ObservableProperty] private string? _digitalZoomLabel;
+
+    private readonly DigitalZoom _digitalZoom = new();
     private string? _activeQuality;
     private string? _activeUrl;
     private bool _starting;
@@ -43,8 +51,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     /// <param name="pinned">
     /// When true the tile drives a pinned floating window: it uses the pinned
-    /// server-side allocation lifecycle (created/released independently of the
-    /// popover's streams) and always streams at high quality.
+    /// server-side allocation lifecycle and always streams at high quality.
     /// </param>
     /// <param name="fixedQuality">
     /// When set (e.g. "package"), the tile streams exactly this quality instead of
@@ -72,30 +79,17 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         _tileWidth = baseWidth;
         _tileHeight = Math.Round(baseWidth * 0.66);
 
-        if (VlcManager.Shared.LibVLC is { } libvlc)
+        if (FfmpegEngine.IsAvailable)
         {
-            Player = new MediaPlayer(libvlc) { EnableHardwareDecoding = true };
-            Player.Playing += (_, _) =>
+            Client = new VideoStreamClient();
+            Client.StateChanged += state => Dispatcher.UIThread.Post(() =>
             {
-                IsPlaying = true;
-                IsLoading = false;
-                ApplyMute();
-                ApplyFill();
-            };
-            Player.EncounteredError += (_, _) => IsLoading = false;
-            Player.Stopped += (_, _) => IsPlaying = false;
-            // Learn the real frame size once the video output exists, so fill-mode
-            // crop and pinned-window aspect use the camera's true aspect ratio
-            // (macOS caches this from its decoder, RTSPClient.swift).
-            Player.Vout += (_, _) =>
-            {
-                uint w = 0, h = 0;
-                if (Player.Size(0, ref w, ref h) && w > 0 && h > 0)
-                {
-                    _settings.CacheVideoDimensions(w, h, Camera.Id);
-                    ApplyFill();
-                }
-            };
+                IsPlaying = state == VideoState.Playing;
+                if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
+            });
+            // Learn the real frame size for aspect-dependent UI (pinned windows,
+            // grid tile aspect) — macOS caches decoder dimensions the same way.
+            Client.VideoSizeKnown += (w, h) => _settings.CacheVideoDimensions((uint)w, (uint)h, Camera.Id);
         }
         else
         {
@@ -103,77 +97,20 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         }
     }
 
-    // MARK: - Audio mute / fit-fill (applied to the player; persisted to settings)
+    // MARK: - Audio mute (audio output lands with the engine's audio sink; the
+    // preference is kept so the UI and settings stay wired).
 
-    /// <summary>Toggle audio. Persists the global speaker preference (default muted).</summary>
     public void ToggleMute()
     {
         IsMuted = !IsMuted;
         _settings.SpeakerEnabled = !IsMuted;
-        ApplyMute();
     }
 
-    private void ApplyMute() { if (Player != null) Player.Mute = IsMuted; }
-
-    /// <summary>Toggle fit (letterbox) vs. fill (crop) for the focused frame.</summary>
+    /// <summary>Toggle fit (letterbox) vs. fill (crop); rendered by VideoSurface.</summary>
     public void ToggleFill()
     {
         FillMode = !FillMode;
         _settings.SetCameraFillMode(FillMode, Camera.Id);
-        ApplyFill();
-    }
-
-    private void ApplyFill()
-    {
-        if (Player == null) return;
-        // Digital zoom owns the crop while active; fill re-applies on zoom reset.
-        if (_digitalZoom.IsZoomed) return;
-        // Fill crops to the camera's aspect so the frame is filled; fit lets libVLC
-        // letterbox (Scale 0 = auto-fit). Best-effort — tuned on-device.
-        if (FillMode)
-        {
-            var ar = _settings.CachedAspectRatio(Camera.Id);
-            Player.CropGeometry = ar is { } r && r > 0 ? $"{(int)Math.Round(r * 1000)}:1000" : null;
-        }
-        else
-        {
-            Player.CropGeometry = null;
-            Player.Scale = 0;
-        }
-    }
-
-    // MARK: - Digital zoom (focus view; crop-based, Core math in DigitalZoom)
-
-    private readonly DigitalZoom _digitalZoom = new();
-
-    /// <summary>Digital zoom factor label ("2.5×"), or null at 1× (hides the badge).</summary>
-    [ObservableProperty] private string? _digitalZoomLabel;
-
-    public bool IsDigitallyZoomed => _digitalZoom.IsZoomed;
-
-    public void DigitalZoomIn() { _digitalZoom.ZoomIn(); ApplyDigitalZoom(); }
-    public void DigitalZoomOut() { _digitalZoom.ZoomOut(); ApplyDigitalZoom(); }
-    public void DigitalZoomReset() { _digitalZoom.Reset(); ApplyDigitalZoom(); }
-
-    /// <summary>Pan the zoomed view by a fraction of the visible window.</summary>
-    public void DigitalPan(double dx, double dy) { _digitalZoom.Pan(dx, dy); ApplyDigitalZoom(); }
-
-    private void ApplyDigitalZoom()
-    {
-        if (Player == null) return;
-        if (_digitalZoom.IsZoomed)
-        {
-            uint w = 0, h = 0;
-            if (Player.Size(0, ref w, ref h))
-                Player.CropGeometry = _digitalZoom.CropGeometry(w, h);
-            DigitalZoomLabel = $"{_digitalZoom.Zoom:0.#}×";
-        }
-        else
-        {
-            DigitalZoomLabel = null;
-            Player.CropGeometry = null;
-            ApplyFill(); // restore the fit/fill preference
-        }
     }
 
     public void UpdateFrom(Camera camera)
@@ -190,27 +127,43 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     // MARK: - PTZ (direction → axis mapping lives in Core's PtzMapping)
 
-    /// <summary>Start moving along the given direction (pointer-down / key-down).</summary>
     public void PtzPress(PtzDirection d) => Send(PtzMapping.Press(d));
-
-    /// <summary>Stop the axis the direction belongs to (pointer-up / key-up).</summary>
     public void PtzRelease(PtzDirection d) => Send(PtzMapping.Release(d));
-
     private void Send(PtzMapping.Axes a) => _service.PtzSetAxes(Camera.Id, a.Pan, a.Tilt, a.Zoom);
-
     public void PtzStopAll() => _service.PtzStopAll(Camera.Id);
+
+    // MARK: - Digital zoom (crop-window math in Core's DigitalZoom)
+
+    public bool IsDigitallyZoomed => _digitalZoom.IsZoomed;
+
+    public void DigitalZoomIn() { _digitalZoom.ZoomIn(); ApplyDigitalZoom(); }
+    public void DigitalZoomOut() { _digitalZoom.ZoomOut(); ApplyDigitalZoom(); }
+    public void DigitalZoomReset() { _digitalZoom.Reset(); ApplyDigitalZoom(); }
+    public void DigitalZoomBy(double factor) { _digitalZoom.SetZoom(_digitalZoom.Zoom * factor); ApplyDigitalZoom(); }
+
+    /// <summary>Pan the zoomed view by a fraction of the visible window.</summary>
+    public void DigitalPan(double dx, double dy) { _digitalZoom.Pan(dx, dy); ApplyDigitalZoom(); }
+
+    private void ApplyDigitalZoom()
+    {
+        Zoom = _digitalZoom.Zoom;
+        ZoomCenterX = _digitalZoom.CenterX;
+        ZoomCenterY = _digitalZoom.CenterY;
+        DigitalZoomLabel = _digitalZoom.IsZoomed ? $"{_digitalZoom.Zoom:0.#}×" : null;
+    }
+
+    // MARK: - Stream lifecycle
 
     /// <summary>Resolve the effective quality for the current view state and start playback.</summary>
     public async Task StartAsync()
     {
-        if (Player == null || _starting || Player.IsPlaying || !Camera.IsOnline) return;
+        if (Client == null || _starting || !Camera.IsOnline) return;
+        if (Client.State is VideoState.Playing or VideoState.Connecting) return;
         _starting = true;
-        IsLoading = true;
+        if (!Client.HasFrame) IsLoading = true;
         try
         {
             var gridIsLarge = _settings.SizeFor(Camera.Id) == AppSettings.CameraSize.Large;
-            // A fixed quality (secondary lens) bypasses resolution; otherwise pinned
-            // and focused views both run at high quality.
             var quality = _fixedQuality
                 ?? _settings.EffectiveStreamQuality(Camera.Id)
                     .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
@@ -223,9 +176,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             _activeQuality = r.quality;
             _activeUrl = r.url;
 
-            using var media = VlcManager.Shared.MakeMedia(r.url);
-            if (media == null) { IsLoading = false; return; }
-            Player.Play(media);
+            Client.Start(FfmpegEngine.MapUrl(r.url));
         }
         catch (Exception ex)
         {
@@ -236,38 +187,23 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// PiP swap: exchange live playback with <paramref name="other"/>. The two
-    /// players replay each other's stream URL, so the enlarged view shows the
-    /// other lens instantly — server-side allocations stay put (their ownership
-    /// swaps with the URLs), and no VideoView needs to re-attach.
+    /// PiP swap: exchange live playback with <paramref name="other"/>. Both
+    /// clients switch to each other's URL in place, keeping their last frames —
+    /// server allocations stay put (their ownership swaps with the URLs).
     /// </summary>
     public void SwapPlaybackWith(CameraTileViewModel other)
     {
-        if (Player == null || other.Player == null) return;
+        if (Client == null || other.Client == null) return;
         (_activeQuality, other._activeQuality) = (other._activeQuality, _activeQuality);
         (_activeUrl, other._activeUrl) = (other._activeUrl, _activeUrl);
         (_fixedQuality, other._fixedQuality) = (other._fixedQuality, _fixedQuality);
-        Replay();
-        other.Replay();
+        if (_activeUrl is { } mine) Client.SwitchUrl(FfmpegEngine.MapUrl(mine));
+        if (other._activeUrl is { } theirs) other.Client.SwitchUrl(FfmpegEngine.MapUrl(theirs));
     }
-
-    private void Replay()
-    {
-        if (Player == null || _activeUrl is not { } url) return;
-        using var media = VlcManager.Shared.MakeMedia(url);
-        if (media != null) { IsLoading = true; Player.Play(media); }
-    }
-
-    /// <summary>
-    /// Restart playback on the existing stream URL. Needed after the tile's
-    /// native video surface is recreated (grid drag-reorder moves the item
-    /// container) — libVLC only honors a new Hwnd on the next play.
-    /// </summary>
-    public void RestartPlayback() => Replay();
 
     public void Stop()
     {
-        if (Player is { IsPlaying: true }) Player.Stop();
+        Client?.Stop();
         if (_activeQuality is { } q)
         {
             if (_pinned) _service.ReleasePinnedStream(Camera.Id, q);
@@ -282,6 +218,6 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Stop();
-        Player?.Dispose();
+        Client?.Dispose();
     }
 }

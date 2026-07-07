@@ -31,3 +31,6 @@ graphify-out/
 # .NET port build artifacts
 desktop/dist/
 desktop/publish-x64-debug/
+
+# FFmpeg native libraries (fetched by scripts/get-ffmpeg.ps1)
+desktop/native/

@@ -1,80 +1,75 @@
-using LibVLCSharp.Shared;
+using Avalonia;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using QuickProtect.App.Platform;
+using QuickProtect.App.ViewModels;
 using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
+using System.Runtime.InteropServices;
 
 namespace QuickProtect.App.Services;
 
 /// <summary>
-/// Captures a still frame from a playing <see cref="MediaPlayer"/> to a PNG via
-/// libVLC's <c>TakeSnapshot</c>, honoring the snapshot-destination setting:
-/// clipboard (via <see cref="ImageClipboard"/>) or the configured folder
-/// (falling back to the OS Pictures folder). libVLC writes the file
-/// asynchronously, so capture awaits its appearance before proceeding.
+/// Captures a still from a tile's video engine: the latest decoded frame is
+/// encoded to PNG in-process (native resolution, no temp-file round-trip) and
+/// saved to the configured folder or placed on the clipboard.
 /// </summary>
 public static class SnapshotService
 {
     public sealed record Result(bool Ok, string? Path, string Message);
 
-    public static async Task<Result> CaptureAsync(MediaPlayer? player, string cameraName)
+    public static Task<Result> CaptureAsync(CameraTileViewModel tile) => Task.Run(() => Capture(tile));
+
+    private static Result Capture(CameraTileViewModel tile)
     {
-        if (player == null)
+        if (tile.Client is not { } client)
             return new Result(false, null, Localization.Loc.Get("Video is unavailable."));
-        if (!player.IsPlaying)
+
+        byte[]? buffer = null;
+        long seq = -1;
+        if (!client.TryCopyFrame(ref buffer, ref seq, out var w, out var h, out var stride) || buffer == null)
             return new Result(false, null, Localization.Loc.Get("Camera isn't playing yet."));
 
-        var toClipboard = AppSettings.Shared.SnapshotDest == AppSettings.SnapshotDestination.Clipboard;
-        var dir = toClipboard ? System.IO.Path.GetTempPath() : ResolveFolder();
-        try { Directory.CreateDirectory(dir); }
-        catch (Exception ex)
+        using var bmp = new WriteableBitmap(new PixelSize(w, h), new Vector(96, 96),
+            PixelFormat.Bgra8888, AlphaFormat.Opaque);
+        using (var fb = bmp.Lock())
         {
-            return new Result(false, null, string.Format(Localization.Loc.Get("Can't create folder: {0}"), ex.Message));
+            if (fb.RowBytes == stride)
+            {
+                Marshal.Copy(buffer, 0, fb.Address, stride * h);
+            }
+            else
+            {
+                for (var row = 0; row < h; row++)
+                    Marshal.Copy(buffer, row * stride, fb.Address + row * fb.RowBytes, stride);
+            }
         }
 
-        var path = System.IO.Path.Combine(dir, SnapshotNaming.FileName(cameraName, DateTime.Now));
         try
         {
-            // num=0 (first video output), width=height=0 → native resolution.
-            if (!player.TakeSnapshot(0, path, 0, 0))
-                return new Result(false, null, Localization.Loc.Get("Snapshot failed"));
-            if (!await WaitForFileAsync(path))
-                return new Result(false, null, Localization.Loc.Get("Snapshot failed"));
+            if (AppSettings.Shared.SnapshotDest == AppSettings.SnapshotDestination.Clipboard)
+            {
+                var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    SnapshotNaming.FileName(tile.Name, DateTime.Now));
+                bmp.Save(tmp);
+                var copied = ImageClipboard.TrySetPng(tmp);
+                try { File.Delete(tmp); } catch { /* temp file; best effort */ }
+                return copied
+                    ? new Result(true, null, Localization.Loc.Get("Snapshot copied to clipboard"))
+                    : new Result(false, null, Localization.Loc.Get("Clipboard is unavailable."));
+            }
 
-            if (!toClipboard)
-                return new Result(true, path, $"{Localization.Loc.Get("Saved")} {System.IO.Path.GetFileName(path)}");
-
-            var copied = ImageClipboard.TrySetPng(path);
-            try { File.Delete(path); } catch { /* temp file; best effort */ }
-            return copied
-                ? new Result(true, null, Localization.Loc.Get("Snapshot copied to clipboard"))
-                : new Result(false, null, Localization.Loc.Get("Clipboard is unavailable."));
+            var dir = ResolveFolder();
+            Directory.CreateDirectory(dir);
+            var path = System.IO.Path.Combine(dir, SnapshotNaming.FileName(tile.Name, DateTime.Now));
+            bmp.Save(path);
+            return new Result(true, path, $"{Localization.Loc.Get("Saved")} {System.IO.Path.GetFileName(path)}");
         }
         catch (Exception ex)
         {
             Log.Line($"[Snapshot] failed: {ex.Message}");
             return new Result(false, null, ex.Message);
         }
-    }
-
-    /// <summary>libVLC writes the snapshot off-thread; poll briefly until it lands.</summary>
-    private static async Task<bool> WaitForFileAsync(string path)
-    {
-        for (var i = 0; i < 60; i++) // up to ~3s
-        {
-            try
-            {
-                var info = new FileInfo(path);
-                if (info.Exists && info.Length > 0)
-                {
-                    // Writable exclusively → libVLC has finished writing.
-                    using var _ = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.None);
-                    return true;
-                }
-            }
-            catch (IOException) { /* still being written */ }
-            await Task.Delay(50);
-        }
-        return false;
     }
 
     private static string ResolveFolder()

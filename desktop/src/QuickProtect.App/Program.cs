@@ -1,5 +1,4 @@
 using Avalonia;
-using LibVLCSharp.Shared;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App;
@@ -19,25 +18,6 @@ internal static class Program
         // without a console (WinExe apps have no attached console).
         AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash(e.ExceptionObject as Exception, "AppDomain");
         TaskScheduler.UnobservedTaskException += (_, e) => { LogCrash(e.Exception, "Task"); e.SetObserved(); };
-
-        // Load the native libVLC libraries once, before any LibVLC object is created.
-        // Windows ships them via NuGet; Linux uses the system 'vlc' package; on macOS
-        // (where there's no arm64 libVLC NuGet) prefer a system VLC.app install.
-        try
-        {
-            var macVlcLib = "/Applications/VLC.app/Contents/MacOS/lib";
-            if (OperatingSystem.IsMacOS() && Directory.Exists(macVlcLib))
-            {
-                Environment.SetEnvironmentVariable("VLC_PLUGIN_PATH",
-                    "/Applications/VLC.app/Contents/MacOS/plugins");
-                LibVLCSharp.Shared.Core.Initialize(macVlcLib);
-            }
-            else
-            {
-                LibVLCSharp.Shared.Core.Initialize();
-            }
-        }
-        catch (Exception ex) { Console.Error.WriteLine($"[libVLC] init failed: {ex.Message}"); }
 
         try
         {

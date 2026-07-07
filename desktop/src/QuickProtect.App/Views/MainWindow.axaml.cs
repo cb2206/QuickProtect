@@ -199,7 +199,7 @@ public partial class MainWindow : Window
     private async void CaptureSnapshot()
     {
         if (Vm?.FocusTile is not { } ft) return;
-        var result = await Services.SnapshotService.CaptureAsync(ft.Player, ft.Name);
+        var result = await Services.SnapshotService.CaptureAsync(ft);
         Vm?.ShowToast(result.Message);
     }
 

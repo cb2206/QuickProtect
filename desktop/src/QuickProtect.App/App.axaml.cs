@@ -44,8 +44,10 @@ public partial class App : Application
         ApplyAppearance(Settings.Appearance);
         Trust = new CertificateTrust(prefs);
         Service = new ProtectService(Settings, Trust);
-        // Video rtsps transport: local TLS bridge with the same TOFU trust as the API.
-        VlcManager.Shared.Tunnel = new RtspTlsTunnel(Trust);
+        // Custom FFmpeg video engine; rtsps rides the local TLS bridge with the
+        // same TOFU trust as the API.
+        Video.FfmpegEngine.Initialize();
+        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust);
         Service.CertificateChanged += (_, message) =>
             Dispatcher.UIThread.Post(() => Service_ShowError(message));
         PinnedWindows = new PinnedWindowManager(Service, Settings);
@@ -239,6 +241,6 @@ public partial class App : Application
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();
         Service.Dispose();
-        VlcManager.Shared.Tunnel?.Dispose();
+        Video.FfmpegEngine.Tunnel?.Dispose();
     }
 }
