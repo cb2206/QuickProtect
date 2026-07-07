@@ -190,7 +190,7 @@
 
         <!-- PTZ controls overlaid bottom-right (macOS AuroraPtzDpad/ZoomControl) -->
         <StackPanel Orientation="Horizontal" Spacing="10"
-                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,16"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,16"
                     IsVisible="{Binding ControlsVisible}">
           <StackPanel Orientation="Horizontal" Spacing="10"
                       DataContext="{Binding FocusTile}" x:DataType="vm:CameraTileViewModel">

@@ -3,9 +3,8 @@
 # Output: desktop/dist/QuickProtect-Setup-<version>-x64.exe
 #
 # Notes:
-#  - Publishes self-contained win-x64 (bundles .NET + libVLC). There is no
-#    arm64 libVLC NuGet, so x64 is the only Windows target with video; it runs
-#    under emulation on Windows-on-ARM.
+#  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 7.1 natives
+#    the custom video engine uses; fetched on demand by get-ffmpeg.ps1).
 #  - Requires Inno Setup 6 (winget install JRSoftware.InnoSetup).
 
 param([string]$Version = "1.2.1")
@@ -14,6 +13,8 @@ $ErrorActionPreference = "Stop"
 $desktop = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $desktop "dist"
 $publish = Join-Path $dist "win-x64"
+
+& (Join-Path $PSScriptRoot "get-ffmpeg.ps1") -Rids win-x64
 
 Write-Host "Publishing self-contained win-x64 (Release)..."
 dotnet publish (Join-Path $desktop "src\QuickProtect.App") -c Release -r win-x64 --self-contained -o $publish

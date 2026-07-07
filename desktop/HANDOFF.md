@@ -1,68 +1,66 @@
 # Windows/Linux port — session handoff
 
-Cross-platform .NET 8 + Avalonia + LibVLCSharp reimplementation of the macOS
-QuickProtect app, living in `desktop/`. Branch: `feat/windows-linux-port`.
+Cross-platform .NET 8 + Avalonia reimplementation of the macOS QuickProtect
+app, living in `desktop/`. Branch: `feat/windows-linux-port`.
 
 ## Status
-**Feature parity reached and live-verified on Windows** against a real
-controller (7 cameras at 10.0.1.1): grid + focus video, PTZ, digital zoom,
-PiP swap, pinned windows, snapshots (clipboard + folder), fullscreen HUD,
-drag-reorder, popover panel, light/auto/dark theming, 7 languages, installer.
-See `PARITY.md` for the full matrix and intentional differences.
+**Custom FFmpeg video engine + full macOS-parity UI, live-verified on Windows**
+against a real controller (7 cameras at 10.0.1.1). All 13 bugs from the
+2026-07-07 bug-report round are fixed and verified except audio (see below).
+See `PARITY.md` for the feature matrix and intentional differences.
 
-## The two big root causes fixed on Windows (don't regress these)
+## Architecture: the video engine (don't regress these)
 
-1. **Black video tiles** — VLC 3.x has **no access module for `rtsps://`**
-   ("no access modules matched" in the debug log). Not a TLS-trust or decoder
-   issue. Fixed by `Core/Services/RtspTlsTunnel.cs`: loopback listener →
-   `SslStream` to the controller with TOFU `CertificateTrust` validation;
-   `VlcManager.MakeMedia` rewrites rtsps URLs to `rtsp://127.0.0.1:<port>/…`.
-2. **Native AccessViolation on player teardown** — `VideoView.Detach()` calls
-   `set_Hwnd` on the outgoing `MediaPlayer`; disposing the player before the
-   view unbinds crashes in `LibVLCMediaPlayerSetHwnd`. Always unbind/close the
-   view first, dispose the tile after (see `MainViewModel`,
-   `PinnedWindowManager`). Related: libVLC only honors a **new** Hwnd on the
-   next `Play()` — after a grid reorder recreates the container, the moved
-   tile's playback is restarted (`RestartPlayback`).
+libVLC is GONE. Video is the macOS-style custom pipeline:
 
-## Dev environment gotchas (this ARM64 VM)
+- `App/Video/FfmpegEngine.cs` — loads FFmpeg 7.1 natives (bundled per RID from
+  `scripts/get-ffmpeg.ps1`, incl. **win-arm64** → native ARM decode; system
+  libs on Linux when the folder is absent). Logs to
+  `%APPDATA%\QuickProtect\video.log`.
+- `App/Video/VideoStreamClient.cs` — one thread per stream: avformat/avcodec
+  demux+decode → BGRA latest-frame buffer. First frame displays immediately;
+  last frame survives reconnects and URL switches (no grey flash); broken
+  streams retry with backoff; `SwitchUrl` changes quality in place.
+- `App/Video/VideoSurface.cs` — composited Avalonia control (WriteableBitmap):
+  fit/fill + digital zoom applied via source rect at draw time. Because video
+  is ordinary Avalonia content, it's clickable/gesture-capable/overlayable —
+  the entire native-HWND airspace bug class (input, overlays, pin crashes,
+  D3D11 vout glitches) no longer exists.
+- `App/Video/VideoStreamCoordinator.cs` — one shared client per camera lens
+  (macOS RTSPClientManager analog): desires per consumer, highest quality
+  wins, upgrades immediate / downgrades 0.6s-delayed, new allocation created
+  before the old is released, entries keep their last frame after stop.
+- **RTSPS**: `Core/Services/RtspTlsTunnel.cs` still carries TLS + TOFU pinning
+  (FFmpeg plays plain rtsp://127.0.0.1). Keep it — it IS the cert policy.
 
-- The installed .NET SDK is **ARM64**; libVLC ships x64-only. A plain
-  `dotnet run` produces an ARM64 process → **no video** (graceful degradation).
-  For video, publish self-contained x64 and run that (under emulation):
-  ```
-  dotnet publish src/QuickProtect.App -c Debug -r win-x64 --self-contained -o publish-x64-debug
-  publish-x64-debug\QuickProtect.exe --open-panel --no-dismiss
-  ```
-- `--open-panel` opens the grid at launch; `--no-dismiss` disables the
-  popover's click-outside dismiss (needed for UI automation, otherwise the
-  panel hides the moment focus goes elsewhere).
-- Logs: `%APPDATA%\QuickProtect\crash.log`, `%APPDATA%\QuickProtect\vlc.log`
-  (Warning+; set `QP_VLC_DEBUG=1` for everything). Native crashes bypass
-  crash.log — check the Windows Application event log (`.NET Runtime` 1026).
+Known gap: **no audio yet** (mute button is a stub; macOS defaults muted too).
+Next engine milestone: WASAPI (Windows) / ALSA-Pulse (Linux) sink fed by the
+existing decode loop.
+
+## Dev environment (this ARM64 VM)
+
+- Plain `dotnet build` + run now has video (native ARM64 FFmpeg) — the old
+  x64-publish requirement is gone.
+- Run once per checkout: `powershell -File scripts/get-ffmpeg.ps1`
+  (downloads BtbN LGPL-shared natives into gitignored `desktop/native/`).
+- Test flags: `--open-panel`, `--open-settings`, `--no-dismiss` (disables the
+  popover's click-outside dismiss; REQUIRED for UI automation).
+- Logs: `crash.log`, `video.log` in `%APPDATA%\QuickProtect`. Native crashes
+  bypass crash.log — check the Windows event log (`.NET Runtime` 1026).
+- With `ShowInTaskbar=False`, `MainWindowHandle` is 0 — find the panel HWND by
+  EnumWindows and raise with `SetWindowPos HWND_TOPMOST` (foreground lock
+  blocks `SetForegroundWindow`).
 
 ## Build / test / package
 ```
 cd desktop
-dotnet build QuickProtect.sln                 # build all
-dotnet test tests/QuickProtect.Core.Tests     # Core unit tests
-powershell -File scripts/package-windows.ps1  # → dist/QuickProtect-Setup-<v>-x64.exe
-dotnet publish src/QuickProtect.App -c Release -r linux-x64 --self-contained   # compiles ✓
+powershell -File scripts/get-ffmpeg.ps1        # once per checkout
+dotnet build QuickProtect.sln
+dotnet test tests/QuickProtect.Core.Tests
+powershell -File scripts/package-windows.ps1   # → dist/QuickProtect-Setup-<v>-x64.exe
 ```
 
 ## Next phase: Linux
-The code is Linux-clean (cross-publish compiles; platform paths abstracted in
-`Platform/` and OS-gated). Real-machine testing is the remaining work — see
-"Platform notes" in `PARITY.md` for the known degradations (tray icon on
-GNOME, Wayland positioning, hotkey no-op, wl-copy/xclip clipboard).
-
-## Layout
-- `src/QuickProtect.Core` — portable: models (incl. `DigitalZoom`,
-  `PtzBurstTimer`), `ProtectService` (UniFi dual API), `RtspTlsTunnel`,
-  `CertificateTrust` (TOFU), `AppSettings`, secret/prefs stores. Unit-tested.
-- `src/QuickProtect.App` — Avalonia UI: tray shell (`App.axaml.cs`), popover
-  grid (`MainWindow` + `MainViewModel`/`CameraTileViewModel`), focus + PTZ +
-  digital zoom + PiP, pinned windows, settings, onboarding, localization,
-  `Platform/` (hotkey, launch-at-login, image clipboard).
-- `installer/` + `scripts/` — Windows packaging.
-- See `git log --oneline` for the feature-by-feature build-out.
+Cross-publish compiles; `get-ffmpeg.ps1` also fetches linux-x64/arm64 natives
+(or use system FFmpeg). Platform notes in `PARITY.md` (tray/Wayland/hotkey
+caveats). The engine is pure .NET + FFmpeg — no platform video code.

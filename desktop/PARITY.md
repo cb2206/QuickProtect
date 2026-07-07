@@ -10,10 +10,17 @@ Tracks the macOS QuickProtect feature set against this .NET/Avalonia port.
   click-outside dismiss (our own popups/windows don't count as outside; a tray click
   right after an auto-hide toggles closed), Esc dismisses, header doubles as the
   drag handle, per-profile size persistence.
-- **Live video via libVLC** — RTSPS plays through `RtspTlsTunnel` (Core): a
-  127.0.0.1 listener piping bytes over TLS to the controller with the same TOFU
-  pinning as the API. **VLC 3 has no `rtsps` access module at all** — this tunnel
-  is the load-bearing piece; don't replace it with libVLC options (there are none).
+- **Live video via the custom FFmpeg engine** — the macOS-style pipeline:
+  libavformat/libavcodec demux + decode per stream (`Video/VideoStreamClient`),
+  frames composited by `Video/VideoSurface` as ordinary Avalonia content (video
+  is clickable, gesture-capable, overlayable — no native child windows).
+  `Video/VideoStreamCoordinator` shares one client per camera lens across
+  grid/focus/pinned views: focus adopts the running grid stream instantly and
+  upgrades quality in place (last frame kept, no grey flash); panel open
+  connects in a 90 ms cascade. Native binaries per RID incl. **win-arm64**
+  (`scripts/get-ffmpeg.ps1`); RTSPS rides `RtspTlsTunnel` (Core) — a 127.0.0.1
+  listener piping bytes over TLS with the same TOFU pinning as the API (FFmpeg
+  gets plain rtsp; keep the tunnel, it carries the certificate policy).
 - **UniFi Protect API** (`ProtectService`) — Integration API (list cameras,
   create/delete `rtsps-stream`, quality fallback ladder) and classic cookie API
   (login, PTZ continuous moves, PTZ/zoom capability enrichment).
@@ -28,11 +35,18 @@ Tracks the macOS QuickProtect feature set against this .NET/Avalonia port.
   (DPAPI on Windows; libsecret via `secret-tool` on Linux, 0600-file fallback).
 - **Layout profiles** — create/rename/delete, per-camera show/hide, size,
   reorder (Settings list **and** in-grid drag-to-reorder with persistence).
-- **Focus view** — dedicated high-quality stream, fit/fill (real aspect from
-  cached video dimensions), audio mute (M), snapshot (S), fullscreen (F).
-- **Digital zoom + pan** — 1–8× crop-based zoom (`DigitalZoom` in Core,
-  unit-tested): `+`/`−` zoom, `0` resets, arrows pan (Shift+arrows on PTZ
-  cameras), zoom badge in the top bar; snapshots capture the zoomed view.
+- **Focus view** — instant entry (adopts the grid stream, quality upgrades in
+  place), fit/fill, snapshot (S), fullscreen (F), click video to return,
+  double-click opens in Protect, overlay chrome/PTZ pad/hints/PiP like
+  AuroraFocusOverlay.
+- **Digital zoom + pan** — 1–8× (`DigitalZoom` in Core, unit-tested):
+  Ctrl+scroll or `+`/`−` zoom, `0` resets, scroll or drag pans (arrows on
+  non-PTZ cameras, Shift+arrows on PTZ), zoom badge in the top bar.
+- **Grid tile context menu** — View fullscreen, Open in Protect, Pin/Unpin,
+  Size (S/M/L + reset), Stream quality (default + tiers), Add Camera (hidden
+  cameras), Hide this camera.
+- **Header toolbar** — status pill, profile switcher + Save Current View as
+  New Profile (name prompt), search, refresh, settings gear, quit.
 - **Fullscreen HUD** — chrome auto-hides after 3s idle in fullscreen, wakes on
   input (global cursor poll on Windows; the native libVLC surface swallows
   Avalonia pointer events).
@@ -67,6 +81,8 @@ Tracks the macOS QuickProtect feature set against this .NET/Avalonia port.
 
 | Topic | macOS | This port | Why |
 |---|---|---|---|
+| Audio playback | decoded + rendered (default muted) | **not yet implemented** — mute button is a stub | the FFmpeg engine is video-only so far; a WASAPI/ALSA audio sink is the next engine milestone |
+| Profile rename/delete in header menu | header profile menu | Settings → Cameras & Layout | header has switcher + save-as-new; full management lives in Settings |
 | Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
 | Grid-tile PiP | optional per-camera PiP on grid tiles | focus-only PiP | each PiP is a native HWND + an extra server stream; cost outweighs the value at grid size |
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
