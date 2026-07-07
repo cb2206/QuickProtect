@@ -7,25 +7,27 @@ QuickProtect app, living in `desktop/`. Branch: `feat/windows-linux-port`.
 Feature-complete vs. the macOS app for the targeted scope (see `PARITY.md`).
 Builds clean; 41 Core unit tests pass. Verified running on macOS (arm64).
 
-## Open bug we're chasing (why this handoff exists)
-On **Windows 11 on ARM**, running the **x64** self-contained build (under x64
-emulation), the app **crashes** shortly after the first-run wizard, and on later
-launches it crashes a few seconds in **without opening the camera panel**. This
-is *not* the macOS libVLC crash (already fixed) — it's something in the
-post-fetch startup path (PTZ classic-login, update check, or global-hotkey
-registration), or an artifact of x64-on-ARM emulation.
+## Startup crash — FIXED
+**Root cause:** the app manifest (`src/QuickProtect.App/app.manifest`) was missing
+the `<compatibility>` supported-OS GUID list. Avalonia's Win32 `NativeControlHost`
+(used by LibVLCSharp's `VideoView`) can't create its child window without it and
+throws `InvalidOperationException: "Unable to create child window for native
+control host. Application manifest with supported OS list might be required."`
+The crash fires when the **camera panel opens** — i.e. right after the first-run
+wizard (which auto-opens the grid), and on a tray click on later launches. The
+post-fetch path (PTZ login, update check, hotkey) was *not* involved.
 
-A crash logger is in place: fatal exceptions are appended to
-`%APPDATA%\QuickProtect\crash.log`.
+Note the crash bypassed `crash.log`: it surfaced through the Win32 tray WndProc,
+so it landed in the Windows **Application** event log (`.NET Runtime`, Event ID
+1026) rather than the managed `AppDomain.UnhandledException` handler. That's where
+the real stack was found:
+```
+powershell "Get-WinEvent -FilterHashtable @{LogName='Application';ProviderName='.NET Runtime';Id=1026} | ? Message -match QuickProtect"
+```
 
-### First thing to do in the VM
-1. Build & run **natively (arm64)** to rule out emulation:
-   ```
-   cd desktop
-   dotnet run --project src/QuickProtect.App
-   ```
-2. Reproduce the crash, then read `%APPDATA%\QuickProtect\crash.log` — it has the
-   exact exception + stack. Fix the root cause from there.
+**Fix:** added the standard supportedOS `<compatibility>` block (Win 7–11 GUIDs) to
+`app.manifest`. Verified on Windows-on-ARM (x64-emulated debug build): the camera
+panel now opens with no crash; 41 Core tests still pass.
 
 ## Notes for running on Windows on ARM
 - **Native arm64**: there is no arm64 libVLC NuGet, so video won't initialize and
