@@ -155,6 +155,66 @@ public class PtzBurstTimerTests
     }
 }
 
+public class DigitalZoomTests
+{
+    [Fact]
+    public void Starts_at_one_x_with_no_crop()
+    {
+        var z = new DigitalZoom();
+        Assert.False(z.IsZoomed);
+        Assert.Null(z.CropGeometry(1920, 1080));
+    }
+
+    [Fact]
+    public void Zoom_clamps_to_range()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(100);
+        Assert.Equal(DigitalZoom.MaxZoom, z.Zoom);
+        z.SetZoom(0.1);
+        Assert.Equal(DigitalZoom.MinZoom, z.Zoom);
+    }
+
+    [Fact]
+    public void Two_x_centered_crop_is_the_middle_quarter()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(2);
+        Assert.Equal("960x540+480+270", z.CropGeometry(1920, 1080));
+    }
+
+    [Fact]
+    public void Pan_is_clamped_to_frame_edges()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(2);
+        z.Pan(-10, -10); // way past the top-left corner
+        Assert.Equal("960x540+0+0", z.CropGeometry(1920, 1080));
+        z.Pan(20, 20); // way past the bottom-right corner
+        Assert.Equal("960x540+960+540", z.CropGeometry(1920, 1080));
+    }
+
+    [Fact]
+    public void Zooming_back_out_recenters()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(4);
+        z.Pan(1, 1);
+        z.SetZoom(1);
+        Assert.False(z.IsZoomed);
+        Assert.Equal(0.5, z.CenterX);
+        Assert.Equal(0.5, z.CenterY);
+    }
+
+    [Fact]
+    public void Pan_before_zoom_is_ignored()
+    {
+        var z = new DigitalZoom();
+        z.Pan(0.5, 0.5);
+        Assert.Equal(0.5, z.CenterX);
+    }
+}
+
 public class PinnedWindowGeometryTests
 {
     [Fact]
