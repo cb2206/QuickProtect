@@ -27,3 +27,7 @@ fastlane/test_output/
 
 # graphify knowledge graph (machine-specific, regenerate with `graphify update .`)
 graphify-out/
+
+# .NET port build artifacts
+desktop/dist/
+desktop/publish-x64-debug/
