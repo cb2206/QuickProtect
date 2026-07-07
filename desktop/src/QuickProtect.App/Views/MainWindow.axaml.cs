@@ -59,11 +59,11 @@ public partial class MainWindow : Window
 
     private void Focus_Fill(object? sender, RoutedEventArgs e) => Vm?.FocusTile?.ToggleFill();
 
-    private void CaptureSnapshot()
+    private async void CaptureSnapshot()
     {
         if (Vm?.FocusTile is not { } ft) return;
-        var result = Services.SnapshotService.Capture(ft.Player, ft.Name);
-        Vm.ShowToast(result.Message);
+        var result = await Services.SnapshotService.CaptureAsync(ft.Player, ft.Name);
+        Vm?.ShowToast(result.Message);
     }
 
     private void ToggleFullscreen()
