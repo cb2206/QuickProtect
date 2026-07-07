@@ -103,10 +103,12 @@ public sealed class PinnedWindowManager
     {
         if (!_open.Remove(cameraId, out var entry)) return;
         entry.tile.Stop();          // releases the pinned server allocation
-        entry.tile.Dispose();
         entry.window.Unpinned -= Unpin;
         entry.window.FrameChanged -= PersistFrame;
+        // Close (detaching the VideoView from a live player) before disposing —
+        // VideoView.Detach on a disposed MediaPlayer is a native AccessViolation.
         entry.window.Close();
+        entry.tile.Dispose();
         // keepPersistence: pins survive so the window reopens next launch.
     }
 

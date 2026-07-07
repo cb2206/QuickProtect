@@ -95,8 +95,11 @@ public sealed class RtspTlsTunnel : IDisposable
 
             var localStream = local.GetStream();
             // Pump both directions; when either side closes, tear down the pair.
-            var up = localStream.CopyToAsync(tls, ct);
-            var down = tls.CopyToAsync(localStream, ct);
+            // Each pump observes its own exception — a reset from the controller
+            // (normal when a stream allocation is released) must not surface as
+            // an unobserved task exception.
+            var up = PumpAsync(localStream, tls, ct);
+            var down = PumpAsync(tls, localStream, ct);
             await Task.WhenAny(up, down);
         }
         catch (OperationCanceledException) { /* shutting down */ }
@@ -104,6 +107,12 @@ public sealed class RtspTlsTunnel : IDisposable
         {
             Log.Line($"[Tunnel] connection to {host}:{port} failed: {ex.Message}");
         }
+    }
+
+    private static async Task PumpAsync(Stream from, Stream to, CancellationToken ct)
+    {
+        try { await from.CopyToAsync(to, ct).ConfigureAwait(false); }
+        catch { /* connection torn down — expected on either side closing */ }
     }
 
     private static X509Certificate2 ToX509v2(X509Certificate cert)
