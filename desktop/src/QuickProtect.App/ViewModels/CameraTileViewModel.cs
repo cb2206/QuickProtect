@@ -19,8 +19,15 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     public Camera Camera { get; private set; }
 
-    /// <summary>The stream client, or null when the video engine is unavailable.</summary>
-    public VideoStreamClient? Client { get; }
+    /// <summary>
+    /// The shared stream client (owned by the coordinator), or null when the
+    /// video engine is unavailable or the tile hasn't started yet. Observable so
+    /// the bound <see cref="VideoSurface"/> follows PiP swaps.
+    /// </summary>
+    [ObservableProperty] private VideoStreamClient? _client;
+    private VideoStreamCoordinator.Handle? _handle;
+    private Action<VideoState>? _stateHandler;
+    private Action<int, int>? _sizeHandler;
 
     [ObservableProperty] private string _name;
     [ObservableProperty] private bool _isOnline;
@@ -43,9 +50,6 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? _digitalZoomLabel;
 
     private readonly DigitalZoom _digitalZoom = new();
-    private string? _activeQuality;
-    private string? _activeUrl;
-    private bool _starting;
     private readonly bool _pinned;
     private string? _fixedQuality;
 
@@ -79,22 +83,29 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         _tileWidth = baseWidth;
         _tileHeight = Math.Round(baseWidth * 0.66);
 
-        if (FfmpegEngine.IsAvailable)
+        _videoUnavailable = !FfmpegEngine.IsAvailable;
+    }
+
+    private void SubscribeClient(VideoStreamClient client)
+    {
+        _stateHandler = state => Dispatcher.UIThread.Post(() =>
         {
-            Client = new VideoStreamClient();
-            Client.StateChanged += state => Dispatcher.UIThread.Post(() =>
-            {
-                IsPlaying = state == VideoState.Playing;
-                if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
-            });
-            // Learn the real frame size for aspect-dependent UI (pinned windows,
-            // grid tile aspect) — macOS caches decoder dimensions the same way.
-            Client.VideoSizeKnown += (w, h) => _settings.CacheVideoDimensions((uint)w, (uint)h, Camera.Id);
-        }
-        else
-        {
-            _videoUnavailable = true;
-        }
+            IsPlaying = state == VideoState.Playing;
+            if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
+        });
+        // Learn the real frame size for aspect-dependent UI (pinned windows,
+        // grid tile aspect) — macOS caches decoder dimensions the same way.
+        _sizeHandler = (w, h) => _settings.CacheVideoDimensions((uint)w, (uint)h, Camera.Id);
+        client.StateChanged += _stateHandler;
+        client.VideoSizeKnown += _sizeHandler;
+    }
+
+    private void UnsubscribeClient(VideoStreamClient client)
+    {
+        if (_stateHandler != null) client.StateChanged -= _stateHandler;
+        if (_sizeHandler != null) client.VideoSizeKnown -= _sizeHandler;
+        _stateHandler = null;
+        _sizeHandler = null;
     }
 
     // MARK: - Audio mute (audio output lands with the engine's audio sink; the
@@ -129,8 +140,17 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     public void PtzPress(PtzDirection d) => Send(PtzMapping.Press(d));
     public void PtzRelease(PtzDirection d) => Send(PtzMapping.Release(d));
-    private void Send(PtzMapping.Axes a) => _service.PtzSetAxes(Camera.Id, a.Pan, a.Tilt, a.Zoom);
-    public void PtzStopAll() => _service.PtzStopAll(Camera.Id);
+    private void Send(PtzMapping.Axes a)
+    {
+        if (IsPtz || CanZoom) _service.PtzSetAxes(Camera.Id, a.Pan, a.Tilt, a.Zoom);
+    }
+
+    /// <summary>Stop motion on focus exit — only for cameras that can move at all
+    /// (a stop for a fixed camera would just trigger a pointless classic login).</summary>
+    public void PtzStopAll()
+    {
+        if (IsPtz || CanZoom) _service.PtzStopAll(Camera.Id);
+    }
 
     // MARK: - Digital zoom (crop-window math in Core's DigitalZoom)
 
@@ -152,72 +172,61 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         DigitalZoomLabel = _digitalZoom.IsZoomed ? $"{_digitalZoom.Zoom:0.#}×" : null;
     }
 
-    // MARK: - Stream lifecycle
+    // MARK: - Stream lifecycle (shared clients via the coordinator)
 
     /// <summary>Resolve the effective quality for the current view state and start playback.</summary>
-    public async Task StartAsync()
+    public Task StartAsync()
     {
-        if (Client == null || _starting || !Camera.IsOnline) return;
-        if (Client.State is VideoState.Playing or VideoState.Connecting) return;
-        _starting = true;
-        if (!Client.HasFrame) IsLoading = true;
-        try
-        {
-            var gridIsLarge = _settings.SizeFor(Camera.Id) == AppSettings.CameraSize.Large;
-            var quality = _fixedQuality
-                ?? _settings.EffectiveStreamQuality(Camera.Id)
-                    .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
-                    .ApiValue();
+        if (!FfmpegEngine.IsAvailable || !Camera.IsOnline) return Task.CompletedTask;
 
-            var result = _pinned
-                ? await _service.CreatePinnedStreamUrlAsync(Camera, quality)
-                : await _service.CreateRtspStreamUrlAsync(Camera, quality);
-            if (result is not { } r) { IsLoading = false; return; }
-            _activeQuality = r.quality;
-            _activeUrl = r.url;
+        var gridIsLarge = _settings.SizeFor(Camera.Id) == AppSettings.CameraSize.Large;
+        var quality = _fixedQuality
+            ?? _settings.EffectiveStreamQuality(Camera.Id)
+                .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
+                .ApiValue();
 
-            Client.Start(FfmpegEngine.MapUrl(r.url));
-        }
-        catch (Exception ex)
+        if (_handle is { } existing)
         {
-            Log.Line($"[Tile] start failed for {Camera.Name}: {ex.Message}");
-            IsLoading = false;
+            existing.SetDesiredQuality(quality);
+            return Task.CompletedTask;
         }
-        finally { _starting = false; }
+
+        var handle = App.Instance.Streams.Acquire(Camera, quality, lens: _fixedQuality, pinned: _pinned);
+        _handle = handle;
+        SubscribeClient(handle.Client);
+        Client = handle.Client;
+        if (!handle.Client.HasFrame) IsLoading = true;
+        IsPlaying = handle.Client.State == VideoState.Playing;
+        return Task.CompletedTask;
     }
 
     /// <summary>
-    /// PiP swap: exchange live playback with <paramref name="other"/>. Both
-    /// clients switch to each other's URL in place, keeping their last frames —
-    /// server allocations stay put (their ownership swaps with the URLs).
+    /// PiP swap: the two tiles trade stream handles and clients (both streams
+    /// keep running, so the swap is instant with no reconnect) — like tapping
+    /// the PiP on macOS.
     /// </summary>
     public void SwapPlaybackWith(CameraTileViewModel other)
     {
-        if (Client == null || other.Client == null) return;
-        (_activeQuality, other._activeQuality) = (other._activeQuality, _activeQuality);
-        (_activeUrl, other._activeUrl) = (other._activeUrl, _activeUrl);
+        if (Client is not { } mine || other.Client is not { } theirs) return;
+        UnsubscribeClient(mine);
+        other.UnsubscribeClient(theirs);
+        (_handle, other._handle) = (other._handle, _handle);
         (_fixedQuality, other._fixedQuality) = (other._fixedQuality, _fixedQuality);
-        if (_activeUrl is { } mine) Client.SwitchUrl(FfmpegEngine.MapUrl(mine));
-        if (other._activeUrl is { } theirs) other.Client.SwitchUrl(FfmpegEngine.MapUrl(theirs));
+        (Client, other.Client) = (theirs, mine);
+        SubscribeClient(theirs);
+        other.SubscribeClient(mine);
     }
 
+    /// <summary>Release this tile's claim on the stream (the shared client stops
+    /// and frees its allocation only when no other view is using it).</summary>
     public void Stop()
     {
-        Client?.Stop();
-        if (_activeQuality is { } q)
-        {
-            if (_pinned) _service.ReleasePinnedStream(Camera.Id, q);
-            else _service.ReleaseStream(Camera.Id, q);
-            _activeQuality = null;
-            _activeUrl = null;
-        }
+        if (Client is { } c) UnsubscribeClient(c);
+        _handle?.Dispose();
+        _handle = null;
         IsPlaying = false;
         IsLoading = false;
     }
 
-    public void Dispose()
-    {
-        Stop();
-        Client?.Dispose();
-    }
+    public void Dispose() => Stop();
 }

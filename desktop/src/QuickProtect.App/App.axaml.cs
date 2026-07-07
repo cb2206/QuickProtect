@@ -22,6 +22,8 @@ public partial class App : Application
     public CertificateTrust Trust { get; private set; } = null!;
     public PinnedWindowManager PinnedWindows { get; private set; } = null!;
     public UpdateChecker Updater { get; private set; } = null!;
+    /// <summary>Shared per-camera stream clients (the macOS RTSPClientManager analog).</summary>
+    public Video.VideoStreamCoordinator Streams { get; private set; } = null!;
 
     private TrayIcon? _tray;
     private MainWindow? _mainWindow;
@@ -48,6 +50,7 @@ public partial class App : Application
         // same TOFU trust as the API.
         Video.FfmpegEngine.Initialize();
         Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust);
+        Streams = new Video.VideoStreamCoordinator(Service);
         Service.CertificateChanged += (_, message) =>
             Dispatcher.UIThread.Post(() => Service_ShowError(message));
         PinnedWindows = new PinnedWindowManager(Service, Settings);
@@ -238,6 +241,7 @@ public partial class App : Application
         _hotkey?.Dispose();
         Updater.Dispose();
         PinnedWindows.CloseAll();
+        Streams.Dispose();
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();
         Service.Dispose();

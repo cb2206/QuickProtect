@@ -205,9 +205,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Focus(Camera camera)
     {
         if (IsFocusMode) return;
-        foreach (var tile in Tiles) tile.Stop();
-        _service.CleanupStreams();
-
+        // Grid streams keep running (shared clients): the focus tile adopts the
+        // camera's live stream instantly and upgrades its quality in place, and
+        // returning to the grid is immediate — the macOS behavior.
         var ft = new CameraTileViewModel(camera, _service, _settings);
         ft.SetFocused(true);
         FocusTile = ft;
@@ -240,12 +240,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (FocusTile is not { } ft) return;
         var pip = SecondaryTile;
         ft.PtzStopAll();
-        // Unbind before disposing (see SwapSecondary — detach touches the player).
         SecondaryTile = null;
         FocusTile = null;
         pip?.Dispose();
-        ft.Dispose();
-        StartAll();
+        ft.Dispose(); // releases the high-quality desire → shared stream settles back down
     }
 
     /// <summary>Stop all tiles and release their server-side allocations (panel hidden).</summary>
@@ -258,10 +256,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _service.CleanupStreams();
     }
 
+    /// <summary>
+    /// Start streams top-left → bottom-right in a 90ms cascade (macOS behavior):
+    /// the grid lights up progressively instead of contending all at once.
+    /// </summary>
     public void StartAll()
     {
         if (IsFocusMode) { _ = FocusTile!.StartAsync(); if (SecondaryTile is { } s) _ = s.StartAsync(); return; }
-        foreach (var tile in Tiles) _ = tile.StartAsync();
+        var index = 0;
+        foreach (var tile in Tiles)
+        {
+            var delay = Math.Min(index++, 12) * 90;
+            if (delay == 0) { _ = tile.StartAsync(); continue; }
+            var t = tile;
+            _ = Task.Delay(delay).ContinueWith(_ => Dispatcher.UIThread.Post(() => _ = t.StartAsync()));
+        }
     }
 
     public void Dispose()

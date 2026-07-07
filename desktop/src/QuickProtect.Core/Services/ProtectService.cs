@@ -286,7 +286,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             using var resp = await _classic.SendAsync(req).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
-                Log.Line("[PTZ] classicLogin FAILED");
+                Log.Line($"[PTZ] classicLogin FAILED (HTTP {(int)resp.StatusCode})");
                 IsClassicLoggedIn = false;
                 SetCreds(null, null);
                 return false;
