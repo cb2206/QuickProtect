@@ -83,6 +83,18 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             };
             Player.EncounteredError += (_, _) => IsLoading = false;
             Player.Stopped += (_, _) => IsPlaying = false;
+            // Learn the real frame size once the video output exists, so fill-mode
+            // crop and pinned-window aspect use the camera's true aspect ratio
+            // (macOS caches this from its decoder, RTSPClient.swift).
+            Player.Vout += (_, _) =>
+            {
+                uint w = 0, h = 0;
+                if (Player.Size(0, ref w, ref h) && w > 0 && h > 0)
+                {
+                    _settings.CacheVideoDimensions(w, h, Camera.Id);
+                    ApplyFill();
+                }
+            };
         }
         else
         {
