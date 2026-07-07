@@ -20,7 +20,8 @@ public sealed partial class CameraRowViewModel : ObservableObject
     [ObservableProperty] private bool _isVisible;
     [ObservableProperty] private int _sizeIndex; // 0 small, 1 medium, 2 large
 
-    public string[] SizeOptions { get; } = { "Small", "Medium", "Large" };
+    public string[] SizeOptions { get; } =
+        { Localization.Loc.Get("Small"), Localization.Loc.Get("Medium"), Localization.Loc.Get("Large") };
 
     public CameraRowViewModel(Camera camera, AppSettings settings, LayoutViewModel parent)
     {

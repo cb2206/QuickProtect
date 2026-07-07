@@ -28,7 +28,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _searchQuery = "";
 
     /// <summary>Live count of online, visible cameras (header status pill).</summary>
-    [ObservableProperty] private int _streamCount;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StreamCountLabel))]
+    private int _streamCount;
+
+    /// <summary>Localized "N streams" pill text (reuses the macOS catalog key).</summary>
+    public string StreamCountLabel
+        => Localization.Loc.Get("%lld streams").Replace("%lld", StreamCount.ToString());
 
     // In-panel layout-profile switcher (mirrors the macOS popover header menu).
     public ObservableCollection<string> ProfileNames { get; } = new();

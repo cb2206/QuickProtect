@@ -215,4 +215,69 @@ QuickProtect.</value></data>
   <data name="%lld streams" xml:space="preserve"><value>%lld streams</value></data>
   <data name="Connected · %lld cameras found" xml:space="preserve"><value>Connected · %lld cameras found</value></data>
   <data name="Connected — %lld cameras found" xml:space="preserve"><value>Connected — %lld cameras found</value></data>
+  <data name="A new version ({0}) is available." xml:space="preserve"><value>A new version ({0}) is available.</value></data>
+  <data name="Accent color" xml:space="preserve"><value>Accent color</value></data>
+  <data name="Blue" xml:space="preserve"><value>Blue</value></data>
+  <data name="Camera isn't playing yet." xml:space="preserve"><value>Camera isn't playing yet.</value></data>
+  <data name="Cameras &amp; Layout" xml:space="preserve"><value>Cameras &amp; Layout</value></data>
+  <data name="Can't create folder: {0}" xml:space="preserve"><value>Can't create folder: {0}</value></data>
+  <data name="Checking for updates…" xml:space="preserve"><value>Checking for updates…</value></data>
+  <data name="Choose Folder…" xml:space="preserve"><value>Choose Folder…</value></data>
+  <data name="Click the aperture icon in your tray to open the camera grid, or press your global shortcut." xml:space="preserve"><value>Click the aperture icon in your tray to open the camera grid, or press your global shortcut.</value></data>
+  <data name="Clipboard is unavailable." xml:space="preserve"><value>Clipboard is unavailable.</value></data>
+  <data name="Controller Connection" xml:space="preserve"><value>Controller Connection</value></data>
+  <data name="Create" xml:space="preserve"><value>Create</value></data>
+  <data name="Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Error: {0}" xml:space="preserve"><value>Error: {0}</value></data>
+  <data name="Esc back · F fullscreen · arrows pan/tilt · I/O zoom · +/− digital zoom (0 resets)" xml:space="preserve"><value>Esc back · F fullscreen · arrows pan/tilt · I/O zoom · +/− digital zoom (0 resets)</value></data>
+  <data name="Fit/Fill" xml:space="preserve"><value>Fit/Fill</value></data>
+  <data name="Global shortcut (toggle camera panel)" xml:space="preserve"><value>Global shortcut (toggle camera panel)</value></data>
+  <data name="Green" xml:space="preserve"><value>Green</value></data>
+  <data name="IP address or hostname" xml:space="preserve"><value>IP address or hostname</value></data>
+  <data name="Integration API key" xml:space="preserve"><value>Integration API key</value></data>
+  <data name="Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Layout profile" xml:space="preserve"><value>Layout profile</value></data>
+  <data name="Live UniFi Protect feeds, one click from your tray." xml:space="preserve"><value>Live UniFi Protect feeds, one click from your tray.</value></data>
+  <data name="Local-account username and password enable pan/tilt/zoom and zoom-lens controls." xml:space="preserve"><value>Local-account username and password enable pan/tilt/zoom and zoom-lens controls.</value></data>
+  <data name="New certificate trusted." xml:space="preserve"><value>New certificate trusted.</value></data>
+  <data name="New profile name" xml:space="preserve"><value>New profile name</value></data>
+  <data name="No cameras yet. Open Settings to connect your controller." xml:space="preserve"><value>No cameras yet. Open Settings to connect your controller.</value></data>
+  <data name="Not set" xml:space="preserve"><value>Not set</value></data>
+  <data name="Open QuickProtect" xml:space="preserve"><value>Open QuickProtect</value></data>
+  <data name="Open Release Page" xml:space="preserve"><value>Open Release Page</value></data>
+  <data name="Orange" xml:space="preserve"><value>Orange</value></data>
+  <data name="Package camera" xml:space="preserve"><value>Package camera</value></data>
+  <data name="Pin" xml:space="preserve"><value>Pin</value></data>
+  <data name="Pin as an always-on-top window" xml:space="preserve"><value>Pin as an always-on-top window</value></data>
+  <data name="Pink" xml:space="preserve"><value>Pink</value></data>
+  <data name="Press a key combination…" xml:space="preserve"><value>Press a key combination…</value></data>
+  <data name="Purple" xml:space="preserve"><value>Purple</value></data>
+  <data name="Record" xml:space="preserve"><value>Record</value></data>
+  <data name="Red" xml:space="preserve"><value>Red</value></data>
+  <data name="Restart QuickProtect to apply the language change." xml:space="preserve"><value>Restart QuickProtect to apply the language change.</value></data>
+  <data name="Save a still frame" xml:space="preserve"><value>Save a still frame</value></data>
+  <data name="Save snapshots to" xml:space="preserve"><value>Save snapshots to</value></data>
+  <data name="Saved" xml:space="preserve"><value>Saved</value></data>
+  <data name="Saved. Testing connection…" xml:space="preserve"><value>Saved. Testing connection…</value></data>
+  <data name="Search" xml:space="preserve"><value>Search</value></data>
+  <data name="Show focus-view controls (PTZ pad &amp; shortcut hints)" xml:space="preserve"><value>Show focus-view controls (PTZ pad &amp; shortcut hints)</value></data>
+  <data name="Snapshot (S)" xml:space="preserve"><value>Snapshot (S)</value></data>
+  <data name="Snapshot copied to clipboard" xml:space="preserve"><value>Snapshot copied to clipboard</value></data>
+  <data name="Start QuickProtect at login" xml:space="preserve"><value>Start QuickProtect at login</value></data>
+  <data name="Swap with the main view" xml:space="preserve"><value>Swap with the main view</value></data>
+  <data name="System default" xml:space="preserve"><value>System default</value></data>
+  <data name="Teal" xml:space="preserve"><value>Teal</value></data>
+  <data name="Testing…" xml:space="preserve"><value>Testing…</value></data>
+  <data name="The controller's certificate changed since you last connected." xml:space="preserve"><value>The controller's certificate changed since you last connected.</value></data>
+  <data name="To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings." xml:space="preserve"><value>To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings.</value></data>
+  <data name="Toggle audio" xml:space="preserve"><value>Toggle audio</value></data>
+  <data name="Toggle fit vs. fill" xml:space="preserve"><value>Toggle fit vs. fill</value></data>
+  <data name="Toggle visibility, set tile size, and reorder. Applies to this profile." xml:space="preserve"><value>Toggle visibility, set tile size, and reorder. Applies to this profile.</value></data>
+  <data name="Unpin" xml:space="preserve"><value>Unpin</value></data>
+  <data name="Unsupported key — use a letter, number, or function key." xml:space="preserve"><value>Unsupported key — use a letter, number, or function key.</value></data>
+  <data name="Update available: {0}" xml:space="preserve"><value>Update available: {0}</value></data>
+  <data name="Video is unavailable." xml:space="preserve"><value>Video is unavailable.</value></data>
+  <data name="Video unavailable" xml:space="preserve"><value>Video unavailable</value></data>
+  <data name="Windows only for now (letter, number, or function key with modifiers)." xml:space="preserve"><value>Windows only for now (letter, number, or function key with modifiers).</value></data>
+  <data name="You're on the latest version." xml:space="preserve"><value>You're on the latest version.</value></data>
 </root>

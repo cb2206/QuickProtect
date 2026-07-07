@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
         xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
         x:Class="QuickProtect.App.Views.PinnedCameraWindow"
         x:DataType="vm:CameraTileViewModel"
         Title="QuickProtect"
@@ -26,7 +27,7 @@
           </StackPanel>
           <Button Grid.Column="1" Content="✕" Click="Unpin_Click"
                   Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
-                  Padding="6,0" FontSize="11" ToolTip.Tip="Unpin" />
+                  Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Unpin'}" />
         </Grid>
       </Border>
 

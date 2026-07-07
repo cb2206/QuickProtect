@@ -26,16 +26,19 @@ public static class SnapshotService
         var toClipboard = AppSettings.Shared.SnapshotDest == AppSettings.SnapshotDestination.Clipboard;
         var dir = toClipboard ? System.IO.Path.GetTempPath() : ResolveFolder();
         try { Directory.CreateDirectory(dir); }
-        catch (Exception ex) { return new Result(false, null, $"Can't create folder: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            return new Result(false, null, string.Format(Localization.Loc.Get("Can't create folder: {0}"), ex.Message));
+        }
 
         var path = System.IO.Path.Combine(dir, SnapshotNaming.FileName(cameraName, DateTime.Now));
         try
         {
             // num=0 (first video output), width=height=0 → native resolution.
             if (!player.TakeSnapshot(0, path, 0, 0))
-                return new Result(false, null, Localization.Loc.Get("Snapshot failed."));
+                return new Result(false, null, Localization.Loc.Get("Snapshot failed"));
             if (!await WaitForFileAsync(path))
-                return new Result(false, null, Localization.Loc.Get("Snapshot failed."));
+                return new Result(false, null, Localization.Loc.Get("Snapshot failed"));
 
             if (!toClipboard)
                 return new Result(true, path, $"{Localization.Loc.Get("Saved")} {System.IO.Path.GetFileName(path)}");

@@ -31,7 +31,14 @@ public sealed partial class OnboardingViewModel : ObservableObject
     [ObservableProperty] private string _password = "";
     [ObservableProperty] private bool _launchAtLogin;
     [ObservableProperty] private string _statusMessage = "";
-    [ObservableProperty] private int _cameraCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CameraCountLabel))]
+    private int _cameraCount;
+
+    /// <summary>Localized "N cameras detected." line (reuses the macOS catalog key).</summary>
+    public string CameraCountLabel
+        => Localization.Loc.Get("%lld cameras detected.").Replace("%lld", CameraCount.ToString());
 
     public bool IsStep1 => Step == 1;
     public bool IsStep2 => Step == 2;
@@ -67,12 +74,13 @@ public sealed partial class OnboardingViewModel : ObservableObject
     private async Task TestConnection()
     {
         PersistConnection();
-        StatusMessage = "Testing…";
+        StatusMessage = Localization.Loc.Get("Testing…");
         await _service.FetchCamerasAsync();
         CameraCount = _service.Cameras.Count;
         StatusMessage = _service.ErrorMessage is { } err
-            ? $"Error: {err}"
-            : $"Connected — {CameraCount} camera(s) found.";
+            ? string.Format(Localization.Loc.Get("Error: {0}"), err)
+            : Localization.Loc.Get("Connected — %lld cameras found")
+                .Replace("%lld", CameraCount.ToString());
     }
 
     private void PersistConnection()
