@@ -94,15 +94,18 @@ public static class ImageClipboard
         }
         finally { handle.Free(); }
 
-        // BITMAPINFOHEADER (40 bytes), negative height = top-down rows, BI_RGB 32bpp.
+        // BITMAPINFOHEADER (40 bytes), BI_RGB 32bpp. Bottom-up row order —
+        // top-down (negative-height) DIBs are valid but GDI+/paste targets
+        // commonly reject them on the clipboard.
         var dib = new byte[40 + pixels.Length];
         using var ms = new MemoryStream(dib);
         using var bw = new BinaryWriter(ms);
-        bw.Write(40); bw.Write(w); bw.Write(-h);
+        bw.Write(40); bw.Write(w); bw.Write(h);
         bw.Write((ushort)1); bw.Write((ushort)32);
         bw.Write(0); bw.Write(pixels.Length);
         bw.Write(0); bw.Write(0); bw.Write(0); bw.Write(0);
-        bw.Write(pixels);
+        for (var row = h - 1; row >= 0; row--)
+            bw.Write(pixels, row * stride, stride);
         return dib;
     }
 
