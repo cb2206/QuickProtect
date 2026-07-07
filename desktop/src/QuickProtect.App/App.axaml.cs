@@ -41,6 +41,8 @@ public partial class App : Application
         ApplyAccent(Settings.AccentColorHex);
         Trust = new CertificateTrust(prefs);
         Service = new ProtectService(Settings, Trust);
+        // Video rtsps transport: local TLS bridge with the same TOFU trust as the API.
+        VlcManager.Shared.Tunnel = new RtspTlsTunnel(Trust);
         Service.CertificateChanged += (_, message) =>
             Dispatcher.UIThread.Post(() => Service_ShowError(message));
         PinnedWindows = new PinnedWindowManager(Service, Settings);
@@ -71,6 +73,9 @@ public partial class App : Application
 
         if (!Settings.HasCompletedOnboarding)
             ShowOnboarding();
+        else if (Program.LaunchArgs.Contains("--open-panel"))
+            // Debug/testing affordance: open the camera panel immediately.
+            Dispatcher.UIThread.Post(ToggleMainWindow);
 
         base.OnFrameworkInitializationCompleted();
     }
@@ -203,5 +208,6 @@ public partial class App : Application
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();
         Service.Dispose();
+        VlcManager.Shared.Tunnel?.Dispose();
     }
 }

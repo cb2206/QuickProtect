@@ -8,9 +8,13 @@ internal static class Program
 {
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called.
+    /// <summary>Raw launch arguments (e.g. <c>--open-panel</c> opens the grid at startup).</summary>
+    public static string[] LaunchArgs { get; private set; } = Array.Empty<string>();
+
     [STAThread]
     public static void Main(string[] args)
     {
+        LaunchArgs = args;
         // Capture any fatal exception to a log file so crashes are diagnosable
         // without a console (WinExe apps have no attached console).
         AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash(e.ExceptionObject as Exception, "AppDomain");
