@@ -121,6 +121,11 @@ public partial class App : Application
             _mainWindow.Hide();
             return;
         }
+        // A tray click first deactivates the panel (outside-click dismiss fires),
+        // then lands here — reopening would make the tray icon impossible to
+        // use as a toggle. Treat a click right after an auto-hide as "close".
+        if (_mainWindow != null && (DateTime.UtcNow - _mainWindow.LastAutoHide).TotalMilliseconds < 400)
+            return;
         if (_mainWindow == null)
         {
             _mainWindow = new MainWindow { DataContext = new MainViewModel(Service, Settings) };

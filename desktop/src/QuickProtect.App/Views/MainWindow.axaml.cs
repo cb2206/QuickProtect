@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using QuickProtect.App.ViewModels;
 using QuickProtect.Core.Models;
 
@@ -16,9 +17,79 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Icon = ApertureIcon.Create(64);
+        // Tile drag-reorder needs tunnel handlers: the footer Button swallows
+        // bubbled pointer events, and the native VideoView swallows everything.
+        AddHandler(PointerPressedEvent, Tile_DragPressed, RoutingStrategies.Tunnel);
+        AddHandler(PointerMovedEvent, Tile_DragMoved, RoutingStrategies.Tunnel);
+        AddHandler(PointerReleasedEvent, Tile_DragReleased, RoutingStrategies.Tunnel);
+        // Restore the per-profile panel size (macOS persists panel geometry).
+        if (QuickProtect.Core.Services.AppSettings.Shared.PanelSize() is { } size)
+        {
+            Width = size.Width;
+            Height = size.Height;
+        }
+        // Popover behavior: clicking anywhere else dismisses the panel, like the
+        // macOS tray popover. Focus moving to one of our own windows or popups
+        // (dropdowns, Settings) doesn't count as "outside". --no-dismiss keeps
+        // the panel up for automated UI testing.
+        if (!Program.LaunchArgs.Contains("--no-dismiss"))
+            Deactivated += (_, _) =>
+            {
+                if (WindowState != WindowState.FullScreen && !ForegroundBelongsToThisProcess())
+                {
+                    LastAutoHide = DateTime.UtcNow;
+                    Hide();
+                }
+            };
     }
 
+    /// <summary>
+    /// When the outside-click that dismissed the panel was the tray icon itself,
+    /// the subsequent tray-click toggle must not instantly reopen it. The tray
+    /// handler checks this timestamp.
+    /// </summary>
+    public DateTime LastAutoHide { get; private set; } = DateTime.MinValue;
+
     private MainViewModel? Vm => DataContext as MainViewModel;
+
+    /// <summary>True when the newly focused window is ours (popup, Settings, …).</summary>
+    private static bool ForegroundBelongsToThisProcess()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return false;
+        _ = GetWindowThreadProcessId(fg, out var pid);
+        return pid == Environment.ProcessId;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int processId);
+
+    /// <summary>Anchor the panel to the tray corner of the primary screen.</summary>
+    private void PositionNearTray()
+    {
+        if (WindowState == WindowState.FullScreen) return;
+        var screen = Screens.Primary ?? Screens.All.FirstOrDefault();
+        if (screen == null) return;
+        var wa = screen.WorkingArea;
+        var w = (int)Math.Round(Width * screen.Scaling);
+        var h = (int)Math.Round(Height * screen.Scaling);
+        // Bottom-right, above the taskbar (Windows/Linux convention; the working
+        // area already excludes the taskbar on whichever edge it docks).
+        Position = new PixelPoint(wa.X + wa.Width - w - 12, wa.Y + wa.Height - h - 12);
+    }
+
+    private void Header_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        // The chrome header doubles as the drag handle for the borderless panel,
+        // but only when the press isn't on an interactive control.
+        if (e.Source is Control c && c.FindAncestorOfType<Button>() == null
+            && c.FindAncestorOfType<ComboBox>() == null && c.FindAncestorOfType<TextBox>() == null)
+            BeginMoveDrag(e);
+    }
 
     // Start/stop streams as the panel is shown/hidden so a closed panel never
     // keeps server-side allocations alive (mirrors the macOS open/close cleanup).
@@ -27,8 +98,71 @@ public partial class MainWindow : Window
         base.OnPropertyChanged(change);
         if (change.Property == IsVisibleProperty && Vm is { } vm)
         {
-            if (change.GetNewValue<bool>()) vm.StartAll(); else vm.StopAll();
+            if (change.GetNewValue<bool>())
+            {
+                PositionNearTray();
+                vm.StartAll();
+            }
+            else
+            {
+                QuickProtect.Core.Services.AppSettings.Shared.SetPanelSize(Width, Height);
+                vm.StopAll();
+            }
         }
+    }
+
+    // MARK: - Grid drag-to-reorder (pointer drag on a tile, threshold-gated so
+    // plain clicks still focus the camera)
+
+    private CameraTileViewModel? _dragTile;
+    private Border? _dragVisual;
+    private Point _dragStart;
+    private bool _dragging;
+
+    private static Border? TileBorderAt(object? source)
+    {
+        for (var c = source as Control; c != null; c = c.Parent as Control)
+            if (c is Border { DataContext: CameraTileViewModel } b) return b;
+        return null;
+    }
+
+    private void Tile_DragPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (Vm is not { IsGridMode: true }) return;
+        if (TileBorderAt(e.Source) is not { DataContext: CameraTileViewModel tile } border) return;
+        _dragTile = tile;
+        _dragVisual = border;
+        _dragStart = e.GetPosition(this);
+        _dragging = false;
+    }
+
+    private void Tile_DragMoved(object? sender, PointerEventArgs e)
+    {
+        if (_dragTile == null || _dragging) return;
+        var d = e.GetPosition(this) - _dragStart;
+        if (Math.Abs(d.X) < 12 && Math.Abs(d.Y) < 12) return;
+        _dragging = true;
+        if (_dragVisual != null) _dragVisual.Opacity = 0.45;
+    }
+
+    private void Tile_DragReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        var tile = _dragTile;
+        var visual = _dragVisual;
+        var wasDragging = _dragging;
+        _dragTile = null;
+        _dragVisual = null;
+        _dragging = false;
+        if (visual != null) visual.Opacity = 1.0;
+        if (!wasDragging || tile == null || Vm is not { } vm) return;
+
+        // Drop on whichever tile the pointer is over.
+        var hit = this.GetVisualsAt(e.GetPosition(this))
+            .Select(v => (v as Control)?.DataContext)
+            .OfType<CameraTileViewModel>()
+            .FirstOrDefault(t => !ReferenceEquals(t, tile));
+        if (hit != null) vm.MoveTile(tile, hit);
+        e.Handled = true; // a completed drag must not fire the footer's click
     }
 
     // MARK: - Focus entry / exit
@@ -43,6 +177,7 @@ public partial class MainWindow : Window
     private void ExitFocus()
     {
         if (WindowState == WindowState.FullScreen) WindowState = WindowState.Normal;
+        ShowHud(stopTimer: true);
         Vm?.ExitFocus();
     }
 
@@ -57,6 +192,8 @@ public partial class MainWindow : Window
 
     private void Focus_Mute(object? sender, RoutedEventArgs e) => Vm?.FocusTile?.ToggleMute();
 
+    private void Focus_SwapPip(object? sender, RoutedEventArgs e) => Vm?.SwapSecondary();
+
     private void Focus_Fill(object? sender, RoutedEventArgs e) => Vm?.FocusTile?.ToggleFill();
 
     private async void CaptureSnapshot()
@@ -67,7 +204,76 @@ public partial class MainWindow : Window
     }
 
     private void ToggleFullscreen()
-        => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
+    {
+        WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
+        if (WindowState == WindowState.FullScreen) { RestartHudTimer(); StartCursorPoll(); }
+        else { ShowHud(stopTimer: true); _cursorPoll?.Stop(); }
+    }
+
+    // MARK: - Fullscreen HUD (auto-hides the focus chrome after a few idle seconds)
+    //
+    // Pointer wake-up needs a global cursor poll: mouse moves over the native
+    // libVLC child window never reach Avalonia, so OnPointerMoved alone can't
+    // resurface the chrome. Windows polls GetCursorPos; elsewhere keys still work.
+
+    private Avalonia.Threading.DispatcherTimer? _hudTimer;
+    private Avalonia.Threading.DispatcherTimer? _cursorPoll;
+    private (int X, int Y) _lastCursor;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out System.Drawing.Point p);
+
+    private void StartCursorPoll()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        _cursorPoll ??= new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _cursorPoll.Tick -= CursorPoll_Tick;
+        _cursorPoll.Tick += CursorPoll_Tick;
+        GetCursorPos(out var p);
+        _lastCursor = (p.X, p.Y);
+        _cursorPoll.Start();
+    }
+
+    private void CursorPoll_Tick(object? sender, EventArgs e)
+    {
+        if (WindowState != WindowState.FullScreen) { _cursorPoll?.Stop(); return; }
+        GetCursorPos(out var p);
+        var moved = Math.Abs(p.X - _lastCursor.X) > 4 || Math.Abs(p.Y - _lastCursor.Y) > 4;
+        _lastCursor = (p.X, p.Y);
+        if (moved && Vm is { ChromeVisible: false }) ShowHud();
+    }
+
+    private void RestartHudTimer()
+    {
+        _hudTimer ??= new Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(3)
+        };
+        _hudTimer.Tick -= HudTimer_Tick;
+        _hudTimer.Tick += HudTimer_Tick;
+        _hudTimer.Stop();
+        _hudTimer.Start();
+    }
+
+    private void HudTimer_Tick(object? sender, EventArgs e)
+    {
+        _hudTimer?.Stop();
+        if (WindowState == WindowState.FullScreen && Vm is { IsFocusMode: true } vm)
+            vm.ChromeVisible = false;
+    }
+
+    private void ShowHud(bool stopTimer = false)
+    {
+        if (Vm is { } vm) vm.ChromeVisible = true;
+        if (stopTimer) _hudTimer?.Stop();
+        else if (WindowState == WindowState.FullScreen) RestartHudTimer();
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        if (WindowState == WindowState.FullScreen) ShowHud();
+    }
 
     // MARK: - PTZ d-pad (pointer hold)
 
@@ -94,14 +300,40 @@ public partial class MainWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if (WindowState == WindowState.FullScreen) ShowHud();
         if (Vm is not { } vm) return;
 
         if (e.Key == Key.Escape && vm.IsFocusMode) { ExitFocus(); e.Handled = true; return; }
+        if (e.Key == Key.Escape) { Hide(); e.Handled = true; return; } // dismiss the popover
         if (e.Key == Key.F && vm.IsFocusMode) { ToggleFullscreen(); e.Handled = true; return; }
         if (e.Key == Key.S && vm.IsFocusMode) { CaptureSnapshot(); e.Handled = true; return; }
         if (e.Key == Key.M && vm.IsFocusMode) { vm.FocusTile?.ToggleMute(); e.Handled = true; return; }
 
         if (vm.FocusTile is not { } ft) return;
+
+        // Digital zoom (crop-based, 1–8× like the macOS pinch zoom): +/- zoom,
+        // 0 resets. Panning uses the arrows — plain arrows on non-PTZ cameras,
+        // Shift+arrows on PTZ cameras (whose plain arrows drive the mount).
+        switch (e.Key)
+        {
+            case Key.OemPlus or Key.Add: ft.DigitalZoomIn(); e.Handled = true; return;
+            case Key.OemMinus or Key.Subtract: ft.DigitalZoomOut(); e.Handled = true; return;
+            case Key.D0 or Key.NumPad0: ft.DigitalZoomReset(); e.Handled = true; return;
+        }
+        if (ft.IsDigitallyZoomed && (!ft.IsPtz || e.KeyModifiers.HasFlag(KeyModifiers.Shift)))
+        {
+            const double step = 0.15; // fraction of the visible window per key press
+            var panned = e.Key switch
+            {
+                Key.Left => (Vector?)new Vector(-step, 0),
+                Key.Right => new Vector(step, 0),
+                Key.Up => new Vector(0, -step),
+                Key.Down => new Vector(0, step),
+                _ => null
+            };
+            if (panned is { } p) { ft.DigitalPan(p.X, p.Y); e.Handled = true; return; }
+        }
+
         if (MapKey(e.Key, ft) is not { } d) return;
         if (!_heldKeys.Add(e.Key)) { e.Handled = true; return; } // ignore key-repeat
         ft.PtzPress(d);

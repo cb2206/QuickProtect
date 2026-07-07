@@ -9,17 +9,22 @@
         Width="760" Height="520"
         MinWidth="400" MinHeight="300"
         Background="{DynamicResource QpPopoverBg}"
-        WindowStartupLocation="CenterScreen">
+        ShowInTaskbar="False"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
   <Grid>
 
     <!-- ============ GRID MODE ============ -->
-    <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsGridMode}"
+    <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding IsGridMode}"
           Background="{DynamicResource QpGridBg}">
 
-      <!-- Header (Aurora chrome: translucent bar with a hairline bottom border) -->
+      <!-- Header (Aurora chrome: translucent bar with a hairline bottom border).
+           Also the popover's drag handle — the window has no title bar. -->
       <Border Grid.Row="0" Background="{DynamicResource QpChrome}"
-              BorderBrush="{DynamicResource QpChromeBorder}" BorderThickness="0,0,0,1">
+              BorderBrush="{DynamicResource QpChromeBorder}" BorderThickness="0,0,0,1"
+              PointerPressed="Header_PointerPressed">
         <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="14,10">
           <TextBlock Grid.Column="0" Text="QuickProtect" FontSize="15" FontWeight="SemiBold"
                      Foreground="{DynamicResource QpTextPrimary}"
@@ -49,16 +54,16 @@
         </Grid>
       </Border>
 
-      <!-- Error banner -->
+      <!-- Error banner. Own layout row — the native video HWNDs paint above all
+           Avalonia content, so an overlay would be hidden behind the tiles. -->
       <Border Grid.Row="1" Background="{DynamicResource QpStatusRedSurface}" Padding="12,8"
-              CornerRadius="6" VerticalAlignment="Top" Margin="14"
-              IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-              ZIndex="10">
+              CornerRadius="6" Margin="14,10,14,0"
+              IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
       </Border>
 
       <!-- Empty state -->
-      <TextBlock Grid.Row="1" Text="No cameras yet. Open Settings to connect your controller."
+      <TextBlock Grid.Row="2" Text="No cameras yet. Open Settings to connect your controller."
                  Foreground="{DynamicResource QpTextTertiary}" HorizontalAlignment="Center" VerticalAlignment="Center"
                  TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"
                  IsVisible="{Binding !HasCameras}" />
@@ -66,7 +71,7 @@
       <!-- Camera grid. Each tile's footer is a button (reliable click target — the
            native VideoView surface does not forward pointer events). The tiles are
            pinned to the Dark variant like macOS: video areas always stay dark. -->
-      <ThemeVariantScope Grid.Row="1" RequestedThemeVariant="Dark" IsVisible="{Binding HasCameras}">
+      <ThemeVariantScope Grid.Row="2" RequestedThemeVariant="Dark" IsVisible="{Binding HasCameras}">
         <ScrollViewer>
           <ItemsControl ItemsSource="{Binding Tiles}" Margin="10">
             <ItemsControl.ItemsPanel>
@@ -120,8 +125,9 @@
     <ThemeVariantScope RequestedThemeVariant="Dark" IsVisible="{Binding IsFocusMode}">
       <DockPanel Background="{DynamicResource QpVideoBg}">
 
-        <!-- Top bar -->
-        <Border DockPanel.Dock="Top" Background="{DynamicResource QpChrome}" Padding="10,7">
+        <!-- Top bar (hidden by the fullscreen HUD when idle) -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource QpChrome}" Padding="10,7"
+                IsVisible="{Binding ChromeVisible}">
           <Grid ColumnDefinitions="Auto,*,Auto" DataContext="{Binding FocusTile}"
                 x:DataType="vm:CameraTileViewModel">
             <Button Grid.Column="0" Content="◀ Grid" Click="Focus_Back"
@@ -132,6 +138,11 @@
               <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontWeight="SemiBold" FontSize="13" />
               <Border IsVisible="{Binding IsPtz}" Background="{DynamicResource QpAccentSurface}" CornerRadius="9" Padding="7,2">
                 <TextBlock Text="PTZ · ARROW KEYS" Foreground="{DynamicResource QpTextSecondary}" FontSize="9" />
+              </Border>
+              <!-- Digital-zoom badge (visible while zoomed; 0 resets) -->
+              <Border IsVisible="{Binding DigitalZoomLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                      Background="{DynamicResource QpAccentSurface}" CornerRadius="9" Padding="7,2">
+                <TextBlock Text="{Binding DigitalZoomLabel}" Foreground="{DynamicResource QpTextSecondary}" FontSize="9" />
               </Border>
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
@@ -156,7 +167,7 @@
         <!-- Bottom control bar: PTZ d-pad + zoom (only for capable cameras). Placed
              outside the video region so the native VideoView never covers it. -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource QpChrome}" Padding="0,10"
-                IsVisible="{Binding ((vm:MainViewModel)DataContext).ShowFocusControls, RelativeSource={RelativeSource AncestorType=Window}}"
+                IsVisible="{Binding ((vm:MainViewModel)DataContext).ControlsVisible, RelativeSource={RelativeSource AncestorType=Window}}"
                 DataContext="{Binding FocusTile}" x:DataType="vm:CameraTileViewModel">
           <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Center">
 
@@ -200,7 +211,7 @@
               </Border>
             </StackPanel>
 
-            <TextBlock Text="Esc back · F fullscreen · arrows pan/tilt · I/O zoom"
+            <TextBlock Text="Esc back · F fullscreen · arrows pan/tilt · I/O zoom · +/− digital zoom (0 resets)"
                        Foreground="{DynamicResource QpTextHint}" FontSize="11" VerticalAlignment="Center" />
           </StackPanel>
         </Border>
@@ -219,8 +230,13 @@
           <vlc:VideoView Grid.Column="0" MediaPlayer="{Binding FocusTile.Player}" />
           <Border Grid.Column="1" Width="200" Background="{DynamicResource QpChrome}" IsVisible="{Binding HasSecondary}">
             <DockPanel>
-              <TextBlock DockPanel.Dock="Top" Text="Package camera" Foreground="{DynamicResource QpTextSecondary}"
-                         FontSize="11" Margin="8,5" />
+              <DockPanel DockPanel.Dock="Top">
+                <Button DockPanel.Dock="Right" Content="⇄" Click="Focus_SwapPip" Padding="6,1"
+                        Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
+                        ToolTip.Tip="Swap with the main view" />
+                <TextBlock Text="Package camera" Foreground="{DynamicResource QpTextSecondary}"
+                           FontSize="11" Margin="8,5" VerticalAlignment="Center" />
+              </DockPanel>
               <vlc:VideoView MediaPlayer="{Binding SecondaryTile.Player}" />
             </DockPanel>
           </Border>

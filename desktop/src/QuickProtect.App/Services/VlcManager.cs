@@ -143,9 +143,11 @@ public sealed class VlcManager : IDisposable
             return;
         }
 
+        // QP_VLC_DEBUG=1 captures everything (diagnosis); default is Warning+.
+        var verbose = Environment.GetEnvironmentVariable("QP_VLC_DEBUG") == "1";
         libvlc.Log += (_, e) =>
         {
-            if (e.Level < LogLevel.Warning) return;
+            if (!verbose && e.Level < LogLevel.Warning) return;
             lock (_logLock)
             {
                 _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss}] {e.Level} {e.Module}: {e.Message}");

@@ -52,6 +52,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Whether the focus view shows the on-screen PTZ pad and shortcut hints.</summary>
     public bool ShowFocusControls => _settings.ShowFocusOverlayControls;
 
+    /// <summary>
+    /// Fullscreen HUD: the focus chrome (top bar + controls) auto-hides after a
+    /// few idle seconds in fullscreen and reappears on input (≈ the macOS
+    /// AuroraFullscreenHUD). Always true outside fullscreen.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ControlsVisible))]
+    private bool _chromeVisible = true;
+
+    /// <summary>Bottom control bar: honors both the HUD state and the Settings toggle.</summary>
+    public bool ControlsVisible => ChromeVisible && ShowFocusControls;
+
     /// <summary>Secondary-lens PiP (e.g. doorbell package camera) shown in focus, or null.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSecondary))]
@@ -124,12 +136,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var visible = _settings.OrderedCameras(_settings.VisibleCameras(_service.Cameras));
         var byId = Tiles.ToDictionary(t => t.Camera.Id);
 
-        // Stop+drop tiles whose camera disappeared.
+        // Stop+drop tiles whose camera disappeared. Remove from the collection
+        // first so the VideoView detaches from a still-live player.
         foreach (var tile in Tiles.ToList())
             if (!visible.Any(c => c.Id == tile.Camera.Id))
             {
-                tile.Dispose();
                 Tiles.Remove(tile);
+                tile.Dispose();
             }
 
         // Add/refresh in profile order.
@@ -158,6 +171,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task Refresh() => await _service.FetchCamerasAsync();
 
     /// <summary>
+    /// Drag-reorder: move a visible tile to a new grid position and persist the
+    /// profile order. Hidden cameras keep their slots — only the visible subset
+    /// is rearranged within the full profile ordering.
+    /// </summary>
+    public void MoveTile(CameraTileViewModel tile, CameraTileViewModel target)
+    {
+        var from = Tiles.IndexOf(tile);
+        var to = Tiles.IndexOf(target);
+        if (from < 0 || to < 0 || from == to) return;
+        Tiles.Move(from, to);
+
+        var full = _settings.OrderedCameras(_service.Cameras).Select(c => c.Id).ToList();
+        var visible = Tiles.Select(t => t.Camera.Id).ToList();
+        var queue = new Queue<string>(visible);
+        for (var i = 0; i < full.Count; i++)
+            if (visible.Contains(full[i]))
+                full[i] = queue.Dequeue();
+        _settings.SetCameraOrder(full);
+
+        // The move recreated the tile's native video surface; restart playback
+        // once layout settles so libVLC picks up the new Hwnd.
+        Dispatcher.UIThread.Post(tile.RestartPlayback, DispatcherPriority.Background);
+    }
+
+    /// <summary>
     /// Enter focus mode for <paramref name="camera"/>: stop the grid streams to
     /// free resources, then start a dedicated high-quality stream for the focused
     /// camera. Mirrors the macOS grid→focus transition.
@@ -182,15 +220,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Swap which lens is enlarged (main ⇄ secondary), like tapping the PiP on
+    /// macOS. The two tiles simply trade places — both streams keep running, so
+    /// the swap is instant and avoids re-allocating server-side streams (whose
+    /// async release would race the re-creation).
+    /// </summary>
+    public void SwapSecondary()
+    {
+        if (FocusTile is not { } main || SecondaryTile is not { } pip) return;
+        main.SwapPlaybackWith(pip);
+    }
+
     /// <summary>Leave focus mode, stop PTZ motion, and restart the grid.</summary>
     public void ExitFocus()
     {
         if (FocusTile is not { } ft) return;
+        var pip = SecondaryTile;
         ft.PtzStopAll();
-        SecondaryTile?.Dispose();
+        // Unbind before disposing (see SwapSecondary — detach touches the player).
         SecondaryTile = null;
-        ft.Dispose();
         FocusTile = null;
+        pip?.Dispose();
+        ft.Dispose();
         StartAll();
     }
 
@@ -213,9 +265,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _service.PropertyChanged -= OnServiceChanged;
-        SecondaryTile?.Dispose();
-        FocusTile?.Dispose();
-        foreach (var tile in Tiles) tile.Dispose();
+        var pip = SecondaryTile;
+        var ft = FocusTile;
+        var tiles = Tiles.ToList();
+        // Unbind everything first, then dispose (VideoView detach touches players).
+        SecondaryTile = null;
+        FocusTile = null;
         Tiles.Clear();
+        pip?.Dispose();
+        ft?.Dispose();
+        foreach (var tile in tiles) tile.Dispose();
     }
 }

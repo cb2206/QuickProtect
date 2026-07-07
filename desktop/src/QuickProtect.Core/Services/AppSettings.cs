@@ -157,6 +157,24 @@ public sealed class AppSettings : INotifyPropertyChanged
         set => _prefs.SetBool(Keys.AutoStartPromptShown, value);
     }
 
+    /// <summary>Camera-panel size per layout profile (macOS persists per-profile panel geometry).</summary>
+    public (double Width, double Height)? PanelSize()
+    {
+        var dict = _prefs.GetJson<Dictionary<string, Dictionary<string, double>>>(Keys.PanelSize);
+        if (dict != null && dict.TryGetValue(ActiveProfileId, out var s)
+            && s.TryGetValue("w", out var w) && s.TryGetValue("h", out var h) && w > 0 && h > 0)
+            return (w, h);
+        return null;
+    }
+
+    public void SetPanelSize(double width, double height)
+    {
+        if (width <= 0 || height <= 0) return;
+        var dict = _prefs.GetJson<Dictionary<string, Dictionary<string, double>>>(Keys.PanelSize) ?? new();
+        dict[ActiveProfileId] = new() { ["w"] = width, ["h"] = height };
+        _prefs.SetJson(Keys.PanelSize, dict);
+    }
+
     // MARK: - Stream quality (global + per-camera)
 
     private StreamQuality _defaultStreamQuality;
@@ -496,6 +514,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         public const string Username = "unifi.username";
         public const string Password = "unifi.password";
         public const string AutoStartPromptShown = "unifi.autoStartPromptShown";
+        public const string PanelSize = "unifi.panelSize";
         public const string Appearance = "unifi.appearance";
         public const string AccentColorHex = "unifi.accentColorHex";
         public const string Language = "unifi.language";
