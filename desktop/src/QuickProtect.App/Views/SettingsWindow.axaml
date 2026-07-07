@@ -136,21 +136,25 @@
     </TabItem>
 
     <!-- ============ CAMERAS & LAYOUT ============ -->
-    <TabItem Header="{loc:Loc 'Cameras &amp; Layout'}" DataContext="{Binding Layout}" x:DataType="vm:LayoutViewModel">
+    <!-- NOTE: bindings go through Layout.* from the window's SettingsViewModel.
+         Setting DataContext + x:DataType on the TabItem itself breaks compiled
+         bindings (the DataContext binding is typed against the *child* type and
+         never resolves — the tab renders empty). -->
+    <TabItem Header="{loc:Loc 'Cameras &amp; Layout'}">
       <DockPanel Margin="16">
 
         <!-- Profile switcher -->
         <StackPanel DockPanel.Dock="Top" Spacing="8">
           <TextBlock Text="{loc:Loc 'Layout profile'}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <ComboBox ItemsSource="{Binding ProfileNames}" SelectedIndex="{Binding SelectedProfileIndex}"
+            <ComboBox ItemsSource="{Binding Layout.ProfileNames}" SelectedIndex="{Binding Layout.SelectedProfileIndex}"
                       MinWidth="180" />
-            <Button Content="{loc:Loc 'Delete'}" Command="{Binding DeleteProfileCommand}" />
+            <Button Content="{loc:Loc 'Delete'}" Command="{Binding Layout.DeleteProfileCommand}" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <TextBox Text="{Binding NewProfileName}" Watermark="{loc:Loc 'New profile name'}" Width="200" />
-            <Button Content="{loc:Loc 'Create'}" Command="{Binding CreateProfileCommand}" />
-            <Button Content="{loc:Loc 'Rename'}" Command="{Binding RenameProfileCommand}" />
+            <TextBox Text="{Binding Layout.NewProfileName}" Watermark="{loc:Loc 'New profile name'}" Width="200" />
+            <Button Content="{loc:Loc 'Create'}" Command="{Binding Layout.CreateProfileCommand}" />
+            <Button Content="{loc:Loc 'Rename'}" Command="{Binding Layout.RenameProfileCommand}" />
           </StackPanel>
           <Separator />
           <TextBlock Text="{loc:Loc 'Cameras'}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
@@ -160,7 +164,7 @@
 
         <!-- Camera rows -->
         <ScrollViewer>
-          <ItemsControl ItemsSource="{Binding Rows}">
+          <ItemsControl ItemsSource="{Binding Layout.Rows}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CameraRowViewModel">
                 <Border Background="{DynamicResource QpSubtleSurface}" CornerRadius="6" Padding="10,6" Margin="0,3"

@@ -81,6 +81,8 @@ public partial class App : Application
         else if (Program.LaunchArgs.Contains("--open-panel"))
             // Debug/testing affordance: open the camera panel immediately.
             Dispatcher.UIThread.Post(ToggleMainWindow);
+        else if (Program.LaunchArgs.Contains("--open-settings"))
+            Dispatcher.UIThread.Post(ShowSettings);
 
         base.OnFrameworkInitializationCompleted();
     }
