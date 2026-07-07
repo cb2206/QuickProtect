@@ -349,19 +349,30 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private readonly object _ptzLock = new();
     private (double x, double y, double z) _ptzDesired;
     private Task _ptzChain = Task.CompletedTask;
+    private readonly PtzBurstTimer _ptzBurst = new();
 
     public void PtzSetAxes(string cameraId, double? pan = null, double? tilt = null, double? zoom = null)
-        => EnqueuePtz(cameraId, state =>
+    {
+        // A quick tap should still produce meaningful travel: when an axis is
+        // released early, postpone its stop until the minimum burst is up.
+        var delay = _ptzBurst.Update(pan, tilt, zoom, DateTime.UtcNow);
+        EnqueuePtz(cameraId, delay, state =>
         {
             if (pan is { } p) state.x = p * PtzVelocityScale;
             if (tilt is { } t) state.y = t * PtzVelocityScale;
             if (zoom is { } z) state.z = z * PtzVelocityScale;
             return state;
         });
+    }
 
-    public void PtzStopAll(string cameraId) => EnqueuePtz(cameraId, _ => (0, 0, 0));
+    public void PtzStopAll(string cameraId)
+    {
+        _ptzBurst.Reset();
+        EnqueuePtz(cameraId, TimeSpan.Zero, _ => (0, 0, 0));
+    }
 
-    private void EnqueuePtz(string cameraId, Func<(double x, double y, double z), (double x, double y, double z)> mutate)
+    private void EnqueuePtz(string cameraId, TimeSpan delay,
+                            Func<(double x, double y, double z), (double x, double y, double z)> mutate)
     {
         lock (_ptzLock)
         {
@@ -369,6 +380,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             _ptzChain = Task.Run(async () =>
             {
                 await previous.ConfigureAwait(false);
+                if (delay > TimeSpan.Zero) await Task.Delay(delay).ConfigureAwait(false);
                 if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
                 {
                     ApplyError(new InvalidOperationException(

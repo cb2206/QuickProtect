@@ -112,6 +112,49 @@ public class PtzMappingTests
     }
 }
 
+public class PtzBurstTimerTests
+{
+    private static readonly DateTime T0 = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void Quick_tap_release_is_postponed_to_min_burst()
+    {
+        var timer = new PtzBurstTimer();
+        Assert.Equal(TimeSpan.Zero, timer.Update(pan: 1, null, null, T0));
+        var delay = timer.Update(pan: 0, null, null, T0 + TimeSpan.FromMilliseconds(100));
+        Assert.Equal(TimeSpan.FromMilliseconds(150), delay);
+    }
+
+    [Fact]
+    public void Long_hold_release_sends_immediately()
+    {
+        var timer = new PtzBurstTimer();
+        timer.Update(pan: 1, null, null, T0);
+        Assert.Equal(TimeSpan.Zero, timer.Update(pan: 0, null, null, T0 + TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
+    public void Axes_track_independently_and_longest_delay_wins()
+    {
+        var timer = new PtzBurstTimer();
+        timer.Update(pan: 1, null, null, T0);
+        timer.Update(null, tilt: 1, null, T0 + TimeSpan.FromMilliseconds(200));
+        // Release both 210ms after T0: pan needs 40ms more, tilt needs 240ms more.
+        var delay = timer.Update(pan: 0, tilt: 0, null, T0 + TimeSpan.FromMilliseconds(210));
+        Assert.Equal(TimeSpan.FromMilliseconds(240), delay);
+    }
+
+    [Fact]
+    public void Press_never_delays_and_reset_clears_running_axes()
+    {
+        var timer = new PtzBurstTimer();
+        Assert.Equal(TimeSpan.Zero, timer.Update(null, null, zoom: 1, T0));
+        timer.Reset();
+        // After reset the release has no recorded start, so no burst delay.
+        Assert.Equal(TimeSpan.Zero, timer.Update(null, null, zoom: 0, T0 + TimeSpan.FromMilliseconds(10)));
+    }
+}
+
 public class PinnedWindowGeometryTests
 {
     [Fact]
