@@ -4,51 +4,65 @@ Cross-platform .NET 8 + Avalonia + LibVLCSharp reimplementation of the macOS
 QuickProtect app, living in `desktop/`. Branch: `feat/windows-linux-port`.
 
 ## Status
-Feature-complete vs. the macOS app for the targeted scope (see `PARITY.md`).
-Builds clean; 41 Core unit tests pass. Verified running on macOS (arm64).
+**Feature parity reached and live-verified on Windows** against a real
+controller (7 cameras at 10.0.1.1): grid + focus video, PTZ, digital zoom,
+PiP swap, pinned windows, snapshots (clipboard + folder), fullscreen HUD,
+drag-reorder, popover panel, light/auto/dark theming, 7 languages, installer.
+See `PARITY.md` for the full matrix and intentional differences.
 
-## Startup crash — FIXED
-**Root cause:** the app manifest (`src/QuickProtect.App/app.manifest`) was missing
-the `<compatibility>` supported-OS GUID list. Avalonia's Win32 `NativeControlHost`
-(used by LibVLCSharp's `VideoView`) can't create its child window without it and
-throws `InvalidOperationException: "Unable to create child window for native
-control host. Application manifest with supported OS list might be required."`
-The crash fires when the **camera panel opens** — i.e. right after the first-run
-wizard (which auto-opens the grid), and on a tray click on later launches. The
-post-fetch path (PTZ login, update check, hotkey) was *not* involved.
+## The two big root causes fixed on Windows (don't regress these)
 
-Note the crash bypassed `crash.log`: it surfaced through the Win32 tray WndProc,
-so it landed in the Windows **Application** event log (`.NET Runtime`, Event ID
-1026) rather than the managed `AppDomain.UnhandledException` handler. That's where
-the real stack was found:
-```
-powershell "Get-WinEvent -FilterHashtable @{LogName='Application';ProviderName='.NET Runtime';Id=1026} | ? Message -match QuickProtect"
-```
+1. **Black video tiles** — VLC 3.x has **no access module for `rtsps://`**
+   ("no access modules matched" in the debug log). Not a TLS-trust or decoder
+   issue. Fixed by `Core/Services/RtspTlsTunnel.cs`: loopback listener →
+   `SslStream` to the controller with TOFU `CertificateTrust` validation;
+   `VlcManager.MakeMedia` rewrites rtsps URLs to `rtsp://127.0.0.1:<port>/…`.
+2. **Native AccessViolation on player teardown** — `VideoView.Detach()` calls
+   `set_Hwnd` on the outgoing `MediaPlayer`; disposing the player before the
+   view unbinds crashes in `LibVLCMediaPlayerSetHwnd`. Always unbind/close the
+   view first, dispose the tile after (see `MainViewModel`,
+   `PinnedWindowManager`). Related: libVLC only honors a **new** Hwnd on the
+   next `Play()` — after a grid reorder recreates the container, the moved
+   tile's playback is restarted (`RestartPlayback`).
 
-**Fix:** added the standard supportedOS `<compatibility>` block (Win 7–11 GUIDs) to
-`app.manifest`. Verified on Windows-on-ARM (x64-emulated debug build): the camera
-panel now opens with no crash; 41 Core tests still pass.
+## Dev environment gotchas (this ARM64 VM)
 
-## Notes for running on Windows on ARM
-- **Native arm64**: there is no arm64 libVLC NuGet, so video won't initialize and
-  the app runs **without video** (graceful — tiles show "Video unavailable").
-  That's fine for debugging the startup crash. For video on arm64, install VLC
-  for Windows ARM and point libVLC at it (same approach as macOS in `Program.cs`).
-- **x64 emulated**: `dotnet run -r win-x64` (or the published self-contained build)
-  bundles x64 libVLC and gets video, but runs under emulation.
+- The installed .NET SDK is **ARM64**; libVLC ships x64-only. A plain
+  `dotnet run` produces an ARM64 process → **no video** (graceful degradation).
+  For video, publish self-contained x64 and run that (under emulation):
+  ```
+  dotnet publish src/QuickProtect.App -c Debug -r win-x64 --self-contained -o publish-x64-debug
+  publish-x64-debug\QuickProtect.exe --open-panel --no-dismiss
+  ```
+- `--open-panel` opens the grid at launch; `--no-dismiss` disables the
+  popover's click-outside dismiss (needed for UI automation, otherwise the
+  panel hides the moment focus goes elsewhere).
+- Logs: `%APPDATA%\QuickProtect\crash.log`, `%APPDATA%\QuickProtect\vlc.log`
+  (Warning+; set `QP_VLC_DEBUG=1` for everything). Native crashes bypass
+  crash.log — check the Windows Application event log (`.NET Runtime` 1026).
 
-## Build / test / publish
+## Build / test / package
 ```
 cd desktop
 dotnet build QuickProtect.sln                 # build all
-dotnet test tests/QuickProtect.Core.Tests     # 41 tests
-dotnet publish src/QuickProtect.App -c Release -r win-arm64 --self-contained   # native package
+dotnet test tests/QuickProtect.Core.Tests     # Core unit tests
+powershell -File scripts/package-windows.ps1  # → dist/QuickProtect-Setup-<v>-x64.exe
+dotnet publish src/QuickProtect.App -c Release -r linux-x64 --self-contained   # compiles ✓
 ```
 
+## Next phase: Linux
+The code is Linux-clean (cross-publish compiles; platform paths abstracted in
+`Platform/` and OS-gated). Real-machine testing is the remaining work — see
+"Platform notes" in `PARITY.md` for the known degradations (tray icon on
+GNOME, Wayland positioning, hotkey no-op, wl-copy/xclip clipboard).
+
 ## Layout
-- `src/QuickProtect.Core` — portable: models, `ProtectService` (UniFi dual API),
-  `CertificateTrust` (TOFU pinning), `AppSettings`, secret/prefs stores. Unit-tested.
-- `src/QuickProtect.App` — Avalonia UI: tray shell (`App.axaml.cs`), camera grid
-  (`MainWindow` + `MainViewModel`/`CameraTileViewModel`), focus view + PTZ,
-  pinned windows, settings, onboarding, localization.
+- `src/QuickProtect.Core` — portable: models (incl. `DigitalZoom`,
+  `PtzBurstTimer`), `ProtectService` (UniFi dual API), `RtspTlsTunnel`,
+  `CertificateTrust` (TOFU), `AppSettings`, secret/prefs stores. Unit-tested.
+- `src/QuickProtect.App` — Avalonia UI: tray shell (`App.axaml.cs`), popover
+  grid (`MainWindow` + `MainViewModel`/`CameraTileViewModel`), focus + PTZ +
+  digital zoom + PiP, pinned windows, settings, onboarding, localization,
+  `Platform/` (hotkey, launch-at-login, image clipboard).
+- `installer/` + `scripts/` — Windows packaging.
 - See `git log --oneline` for the feature-by-feature build-out.
