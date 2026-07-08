@@ -193,6 +193,14 @@ public sealed class VideoStreamClient : IDisposable
             bgra = ffmpeg.av_frame_alloc();
             packet = ffmpeg.av_packet_alloc();
             var sizeReported = false;
+            // Joining an RTSP stream mid-GOP means P/B-frames reference frames we
+            // never received; decoding them paints grey concealment ghosting over
+            // the (good) kept frame until the next IDR. So drop everything until
+            // the first keyframe — the last frame stays on screen meanwhile,
+            // matching the macOS client's wait-for-IDR behavior. Safety valve:
+            // if no keyframe shows up within 15s, decode anyway (and log it).
+            var seenKeyframe = false;
+            var keyframeDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
 
             while (!_stop && !_restart)
             {
@@ -201,6 +209,23 @@ public sealed class VideoStreamClient : IDisposable
                     return rc == ffmpeg.AVERROR_EOF; // EOF = clean end; else broken
 
                 if (packet->stream_index != vs) { ffmpeg.av_packet_unref(packet); continue; }
+                if (!seenKeyframe)
+                {
+                    if ((packet->flags & ffmpeg.AV_PKT_FLAG_KEY) != 0)
+                    {
+                        seenKeyframe = true;
+                    }
+                    else if (DateTime.UtcNow > keyframeDeadline)
+                    {
+                        Log.Line("[Video] no keyframe within 15s — decoding mid-GOP");
+                        seenKeyframe = true;
+                    }
+                    else
+                    {
+                        ffmpeg.av_packet_unref(packet);
+                        continue;
+                    }
+                }
                 rc = ffmpeg.avcodec_send_packet(codec, packet);
                 ffmpeg.av_packet_unref(packet);
                 if (rc < 0 && rc != ffmpeg.AVERROR(ffmpeg.EAGAIN)) continue; // tolerate glitches
