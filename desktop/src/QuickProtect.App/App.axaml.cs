@@ -81,6 +81,9 @@ public partial class App : Application
         if (!string.IsNullOrEmpty(Settings.IpAddress) && !string.IsNullOrEmpty(Settings.ApiKey))
             _ = Service.FetchCamerasAsync();
 
+        // A second app launch signals this event instead of starting (see Program).
+        if (OperatingSystem.IsWindows()) StartShowPanelListener();
+
         if (!Settings.HasCompletedOnboarding)
             ShowOnboarding();
         else if (Program.LaunchArgs.Contains("--open-panel"))
@@ -119,6 +122,30 @@ public partial class App : Application
         };
         // Left-click opens the camera panel (right-click shows the menu natively).
         _tray.Clicked += (_, _) => ToggleMainWindow();
+    }
+
+    /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>
+    private void StartShowPanelListener()
+    {
+        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ShowPanelEventName);
+        var thread = new Thread(() =>
+        {
+            while (signal.WaitOne())
+                Dispatcher.UIThread.Post(ShowMainWindow);
+        })
+        { IsBackground = true, Name = "QP-ShowPanel" };
+        thread.Start();
+    }
+
+    /// <summary>Show (never hide) the camera panel — used by external activation.</summary>
+    private void ShowMainWindow()
+    {
+        if (_mainWindow is { IsVisible: true })
+        {
+            _mainWindow.Activate();
+            return;
+        }
+        ToggleMainWindow();
     }
 
     private void ToggleMainWindow()
