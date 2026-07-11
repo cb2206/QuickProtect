@@ -3,6 +3,7 @@
         xmlns:video="clr-namespace:QuickProtect.App.Video"
         xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
         xmlns:loc="clr-namespace:QuickProtect.App.Localization"
+        xmlns:views="clr-namespace:QuickProtect.App.Views"
         x:Class="QuickProtect.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="QuickProtect"
@@ -80,21 +81,33 @@
            click focuses, drag reorders, right-click opens the context menu.
            Tiles stay pinned to the Dark variant like macOS. -->
       <ThemeVariantScope Grid.Row="2" RequestedThemeVariant="Dark" IsVisible="{Binding HasCameras}">
-        <ScrollViewer>
-          <ItemsControl ItemsSource="{Binding Tiles}" Margin="10">
+        <ScrollViewer Name="GridScroll" SizeChanged="GridScroll_SizeChanged">
+          <ItemsControl ItemsSource="{Binding Tiles}" Margin="1">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <WrapPanel />
+                <views:CenteredWrapPanel />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:CameraTileViewModel">
-                <Border Width="{Binding TileWidth}" Height="{Binding TileHeight}" Margin="6" CornerRadius="8"
+                <Border Width="{Binding TileWidth}" Height="{Binding TileHeight}" Margin="1" CornerRadius="8"
                         Background="{DynamicResource QpVideoBg}" ClipToBounds="True" IsVisible="{Binding MatchesSearch}"
                         ContextRequested="Tile_ContextRequested">
-                  <DockPanel>
-                    <!-- Footer label (the whole tile is clickable now) -->
-                    <Border DockPanel.Dock="Bottom" Background="{DynamicResource QpChip}" Padding="8,5">
+                  <Grid>
+                    <video:VideoSurface Source="{Binding Client}" Fill="True" />
+                    <ProgressBar IsIndeterminate="True" Width="60" Height="4"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 IsVisible="{Binding IsLoading}" />
+                    <TextBlock Text="{loc:Loc 'Offline'}" Foreground="{DynamicResource QpTextTertiary}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !IsOnline}" />
+                    <TextBlock Text="{loc:Loc 'Video unavailable'}" Foreground="{DynamicResource QpTextTertiary}" FontSize="11"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center" TextWrapping="Wrap"
+                               IsVisible="{Binding VideoUnavailable}" />
+                    <!-- Name chip overlays the video bottom-left (macOS AuroraCameraCell) -->
+                    <Border Background="{DynamicResource QpChip}" CornerRadius="6" Padding="8,4" Margin="8"
+                            HorizontalAlignment="Left" VerticalAlignment="Bottom">
                       <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
                                    IsVisible="{Binding IsOnline}" />
@@ -103,21 +116,7 @@
                                    VerticalAlignment="Center" IsVisible="{Binding IsPtz}" />
                       </StackPanel>
                     </Border>
-
-                    <Grid>
-                      <video:VideoSurface Source="{Binding Client}" Fill="True" />
-                      <ProgressBar IsIndeterminate="True" Width="60" Height="4"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   IsVisible="{Binding IsLoading}" />
-                      <TextBlock Text="{loc:Loc 'Offline'}" Foreground="{DynamicResource QpTextTertiary}"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                 IsVisible="{Binding !IsOnline}" />
-                      <TextBlock Text="{loc:Loc 'Video unavailable'}" Foreground="{DynamicResource QpTextTertiary}" FontSize="11"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                 TextAlignment="Center" TextWrapping="Wrap"
-                                 IsVisible="{Binding VideoUnavailable}" />
-                    </Grid>
-                  </DockPanel>
+                  </Grid>
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -130,7 +129,8 @@
     <!-- Composited video with true overlays (macOS AuroraFocusOverlay parity):
          chrome on top, PTZ pad + hints + PiP floating over the frame. -->
     <ThemeVariantScope RequestedThemeVariant="Dark" IsVisible="{Binding IsFocusMode}">
-      <Grid Name="FocusRoot" Background="{DynamicResource QpVideoBg}" SizeChanged="FocusRoot_SizeChanged">
+      <Grid Name="FocusRoot" Background="{DynamicResource QpVideoBg}" SizeChanged="FocusRoot_SizeChanged"
+            Focusable="True">
 
         <video:VideoSurface Name="FocusSurface" Source="{Binding FocusTile.Client}"
                             Fill="{Binding FocusTile.FillMode}"
@@ -196,30 +196,30 @@
                       DataContext="{Binding FocusTile}" x:DataType="vm:CameraTileViewModel">
             <Grid IsVisible="{Binding IsPtz}" Width="96" Height="96"
                   RowDefinitions="*,*,*" ColumnDefinitions="*,*,*">
-              <Border Grid.Row="0" Grid.Column="1" Classes="dpad" Tag="Up"
+              <Border Grid.Row="0" Grid.Column="1" Classes="dpad" Tag="Up" Classes.active="{Binding PtzUpActive}"
                       PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released" PointerExited="Dpad_Exited">
                 <TextBlock Text="▲" Classes="dpadGlyph" />
               </Border>
-              <Border Grid.Row="1" Grid.Column="0" Classes="dpad" Tag="Left"
+              <Border Grid.Row="1" Grid.Column="0" Classes="dpad" Tag="Left" Classes.active="{Binding PtzLeftActive}"
                       PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released" PointerExited="Dpad_Exited">
                 <TextBlock Text="◀" Classes="dpadGlyph" />
               </Border>
-              <Border Grid.Row="1" Grid.Column="2" Classes="dpad" Tag="Right"
+              <Border Grid.Row="1" Grid.Column="2" Classes="dpad" Tag="Right" Classes.active="{Binding PtzRightActive}"
                       PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released" PointerExited="Dpad_Exited">
                 <TextBlock Text="▶" Classes="dpadGlyph" />
               </Border>
-              <Border Grid.Row="2" Grid.Column="1" Classes="dpad" Tag="Down"
+              <Border Grid.Row="2" Grid.Column="1" Classes="dpad" Tag="Down" Classes.active="{Binding PtzDownActive}"
                       PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released" PointerExited="Dpad_Exited">
                 <TextBlock Text="▼" Classes="dpadGlyph" />
               </Border>
               <Ellipse Grid.Row="1" Grid.Column="1" Width="6" Height="6" Fill="{DynamicResource QpTextTertiary}" />
             </Grid>
             <StackPanel IsVisible="{Binding CanZoom}" VerticalAlignment="Center" Spacing="4">
-              <Border Classes="dpad" Tag="ZoomIn" Width="34" Height="34"
+              <Border Classes="dpad" Tag="ZoomIn" Width="34" Height="34" Classes.active="{Binding PtzZoomInActive}"
                       PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released" PointerExited="Dpad_Exited">
                 <TextBlock Text="＋" Classes="dpadGlyph" />
               </Border>
-              <Border Classes="dpad" Tag="ZoomOut" Width="34" Height="34"
+              <Border Classes="dpad" Tag="ZoomOut" Width="34" Height="34" Classes.active="{Binding PtzZoomOutActive}"
                       PointerPressed="Dpad_Pressed" PointerReleased="Dpad_Released" PointerExited="Dpad_Exited">
                 <TextBlock Text="－" Classes="dpadGlyph" />
               </Border>
@@ -275,6 +275,13 @@
     </Style>
     <Style Selector="Border.dpad:pointerover">
       <Setter Property="Background" Value="{DynamicResource QpControlSurfaceHover}" />
+    </Style>
+    <!-- Lit while its direction is driven (keyboard or pointer) — macOS DpadButton. -->
+    <Style Selector="Border.dpad.active">
+      <Setter Property="Background" Value="#2EFFFFFF" />
+    </Style>
+    <Style Selector="Border.dpad.active TextBlock.dpadGlyph">
+      <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="TextBlock.dpadGlyph">
       <Setter Property="Foreground" Value="{DynamicResource QpTextPrimary}" />

@@ -89,13 +89,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (token == _toastToken) StatusToast = null;
     }
 
+    /// <summary>Current grid viewport width; tiles are sized as column spans of it.</summary>
+    private double _gridWidth;
+
     public MainViewModel(ProtectService service, AppSettings settings)
     {
         _service = service;
         _settings = settings;
+        // Nominal width until the view reports its real viewport (first layout pass).
+        _gridWidth = settings.PanelSize()?.Width ?? 760;
         _service.PropertyChanged += OnServiceChanged;
         RebuildProfiles();
         RebuildTiles();
+    }
+
+    /// <summary>Reflow all tiles for a new grid viewport width (view SizeChanged).</summary>
+    public void SetGridWidth(double width)
+    {
+        if (width <= 0 || Math.Abs(width - _gridWidth) < 0.5) return;
+        _gridWidth = width;
+        foreach (var tile in Tiles) tile.ApplyTileSize(width);
     }
 
     private void RebuildProfiles()
@@ -164,6 +177,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else
             {
                 var tile = new CameraTileViewModel(cam, _service, _settings);
+                tile.ApplyTileSize(_gridWidth);
                 Tiles.Insert(Math.Min(i, Tiles.Count), tile);
                 _ = tile.StartAsync();
             }
@@ -171,6 +185,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         HasCameras = Tiles.Count > 0;
         StreamCount = Tiles.Count(t => t.IsOnline);
         OnSearchQueryChanged(SearchQuery); // re-apply filter to any new tiles
+
+        // The focus tile isn't in Tiles — refresh it too so the PTZ overlay
+        // appears once capability enrichment lands mid-focus.
+        if (FocusTile is { } ft && _service.Cameras.FirstOrDefault(c => c.Id == ft.Camera.Id) is { } focused)
+            ft.UpdateFrom(focused);
     }
 
     [RelayCommand]
@@ -198,6 +217,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _settings.SetSize(size, tile.Camera.Id);
         RebuildTiles();
+        _ = tile.StartAsync(); // auto quality resolves differently for Large tiles
     }
 
     public AppSettings.CameraSize? SizeFor(CameraTileViewModel tile) => _settings.SizeFor(tile.Camera.Id);

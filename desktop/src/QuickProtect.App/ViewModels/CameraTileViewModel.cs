@@ -73,17 +73,38 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         _isOnline = camera.IsOnline;
         _isMuted = !settings.SpeakerEnabled;
         _fillMode = settings.CameraFillMode(camera.Id) ?? false;
-        // Grid tile size from the active profile (small/medium/large).
-        var baseWidth = settings.SizeFor(camera.Id) switch
-        {
-            AppSettings.CameraSize.Small => 180.0,
-            AppSettings.CameraSize.Large => 380.0,
-            _ => 240.0
-        };
-        _tileWidth = baseWidth;
-        _tileHeight = Math.Round(baseWidth * 0.66);
 
         _videoUnavailable = !FfmpegEngine.IsAvailable;
+    }
+
+    // MARK: - Grid sizing (macOS row-packed grid: 4 logical columns)
+
+    /// <summary>Gap between tiles and around the grid (macOS spacing).</summary>
+    public const double GridSpacing = 2.0;
+    private const int ColumnCount = 4;
+
+    private double _lastGridWidth;
+
+    /// <summary>Column span from the active profile: Small=1, Medium=2 (default), Large=4.</summary>
+    public int GridSpan => (int?)_settings.SizeFor(Camera.Id) ?? 2;
+
+    /// <summary>
+    /// Size the tile for a grid of <paramref name="gridWidth"/>: width is the
+    /// camera's column span, height follows the cached stream aspect ratio
+    /// (16:9 until the first frame arrives) — the macOS cellWidth/gridAspect math.
+    /// </summary>
+    public void ApplyTileSize(double gridWidth)
+    {
+        if (gridWidth <= 0) return;
+        _lastGridWidth = gridWidth;
+        // Outer padding + 3 inter-column gaps; each tile carries a 1px margin,
+        // and 0.5px slack absorbs float rounding in the wrap layout.
+        var colWidth = (gridWidth - GridSpacing * 2 - GridSpacing * (ColumnCount - 1) - 0.5) / ColumnCount;
+        if (colWidth <= 0) return;
+        var span = GridSpan;
+        var width = span * colWidth + (span - 1) * GridSpacing;
+        TileWidth = width;
+        TileHeight = width / (_settings.CachedAspectRatio(Camera.Id) ?? 16.0 / 9.0);
     }
 
     private void SubscribeClient(VideoStreamClient client)
@@ -95,7 +116,11 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         });
         // Learn the real frame size for aspect-dependent UI (pinned windows,
         // grid tile aspect) — macOS caches decoder dimensions the same way.
-        _sizeHandler = (w, h) => _settings.CacheVideoDimensions((uint)w, (uint)h, Camera.Id);
+        _sizeHandler = (w, h) => Dispatcher.UIThread.Post(() =>
+        {
+            _settings.CacheVideoDimensions((uint)w, (uint)h, Camera.Id);
+            ApplyTileSize(_lastGridWidth); // tile height follows the real aspect
+        });
         client.StateChanged += _stateHandler;
         client.VideoSizeKnown += _sizeHandler;
     }
@@ -129,6 +154,11 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         Camera = camera;
         Name = camera.Name;
         IsOnline = camera.IsOnline;
+        // Re-read profile-dependent size (context-menu size change, profile switch)
+        // and capability flags (PTZ enrichment lands after the initial fetch).
+        ApplyTileSize(_lastGridWidth);
+        OnPropertyChanged(nameof(IsPtz));
+        OnPropertyChanged(nameof(CanZoom));
     }
 
     public bool IsPtz => Camera.IsPtz;
@@ -138,8 +168,38 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     // MARK: - PTZ (direction → axis mapping lives in Core's PtzMapping)
 
-    public void PtzPress(PtzDirection d) => Send(PtzMapping.Press(d));
-    public void PtzRelease(PtzDirection d) => Send(PtzMapping.Release(d));
+    // Directions currently driven (keyboard or pointer), so the on-screen d-pad
+    // and zoom pill light the matching button — macOS DpadButton's lit state.
+    private readonly HashSet<PtzDirection> _ptzActive = new();
+    public bool PtzUpActive => _ptzActive.Contains(PtzDirection.Up);
+    public bool PtzDownActive => _ptzActive.Contains(PtzDirection.Down);
+    public bool PtzLeftActive => _ptzActive.Contains(PtzDirection.Left);
+    public bool PtzRightActive => _ptzActive.Contains(PtzDirection.Right);
+    public bool PtzZoomInActive => _ptzActive.Contains(PtzDirection.ZoomIn);
+    public bool PtzZoomOutActive => _ptzActive.Contains(PtzDirection.ZoomOut);
+
+    private void RaisePtzActive()
+    {
+        OnPropertyChanged(nameof(PtzUpActive));
+        OnPropertyChanged(nameof(PtzDownActive));
+        OnPropertyChanged(nameof(PtzLeftActive));
+        OnPropertyChanged(nameof(PtzRightActive));
+        OnPropertyChanged(nameof(PtzZoomInActive));
+        OnPropertyChanged(nameof(PtzZoomOutActive));
+    }
+
+    public void PtzPress(PtzDirection d)
+    {
+        if (_ptzActive.Add(d)) RaisePtzActive();
+        Send(PtzMapping.Press(d));
+    }
+
+    public void PtzRelease(PtzDirection d)
+    {
+        if (_ptzActive.Remove(d)) RaisePtzActive();
+        Send(PtzMapping.Release(d));
+    }
+
     private void Send(PtzMapping.Axes a)
     {
         if (IsPtz || CanZoom) _service.PtzSetAxes(Camera.Id, a.Pan, a.Tilt, a.Zoom);
@@ -149,6 +209,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     /// (a stop for a fixed camera would just trigger a pointless classic login).</summary>
     public void PtzStopAll()
     {
+        if (_ptzActive.Count > 0) { _ptzActive.Clear(); RaisePtzActive(); }
         if (IsPtz || CanZoom) _service.PtzStopAll(Camera.Id);
     }
 

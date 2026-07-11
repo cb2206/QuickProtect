@@ -22,6 +22,24 @@ public partial class MainWindow : Window
         AddHandler(PointerPressedEvent, Tile_DragPressed, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, Tile_DragMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, Tile_DragReleased, RoutingStrategies.Tunnel);
+        // Focus-mode hotkeys run in the tunnel phase: a control that kept keyboard
+        // focus from grid mode (e.g. the search TextBox, which eats arrow keys for
+        // caret movement) must never swallow PTZ/shortcut keys.
+        AddHandler(KeyDownEvent, (_, e) => { if (Vm is { IsFocusMode: true }) HandleGlobalKeyDown(e); },
+            RoutingStrategies.Tunnel);
+        AddHandler(KeyUpEvent, (_, e) => { if (Vm is { IsFocusMode: true }) HandleGlobalKeyUp(e); },
+            RoutingStrategies.Tunnel);
+        // Entering focus mode pulls keyboard focus onto the focus view, so typed
+        // shortcuts don't land in the (hidden) grid-header search box.
+        DataContextChanged += (_, _) =>
+        {
+            if (Vm is { } vm)
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.IsFocusMode) && vm.IsFocusMode)
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => FocusRoot.Focus());
+                };
+        };
         // Restore the per-profile panel size (macOS persists panel geometry).
         if (QuickProtect.Core.Services.AppSettings.Shared.PanelSize() is { } size)
         {
@@ -346,6 +364,10 @@ public partial class MainWindow : Window
         Vm?.SwapSecondary();
     }
 
+    /// <summary>Grid viewport resize → reflow tile spans (macOS GeometryReader).</summary>
+    private void GridScroll_SizeChanged(object? sender, SizeChangedEventArgs e)
+        => Vm?.SetGridWidth(e.NewSize.Width);
+
     /// <summary>PiP sizing: ~26% of the focus width, 4:3, like macOS.</summary>
     private void FocusRoot_SizeChanged(object? sender, SizeChangedEventArgs e)
     {
@@ -493,6 +515,18 @@ public partial class MainWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        HandleGlobalKeyDown(e);
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+        HandleGlobalKeyUp(e);
+    }
+
+    private void HandleGlobalKeyDown(KeyEventArgs e)
+    {
+        if (e.Handled) return;
         if (WindowState == WindowState.FullScreen) ShowHud();
         if (Vm is not { } vm) return;
 
@@ -534,10 +568,9 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    protected override void OnKeyUp(KeyEventArgs e)
+    private void HandleGlobalKeyUp(KeyEventArgs e)
     {
-        base.OnKeyUp(e);
-        _heldKeys.Remove(e.Key);
+        if (!_heldKeys.Remove(e.Key)) return; // not a key we pressed (or tunnel already released it)
         if (Vm?.FocusTile is { } ft && MapKey(e.Key, ft) is { } d)
         {
             ft.PtzRelease(d);
