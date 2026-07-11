@@ -99,6 +99,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // Nominal width until the view reports its real viewport (first layout pass).
         _gridWidth = settings.PanelSize()?.Width ?? 760;
         _service.PropertyChanged += OnServiceChanged;
+        _settings.PropertyChanged += OnSettingsChanged;
         RebuildProfiles();
         RebuildTiles();
     }
@@ -125,8 +126,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     partial void OnSelectedProfileIndexChanged(int value)
     {
         if (_suppressProfileSwitch || value < 0 || value >= _profiles.Count) return;
+        // Tiles and the profile list refresh via OnSettingsChanged.
         _settings.SwitchProfile(_profiles[value].Id);
-        RebuildTiles();
     }
 
     partial void OnSearchQueryChanged(string value)
@@ -147,6 +148,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 case nameof(ProtectService.IsLoading): IsLoading = _service.IsLoading; break;
                 case nameof(ProtectService.ErrorMessage): ErrorMessage = _service.ErrorMessage; break;
             }
+        });
+    }
+
+    /// <summary>
+    /// Profile list or active profile changed — possibly from the settings
+    /// dialog, which edits the same <see cref="AppSettings"/> — so the view
+    /// dropdown and grid follow along.
+    /// </summary>
+    private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (nameof(AppSettings.Profiles) or nameof(AppSettings.ActiveProfileId))) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            RebuildProfiles();
+            RebuildTiles();
         });
     }
 
@@ -245,8 +261,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var trimmed = name.Trim();
         if (trimmed.Length == 0) return;
         _settings.CreateProfile(trimmed);
-        RebuildProfiles();
-        RebuildTiles();
     }
 
     /// <summary>
@@ -349,6 +363,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _service.PropertyChanged -= OnServiceChanged;
+        _settings.PropertyChanged -= OnSettingsChanged;
         var pip = SecondaryTile;
         var ft = FocusTile;
         var tiles = Tiles.ToList();

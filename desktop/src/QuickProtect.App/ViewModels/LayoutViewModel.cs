@@ -30,6 +30,7 @@ public sealed partial class LayoutViewModel : ObservableObject
         _settings = settings;
         _service.PropertyChanged += OnServiceChanged;
         _settings.LayoutProfileChanged += (_, _) => Dispatcher.UIThread.Post(RebuildRows);
+        _settings.PropertyChanged += OnSettingsChanged;
         RebuildProfiles();
         RebuildRows();
     }
@@ -38,6 +39,17 @@ public sealed partial class LayoutViewModel : ObservableObject
     {
         if (e.PropertyName == nameof(ProtectService.Cameras))
             Dispatcher.UIThread.Post(RebuildRows);
+    }
+
+    /// <summary>
+    /// Profile list or active profile changed — here or from the main window's
+    /// view menu, which edits the same <see cref="AppSettings"/> — so the
+    /// switcher follows along.
+    /// </summary>
+    private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(AppSettings.Profiles) or nameof(AppSettings.ActiveProfileId))
+            Dispatcher.UIThread.Post(RebuildProfiles);
     }
 
     private IReadOnlyList<AppSettings.LayoutProfile> _profiles = Array.Empty<AppSettings.LayoutProfile>();
@@ -86,8 +98,6 @@ public sealed partial class LayoutViewModel : ObservableObject
         if (name.Length == 0) return;
         _settings.CreateProfile(name);
         NewProfileName = "";
-        RebuildProfiles();
-        RebuildRows();
     }
 
     [RelayCommand]
@@ -97,7 +107,6 @@ public sealed partial class LayoutViewModel : ObservableObject
         if (name.Length == 0 || SelectedProfileIndex < 0 || SelectedProfileIndex >= _profiles.Count) return;
         _settings.RenameProfile(_profiles[SelectedProfileIndex].Id, name);
         NewProfileName = "";
-        RebuildProfiles();
     }
 
     [RelayCommand]
@@ -105,7 +114,5 @@ public sealed partial class LayoutViewModel : ObservableObject
     {
         if (SelectedProfileIndex < 0 || SelectedProfileIndex >= _profiles.Count) return;
         _settings.DeleteProfile(_profiles[SelectedProfileIndex].Id);
-        RebuildProfiles();
-        RebuildRows();
     }
 }
