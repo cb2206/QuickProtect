@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "IN=$(cat); F=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('file_path',''))\" 2>/dev/null); case \"$F\" in *.swift) ;; *) exit 0;; esac; SID=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('session_id',''))\" 2>/dev/null); [ -n \"$SID\" ] && touch \"/tmp/qp-dirty-$SID\"; SL=$(command -v swiftlint || echo /opt/homebrew/bin/swiftlint); [ -x \"$SL\" ] || exit 0; ERR=$(cd macos && \"$SL\" lint --quiet \"$F\" 2>&1 | grep ': error:' | head -10); if [ -n \"$ERR\" ]; then echo \"$ERR\" >&2; exit 2; fi"
+            "command": "IN=$(cat); F=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('file_path',''))\" 2>/dev/null); SID=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('session_id',''))\" 2>/dev/null); case \"$F\" in *.cs|*.axaml) [ -n \"$SID\" ] && touch \"/tmp/qp-dirty-net-$SID\"; exit 0;; *.swift) ;; *) exit 0;; esac; [ -n \"$SID\" ] && touch \"/tmp/qp-dirty-$SID\"; SL=$(command -v swiftlint || echo /opt/homebrew/bin/swiftlint); [ -x \"$SL\" ] || exit 0; ERR=$(cd macos && \"$SL\" lint --quiet \"$F\" 2>&1 | grep ': error:' | head -10); if [ -n \"$ERR\" ]; then echo \"$ERR\" >&2; exit 2; fi"
           }
         ]
       }
@@ -36,8 +36,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "IN=$(cat); SID=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('session_id',''))\" 2>/dev/null); SENT=\"/tmp/qp-dirty-$SID\"; CNT=\"/tmp/qp-attempts-$SID\"; [ -n \"$SID\" ] && [ -f \"$SENT\" ] || exit 0; N=$(cat \"$CNT\" 2>/dev/null || echo 0); case \"$N\" in ''|*[!0-9]*) N=0;; esac; if [ \"$N\" -ge 5 ]; then echo \"Verification still failing after 5 attempts; allowing stop. Report what remains unfixed.\" >&2; rm -f \"$SENT\" \"$CNT\"; exit 0; fi; set -o pipefail; OUT=$(cd macos && xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet 2>&1 | tail -40); if [ $? -ne 0 ]; then echo $((N+1)) > \"$CNT\"; echo \"$OUT\" >&2; echo \"[gate attempt $((N+1))/5 failed: tests] Fix the cause, then stop again to re-verify.\" >&2; exit 2; fi; SL=$(command -v swiftlint || echo /opt/homebrew/bin/swiftlint); if [ -x \"$SL\" ]; then LOUT=$(cd macos && \"$SL\" lint --strict --quiet 2>&1 | tail -20); if [ $? -ne 0 ]; then echo $((N+1)) > \"$CNT\"; echo \"$LOUT\" >&2; echo \"[gate attempt $((N+1))/5 failed: swiftlint --strict] Fix the cause, then stop again to re-verify.\" >&2; exit 2; fi; fi; rm -f \"$SENT\" \"$CNT\"",
-            "timeout": 600,
+            "command": "bash .claude/hooks/stop-gate.sh",
+            "timeout": 900,
             "statusMessage": "Verifying QuickProtect (tests + strict lint) before stopping…"
           }
         ]

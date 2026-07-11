@@ -5,6 +5,7 @@
 .idea/
 .claude/*
 !.claude/settings.json
+!.claude/hooks/
 
 # graphify knowledge graph (machine-specific, regenerate with `graphify update .`)
 graphify-out/

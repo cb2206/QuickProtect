@@ -26,9 +26,9 @@ Every **code change** runs as a loop, not a line. Sessions with no code changes
 2. Run the checks. For Swift changes (run from `macos/`):
    `xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet`,
    then `swiftlint --strict`. For C# changes: `dotnet test dotnet/QuickProtect.sln`
-   (requires the .NET SDK; on this Mac it is not installed — note that in the report
-   instead of skipping silently). No silencing errors with try?, try!, force-unwraps,
-   or empty catch blocks.
+   (on this Mac the .NET 8 SDK is user-local at `~/.dotnet`, not on PATH:
+   `export DOTNET_ROOT=$HOME/.dotnet PATH=$HOME/.dotnet:$PATH`). No silencing
+   errors with try?, try!, force-unwraps, or empty catch blocks.
 3. If anything fails, read the error, fix the cause, go back to step 2.
 4. Repeat up to 5 times.
 
@@ -40,13 +40,19 @@ Stop conditions:
 Never report "done" without check output from this session.
 Never fix a test by weakening it. Fix the code, not the test.
 
-Hook enforcement (see .claude/settings.json):
+Hook enforcement (see .claude/settings.json and .claude/hooks/stop-gate.sh):
 - Editing a `.swift` file marks the session "dirty" (a `/tmp/qp-dirty-$SESSION_ID`
   marker) and runs a fast per-file lint that blocks only on **error-severity** violations.
-- On Stop, if the session is dirty, the full gate runs automatically from `macos/`:
-  `xcodebuild test` then `swiftlint --strict` (whole Swift project). Either failure
-  blocks the stop and is fed back for fixing. A clean (non-code) session stops
-  immediately with no checks.
+  Editing a `.cs`/`.axaml` file sets a separate `/tmp/qp-dirty-net-$SESSION_ID` marker.
+- On Stop, the gate script runs the checks for whichever side is dirty: Swift →
+  `xcodebuild test` + `swiftlint --strict` from `macos/`; .NET → `dotnet test
+  dotnet/QuickProtect.sln` (skipped with a warning if no SDK). Any failure blocks
+  the stop and is fed back for fixing. A clean (non-code) session stops immediately
+  with no checks.
+
+CI (.github/workflows/): `ci-macos.yml` (xcodegen + tests + strict lint on macos-15)
+and `ci-dotnet.yml` (dotnet test on windows-latest + ubuntu-latest), each path-filtered
+to its own subtree, on push to main/dev/feat/** and on PRs.
 
 SwiftLint baseline: macos/.swiftlint.yml disables rules the legacy code still violates.
 Don't add new violations of those rules; re-enable rules as files get cleaned up.
