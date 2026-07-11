@@ -58,23 +58,25 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
     private readonly HttpClient _integration;
     private readonly HttpClient _classic;
-    private readonly CookieContainer _classicCookies = new();
 
     public ProtectService(AppSettings settings, CertificateTrust trust)
     {
         _settings = settings;
         _trust = trust;
 
-        _integration = new HttpClient(MakeHandler(useCookies: false)) { Timeout = TimeSpan.FromSeconds(15) };
-        _classic = new HttpClient(MakeHandler(useCookies: true)) { Timeout = TimeSpan.FromSeconds(15) };
+        _integration = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
+        _classic = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
     }
 
-    private HttpClientHandler MakeHandler(bool useCookies)
+    private HttpClientHandler MakeHandler()
     {
+        // No automatic cookie handling: the classic API's TOKEN cookie is set
+        // explicitly per request (like macOS). An auto-forwarded session cookie
+        // on a login POST makes the controller reject it with 403 (CSRF guard),
+        // which would break every re-login after the first.
         var handler = new HttpClientHandler
         {
-            UseCookies = useCookies,
-            CookieContainer = useCookies ? _classicCookies : new CookieContainer(),
+            UseCookies = false,
             AllowAutoRedirect = false
         };
         // TOFU pinning — replaces system trust for the self-signed controller cert.
@@ -293,9 +295,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             }
 
             var csrf = resp.Headers.TryGetValues("X-CSRF-Token", out var vals) ? vals.FirstOrDefault() : null;
-            string? token = null;
-            foreach (Cookie c in _classicCookies.GetCookies(url))
-                if (c.Name == "TOKEN") token = c.Value;
+            var token = resp.Headers.TryGetValues("Set-Cookie", out var cookies)
+                ? ParseTokenCookie(cookies) : null;
             SetCreds(csrf, token);
 
             IsClassicLoggedIn = true;
@@ -316,6 +317,27 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         lock (_credLock) { _csrfToken = csrf; _tokenCookie = token; }
     }
 
+    /// <summary>Extracts the classic-API session token from Set-Cookie headers.</summary>
+    public static string? ParseTokenCookie(IEnumerable<string> setCookieHeaders)
+    {
+        foreach (var header in setCookieHeaders)
+            if (header.StartsWith("TOKEN=", StringComparison.Ordinal))
+            {
+                var value = header["TOKEN=".Length..].Split(';', 2)[0].Trim();
+                if (value.Length > 0) return value;
+            }
+        return null;
+    }
+
+    /// <summary>Attaches the captured session cookie + CSRF token to a classic-API request.</summary>
+    private void AddClassicAuth(HttpRequestMessage req)
+    {
+        string? csrf, token;
+        lock (_credLock) { csrf = _csrfToken; token = _tokenCookie; }
+        if (!string.IsNullOrEmpty(csrf)) req.Headers.TryAddWithoutValidation("X-CSRF-Token", csrf);
+        if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Cookie", $"TOKEN={token}");
+    }
+
     private async Task EnrichPtzFlagsAsync()
     {
         if (!await ClassicLoginAsync().ConfigureAwait(false)) return;
@@ -325,6 +347,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.TryAddWithoutValidation("Accept", "application/json");
+            AddClassicAuth(req);
             using var resp = await _classic.SendAsync(req).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode) return;
             var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -403,12 +426,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     {
         var url = MakeUrl($"proxy/protect/api/cameras/{cameraId}/move");
         if (url == null) return;
-        string csrf, token;
-        lock (_credLock) { csrf = _csrfToken ?? ""; token = _tokenCookie ?? ""; }
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
-            if (csrf.Length > 0) req.Headers.TryAddWithoutValidation("X-CSRF-Token", csrf);
+            AddClassicAuth(req);
             var payload = new { type = "continuous", payload = new { x = (int)v.x, y = (int)v.y, z = (int)v.z } };
             req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 

@@ -112,6 +112,25 @@ public class PtzMappingTests
     }
 }
 
+public class ClassicTokenCookieTests
+{
+    [Fact]
+    public void Extracts_token_and_strips_attributes()
+        => Assert.Equal("abc.def.ghi", ProtectService.ParseTokenCookie(new[]
+        {
+            "csrfToken=zzz; Path=/; Secure",
+            "TOKEN=abc.def.ghi; Path=/; HttpOnly; Secure; SameSite=Strict"
+        }));
+
+    [Fact]
+    public void Returns_null_when_no_token_cookie()
+        => Assert.Null(ProtectService.ParseTokenCookie(new[] { "other=1; Path=/" }));
+
+    [Fact]
+    public void Ignores_empty_token_value()
+        => Assert.Null(ProtectService.ParseTokenCookie(new[] { "TOKEN=; Path=/" }));
+}
+
 public class PtzBurstTimerTests
 {
     private static readonly DateTime T0 = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
