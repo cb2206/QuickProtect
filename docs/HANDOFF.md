@@ -1,7 +1,7 @@
 # Windows/Linux port — session handoff
 
 Cross-platform .NET 8 + Avalonia + LibVLCSharp reimplementation of the macOS
-QuickProtect app, living in `desktop/`. Branch: `feat/windows-linux-port`.
+QuickProtect app, living in `dotnet/`. Branch: `feat/windows-linux-port`.
 
 ## Status
 Feature-complete vs. the macOS app for the targeted scope (see `PARITY.md`).
@@ -21,7 +21,7 @@ A crash logger is in place: fatal exceptions are appended to
 ### First thing to do in the VM
 1. Build & run **natively (arm64)** to rule out emulation:
    ```
-   cd desktop
+   cd dotnet
    dotnet run --project src/QuickProtect.App
    ```
 2. Reproduce the crash, then read `%APPDATA%\QuickProtect\crash.log` — it has the
@@ -37,7 +37,7 @@ A crash logger is in place: fatal exceptions are appended to
 
 ## Build / test / publish
 ```
-cd desktop
+cd dotnet
 dotnet build QuickProtect.sln                 # build all
 dotnet test tests/QuickProtect.Core.Tests     # 41 tests
 dotnet publish src/QuickProtect.App -c Release -r win-arm64 --self-contained   # native package

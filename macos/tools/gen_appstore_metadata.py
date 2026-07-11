@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate Fastlane `deliver` metadata from APP_STORE_LISTINGS.md.
+"""Generate Fastlane `deliver` metadata from docs/APP_STORE_LISTINGS.md.
 
-APP_STORE_LISTINGS.md is the single source of truth for App Store metadata.
+docs/APP_STORE_LISTINGS.md is the single source of truth for App Store metadata.
 This script parses it and writes the fastlane/metadata/<locale>/ tree that
-`fastlane deliver` uploads. Run after editing the listings file:
+`fastlane deliver` uploads. Run after editing the listings file (from macos/):
 
-    python3 scripts/gen_appstore_metadata.py
+    python3 tools/gen_appstore_metadata.py
 
 It also prints a per-field character count and flags anything that exceeds
 App Store Connect's limits.
@@ -15,8 +15,8 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "APP_STORE_LISTINGS.md")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # macos/
+SRC = os.path.join(os.path.dirname(ROOT), "docs", "APP_STORE_LISTINGS.md")
 OUT = os.path.join(ROOT, "fastlane", "metadata")
 
 # Map the app's locale tokens (as written in APP_STORE_LISTINGS.md, in

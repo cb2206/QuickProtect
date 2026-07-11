@@ -26,5 +26,4 @@ disabled_rules:
 excluded:
   - build
   - .build
-  - graphify-out
-  - scripts
+  - tools

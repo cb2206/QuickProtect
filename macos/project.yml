@@ -16,6 +16,13 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: K2LM9FSU6C
+  configs:
+    # Dev machines have no signing certificate (releases are cloud-signed via
+    # fastlane's ASC key, Release config only), so Debug signs ad-hoc.
+    Debug:
+      CODE_SIGN_STYLE: Manual
+      CODE_SIGN_IDENTITY: "-"
+      DEVELOPMENT_TEAM: ""
 
 schemes:
   QuickProtect:

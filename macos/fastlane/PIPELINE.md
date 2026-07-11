@@ -18,8 +18,8 @@ and submission. macOS app, bundle id `com.cb.quickprotect`, team `K2LM9FSU6C`.
 
 ## Source of truth
 
-`APP_STORE_LISTINGS.md` (repo root) holds every localized listing. Editing it
-and running `scripts/gen_appstore_metadata.py` regenerates
+`docs/APP_STORE_LISTINGS.md` (repo root) holds every localized listing. Editing it
+and running `tools/gen_appstore_metadata.py` (from `macos/`) regenerates
 `fastlane/metadata/<locale>/` (with char-limit checks). Don't hand-edit the
 generated `.txt` files.
 

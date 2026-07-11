@@ -4,8 +4,8 @@ A cross-platform port of the macOS **QuickProtect** menu-bar app — a UniFi Pro
 camera viewer — built on **.NET 8 + Avalonia + LibVLCSharp** so a single codebase
 runs on **Windows and Linux** (and macOS, if ever wanted).
 
-> The original macOS app is a Swift/SwiftUI/AppKit project in the repo root. This
-> `desktop/` folder is the independent .NET reimplementation. Nothing here is
+> The original macOS app is a Swift/SwiftUI/AppKit project in `macos/`. This
+> `dotnet/` folder is the independent .NET reimplementation. Nothing here is
 > shared with the Swift sources at the source level — only the behavior and the
 > UniFi Protect protocol logic are ported.
 
@@ -29,7 +29,7 @@ work identically on both targets.
 ## Project layout
 
 ```
-desktop/
+dotnet/
   QuickProtect.sln
   Directory.Build.props            # shared TFM/version
   src/
@@ -54,7 +54,7 @@ Prerequisites: **.NET 8 SDK**. On **Linux** also install system libVLC
 bundled via the `VideoLAN.LibVLC.Windows` NuGet package.
 
 ```bash
-cd desktop
+cd dotnet
 dotnet build QuickProtect.sln
 dotnet run --project src/QuickProtect.App
 ```
