@@ -49,15 +49,16 @@ port (`dotnet/`).
 - **Header toolbar** — status pill, profile switcher + Save Current View as
   New Profile (name prompt), search, refresh, settings gear, quit.
 - **Fullscreen HUD** — chrome auto-hides after 3s idle in fullscreen, wakes on
-  input (global cursor poll on Windows; the native libVLC surface swallows
-  Avalonia pointer events).
+  input (pointer wake-up via a global cursor poll on Windows; keys wake it
+  everywhere).
 - **PTZ control** — d-pad + zoom pill (pointer hold), keyboard (arrows, I/O),
   continuous-velocity moves with the macOS quick-tap **minimum burst** (0.25s,
   `PtzBurstTimer` in Core, unit-tested).
 - **Pinned always-on-top windows** — borderless, top-most, draggable, aspect-locked
   resize, frame persistence, restore-on-launch, independent pinned allocation.
 - **Snapshots** — clipboard (Win32 CF_DIB+PNG / wl-copy / xclip / osascript) or
-  folder, honoring the destination setting; async capture awaits libVLC's file.
+  folder, honoring the destination setting; captures the latest decoded frame
+  straight from the video engine.
 - **Secondary-lens PiP** — package-camera side panel in focus with a **swap**
   button that exchanges playback between the lenses in place (no re-allocation).
 - **Onboarding** — 3-step wizard (Connect → PTZ → All set).
@@ -70,10 +71,11 @@ port (`dotnet/`).
 - **Localization** — 7 languages (en/de/fr/es/nl/it/pt-BR) from the macOS String
   Catalog; `Loc` helper + `{loc:Loc}` markup extension; OS culture detection +
   Settings language picker.
-- **Graceful degradation** — if libVLC can't initialize, the app runs without
-  video and tiles show a notice instead of crashing.
-- **Diagnostics** — `crash.log` (fatal), `vlc.log` (libVLC Warning+, or full with
-  `QP_VLC_DEBUG=1`); `--open-panel` / `--no-dismiss` flags for testing.
+- **Graceful degradation** — if the FFmpeg natives can't load (and no matching
+  system FFmpeg exists), the app runs without video and tiles show a notice
+  instead of crashing.
+- **Diagnostics** — `crash.log` (fatal), `video.log` (FFmpeg warnings/errors,
+  truncated per session); `--open-panel` / `--no-dismiss` flags for testing.
 - **Windows installer** — Inno Setup (`installer/QuickProtect.iss`) via
   `scripts/package-windows.ps1`, 7 wizard languages, closes the running tray app
   on upgrade.
@@ -85,14 +87,14 @@ port (`dotnet/`).
 | Audio playback | decoded + rendered (default muted) | **not yet implemented** — mute button is a stub | the FFmpeg engine is video-only so far; a WASAPI/ALSA audio sink is the next engine milestone |
 | Profile rename/delete in header menu | header profile menu | Settings → Cameras & Layout | header has switcher + save-as-new; full management lives in Settings |
 | Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
-| Grid-tile PiP | optional per-camera PiP on grid tiles | focus-only PiP | each PiP is a native HWND + an extra server stream; cost outweighs the value at grid size |
+| Grid-tile PiP | optional per-camera PiP on grid tiles | focus-only PiP | each PiP is an extra server stream; cost outweighs the value at grid size |
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
-| Digital zoom input | pinch/scroll gestures on the frame | keyboard (+/−/0, arrows) | the native libVLC surface cannot receive Avalonia gestures |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
 
 ## Platform notes (for the Linux phase)
 
-- Video requires system libVLC (`apt install vlc`); no Linux native NuGet exists.
+- Video needs the FFmpeg 7.1 natives (`scripts/get-ffmpeg.sh`, fetched into
+  gitignored `native/`) or a matching system FFmpeg (7.x / `libavcodec.so.61`).
 - The rtsps TLS tunnel works unchanged on Linux (pure .NET sockets).
 - Tray icons need StatusNotifierItem/appindicator support (GNOME may need an
   extension) — without a tray, add a `--open-panel` desktop entry as fallback.
@@ -105,4 +107,5 @@ port (`dotnet/`).
 
 - **Windows**: `scripts/package-windows.ps1` → Inno Setup installer (done); code
   signing still open. The notify-only updater policy carries over.
-- **Linux**: AppImage or Flatpak; declare the `vlc`/`libvlc` runtime dependency.
+- **Linux**: AppImage or Flatpak; bundle the FFmpeg 7.1 natives (as the Windows
+  installer does) or declare an FFmpeg 7.x runtime dependency.

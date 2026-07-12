@@ -30,7 +30,7 @@ This repo hosts two independent implementations that share behavior, not code:
 | Folder | What it is |
 |---|---|
 | [`macos/`](macos/) | The original macOS menu-bar app — Swift/SwiftUI/AppKit with a custom RTSP/RTP client. Ships on the [App Store](https://apps.apple.com/app/id6776899427) and as an unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases). |
-| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia + LibVLCSharp codebase for both platforms. |
+| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. |
 | [`docs/`](docs/) | Cross-platform docs: [feature parity](docs/PARITY.md) between the two implementations, [privacy policy](docs/PRIVACY.md), App Store listings, screenshots. |
 | [`scripts/`](scripts/) | Per-platform build & run entry points (see below). |
 
@@ -45,7 +45,7 @@ Each platform has a `build` script (compile only) and a `run` script (compile, r
 scripts/macos/build.sh
 scripts/macos/run.sh
 
-# Linux (requires .NET 8 SDK + libVLC)
+# Linux (requires .NET 8 SDK; FFmpeg natives via dotnet/scripts/get-ffmpeg.sh)
 scripts/linux/build.sh
 scripts/linux/run.sh
 ```
