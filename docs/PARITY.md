@@ -1,7 +1,7 @@
 # Feature parity roadmap
 
-Tracks the macOS QuickProtect feature set against this .NET/Avalonia port.
-Ordered roughly by user value and implementation dependency.
+Tracks the macOS QuickProtect feature set (`macos/`) against the .NET/Avalonia
+port (`dotnet/`). Ordered roughly by user value and implementation dependency.
 
 ## ✅ Done (foundation)
 

@@ -8,6 +8,21 @@ A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Prote
 
 ![QuickProtect](docs/screenshots/appstore-1.png)
 
+## Features
+
+- **Live camera grid** — every camera on your controller in a resizable panel, streamed over RTSP/RTSPS (H.264 and H.265)
+- **Focus view** — click a camera for a single-feed view with fullscreen, fit/fill, mute, and snapshots
+- **PTZ control** — pan, tilt, and zoom PTZ cameras with the keyboard or on-screen controls
+- **Pinned windows** — float individual cameras in always-on-top windows
+- **Layout profiles** — per-profile camera visibility, size, and order (per-display on macOS)
+- **Global hotkey** — open the camera panel from anywhere
+- **Secondary-lens picture-in-picture** — e.g. the package camera on doorbells
+- **Self-signed TLS support** — trust-on-first-use certificate pinning, no system-wide trust changes; credentials live in the OS keychain/secure store
+- **Multilingual** — English, German, French, Spanish, Dutch, Italian, and Brazilian Portuguese
+- **Quality of life** — first-run onboarding, launch at login, notify-only update checks, light/dark theming and accent colors
+
+The two implementations track each other feature-for-feature; the remaining platform differences are listed in [docs/PARITY.md](docs/PARITY.md).
+
 ## Repository layout
 
 This repo hosts two independent implementations that share behavior, not code:

@@ -17,7 +17,7 @@ runs on **Windows and Linux** (and macOS, if ever wanted).
 | UI | SwiftUI + AppKit | Avalonia 11 (Windows + Linux + macOS) |
 | Tray / menu-bar | `NSStatusItem` | Avalonia `TrayIcon` |
 | Video (RTSP→decode→render) | hand-written RTSP/RTP + VideoToolbox + `AVSampleBufferDisplayLayer` | **libVLC** via LibVLCSharp `VideoView` |
-| Secrets | Keychain | DPAPI (Windows) / 0600 file (Linux, libsecret TODO) |
+| Secrets | Keychain | DPAPI (Windows) / libsecret via `secret-tool` with 0600-file fallback (Linux) |
 | Preferences | `UserDefaults` | JSON file in the user config dir |
 | Start at login | `SMAppService` | Run registry key (Windows) / XDG autostart (Linux) |
 | Cert trust | TOFU pin via `URLSession` delegate | TOFU pin via `HttpClientHandler` callback |
@@ -34,17 +34,22 @@ dotnet/
   Directory.Build.props            # shared TFM/version
   src/
     QuickProtect.Core/             # portable domain layer (no UI)
-      Models/      Camera, StreamQuality
+      Models/      Camera, StreamQuality, Ptz (d-pad/keyboard→axis mapping),
+                   PinnedWindowGeometry, SnapshotNaming
       Services/    ProtectService (dual UniFi API client), AppSettings,
-                   CertificateTrust (TOFU), IPreferences, ISecretStore,
-                   ILaunchAtLogin, AppPaths, Log
+                   CertificateTrust (TOFU), UpdateChecker, VersionCompare,
+                   IPreferences, ISecretStore, ILaunchAtLogin, AppPaths, Log
     QuickProtect.App/              # Avalonia desktop app
       Program.cs, App.axaml(.cs)   # tray agent shell (≈ AppDelegate)
       ApertureIcon.cs              # the tray mark, drawn at runtime
-      Platform/                    # Windows/Linux launch-at-login
-      Services/    VlcManager      # shared LibVLC instance
-      ViewModels/  Main, CameraTile, Settings
-      Views/       MainWindow (camera grid), SettingsWindow
+      Localization/                # Loc + {loc:Loc} markup, embedded .resx (7 languages)
+      Platform/                    # launch-at-login, global hotkey, URL opener
+      Services/    VlcManager (shared libVLC), PinnedWindowManager, SnapshotService
+      ViewModels/  Main, CameraTile/CameraRow, Layout, Settings, Onboarding
+      Views/       MainWindow (grid + focus view), SettingsWindow,
+                   OnboardingWindow, PinnedCameraWindow
+  tests/
+    QuickProtect.Core.Tests/       # unit tests over the Core logic
 ```
 
 ## Build & run
@@ -59,31 +64,43 @@ dotnet build QuickProtect.sln
 dotnet run --project src/QuickProtect.App
 ```
 
+Or use the repo scripts, which build, replace any running instance, and launch:
+`scripts\windows\run.ps1` (Windows) / `scripts/linux/run.sh` (Linux).
+
 The app launches as a tray agent (no main window). Left-click the tray icon to
 open the camera grid; right-click for the menu. Open **Settings** to enter the
 controller IP and Integration API key.
 
 ## Feature parity status
 
-Implemented (this pass):
-- Tray agent shell, camera-grid panel, live RTSP/RTSPS playback via libVLC
+Feature-complete against the macOS app for the targeted scope — the full
+item-by-item list lives in [`docs/PARITY.md`](../docs/PARITY.md). Highlights:
+
+- Tray agent shell, camera-grid panel with search/profile switcher/stream-count
+  pill, live RTSP/RTSPS playback via libVLC (graceful degradation if libVLC
+  can't load)
+- Focus (single-camera) view with fullscreen, fit/fill, mute, snapshots
+  (S key / button, configurable destination), and secondary-lens PiP
+- PTZ: on-screen d-pad + zoom pill and keyboard controls (Core-tested axis
+  mapping matching the macOS sign conventions)
+- Pinned always-on-top floating windows — aspect-locked resize, frame
+  persistence, restore-on-launch
 - Dual UniFi Protect API: Integration API (list cameras, create/delete on-demand
   `rtsps-stream`, quality fallback ladder) + classic cookie API (login, PTZ moves,
-  PTZ-capability enrichment)
-- Trust-on-first-use certificate pinning (SHA-256 of the public key) with a
+  PTZ-capability enrichment); trust-on-first-use certificate pinning with a
   "trust new certificate" action in Settings
-- Settings: connection, default stream quality, optional PTZ credentials,
-  launch-at-login
-- Cross-platform persistence (JSON prefs) and secret storage (DPAPI / file)
-- Layout-profile / hidden / order / size data model and pinned-camera state model
+- Cameras & Layout settings (profiles, show/hide, size, order), first-run
+  onboarding wizard, global hotkey (native on Windows; documented no-op on
+  Linux), notify-only update checker, customizable accent color
+- Localization in all 7 languages (en/de/fr/es/nl/it/pt-BR) via embedded .resx
+- Secret storage: DPAPI (Windows) / libsecret via `secret-tool` with 0600-file
+  fallback (Linux); JSON prefs for everything else
 
-Not yet ported (tracked for follow-up — see `PARITY.md`):
-- Focus (single-camera) view, fullscreen, fit/fill, snapshots
-- On-screen PTZ d-pad + keyboard controls and the focus overlay
-- Pinned always-on-top floating windows (data layer is ported; windowing is not)
-- Onboarding wizard, App Store/update-checker nudges, auto-update checker
-- Global hotkey registration (settings model exists; native hook does not)
-- Secondary-lens picture-in-picture (doorbell package camera)
-- Localization (the macOS app ships 7 languages; strings here are English-only)
-- libsecret-backed secret store on Linux (currently a 0600 file)
-```
+Remaining lower-priority gaps (tracked in [`docs/PARITY.md`](../docs/PARITY.md)):
+light/auto theme (dark-only today), true-fullscreen HUD, snapshot-to-clipboard,
+plain-RTSP toggle, in-grid drag-to-reorder, Aurora visual polish, full string
+coverage.
+
+Known issue: a crash on Windows 11 ARM under x64 emulation is being investigated
+— see [`docs/HANDOFF.md`](../docs/HANDOFF.md) (fatal exceptions land in
+`%APPDATA%\QuickProtect\crash.log`).

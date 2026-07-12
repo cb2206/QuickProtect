@@ -10,6 +10,8 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 
 **Looking for a signed binary?** [Download QuickProtect from the App Store](https://apps.apple.com/app/id6776899427) — sandboxed, auto-updating, and notarized by Apple. The [GitHub release](https://github.com/cb2206/QuickProtect/releases) DMG is intentionally unsigned (see [Installing an Unsigned App](#installing-an-unsigned-app)).
 
+**On Windows or Linux?** See the [.NET/Avalonia port](../dotnet/README.md) in this repo.
+
 ![QuickProtect](../docs/screenshots/appstore-1.png)
 
 ## Features
@@ -80,7 +82,13 @@ To control PTZ cameras (e.g. G6 PTZ) with arrow keys:
 
 ## Building from Source
 
-The project uses [XcodeGen](https://github.com/yonaskolb/xcodegen) to generate the Xcode project.
+The project uses [XcodeGen](https://github.com/yonaskolb/xcodegen) to generate the Xcode project. The quickest path is the repo script, which generates, builds, and launches in one go:
+
+```bash
+../scripts/macos/run.sh   # or scripts/macos/run.sh from the repo root
+```
+
+Or manually (run from this `macos/` directory):
 
 ```bash
 # Install XcodeGen (if needed)
@@ -134,7 +142,7 @@ swiftc -sdk $(xcrun --show-sdk-path) -target arm64-apple-macos13.0 -parse-as-lib
   && /tmp/QuickProtectTests
 ```
 
-75+ tests cover RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), version comparison, grid layout, hotkey management, and Aurora accent-color parsing and appearance settings.
+120+ tests cover RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings.
 
 ## Installing an Unsigned App
 
