@@ -23,7 +23,7 @@ public partial class SettingsWindow : Window
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Choose snapshot folder",
+            Title = Localization.Loc.Get("Choose a folder for saved snapshots"),
             AllowMultiple = false
         });
         return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;

@@ -209,4 +209,72 @@ QuickProtect.</value></data>
   <data name="v%@ available" xml:space="preserve"><value>v%@ disponibile</value></data>
   <data name="© 2026 Christian Bartels · Released under the MIT License." xml:space="preserve"><value>© 2026 Christian Bartels · Rilasciato sotto licenza MIT.</value></data>
   <data name="⌘+scroll" xml:space="preserve"><value>⌘+scorrimento</value></data>
+  <data name="%lld cameras detected." xml:space="preserve"><value>%lld telecamere rilevate.</value></data>
+  <data name="%lld streams" xml:space="preserve"><value>%lld flussi</value></data>
+  <data name="Connected — %lld cameras found" xml:space="preserve"><value>Connesso — %lld telecamere trovate</value></data>
+  <data name="A new version ({0}) is available." xml:space="preserve"><value>È disponibile una nuova versione ({0}).</value></data>
+  <data name="Accent color" xml:space="preserve"><value>Colore accento</value></data>
+  <data name="Blue" xml:space="preserve"><value>Blu</value></data>
+  <data name="Camera isn't playing yet." xml:space="preserve"><value>La telecamera non è ancora in riproduzione.</value></data>
+  <data name="Cameras &amp; Layout" xml:space="preserve"><value>Telecamere e layout</value></data>
+  <data name="Can't create folder: {0}" xml:space="preserve"><value>Impossibile creare la cartella: {0}</value></data>
+  <data name="Checking for updates…" xml:space="preserve"><value>Ricerca di aggiornamenti…</value></data>
+  <data name="Choose Folder…" xml:space="preserve"><value>Scegli cartella…</value></data>
+  <data name="Click the aperture icon in your tray to open the camera grid, or press your global shortcut." xml:space="preserve"><value>Fai clic sull'icona del diaframma nell'area di notifica per aprire la griglia delle telecamere, oppure usa la tua scorciatoia globale.</value></data>
+  <data name="Clipboard is unavailable." xml:space="preserve"><value>Gli appunti non sono disponibili.</value></data>
+  <data name="Controller Connection" xml:space="preserve"><value>Connessione al controller</value></data>
+  <data name="Create" xml:space="preserve"><value>Crea</value></data>
+  <data name="Delete" xml:space="preserve"><value>Elimina</value></data>
+  <data name="Error: {0}" xml:space="preserve"><value>Errore: {0}</value></data>
+  <data name="Esc back · F fullscreen · arrows pan/tilt · I/O zoom · +/− digital zoom (0 resets)" xml:space="preserve"><value>Esc indietro · F schermo intero · frecce panoramica/inclinazione · I/O zoom · +/− zoom digitale (0 ripristina)</value></data>
+  <data name="Fit/Fill" xml:space="preserve"><value>Adatta/Riempi</value></data>
+  <data name="Global shortcut (toggle camera panel)" xml:space="preserve"><value>Scorciatoia globale (mostra/nascondi il pannello telecamere)</value></data>
+  <data name="Green" xml:space="preserve"><value>Verde</value></data>
+  <data name="IP address or hostname" xml:space="preserve"><value>Indirizzo IP o nome host</value></data>
+  <data name="Integration API key" xml:space="preserve"><value>Chiave dell'API di integrazione</value></data>
+  <data name="Language" xml:space="preserve"><value>Lingua</value></data>
+  <data name="Layout profile" xml:space="preserve"><value>Profilo di layout</value></data>
+  <data name="Live UniFi Protect feeds, one click from your tray." xml:space="preserve"><value>Feed UniFi Protect in diretta, a un clic dall'area di notifica.</value></data>
+  <data name="Local-account username and password enable pan/tilt/zoom and zoom-lens controls." xml:space="preserve"><value>Nome utente e password di un account locale abilitano panoramica/inclinazione/zoom e i controlli dell'obiettivo zoom.</value></data>
+  <data name="New certificate trusted." xml:space="preserve"><value>Nuovo certificato considerato attendibile.</value></data>
+  <data name="New profile name" xml:space="preserve"><value>Nome del nuovo profilo</value></data>
+  <data name="No cameras yet. Open Settings to connect your controller." xml:space="preserve"><value>Ancora nessuna telecamera. Apri le impostazioni per collegare il controller.</value></data>
+  <data name="Not set" xml:space="preserve"><value>Non impostato</value></data>
+  <data name="Open QuickProtect" xml:space="preserve"><value>Apri QuickProtect</value></data>
+  <data name="Open Release Page" xml:space="preserve"><value>Apri la pagina della release</value></data>
+  <data name="Orange" xml:space="preserve"><value>Arancione</value></data>
+  <data name="Package camera" xml:space="preserve"><value>Telecamera pacchi</value></data>
+  <data name="Pin" xml:space="preserve"><value>Blocca</value></data>
+  <data name="Pin as an always-on-top window" xml:space="preserve"><value>Blocca come finestra sempre in primo piano</value></data>
+  <data name="Pink" xml:space="preserve"><value>Rosa</value></data>
+  <data name="Press a key combination…" xml:space="preserve"><value>Premi una combinazione di tasti…</value></data>
+  <data name="Purple" xml:space="preserve"><value>Viola</value></data>
+  <data name="Record" xml:space="preserve"><value>Registra</value></data>
+  <data name="Red" xml:space="preserve"><value>Rosso</value></data>
+  <data name="Restart QuickProtect to apply the language change." xml:space="preserve"><value>Riavvia QuickProtect per applicare il cambio di lingua.</value></data>
+  <data name="Save a still frame" xml:space="preserve"><value>Salva un fotogramma</value></data>
+  <data name="Save snapshots to" xml:space="preserve"><value>Salva le istantanee in</value></data>
+  <data name="Saved" xml:space="preserve"><value>Salvato</value></data>
+  <data name="Saved. Testing connection…" xml:space="preserve"><value>Salvato. Prova della connessione…</value></data>
+  <data name="Search" xml:space="preserve"><value>Cerca</value></data>
+  <data name="Show focus-view controls (PTZ pad &amp; shortcut hints)" xml:space="preserve"><value>Mostra i controlli della vista ingrandita (pad PTZ e suggerimenti scorciatoie)</value></data>
+  <data name="Snapshot (S)" xml:space="preserve"><value>Istantanea (S)</value></data>
+  <data name="Snapshot copied to clipboard" xml:space="preserve"><value>Istantanea copiata negli appunti</value></data>
+  <data name="Start QuickProtect at login" xml:space="preserve"><value>Avvia QuickProtect all'accesso</value></data>
+  <data name="Swap with the main view" xml:space="preserve"><value>Scambia con la vista principale</value></data>
+  <data name="System default" xml:space="preserve"><value>Predefinito di sistema</value></data>
+  <data name="Teal" xml:space="preserve"><value>Turchese</value></data>
+  <data name="Testing…" xml:space="preserve"><value>Prova in corso…</value></data>
+  <data name="The controller's certificate changed since you last connected." xml:space="preserve"><value>Il certificato del controller è cambiato dall'ultima connessione.</value></data>
+  <data name="To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings." xml:space="preserve"><value>Per il brandeggio e l'inclinazione delle telecamere PTZ, QuickProtect ha bisogno di un account amministratore locale. Puoi saltare questo passaggio e aggiungerlo più tardi nelle impostazioni.</value></data>
+  <data name="Toggle audio" xml:space="preserve"><value>Attiva/disattiva l'audio</value></data>
+  <data name="Toggle fit vs. fill" xml:space="preserve"><value>Alterna tra adatta e riempi</value></data>
+  <data name="Toggle visibility, set tile size, and reorder. Applies to this profile." xml:space="preserve"><value>Attiva/disattiva la visibilità, imposta la dimensione dei riquadri e riordina. Si applica a questo profilo.</value></data>
+  <data name="Unpin" xml:space="preserve"><value>Sblocca</value></data>
+  <data name="Unsupported key — use a letter, number, or function key." xml:space="preserve"><value>Tasto non supportato — usa una lettera, un numero o un tasto funzione.</value></data>
+  <data name="Update available: {0}" xml:space="preserve"><value>Aggiornamento disponibile: {0}</value></data>
+  <data name="Video is unavailable." xml:space="preserve"><value>Il video non è disponibile.</value></data>
+  <data name="Video unavailable" xml:space="preserve"><value>Video non disponibile</value></data>
+  <data name="Windows only for now (letter, number, or function key with modifiers)." xml:space="preserve"><value>Per ora solo Windows (lettera, numero o tasto funzione con modificatori).</value></data>
+  <data name="You're on the latest version." xml:space="preserve"><value>Stai usando la versione più recente.</value></data>
 </root>

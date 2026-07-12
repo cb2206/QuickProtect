@@ -1,15 +1,16 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
-using LibVLCSharp.Shared;
-using QuickProtect.App.Services;
+using QuickProtect.App.Video;
 using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App.ViewModels;
 
 /// <summary>
-/// One camera tile in the grid: owns its <see cref="MediaPlayer"/>, requests an
-/// on-demand RTSP stream from the controller, and plays it. Tracks the quality it
-/// actually got so the allocation can be released on stop.
+/// One camera tile: owns its <see cref="VideoStreamClient"/>, requests an
+/// on-demand RTSP stream from the controller, and plays it through the FFmpeg
+/// engine. Tracks the quality it actually got so the allocation can be released
+/// on stop.
 /// </summary>
 public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 {
@@ -18,8 +19,15 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     public Camera Camera { get; private set; }
 
-    /// <summary>The video player, or null when libVLC is unavailable (video disabled).</summary>
-    public MediaPlayer? Player { get; }
+    /// <summary>
+    /// The shared stream client (owned by the coordinator), or null when the
+    /// video engine is unavailable or the tile hasn't started yet. Observable so
+    /// the bound <see cref="VideoSurface"/> follows PiP swaps.
+    /// </summary>
+    [ObservableProperty] private VideoStreamClient? _client;
+    private VideoStreamCoordinator.Handle? _handle;
+    private Action<VideoState>? _stateHandler;
+    private Action<int, int>? _sizeHandler;
 
     [ObservableProperty] private string _name;
     [ObservableProperty] private bool _isOnline;
@@ -30,20 +38,24 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _fillMode;
     [ObservableProperty] private double _tileWidth;
     [ObservableProperty] private double _tileHeight;
-    /// <summary>True when libVLC couldn't initialize, so the tile shows a notice instead of video.</summary>
+    /// <summary>True when the video engine couldn't initialize (tile shows a notice).</summary>
     [ObservableProperty] private bool _videoUnavailable;
     /// <summary>False when filtered out by the header search box.</summary>
     [ObservableProperty] private bool _matchesSearch = true;
 
-    private string? _activeQuality;
-    private bool _starting;
+    // Digital zoom viewport (bound by VideoSurface; Core math in DigitalZoom).
+    [ObservableProperty] private double _zoom = 1.0;
+    [ObservableProperty] private double _zoomCenterX = 0.5;
+    [ObservableProperty] private double _zoomCenterY = 0.5;
+    [ObservableProperty] private string? _digitalZoomLabel;
+
+    private readonly DigitalZoom _digitalZoom = new();
     private readonly bool _pinned;
-    private readonly string? _fixedQuality;
+    private string? _fixedQuality;
 
     /// <param name="pinned">
     /// When true the tile drives a pinned floating window: it uses the pinned
-    /// server-side allocation lifecycle (created/released independently of the
-    /// popover's streams) and always streams at high quality.
+    /// server-side allocation lifecycle and always streams at high quality.
     /// </param>
     /// <param name="fixedQuality">
     /// When set (e.g. "package"), the tile streams exactly this quality instead of
@@ -61,70 +73,80 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         _isOnline = camera.IsOnline;
         _isMuted = !settings.SpeakerEnabled;
         _fillMode = settings.CameraFillMode(camera.Id) ?? false;
-        // Grid tile size from the active profile (small/medium/large).
-        var baseWidth = settings.SizeFor(camera.Id) switch
-        {
-            AppSettings.CameraSize.Small => 180.0,
-            AppSettings.CameraSize.Large => 380.0,
-            _ => 240.0
-        };
-        _tileWidth = baseWidth;
-        _tileHeight = Math.Round(baseWidth * 0.66);
 
-        if (VlcManager.Shared.LibVLC is { } libvlc)
-        {
-            Player = new MediaPlayer(libvlc) { EnableHardwareDecoding = true };
-            Player.Playing += (_, _) =>
-            {
-                IsPlaying = true;
-                IsLoading = false;
-                ApplyMute();
-                ApplyFill();
-            };
-            Player.EncounteredError += (_, _) => IsLoading = false;
-            Player.Stopped += (_, _) => IsPlaying = false;
-        }
-        else
-        {
-            _videoUnavailable = true;
-        }
+        _videoUnavailable = !FfmpegEngine.IsAvailable;
     }
 
-    // MARK: - Audio mute / fit-fill (applied to the player; persisted to settings)
+    // MARK: - Grid sizing (macOS row-packed grid: 4 logical columns)
 
-    /// <summary>Toggle audio. Persists the global speaker preference (default muted).</summary>
+    /// <summary>Gap between tiles and around the grid (macOS spacing).</summary>
+    public const double GridSpacing = 2.0;
+    private const int ColumnCount = 4;
+
+    private double _lastGridWidth;
+
+    /// <summary>Column span from the active profile: Small=1, Medium=2 (default), Large=4.</summary>
+    public int GridSpan => (int?)_settings.SizeFor(Camera.Id) ?? 2;
+
+    /// <summary>
+    /// Size the tile for a grid of <paramref name="gridWidth"/>: width is the
+    /// camera's column span, height follows the cached stream aspect ratio
+    /// (16:9 until the first frame arrives) — the macOS cellWidth/gridAspect math.
+    /// </summary>
+    public void ApplyTileSize(double gridWidth)
+    {
+        if (gridWidth <= 0) return;
+        _lastGridWidth = gridWidth;
+        // Outer padding + 3 inter-column gaps; each tile carries a 1px margin,
+        // and 0.5px slack absorbs float rounding in the wrap layout.
+        var colWidth = (gridWidth - GridSpacing * 2 - GridSpacing * (ColumnCount - 1) - 0.5) / ColumnCount;
+        if (colWidth <= 0) return;
+        var span = GridSpan;
+        var width = span * colWidth + (span - 1) * GridSpacing;
+        TileWidth = width;
+        TileHeight = width / (_settings.CachedAspectRatio(Camera.Id) ?? 16.0 / 9.0);
+    }
+
+    private void SubscribeClient(VideoStreamClient client)
+    {
+        _stateHandler = state => Dispatcher.UIThread.Post(() =>
+        {
+            IsPlaying = state == VideoState.Playing;
+            if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
+        });
+        // Learn the real frame size for aspect-dependent UI (pinned windows,
+        // grid tile aspect) — macOS caches decoder dimensions the same way.
+        _sizeHandler = (w, h) => Dispatcher.UIThread.Post(() =>
+        {
+            _settings.CacheVideoDimensions((uint)w, (uint)h, Camera.Id);
+            ApplyTileSize(_lastGridWidth); // tile height follows the real aspect
+        });
+        client.StateChanged += _stateHandler;
+        client.VideoSizeKnown += _sizeHandler;
+    }
+
+    private void UnsubscribeClient(VideoStreamClient client)
+    {
+        if (_stateHandler != null) client.StateChanged -= _stateHandler;
+        if (_sizeHandler != null) client.VideoSizeKnown -= _sizeHandler;
+        _stateHandler = null;
+        _sizeHandler = null;
+    }
+
+    // MARK: - Audio mute (audio output lands with the engine's audio sink; the
+    // preference is kept so the UI and settings stay wired).
+
     public void ToggleMute()
     {
         IsMuted = !IsMuted;
         _settings.SpeakerEnabled = !IsMuted;
-        ApplyMute();
     }
 
-    private void ApplyMute() { if (Player != null) Player.Mute = IsMuted; }
-
-    /// <summary>Toggle fit (letterbox) vs. fill (crop) for the focused frame.</summary>
+    /// <summary>Toggle fit (letterbox) vs. fill (crop); rendered by VideoSurface.</summary>
     public void ToggleFill()
     {
         FillMode = !FillMode;
         _settings.SetCameraFillMode(FillMode, Camera.Id);
-        ApplyFill();
-    }
-
-    private void ApplyFill()
-    {
-        if (Player == null) return;
-        // Fill crops to the camera's aspect so the frame is filled; fit lets libVLC
-        // letterbox (Scale 0 = auto-fit). Best-effort — tuned on-device.
-        if (FillMode)
-        {
-            var ar = _settings.CachedAspectRatio(Camera.Id);
-            Player.CropGeometry = ar is { } r && r > 0 ? $"{(int)Math.Round(r * 1000)}:1000" : null;
-        }
-        else
-        {
-            Player.CropGeometry = null;
-            Player.Scale = 0;
-        }
     }
 
     public void UpdateFrom(Camera camera)
@@ -132,6 +154,11 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         Camera = camera;
         Name = camera.Name;
         IsOnline = camera.IsOnline;
+        // Re-read profile-dependent size (context-menu size change, profile switch)
+        // and capability flags (PTZ enrichment lands after the initial fetch).
+        ApplyTileSize(_lastGridWidth);
+        OnPropertyChanged(nameof(IsPtz));
+        OnPropertyChanged(nameof(CanZoom));
     }
 
     public bool IsPtz => Camera.IsPtz;
@@ -141,66 +168,126 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     // MARK: - PTZ (direction → axis mapping lives in Core's PtzMapping)
 
-    /// <summary>Start moving along the given direction (pointer-down / key-down).</summary>
-    public void PtzPress(PtzDirection d) => Send(PtzMapping.Press(d));
+    // Directions currently driven (keyboard or pointer), so the on-screen d-pad
+    // and zoom pill light the matching button — macOS DpadButton's lit state.
+    private readonly HashSet<PtzDirection> _ptzActive = new();
+    public bool PtzUpActive => _ptzActive.Contains(PtzDirection.Up);
+    public bool PtzDownActive => _ptzActive.Contains(PtzDirection.Down);
+    public bool PtzLeftActive => _ptzActive.Contains(PtzDirection.Left);
+    public bool PtzRightActive => _ptzActive.Contains(PtzDirection.Right);
+    public bool PtzZoomInActive => _ptzActive.Contains(PtzDirection.ZoomIn);
+    public bool PtzZoomOutActive => _ptzActive.Contains(PtzDirection.ZoomOut);
 
-    /// <summary>Stop the axis the direction belongs to (pointer-up / key-up).</summary>
-    public void PtzRelease(PtzDirection d) => Send(PtzMapping.Release(d));
-
-    private void Send(PtzMapping.Axes a) => _service.PtzSetAxes(Camera.Id, a.Pan, a.Tilt, a.Zoom);
-
-    public void PtzStopAll() => _service.PtzStopAll(Camera.Id);
-
-    /// <summary>Resolve the effective quality for the current view state and start playback.</summary>
-    public async Task StartAsync()
+    private void RaisePtzActive()
     {
-        if (Player == null || _starting || Player.IsPlaying || !Camera.IsOnline) return;
-        _starting = true;
-        IsLoading = true;
-        try
-        {
-            var gridIsLarge = _settings.SizeFor(Camera.Id) == AppSettings.CameraSize.Large;
-            // A fixed quality (secondary lens) bypasses resolution; otherwise pinned
-            // and focused views both run at high quality.
-            var quality = _fixedQuality
-                ?? _settings.EffectiveStreamQuality(Camera.Id)
-                    .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
-                    .ApiValue();
-
-            var result = _pinned
-                ? await _service.CreatePinnedStreamUrlAsync(Camera, quality)
-                : await _service.CreateRtspStreamUrlAsync(Camera, quality);
-            if (result is not { } r) { IsLoading = false; return; }
-            _activeQuality = r.quality;
-
-            using var media = VlcManager.Shared.MakeMedia(r.url);
-            if (media == null) { IsLoading = false; return; }
-            Player.Play(media);
-        }
-        catch (Exception ex)
-        {
-            Log.Line($"[Tile] start failed for {Camera.Name}: {ex.Message}");
-            IsLoading = false;
-        }
-        finally { _starting = false; }
+        OnPropertyChanged(nameof(PtzUpActive));
+        OnPropertyChanged(nameof(PtzDownActive));
+        OnPropertyChanged(nameof(PtzLeftActive));
+        OnPropertyChanged(nameof(PtzRightActive));
+        OnPropertyChanged(nameof(PtzZoomInActive));
+        OnPropertyChanged(nameof(PtzZoomOutActive));
     }
 
+    public void PtzPress(PtzDirection d)
+    {
+        if (_ptzActive.Add(d)) RaisePtzActive();
+        Send(PtzMapping.Press(d));
+    }
+
+    public void PtzRelease(PtzDirection d)
+    {
+        if (_ptzActive.Remove(d)) RaisePtzActive();
+        Send(PtzMapping.Release(d));
+    }
+
+    private void Send(PtzMapping.Axes a)
+    {
+        if (IsPtz || CanZoom) _service.PtzSetAxes(Camera.Id, a.Pan, a.Tilt, a.Zoom);
+    }
+
+    /// <summary>Stop motion on focus exit — only for cameras that can move at all
+    /// (a stop for a fixed camera would just trigger a pointless classic login).</summary>
+    public void PtzStopAll()
+    {
+        if (_ptzActive.Count > 0) { _ptzActive.Clear(); RaisePtzActive(); }
+        if (IsPtz || CanZoom) _service.PtzStopAll(Camera.Id);
+    }
+
+    // MARK: - Digital zoom (crop-window math in Core's DigitalZoom)
+
+    public bool IsDigitallyZoomed => _digitalZoom.IsZoomed;
+
+    public void DigitalZoomIn() { _digitalZoom.ZoomIn(); ApplyDigitalZoom(); }
+    public void DigitalZoomOut() { _digitalZoom.ZoomOut(); ApplyDigitalZoom(); }
+    public void DigitalZoomReset() { _digitalZoom.Reset(); ApplyDigitalZoom(); }
+    public void DigitalZoomBy(double factor) { _digitalZoom.SetZoom(_digitalZoom.Zoom * factor); ApplyDigitalZoom(); }
+
+    /// <summary>Pan the zoomed view by a fraction of the visible window.</summary>
+    public void DigitalPan(double dx, double dy) { _digitalZoom.Pan(dx, dy); ApplyDigitalZoom(); }
+
+    private void ApplyDigitalZoom()
+    {
+        Zoom = _digitalZoom.Zoom;
+        ZoomCenterX = _digitalZoom.CenterX;
+        ZoomCenterY = _digitalZoom.CenterY;
+        DigitalZoomLabel = _digitalZoom.IsZoomed ? $"{_digitalZoom.Zoom:0.#}×" : null;
+    }
+
+    // MARK: - Stream lifecycle (shared clients via the coordinator)
+
+    /// <summary>Resolve the effective quality for the current view state and start playback.</summary>
+    public Task StartAsync()
+    {
+        if (!FfmpegEngine.IsAvailable || !Camera.IsOnline) return Task.CompletedTask;
+
+        var gridIsLarge = _settings.SizeFor(Camera.Id) == AppSettings.CameraSize.Large;
+        var quality = _fixedQuality
+            ?? _settings.EffectiveStreamQuality(Camera.Id)
+                .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
+                .ApiValue();
+
+        if (_handle is { } existing)
+        {
+            existing.SetDesiredQuality(quality);
+            return Task.CompletedTask;
+        }
+
+        var handle = App.Instance.Streams.Acquire(Camera, quality, lens: _fixedQuality, pinned: _pinned);
+        _handle = handle;
+        SubscribeClient(handle.Client);
+        Client = handle.Client;
+        if (!handle.Client.HasFrame) IsLoading = true;
+        IsPlaying = handle.Client.State == VideoState.Playing;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// PiP swap: the two tiles trade stream handles and clients (both streams
+    /// keep running, so the swap is instant with no reconnect) — like tapping
+    /// the PiP on macOS.
+    /// </summary>
+    public void SwapPlaybackWith(CameraTileViewModel other)
+    {
+        if (Client is not { } mine || other.Client is not { } theirs) return;
+        UnsubscribeClient(mine);
+        other.UnsubscribeClient(theirs);
+        (_handle, other._handle) = (other._handle, _handle);
+        (_fixedQuality, other._fixedQuality) = (other._fixedQuality, _fixedQuality);
+        (Client, other.Client) = (theirs, mine);
+        SubscribeClient(theirs);
+        other.SubscribeClient(mine);
+    }
+
+    /// <summary>Release this tile's claim on the stream (the shared client stops
+    /// and frees its allocation only when no other view is using it).</summary>
     public void Stop()
     {
-        if (Player is { IsPlaying: true }) Player.Stop();
-        if (_activeQuality is { } q)
-        {
-            if (_pinned) _service.ReleasePinnedStream(Camera.Id, q);
-            else _service.ReleaseStream(Camera.Id, q);
-            _activeQuality = null;
-        }
+        if (Client is { } c) UnsubscribeClient(c);
+        _handle?.Dispose();
+        _handle = null;
         IsPlaying = false;
         IsLoading = false;
     }
 
-    public void Dispose()
-    {
-        Stop();
-        Player?.Dispose();
-    }
+    public void Dispose() => Stop();
 }

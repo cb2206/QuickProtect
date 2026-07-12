@@ -29,3 +29,11 @@ macos/fastlane/.env
 macos/fastlane/report.xml
 macos/fastlane/Preview.html
 macos/fastlane/test_output/
+
+# --- dotnet/ (.NET port) ---
+# Build/packaging artifacts
+dotnet/dist/
+dotnet/publish-x64-debug/
+
+# FFmpeg native libraries (fetched by dotnet/scripts/get-ffmpeg.*)
+dotnet/native/

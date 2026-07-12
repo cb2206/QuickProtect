@@ -146,7 +146,7 @@ public static class HotkeyCodec
 
     public static string Display(int? keyCode, int? modifiers)
     {
-        if (keyCode is null) return "Not set";
+        if (keyCode is null) return Localization.Loc.Get("Not set");
         var parts = new List<string>();
         var mod = modifiers ?? 0;
         if ((mod & 2) != 0) parts.Add("Ctrl");

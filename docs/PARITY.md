@@ -1,82 +1,108 @@
 # Feature parity roadmap
 
 Tracks the macOS QuickProtect feature set (`macos/`) against the .NET/Avalonia
-port (`dotnet/`). Ordered roughly by user value and implementation dependency.
+port (`dotnet/`).
 
-## ✅ Done (foundation)
+## ✅ Done
 
 - **Tray agent shell** — `TrayIcon` + menu (Open / Settings / Quit), no startup window.
   `App.axaml.cs` is the analog of `AppDelegate`.
-- **Camera grid panel** — `MainWindow` + `MainViewModel`/`CameraTileViewModel`,
-  live RTSP/RTSPS tiles via LibVLCSharp `VideoView`. Streams stop + release on hide.
+- **Camera panel as tray popover** — chromeless window anchored to the tray corner,
+  click-outside dismiss (our own popups/windows don't count as outside; a tray click
+  right after an auto-hide toggles closed), Esc dismisses, header doubles as the
+  drag handle, per-profile size persistence.
+- **Live video via the custom FFmpeg engine** — the macOS-style pipeline:
+  libavformat/libavcodec demux + decode per stream (`Video/VideoStreamClient`),
+  frames composited by `Video/VideoSurface` as ordinary Avalonia content (video
+  is clickable, gesture-capable, overlayable — no native child windows).
+  `Video/VideoStreamCoordinator` shares one client per camera lens across
+  grid/focus/pinned views: focus adopts the running grid stream instantly and
+  upgrades quality in place (last frame kept, no grey flash); panel open
+  connects in a 90 ms cascade. Native binaries per RID incl. **win-arm64**
+  (`scripts/get-ffmpeg.ps1`); RTSPS rides `RtspTlsTunnel` (Core) — a 127.0.0.1
+  listener piping bytes over TLS with the same TOFU pinning as the API (FFmpeg
+  gets plain rtsp; keep the tunnel, it carries the certificate policy).
 - **UniFi Protect API** (`ProtectService`) — Integration API (list cameras,
   create/delete `rtsps-stream`, quality fallback ladder) and classic cookie API
   (login, PTZ continuous moves, PTZ/zoom capability enrichment).
-- **TOFU certificate pinning** (`CertificateTrust`) via `HttpClientHandler`,
-  with the "trust new certificate" Settings flow.
-- **Settings window** — connection, default quality, PTZ credentials, launch-at-login.
+- **TOFU certificate pinning** (`CertificateTrust`) end-to-end: HTTPS via
+  `HttpClientHandler`, video via the tunnel's `SslStream` callback, with the
+  "trust new certificate" Settings flow.
+- **Settings window** — connection, default quality, PTZ credentials,
+  launch-at-login, appearance (auto/light/dark), accent color (7 presets, applied
+  live), focus-controls toggle, snapshot destination (clipboard/folder + picker),
+  language picker, hotkey recorder, update banner.
 - **Persistence** — `JsonFilePreferences` (≈ UserDefaults) + `ISecretStore`
-  (DPAPI on Windows, 0600 file on Linux) with legacy-plaintext migration.
-- **Layout data model** — profiles, hidden/order/size, pinned-camera state
-  (ported and unit-tested; UI for some of it still pending).
-- **Focus (single-camera) view** — click a tile → dedicated high-quality stream,
-  back-to-grid, basic fullscreen toggle (`WindowState.FullScreen`).
-- **PTZ control** — on-screen d-pad + zoom pill (pointer hold) and keyboard
-  (arrows pan/tilt, I/O zoom). Direction→axis mapping is in Core (`PtzMapping`,
-  unit-tested) and matches the macOS sign conventions. Controls are docked
-  outside the video region because the native `VideoView` can't be overlaid.
-- **Pinned always-on-top windows** — pin from the focus bar; each pinned window
-  is borderless, top-most, draggable, independently streamed (pinned allocation),
-  with frame persistence and restore-on-launch. Sizing math is in Core
-  (`PinnedWindowGeometry`, unit-tested). `PinnedWindowManager` mirrors the macOS
-  manager. (Aspect-lock-on-resize is still a follow-up — resize is currently free.)
-- **Snapshots (S key + button)** — capture a still from the focused stream via
-  libVLC `TakeSnapshot` into the configured folder (or OS Pictures), with a
-  toast. Filename logic is in Core (`SnapshotNaming`, unit-tested). Clipboard
-  image output is still a follow-up.
-- **Focus finishers** — fit/fill toggle (libVLC crop) and audio mute (M).
-- **Cameras & Layout settings** — profile switcher (create/rename/delete) and
-  per-camera show/hide, tile size, and reorder; grid honors tile size.
-- **First-run onboarding** — 3-step wizard (Connect → PTZ → All set).
-- **Global hotkey** — native `RegisterHotKey` on Windows (record/clear in
-  Settings); Linux is a documented no-op.
-- **Notify-only update checker** — GitHub releases poll + Settings banner
-  (`VersionCompare` unit-tested).
-- **Secondary-lens PiP** — package-camera side panel in focus.
-- **Localization** — all 7 languages (en/de/fr/es/nl/it/pt-BR) imported from the
-  macOS String Catalog into embedded `.resx`; `Loc` helper + `{loc:Loc}` markup
-  extension; OS culture detection + Settings language picker. Applied to the
-  high-visibility strings; remaining literals fall back to English safely and
-  are wrapped incrementally.
+  (DPAPI on Windows; libsecret via `secret-tool` on Linux, 0600-file fallback).
+- **Layout profiles** — create/rename/delete, per-camera show/hide, size,
+  reorder (Settings list **and** in-grid drag-to-reorder with persistence).
+- **Focus view** — instant entry (adopts the grid stream, quality upgrades in
+  place), fit/fill, snapshot (S), fullscreen (F), click video to return,
+  double-click opens in Protect, overlay chrome/PTZ pad/hints/PiP like
+  AuroraFocusOverlay.
+- **Digital zoom + pan** — 1–8× (`DigitalZoom` in Core, unit-tested):
+  Ctrl+scroll or `+`/`−` zoom, `0` resets, scroll or drag pans (arrows on
+  non-PTZ cameras, Shift+arrows on PTZ), zoom badge in the top bar.
+- **Grid tile context menu** — View fullscreen, Open in Protect, Pin/Unpin,
+  Size (S/M/L + reset), Stream quality (default + tiers), Add Camera (hidden
+  cameras), Hide this camera.
+- **Header toolbar** — status pill, profile switcher + Save Current View as
+  New Profile (name prompt), search, refresh, settings gear, quit.
+- **Fullscreen HUD** — chrome auto-hides after 3s idle in fullscreen, wakes on
+  input (global cursor poll on Windows; the native libVLC surface swallows
+  Avalonia pointer events).
+- **PTZ control** — d-pad + zoom pill (pointer hold), keyboard (arrows, I/O),
+  continuous-velocity moves with the macOS quick-tap **minimum burst** (0.25s,
+  `PtzBurstTimer` in Core, unit-tested).
+- **Pinned always-on-top windows** — borderless, top-most, draggable, aspect-locked
+  resize, frame persistence, restore-on-launch, independent pinned allocation.
+- **Snapshots** — clipboard (Win32 CF_DIB+PNG / wl-copy / xclip / osascript) or
+  folder, honoring the destination setting; async capture awaits libVLC's file.
+- **Secondary-lens PiP** — package-camera side panel in focus with a **swap**
+  button that exchanges playback between the lenses in place (no re-allocation).
+- **Onboarding** — 3-step wizard (Connect → PTZ → All set).
+- **Global hotkey** — native `RegisterHotKey` on Windows; Linux is a documented no-op.
+- **Update checker** — notify-only GitHub releases poll + Settings banner.
+- **Theming** — light/auto/dark via Avalonia theme variants with the full Aurora
+  token palette (23 semantic Qp* tokens per variant); video surfaces (grid tiles,
+  focus, pinned windows) stay pinned dark exactly like macOS; accent-derived
+  brushes update live.
+- **Localization** — 7 languages (en/de/fr/es/nl/it/pt-BR) from the macOS String
+  Catalog; `Loc` helper + `{loc:Loc}` markup extension; OS culture detection +
+  Settings language picker.
+- **Graceful degradation** — if libVLC can't initialize, the app runs without
+  video and tiles show a notice instead of crashing.
+- **Diagnostics** — `crash.log` (fatal), `vlc.log` (libVLC Warning+, or full with
+  `QP_VLC_DEBUG=1`); `--open-panel` / `--no-dismiss` flags for testing.
+- **Windows installer** — Inno Setup (`installer/QuickProtect.iss`) via
+  `scripts/package-windows.ps1`, 7 wizard languages, closes the running tray app
+  on upgrade.
 
-- **Secret storage** — DPAPI (Windows), **libsecret via `secret-tool`** (Linux,
-  GNOME Keyring/KWallet) with a 0600-file fallback.
-- **Pinned-window aspect lock** — resize is constrained to the camera aspect
-  (`PinnedWindowGeometry.Constrain`).
-- **Panel header parity** — search/filter cameras by name, in-panel layout-profile
-  switcher, and a live online-stream count pill (mirrors the macOS popover header).
-- **Focus-controls toggle** — Settings option to hide the on-screen PTZ pad and
-  shortcut hints (keyboard still works).
-- **Snapshot destination** — clipboard/folder picker + native folder chooser
-  (StorageProvider), persisted.
-- **Accent color** — 7 presets applied live to the Fluent theme.
-- **Graceful video degradation** — if libVLC can't initialize, the app runs
-  without video (camera list, settings, PTZ, pins all work) and tiles show a
-  "Video unavailable" notice instead of crashing.
+## Intentional differences from macOS
 
-## ⏳ Remaining (lower priority)
+| Topic | macOS | This port | Why |
+|---|---|---|---|
+| Audio playback | decoded + rendered (default muted) | **not yet implemented** — mute button is a stub | the FFmpeg engine is video-only so far; a WASAPI/ALSA audio sink is the next engine milestone |
+| Profile rename/delete in header menu | header profile menu | Settings → Cameras & Layout | header has switcher + save-as-new; full management lives in Settings |
+| Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
+| Grid-tile PiP | optional per-camera PiP on grid tiles | focus-only PiP | each PiP is a native HWND + an extra server stream; cost outweighs the value at grid size |
+| Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
+| Digital zoom input | pinch/scroll gestures on the frame | keyboard (+/−/0, arrows) | the native libVLC surface cannot receive Avalonia gestures |
+| Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
 
-| Feature | macOS source | Notes |
-|---|---|---|
-| Light / auto theme | `AppSettings.Appearance` | dark-only today; light mode needs the hardcoded view palette converted to theme-variant resources (accent color is done) |
-| True-fullscreen HUD | `AuroraFullscreenHUD` | auto-hiding overlay; today fullscreen is a plain toggle |
-| Snapshot to clipboard | `AppSettings.snapshotDestination` | image-clipboard is platform-specific in Avalonia; folder output works today |
-| Stream-protocol toggle | `usePlainRtsp` | RTSPS works; plain-RTSP toggle UI not wired |
-| Drag-to-reorder/resize grid | `CameraGridView` | done via Settings (up/down + size dropdown) instead of in-grid drag |
-| Aurora visual polish | `Aurora*` views | gradient/blur styling not reproduced 1:1 |
-| Full string coverage | String Catalog | infra + 7 languages shipped; remaining literals wrapped incrementally |
+## Platform notes (for the Linux phase)
+
+- Video requires system libVLC (`apt install vlc`); no Linux native NuGet exists.
+- The rtsps TLS tunnel works unchanged on Linux (pure .NET sockets).
+- Tray icons need StatusNotifierItem/appindicator support (GNOME may need an
+  extension) — without a tray, add a `--open-panel` desktop entry as fallback.
+- Wayland ignores absolute window positioning: the popover anchor and pinned
+  window restore degrade to compositor placement; X11 behaves.
+- Global hotkey is a no-op (no portable X11/Wayland registration).
+- Snapshot-to-clipboard shells out to `wl-copy` or `xclip` (best-effort).
 
 ## Distribution (future)
 
-- **Windows**: MSIX or a signed installer; the macOS notify-only updater policy carries over.
+- **Windows**: `scripts/package-windows.ps1` → Inno Setup installer (done); code
+  signing still open. The notify-only updater policy carries over.
 - **Linux**: AppImage or Flatpak; declare the `vlc`/`libvlc` runtime dependency.

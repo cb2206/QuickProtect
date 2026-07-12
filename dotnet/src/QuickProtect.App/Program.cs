@@ -1,5 +1,4 @@
 using Avalonia;
-using LibVLCSharp.Shared;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App;
@@ -8,32 +7,34 @@ internal static class Program
 {
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called.
+    /// <summary>Raw launch arguments (e.g. <c>--open-panel</c> opens the grid at startup).</summary>
+    public static string[] LaunchArgs { get; private set; } = Array.Empty<string>();
+
+    /// <summary>Signaled by a second launch to bring the running instance's panel up.</summary>
+    public const string ShowPanelEventName = "QuickProtect-ShowPanel";
+
     [STAThread]
     public static void Main(string[] args)
     {
+        LaunchArgs = args;
+
+        // Single instance: the tray agent must never run twice (duplicate trays,
+        // duplicate stream allocations). A second launch nudges the running
+        // instance to show its panel instead, then exits.
+        using var singleInstance = new Mutex(initiallyOwned: true, "QuickProtect-SingleInstance", out var isFirstInstance);
+        if (!isFirstInstance)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                try { EventWaitHandle.OpenExisting(ShowPanelEventName).Set(); }
+                catch { /* running instance is still starting up — nothing to signal */ }
+            }
+            return;
+        }
         // Capture any fatal exception to a log file so crashes are diagnosable
         // without a console (WinExe apps have no attached console).
         AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash(e.ExceptionObject as Exception, "AppDomain");
         TaskScheduler.UnobservedTaskException += (_, e) => { LogCrash(e.Exception, "Task"); e.SetObserved(); };
-
-        // Load the native libVLC libraries once, before any LibVLC object is created.
-        // Windows ships them via NuGet; Linux uses the system 'vlc' package; on macOS
-        // (where there's no arm64 libVLC NuGet) prefer a system VLC.app install.
-        try
-        {
-            var macVlcLib = "/Applications/VLC.app/Contents/MacOS/lib";
-            if (OperatingSystem.IsMacOS() && Directory.Exists(macVlcLib))
-            {
-                Environment.SetEnvironmentVariable("VLC_PLUGIN_PATH",
-                    "/Applications/VLC.app/Contents/MacOS/plugins");
-                LibVLCSharp.Shared.Core.Initialize(macVlcLib);
-            }
-            else
-            {
-                LibVLCSharp.Shared.Core.Initialize();
-            }
-        }
-        catch (Exception ex) { Console.Error.WriteLine($"[libVLC] init failed: {ex.Message}"); }
 
         try
         {

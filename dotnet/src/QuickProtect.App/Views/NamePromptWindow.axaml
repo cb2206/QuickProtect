@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
+        x:Class="QuickProtect.App.Views.NamePromptWindow"
+        Width="340" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource QpPopoverBg}"
+        SystemDecorations="BorderOnly"
+        ShowInTaskbar="False">
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock Name="TitleText" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
+    <TextBox Name="NameBox" Watermark="{loc:Loc 'New profile name'}" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Content="{loc:Loc 'Cancel'}" Click="Cancel_Click" />
+      <Button Content="{loc:Loc 'Save'}" Click="Ok_Click" IsDefault="True" Classes="accent" />
+    </StackPanel>
+  </StackPanel>
+</Window>

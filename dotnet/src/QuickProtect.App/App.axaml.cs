@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using QuickProtect.App.Platform;
 using QuickProtect.App.Services;
@@ -20,6 +22,8 @@ public partial class App : Application
     public CertificateTrust Trust { get; private set; } = null!;
     public PinnedWindowManager PinnedWindows { get; private set; } = null!;
     public UpdateChecker Updater { get; private set; } = null!;
+    /// <summary>Shared per-camera stream clients (the macOS RTSPClientManager analog).</summary>
+    public Video.VideoStreamCoordinator Streams { get; private set; } = null!;
 
     private TrayIcon? _tray;
     private MainWindow? _mainWindow;
@@ -39,8 +43,14 @@ public partial class App : Application
         // Apply UI culture before any window/tray is built so localized strings resolve.
         Localization.Loc.ApplyCulture(Settings.LanguageOverride);
         ApplyAccent(Settings.AccentColorHex);
+        ApplyAppearance(Settings.Appearance);
         Trust = new CertificateTrust(prefs);
         Service = new ProtectService(Settings, Trust);
+        // Custom FFmpeg video engine; rtsps rides the local TLS bridge with the
+        // same TOFU trust as the API.
+        Video.FfmpegEngine.Initialize();
+        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust);
+        Streams = new Video.VideoStreamCoordinator(Service);
         Service.CertificateChanged += (_, message) =>
             Dispatcher.UIThread.Post(() => Service_ShowError(message));
         PinnedWindows = new PinnedWindowManager(Service, Settings);
@@ -63,14 +73,24 @@ public partial class App : Application
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == "GlobalHotkey") Dispatcher.UIThread.Post(ApplyHotkey);
+            if (e.PropertyName == nameof(AppSettings.Appearance))
+                Dispatcher.UIThread.Post(() => ApplyAppearance(Settings.Appearance));
         };
 
         // Kick off an initial fetch when credentials already exist.
         if (!string.IsNullOrEmpty(Settings.IpAddress) && !string.IsNullOrEmpty(Settings.ApiKey))
             _ = Service.FetchCamerasAsync();
 
+        // A second app launch signals this event instead of starting (see Program).
+        if (OperatingSystem.IsWindows()) StartShowPanelListener();
+
         if (!Settings.HasCompletedOnboarding)
             ShowOnboarding();
+        else if (Program.LaunchArgs.Contains("--open-panel"))
+            // Debug/testing affordance: open the camera panel immediately.
+            Dispatcher.UIThread.Post(ToggleMainWindow);
+        else if (Program.LaunchArgs.Contains("--open-settings"))
+            Dispatcher.UIThread.Post(ShowSettings);
 
         base.OnFrameworkInitializationCompleted();
     }
@@ -104,6 +124,30 @@ public partial class App : Application
         _tray.Clicked += (_, _) => ToggleMainWindow();
     }
 
+    /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>
+    private void StartShowPanelListener()
+    {
+        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ShowPanelEventName);
+        var thread = new Thread(() =>
+        {
+            while (signal.WaitOne())
+                Dispatcher.UIThread.Post(ShowMainWindow);
+        })
+        { IsBackground = true, Name = "QP-ShowPanel" };
+        thread.Start();
+    }
+
+    /// <summary>Show (never hide) the camera panel — used by external activation.</summary>
+    private void ShowMainWindow()
+    {
+        if (_mainWindow is { IsVisible: true })
+        {
+            _mainWindow.Activate();
+            return;
+        }
+        ToggleMainWindow();
+    }
+
     private void ToggleMainWindow()
     {
         if (_mainWindow is { IsVisible: true })
@@ -111,6 +155,11 @@ public partial class App : Application
             _mainWindow.Hide();
             return;
         }
+        // A tray click first deactivates the panel (outside-click dismiss fires),
+        // then lands here — reopening would make the tray icon impossible to
+        // use as a toggle. Treat a click right after an auto-hide as "close".
+        if (_mainWindow != null && (DateTime.UtcNow - _mainWindow.LastAutoHide).TotalMilliseconds < 400)
+            return;
         if (_mainWindow == null)
         {
             _mainWindow = new MainWindow { DataContext = new MainViewModel(Service, Settings) };
@@ -165,7 +214,7 @@ public partial class App : Application
     public void ApplyAccent(string hex)
     {
         var value = hex.StartsWith('#') ? hex : "#" + hex;
-        if (!Avalonia.Media.Color.TryParse(value, out var c)) return;
+        if (!Color.TryParse(value, out var c)) return;
         // Set the base accent and its tint/shade variants Fluent derives states from.
         foreach (var key in new[]
                  {
@@ -174,7 +223,26 @@ public partial class App : Application
                      "SystemAccentColorDark3"
                  })
             Resources[key] = c;
+
+        // Aurora accent-derived brushes (referenced via DynamicResource in views so
+        // an accent change repaints live).
+        Resources["QpAccent"] = new SolidColorBrush(c);
+        Resources["QpAccentText"] = new SolidColorBrush(c);
+        Resources["QpAccentSurface"] = new SolidColorBrush(Color.FromArgb(59, c.R, c.G, c.B));   // 23%
+        Resources["QpAccentStrong"] = new SolidColorBrush(Color.FromArgb(204, c.R, c.G, c.B));   // 80%
     }
+
+    /// <summary>
+    /// Map the persisted appearance setting onto Avalonia's theme variant.
+    /// Auto follows the OS; the video subtrees stay pinned dark via ThemeVariantScope.
+    /// </summary>
+    public void ApplyAppearance(AppSettings.AppearanceMode mode)
+        => RequestedThemeVariant = mode switch
+        {
+            AppSettings.AppearanceMode.Light => ThemeVariant.Light,
+            AppSettings.AppearanceMode.Dark => ThemeVariant.Dark,
+            _ => ThemeVariant.Default
+        };
 
     private void ApplyHotkey()
     {
@@ -188,6 +256,9 @@ public partial class App : Application
         Console.Error.WriteLine($"[QuickProtect] {message}");
     }
 
+    /// <summary>Quit the app (tray menu and the panel header's power button).</summary>
+    public void RequestShutdown() => Shutdown();
+
     private void Shutdown()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -200,8 +271,10 @@ public partial class App : Application
         _hotkey?.Dispose();
         Updater.Dispose();
         PinnedWindows.CloseAll();
+        Streams.Dispose();
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();
         Service.Dispose();
+        Video.FfmpegEngine.Tunnel?.Dispose();
     }
 }

@@ -28,14 +28,30 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int _defaultQualityIndex;
     [ObservableProperty] private string _statusMessage = "";
     [ObservableProperty] private bool _hasPendingCert;
-    [ObservableProperty] private string _hotkeyDisplay = "Not set";
+    [ObservableProperty] private string _hotkeyDisplay = Localization.Loc.Get("Not set");
     [ObservableProperty] private bool _isRecordingHotkey;
     [ObservableProperty] private bool _updateAvailable;
-    [ObservableProperty] private string _updateVersion = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateBannerText))]
+    private string _updateVersion = "";
+
+    /// <summary>Localized "A new version (x.y.z) is available." banner text.</summary>
+    public string UpdateBannerText
+        => string.Format(Localization.Loc.Get("A new version ({0}) is available."), UpdateVersion);
     [ObservableProperty] private bool _showFocusOverlayControls;
     [ObservableProperty] private int _accentIndex;
+    [ObservableProperty] private int _appearanceIndex; // 0 auto, 1 light, 2 dark
 
-    public string[] AccentNames { get; } = { "Blue", "Purple", "Pink", "Orange", "Green", "Red", "Teal" };
+    public string[] AppearanceOptions { get; } =
+        { Localization.Loc.Get("Auto"), Localization.Loc.Get("Light"), Localization.Loc.Get("Dark") };
+
+    public string[] AccentNames { get; } =
+    {
+        Localization.Loc.Get("Blue"), Localization.Loc.Get("Purple"), Localization.Loc.Get("Pink"),
+        Localization.Loc.Get("Orange"), Localization.Loc.Get("Green"), Localization.Loc.Get("Red"),
+        Localization.Loc.Get("Teal")
+    };
     private static readonly string[] AccentHexes = { "0a84ff", "bf5af2", "ff375f", "ff9f0a", "30d158", "ff453a", "40c8e0" };
     [ObservableProperty] private int _snapshotDestinationIndex; // 0 clipboard, 1 folder
     [ObservableProperty] private string _snapshotFolderDisplay = "";
@@ -53,8 +69,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     };
 
     // Language picker: index 0 = system default, then one per supported culture.
+    // The language names themselves are endonyms and stay untranslated.
     public string[] LanguageNames { get; } =
-        { "System default", "English", "Deutsch", "Français", "Español", "Nederlands", "Italiano", "Português (BR)" };
+        { Localization.Loc.Get("System default"), "English", "Deutsch", "Français", "Español", "Nederlands", "Italiano", "Português (BR)" };
     private static readonly string?[] LanguageCodes = { null, "en", "de", "fr", "es", "nl", "it", "pt-BR" };
 
     [ObservableProperty] private int _languageIndex;
@@ -63,7 +80,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (value < 0 || value >= LanguageCodes.Length) return;
         _settings.LanguageOverride = LanguageCodes[value];
-        StatusMessage = "Restart QuickProtect to apply the language change.";
+        StatusMessage = Localization.Loc.Get("Restart QuickProtect to apply the language change.");
     }
 
     /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
@@ -97,6 +114,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _languageIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.LanguageOverride));
         _showFocusOverlayControls = settings.ShowFocusOverlayControls;
         _accentIndex = Math.Max(0, Array.IndexOf(AccentHexes, settings.AccentColorHex));
+        _appearanceIndex = (int)settings.Appearance;
         _snapshotDestinationIndex = (int)settings.SnapshotDest;
         _snapshotFolderDisplay = settings.SnapshotFolder ?? "";
         RefreshCertState();
@@ -104,6 +122,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     partial void OnShowFocusOverlayControlsChanged(bool value) => _settings.ShowFocusOverlayControls = value;
+
+    // App subscribes to AppSettings.Appearance and updates RequestedThemeVariant live.
+    partial void OnAppearanceIndexChanged(int value)
+        => _settings.Appearance = (AppSettings.AppearanceMode)Math.Clamp(value, 0, 2);
 
     partial void OnAccentIndexChanged(int value)
     {
@@ -137,7 +159,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void RecordHotkey()
     {
         IsRecordingHotkey = true;
-        HotkeyDisplay = "Press a key combination…";
+        HotkeyDisplay = Localization.Loc.Get("Press a key combination…");
     }
 
     [RelayCommand]
@@ -156,7 +178,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (key == Key.Escape) { IsRecordingHotkey = false; RefreshHotkey(); return; }
         if (HotkeyCodec.VirtualKey(key) is not { } vk)
         {
-            StatusMessage = "Unsupported key — use a letter, number, or function key.";
+            StatusMessage = Localization.Loc.Get("Unsupported key — use a letter, number, or function key.");
             return;
         }
         _settings.SetGlobalHotkey(vk, HotkeyCodec.Modifiers(modifiers));
@@ -180,7 +202,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.ApiKey = ApiKey.Trim();
         _settings.Username = Username.Trim();
         _settings.Password = Password;
-        StatusMessage = "Saved. Testing connection…";
+        StatusMessage = Localization.Loc.Get("Saved. Testing connection…");
         await TestConnection();
     }
 
@@ -192,18 +214,19 @@ public sealed partial class SettingsViewModel : ObservableObject
         await _service.FetchCamerasAsync();
         RefreshCertState();
         StatusMessage = _service.ErrorMessage is { } err
-            ? $"Error: {err}"
-            : $"Connected — {_service.Cameras.Count} camera(s) found.";
+            ? string.Format(Localization.Loc.Get("Error: {0}"), err)
+            : Localization.Loc.Get("Connected — %lld cameras found")
+                .Replace("%lld", _service.Cameras.Count.ToString());
     }
 
     [RelayCommand]
     private async Task CheckForUpdates()
     {
-        StatusMessage = "Checking for updates…";
+        StatusMessage = Localization.Loc.Get("Checking for updates…");
         await _updater.CheckForUpdateAsync();
         StatusMessage = _updater.UpdateAvailable
-            ? $"Update available: {_updater.LatestVersion}"
-            : "You're on the latest version.";
+            ? string.Format(Localization.Loc.Get("Update available: {0}"), _updater.LatestVersion)
+            : Localization.Loc.Get("You're on the latest version.");
     }
 
     [RelayCommand]
@@ -216,6 +239,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (string.IsNullOrEmpty(_settings.IpAddress)) return;
         _trust.TrustPending(_settings.IpAddress);
         RefreshCertState();
-        StatusMessage = "New certificate trusted.";
+        StatusMessage = Localization.Loc.Get("New certificate trusted.");
     }
 }

@@ -112,6 +112,128 @@ public class PtzMappingTests
     }
 }
 
+public class ClassicTokenCookieTests
+{
+    [Fact]
+    public void Extracts_token_and_strips_attributes()
+        => Assert.Equal("abc.def.ghi", ProtectService.ParseTokenCookie(new[]
+        {
+            "csrfToken=zzz; Path=/; Secure",
+            "TOKEN=abc.def.ghi; Path=/; HttpOnly; Secure; SameSite=Strict"
+        }));
+
+    [Fact]
+    public void Returns_null_when_no_token_cookie()
+        => Assert.Null(ProtectService.ParseTokenCookie(new[] { "other=1; Path=/" }));
+
+    [Fact]
+    public void Ignores_empty_token_value()
+        => Assert.Null(ProtectService.ParseTokenCookie(new[] { "TOKEN=; Path=/" }));
+}
+
+public class PtzBurstTimerTests
+{
+    private static readonly DateTime T0 = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void Quick_tap_release_is_postponed_to_min_burst()
+    {
+        var timer = new PtzBurstTimer();
+        Assert.Equal(TimeSpan.Zero, timer.Update(pan: 1, null, null, T0));
+        var delay = timer.Update(pan: 0, null, null, T0 + TimeSpan.FromMilliseconds(100));
+        Assert.Equal(TimeSpan.FromMilliseconds(150), delay);
+    }
+
+    [Fact]
+    public void Long_hold_release_sends_immediately()
+    {
+        var timer = new PtzBurstTimer();
+        timer.Update(pan: 1, null, null, T0);
+        Assert.Equal(TimeSpan.Zero, timer.Update(pan: 0, null, null, T0 + TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
+    public void Axes_track_independently_and_longest_delay_wins()
+    {
+        var timer = new PtzBurstTimer();
+        timer.Update(pan: 1, null, null, T0);
+        timer.Update(null, tilt: 1, null, T0 + TimeSpan.FromMilliseconds(200));
+        // Release both 210ms after T0: pan needs 40ms more, tilt needs 240ms more.
+        var delay = timer.Update(pan: 0, tilt: 0, null, T0 + TimeSpan.FromMilliseconds(210));
+        Assert.Equal(TimeSpan.FromMilliseconds(240), delay);
+    }
+
+    [Fact]
+    public void Press_never_delays_and_reset_clears_running_axes()
+    {
+        var timer = new PtzBurstTimer();
+        Assert.Equal(TimeSpan.Zero, timer.Update(null, null, zoom: 1, T0));
+        timer.Reset();
+        // After reset the release has no recorded start, so no burst delay.
+        Assert.Equal(TimeSpan.Zero, timer.Update(null, null, zoom: 0, T0 + TimeSpan.FromMilliseconds(10)));
+    }
+}
+
+public class DigitalZoomTests
+{
+    [Fact]
+    public void Starts_at_one_x_with_no_crop()
+    {
+        var z = new DigitalZoom();
+        Assert.False(z.IsZoomed);
+        Assert.Null(z.CropGeometry(1920, 1080));
+    }
+
+    [Fact]
+    public void Zoom_clamps_to_range()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(100);
+        Assert.Equal(DigitalZoom.MaxZoom, z.Zoom);
+        z.SetZoom(0.1);
+        Assert.Equal(DigitalZoom.MinZoom, z.Zoom);
+    }
+
+    [Fact]
+    public void Two_x_centered_crop_is_the_middle_quarter()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(2);
+        Assert.Equal("960x540+480+270", z.CropGeometry(1920, 1080));
+    }
+
+    [Fact]
+    public void Pan_is_clamped_to_frame_edges()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(2);
+        z.Pan(-10, -10); // way past the top-left corner
+        Assert.Equal("960x540+0+0", z.CropGeometry(1920, 1080));
+        z.Pan(20, 20); // way past the bottom-right corner
+        Assert.Equal("960x540+960+540", z.CropGeometry(1920, 1080));
+    }
+
+    [Fact]
+    public void Zooming_back_out_recenters()
+    {
+        var z = new DigitalZoom();
+        z.SetZoom(4);
+        z.Pan(1, 1);
+        z.SetZoom(1);
+        Assert.False(z.IsZoomed);
+        Assert.Equal(0.5, z.CenterX);
+        Assert.Equal(0.5, z.CenterY);
+    }
+
+    [Fact]
+    public void Pan_before_zoom_is_ignored()
+    {
+        var z = new DigitalZoom();
+        z.Pan(0.5, 0.5);
+        Assert.Equal(0.5, z.CenterX);
+    }
+}
+
 public class PinnedWindowGeometryTests
 {
     [Fact]

@@ -1,52 +1,66 @@
 # Windows/Linux port — session handoff
 
-Cross-platform .NET 8 + Avalonia + LibVLCSharp reimplementation of the macOS
-QuickProtect app, living in `dotnet/`. Branch: `feat/windows-linux-port`.
+Cross-platform .NET 8 + Avalonia reimplementation of the macOS QuickProtect
+app, living in `dotnet/`. Branch: `feat/windows-linux-port`.
 
 ## Status
-Feature-complete vs. the macOS app for the targeted scope (see `PARITY.md`).
-Builds clean; 41 Core unit tests pass. Verified running on macOS (arm64).
+**Custom FFmpeg video engine + full macOS-parity UI, live-verified on Windows**
+against a real controller (7 cameras at 10.0.1.1). All 13 bugs from the
+2026-07-07 bug-report round are fixed and verified except audio (see below).
+See `PARITY.md` for the feature matrix and intentional differences.
 
-## Open bug we're chasing (why this handoff exists)
-On **Windows 11 on ARM**, running the **x64** self-contained build (under x64
-emulation), the app **crashes** shortly after the first-run wizard, and on later
-launches it crashes a few seconds in **without opening the camera panel**. This
-is *not* the macOS libVLC crash (already fixed) — it's something in the
-post-fetch startup path (PTZ classic-login, update check, or global-hotkey
-registration), or an artifact of x64-on-ARM emulation.
+## Architecture: the video engine (don't regress these)
 
-A crash logger is in place: fatal exceptions are appended to
-`%APPDATA%\QuickProtect\crash.log`.
+libVLC is GONE. Video is the macOS-style custom pipeline:
 
-### First thing to do in the VM
-1. Build & run **natively (arm64)** to rule out emulation:
-   ```
-   cd dotnet
-   dotnet run --project src/QuickProtect.App
-   ```
-2. Reproduce the crash, then read `%APPDATA%\QuickProtect\crash.log` — it has the
-   exact exception + stack. Fix the root cause from there.
+- `App/Video/FfmpegEngine.cs` — loads FFmpeg 7.1 natives (bundled per RID from
+  `scripts/get-ffmpeg.ps1`, incl. **win-arm64** → native ARM decode; system
+  libs on Linux when the folder is absent). Logs to
+  `%APPDATA%\QuickProtect\video.log`.
+- `App/Video/VideoStreamClient.cs` — one thread per stream: avformat/avcodec
+  demux+decode → BGRA latest-frame buffer. First frame displays immediately;
+  last frame survives reconnects and URL switches (no grey flash); broken
+  streams retry with backoff; `SwitchUrl` changes quality in place.
+- `App/Video/VideoSurface.cs` — composited Avalonia control (WriteableBitmap):
+  fit/fill + digital zoom applied via source rect at draw time. Because video
+  is ordinary Avalonia content, it's clickable/gesture-capable/overlayable —
+  the entire native-HWND airspace bug class (input, overlays, pin crashes,
+  D3D11 vout glitches) no longer exists.
+- `App/Video/VideoStreamCoordinator.cs` — one shared client per camera lens
+  (macOS RTSPClientManager analog): desires per consumer, highest quality
+  wins, upgrades immediate / downgrades 0.6s-delayed, new allocation created
+  before the old is released, entries keep their last frame after stop.
+- **RTSPS**: `Core/Services/RtspTlsTunnel.cs` still carries TLS + TOFU pinning
+  (FFmpeg plays plain rtsp://127.0.0.1). Keep it — it IS the cert policy.
 
-## Notes for running on Windows on ARM
-- **Native arm64**: there is no arm64 libVLC NuGet, so video won't initialize and
-  the app runs **without video** (graceful — tiles show "Video unavailable").
-  That's fine for debugging the startup crash. For video on arm64, install VLC
-  for Windows ARM and point libVLC at it (same approach as macOS in `Program.cs`).
-- **x64 emulated**: `dotnet run -r win-x64` (or the published self-contained build)
-  bundles x64 libVLC and gets video, but runs under emulation.
+Known gap: **no audio yet** (mute button is a stub; macOS defaults muted too).
+Next engine milestone: WASAPI (Windows) / ALSA-Pulse (Linux) sink fed by the
+existing decode loop.
 
-## Build / test / publish
+## Dev environment (this ARM64 VM)
+
+- Plain `dotnet build` + run now has video (native ARM64 FFmpeg) — the old
+  x64-publish requirement is gone.
+- Run once per checkout: `powershell -File scripts/get-ffmpeg.ps1`
+  (downloads BtbN LGPL-shared natives into gitignored `dotnet/native/`).
+- Test flags: `--open-panel`, `--open-settings`, `--no-dismiss` (disables the
+  popover's click-outside dismiss; REQUIRED for UI automation).
+- Logs: `crash.log`, `video.log` in `%APPDATA%\QuickProtect`. Native crashes
+  bypass crash.log — check the Windows event log (`.NET Runtime` 1026).
+- With `ShowInTaskbar=False`, `MainWindowHandle` is 0 — find the panel HWND by
+  EnumWindows and raise with `SetWindowPos HWND_TOPMOST` (foreground lock
+  blocks `SetForegroundWindow`).
+
+## Build / test / package
 ```
 cd dotnet
-dotnet build QuickProtect.sln                 # build all
-dotnet test tests/QuickProtect.Core.Tests     # 41 tests
-dotnet publish src/QuickProtect.App -c Release -r win-arm64 --self-contained   # native package
+powershell -File scripts/get-ffmpeg.ps1        # once per checkout
+dotnet build QuickProtect.sln
+dotnet test tests/QuickProtect.Core.Tests
+powershell -File scripts/package-windows.ps1   # → dist/QuickProtect-Setup-<v>-x64.exe
 ```
 
-## Layout
-- `src/QuickProtect.Core` — portable: models, `ProtectService` (UniFi dual API),
-  `CertificateTrust` (TOFU pinning), `AppSettings`, secret/prefs stores. Unit-tested.
-- `src/QuickProtect.App` — Avalonia UI: tray shell (`App.axaml.cs`), camera grid
-  (`MainWindow` + `MainViewModel`/`CameraTileViewModel`), focus view + PTZ,
-  pinned windows, settings, onboarding, localization.
-- See `git log --oneline` for the feature-by-feature build-out.
+## Next phase: Linux
+Cross-publish compiles; `get-ffmpeg.ps1` also fetches linux-x64/arm64 natives
+(or use system FFmpeg). Platform notes in `PARITY.md` (tray/Wayland/hotkey
+caveats). The engine is pure .NET + FFmpeg — no platform video code.

@@ -6,7 +6,7 @@
         x:DataType="vm:OnboardingViewModel"
         Title="QuickProtect"
         Width="640" Height="520"
-        Background="{StaticResource AuroraBackgroundBrush}"
+        Background="{DynamicResource QpPopoverBg}"
         WindowStartupLocation="CenterScreen"
         CanResize="False">
 
@@ -14,55 +14,55 @@
 
     <StackPanel Grid.Row="0" Spacing="14">
 
-      <TextBlock Text="QuickProtect" FontSize="26" FontWeight="Bold" Foreground="White" />
-      <TextBlock Text="Live UniFi Protect feeds, one click from your tray."
-                 Foreground="#99FFFFFF" FontSize="13" />
+      <TextBlock Text="QuickProtect" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource QpTextPrimary}" />
+      <TextBlock Text="{loc:Loc 'Live UniFi Protect feeds, one click from your tray.'}"
+                 Foreground="{DynamicResource QpTextTertiary}" FontSize="13" />
 
       <!-- Step 1: Connect -->
       <StackPanel Spacing="10" IsVisible="{Binding IsStep1}">
-        <TextBlock Text="Step 1 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
-        <TextBlock Text="{loc:Loc 'Connect your controller'}" FontSize="18" FontWeight="SemiBold" Foreground="White" />
-        <TextBlock Text="Enter your UniFi Protect controller's local IP and an API key from its settings."
-                   Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
-        <TextBlock Text="IP address or hostname" Foreground="#CCFFFFFF" />
+        <TextBlock Text="{loc:Loc 'Step 1 of 3'}" Foreground="{DynamicResource QpAccentText}" FontSize="11" FontWeight="SemiBold" />
+        <TextBlock Text="{loc:Loc 'Connect your controller'}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
+        <TextBlock Text="{loc:Loc 'Enter your UniFi Protect controller\'s local IP and an API key from its settings.'}"
+                   Foreground="{DynamicResource QpTextTertiary}" TextWrapping="Wrap" FontSize="12" />
+        <TextBlock Text="{loc:Loc 'IP address or hostname'}" Foreground="{DynamicResource QpTextSecondary}" />
         <TextBox Text="{Binding IpAddress}" Watermark="192.168.1.1" />
-        <TextBlock Text="Integration API key" Foreground="#CCFFFFFF" />
+        <TextBlock Text="{loc:Loc 'Integration API key'}" Foreground="{DynamicResource QpTextSecondary}" />
         <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
-        <Button Content="Test Connection" Command="{Binding TestConnectionCommand}" />
+        <Button Content="{loc:Loc 'Test Connection'}" Command="{Binding TestConnectionCommand}" />
       </StackPanel>
 
       <!-- Step 2: PTZ -->
       <StackPanel Spacing="10" IsVisible="{Binding IsStep2}">
-        <TextBlock Text="Step 2 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
-        <TextBlock Text="{loc:Loc 'PTZ control (optional)'}" FontSize="18" FontWeight="SemiBold" Foreground="White" />
-        <TextBlock Text="To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings."
-                   Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
-        <TextBlock Text="{loc:Loc 'Username'}" Foreground="#CCFFFFFF" />
+        <TextBlock Text="{loc:Loc 'Step 2 of 3'}" Foreground="{DynamicResource QpAccentText}" FontSize="11" FontWeight="SemiBold" />
+        <TextBlock Text="{loc:Loc 'PTZ control (optional)'}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
+        <TextBlock Text="{loc:Loc 'To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings.'}"
+                   Foreground="{DynamicResource QpTextTertiary}" TextWrapping="Wrap" FontSize="12" />
+        <TextBlock Text="{loc:Loc 'Username'}" Foreground="{DynamicResource QpTextSecondary}" />
         <TextBox Text="{Binding Username}" />
-        <TextBlock Text="{loc:Loc 'Password'}" Foreground="#CCFFFFFF" />
+        <TextBlock Text="{loc:Loc 'Password'}" Foreground="{DynamicResource QpTextSecondary}" />
         <TextBox Text="{Binding Password}" PasswordChar="•" />
       </StackPanel>
 
       <!-- Step 3: All set -->
       <StackPanel Spacing="10" IsVisible="{Binding IsStep3}">
-        <TextBlock Text="Step 3 of 3" Foreground="#60A5FA" FontSize="11" FontWeight="SemiBold" />
-        <TextBlock Text="You're all set." FontSize="18" FontWeight="SemiBold" Foreground="White" />
-        <TextBlock Text="Click the aperture icon in your tray to open the camera grid, or press your global shortcut."
-                   Foreground="#99FFFFFF" TextWrapping="Wrap" FontSize="12" />
-        <TextBlock Text="{Binding CameraCount, StringFormat='{}{0} cameras detected.'}"
-                   Foreground="#CCFFFFFF" />
-        <CheckBox Content="Start QuickProtect at login" IsChecked="{Binding LaunchAtLogin}" Foreground="White" />
+        <TextBlock Text="{loc:Loc 'Step 3 of 3'}" Foreground="{DynamicResource QpAccentText}" FontSize="11" FontWeight="SemiBold" />
+        <TextBlock Text="{loc:Loc 'You\'re all set.'}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
+        <TextBlock Text="{loc:Loc 'Click the aperture icon in your tray to open the camera grid, or press your global shortcut.'}"
+                   Foreground="{DynamicResource QpTextTertiary}" TextWrapping="Wrap" FontSize="12" />
+        <TextBlock Text="{Binding CameraCountLabel}"
+                   Foreground="{DynamicResource QpTextSecondary}" />
+        <CheckBox Content="{loc:Loc 'Start QuickProtect at login'}" IsChecked="{Binding LaunchAtLogin}" Foreground="{DynamicResource QpTextPrimary}" />
       </StackPanel>
 
-      <TextBlock Text="{Binding StatusMessage}" Foreground="#CCFFFFFF" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource QpTextSecondary}" TextWrapping="Wrap" />
     </StackPanel>
 
     <!-- Nav -->
     <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,16,0,0">
-      <Button Grid.Column="0" Content="Back" Command="{Binding BackCommand}"
+      <Button Grid.Column="0" Content="{loc:Loc 'Back'}" Command="{Binding BackCommand}"
               IsVisible="{Binding CanGoBack}" />
       <Button Grid.Column="2" Content="{loc:Loc 'Skip'}" Command="{Binding SkipCommand}"
-              Background="Transparent" Foreground="#99FFFFFF" BorderThickness="0" Margin="0,0,8,0" />
+              Background="Transparent" Foreground="{DynamicResource QpTextTertiary}" BorderThickness="0" Margin="0,0,8,0" />
       <Button Grid.Column="3" Content="{Binding ContinueLabel}" Command="{Binding ContinueCommand}"
               Classes="accent" />
     </Grid>
