@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Build the .NET app for Linux. Requires the .NET 8 SDK and system libVLC
-# (e.g. sudo apt install vlc libvlc-dev).
+# Build the .NET app for Linux. Requires the .NET 8 SDK. For video, fetch the
+# FFmpeg 7.1 natives once per checkout: dotnet/scripts/get-ffmpeg.sh
+# (falls back to system FFmpeg 7.x, else the app runs without video).
 set -euo pipefail
 cd "$(dirname "$0")/../../dotnet"
 

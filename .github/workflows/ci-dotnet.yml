@@ -26,8 +26,8 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # Builds the whole solution (App included — libVLC is only needed at
-      # runtime, so no system VLC install is required) and runs the Core tests.
+      # Builds the whole solution (App included — the FFmpeg natives are only
+      # needed at runtime, so nothing to fetch here) and runs the Core tests.
       - name: Build and test
         working-directory: dotnet
         run: dotnet test QuickProtect.sln
