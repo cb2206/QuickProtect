@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var promoWindow: NSWindow?
     private var updateSubscription: AnyCancellable?
     private var clickMonitor: Any?
+    private var appSwitchObserver: NSObjectProtocol?
     private var savedPanelFrame: NSRect?
     private var savedPanelLevel: NSWindow.Level?
     private(set) var isInTrueFullscreen = false
@@ -248,6 +249,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
 
+        // Close when the user switches to another app (Cmd-Tab, Dock, …).
+        // The panel is non-activating, so there is no deactivation to hook;
+        // the click monitor above only sees mouse events.
+        if appSwitchObserver == nil {
+            appSwitchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+                self?.closePanel()
+            }
+        }
+
         Task { await service.fetchCameras() }
     }
 
@@ -293,6 +309,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let monitor = clickMonitor {
             NSEvent.removeMonitor(monitor)
             clickMonitor = nil
+        }
+        if let observer = appSwitchObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appSwitchObserver = nil
         }
     }
 
