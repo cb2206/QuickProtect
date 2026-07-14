@@ -16,6 +16,16 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: K2LM9FSU6C
+  configs:
+    # Local dev/test runs on machines without the team's Mac Development cert
+    # (the app ships unsigned outside the App Store), so Debug signs ad-hoc and
+    # drops the hardened runtime. Release keeps Automatic team signing for App
+    # Store submission. Without this, `xcodebuild test` fails at the signing step.
+    Debug:
+      CODE_SIGN_STYLE: Manual
+      CODE_SIGN_IDENTITY: "-"
+      DEVELOPMENT_TEAM: ""
+      ENABLE_HARDENED_RUNTIME: NO
 
 schemes:
   QuickProtect:

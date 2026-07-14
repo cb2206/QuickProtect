@@ -17,20 +17,64 @@ final class ProtectService: NSObject, ObservableObject {
 
     private let settings = AppSettings.shared
 
+    /// Guards `activeStreams` and `pinnedStreams`. They're mutated from the
+    /// continuations of concurrent stream-start `Task`s, which resume on
+    /// arbitrary cooperative-pool threads — without this lock two of them
+    /// racing on the same `Set` corrupts its buffer and segfaults.
+    private let streamsLock = NSLock()
+
     /// Active server-side RTSP stream allocations keyed as "<cameraId>:<quality>".
     /// Used to send DELETE requests on cleanup, preventing stale sessions from
     /// accumulating on the UDM when the panel is closed or the app quits. A
     /// camera can hold more than one (e.g. a doorbell's main + package lens).
+    /// Access only via the `streamsLock`-guarded helpers below.
     private var activeStreams: Set<String> = []
 
     /// Server-side allocations held by pinned floating windows, tracked
     /// separately from `activeStreams` so the popover's `cleanupStreams()` never
     /// tears down a pinned window's feed. Released individually on unpin/close
     /// and en masse by `cleanupPinnedStreams()` on app termination.
+    /// Access only via the `streamsLock`-guarded helpers below.
     private var pinnedStreams: Set<String> = []
 
     private func streamKey(_ cameraId: String, _ quality: String) -> String {
         "\(cameraId):\(quality)"
+    }
+
+    /// Records a freshly created allocation. `pinned` routes it to the set that
+    /// survives `cleanupStreams()`.
+    private func trackStream(_ key: String, pinned: Bool) {
+        streamsLock.lock(); defer { streamsLock.unlock() }
+        if pinned { pinnedStreams.insert(key) } else { activeStreams.insert(key) }
+    }
+
+    /// Atomically removes one active allocation; returns `true` if it was present.
+    private func removeActiveStream(_ key: String) -> Bool {
+        streamsLock.lock(); defer { streamsLock.unlock() }
+        return activeStreams.remove(key) != nil
+    }
+
+    /// Atomically removes one pinned allocation; returns `true` if it was present.
+    private func removePinnedStream(_ key: String) -> Bool {
+        streamsLock.lock(); defer { streamsLock.unlock() }
+        return pinnedStreams.remove(key) != nil
+    }
+
+    /// Atomically snapshots and clears the active set, so cleanup can iterate the
+    /// keys without holding the lock across the DELETE requests.
+    private func drainActiveStreams() -> Set<String> {
+        streamsLock.lock(); defer { streamsLock.unlock() }
+        let keys = activeStreams
+        activeStreams.removeAll()
+        return keys
+    }
+
+    /// Atomically snapshots and clears the pinned set.
+    private func drainPinnedStreams() -> Set<String> {
+        streamsLock.lock(); defer { streamsLock.unlock() }
+        let keys = pinnedStreams
+        pinnedStreams.removeAll()
+        return keys
     }
 
     /// Guards the classic-API credential fields below, which are read and written
@@ -178,11 +222,7 @@ final class ProtectService: NSObject, ObservableObject {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let rtspsString = json[quality] as? String else { return nil }
 
-        if pinned {
-            pinnedStreams.insert(streamKey(camera.id, quality))
-        } else {
-            activeStreams.insert(streamKey(camera.id, quality))
-        }
+        trackStream(streamKey(camera.id, quality), pinned: pinned)
         let playable = toPlayableURL(rtspsString)
         RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable?.absoluteString ?? "nil")")
         return playable
@@ -193,8 +233,7 @@ final class ProtectService: NSObject, ObservableObject {
     /// Sends DELETE requests for all server-side stream allocations.
     /// Call when the panel closes to prevent stale sessions accumulating on the UDM.
     func cleanupStreams() {
-        let keys = activeStreams
-        activeStreams.removeAll()
+        let keys = drainActiveStreams()
         for key in keys {
             let parts = key.split(separator: ":", maxSplits: 1)
             guard parts.count == 2 else { continue }
@@ -205,7 +244,7 @@ final class ProtectService: NSObject, ObservableObject {
     /// Releases a single secondary allocation (e.g. a doorbell's package lens)
     /// when its picture-in-picture closes, without tearing down the main stream.
     func releaseStream(for cameraId: String, quality: String) {
-        guard activeStreams.remove(streamKey(cameraId, quality)) != nil else { return }
+        guard removeActiveStream(streamKey(cameraId, quality)) else { return }
         deleteRtspStream(for: cameraId, quality: quality)
     }
 
@@ -213,15 +252,14 @@ final class ProtectService: NSObject, ObservableObject {
     /// unpinned or closed. Tracked apart from `activeStreams`, so this is the
     /// only path that frees it (never `cleanupStreams()`).
     func releasePinnedStream(for cameraId: String, quality: String) {
-        guard pinnedStreams.remove(streamKey(cameraId, quality)) != nil else { return }
+        guard removePinnedStream(streamKey(cameraId, quality)) else { return }
         deleteRtspStream(for: cameraId, quality: quality)
     }
 
     /// DELETEs every pinned allocation. Called on app termination so pinned
     /// windows don't leave sessions alive on the controller.
     func cleanupPinnedStreams() {
-        let keys = pinnedStreams
-        pinnedStreams.removeAll()
+        let keys = drainPinnedStreams()
         for key in keys {
             let parts = key.split(separator: ":", maxSplits: 1)
             guard parts.count == 2 else { continue }
