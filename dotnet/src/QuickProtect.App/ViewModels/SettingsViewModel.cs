@@ -1,3 +1,4 @@
+using System.Reflection;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -8,10 +9,10 @@ using QuickProtect.Core.Services;
 namespace QuickProtect.App.ViewModels;
 
 /// <summary>
-/// Settings window: controller connection (IP, API key), optional classic-API
-/// credentials for PTZ, default stream quality, launch-at-login, and the
-/// trust-on-first-use certificate state. Writes straight through to
-/// <see cref="AppSettings"/> (which persists to prefs/secret store).
+/// Settings window: sidebar-sectioned (General / Connection / PTZ / Cameras /
+/// Shortcuts / Updates) mirroring the macOS SettingsView. Every control writes
+/// straight through to <see cref="AppSettings"/> (which persists to prefs/secret
+/// store) — there is no explicit Save.
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
@@ -20,6 +21,46 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly CertificateTrust _trust;
     private readonly UpdateChecker _updater;
 
+    // Sidebar sections, in display order.
+    private const int SectionGeneral = 0;
+    private const int SectionConnection = 1;
+    private const int SectionPtz = 2;
+    private const int SectionCameras = 3;
+    private const int SectionShortcuts = 4;
+    private const int SectionUpdates = 5;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGeneralSection))]
+    [NotifyPropertyChangedFor(nameof(IsConnectionSection))]
+    [NotifyPropertyChangedFor(nameof(IsPtzSection))]
+    [NotifyPropertyChangedFor(nameof(IsCamerasSection))]
+    [NotifyPropertyChangedFor(nameof(IsShortcutsSection))]
+    [NotifyPropertyChangedFor(nameof(IsUpdatesSection))]
+    [NotifyPropertyChangedFor(nameof(SectionTitle))]
+    private int _selectedSectionIndex;
+
+    public bool IsGeneralSection => SelectedSectionIndex == SectionGeneral;
+    public bool IsConnectionSection => SelectedSectionIndex == SectionConnection;
+    public bool IsPtzSection => SelectedSectionIndex == SectionPtz;
+    public bool IsCamerasSection => SelectedSectionIndex == SectionCameras;
+    public bool IsShortcutsSection => SelectedSectionIndex == SectionShortcuts;
+    public bool IsUpdatesSection => SelectedSectionIndex == SectionUpdates;
+
+    public string SectionTitle => SelectedSectionIndex switch
+    {
+        SectionConnection => Localization.Loc.Get("Connection"),
+        SectionPtz => Localization.Loc.Get("PTZ"),
+        SectionCameras => Localization.Loc.Get("Cameras"),
+        SectionShortcuts => Localization.Loc.Get("Shortcuts"),
+        SectionUpdates => Localization.Loc.Get("Updates"),
+        _ => Localization.Loc.Get("General"),
+    };
+
+    // Header status pill: Integration-API state everywhere except the PTZ
+    // section, where it reflects the classic-API login (macOS parity).
+    [ObservableProperty] private bool _badgeConnected;
+    [ObservableProperty] private string _badgeText = "";
+
     [ObservableProperty] private string _ipAddress;
     [ObservableProperty] private string _apiKey;
     [ObservableProperty] private string _username;
@@ -27,6 +68,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _launchAtLogin;
     [ObservableProperty] private int _defaultQualityIndex;
     [ObservableProperty] private string _statusMessage = "";
+    [ObservableProperty] private string _ptzStatusMessage = "";
+    [ObservableProperty] private string _updateStatusMessage = "";
+    [ObservableProperty] private bool _showLanguageRestartHint;
     [ObservableProperty] private bool _hasPendingCert;
     [ObservableProperty] private string _hotkeyDisplay = Localization.Loc.Get("Not set");
     [ObservableProperty] private bool _isRecordingHotkey;
@@ -53,7 +97,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         Localization.Loc.Get("Teal")
     };
     private static readonly string[] AccentHexes = { "0a84ff", "bf5af2", "ff375f", "ff9f0a", "30d158", "ff453a", "40c8e0" };
-    [ObservableProperty] private int _snapshotDestinationIndex; // 0 clipboard, 1 folder
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SnapshotFolderRowVisible))]
+    private int _snapshotDestinationIndex; // 0 clipboard, 1 folder
+
+    public bool SnapshotFolderRowVisible => SnapshotDestinationIndex == 1;
+
     [ObservableProperty] private string _snapshotFolderDisplay = "";
 
     public string[] SnapshotDestinations { get; } =
@@ -80,8 +129,16 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (value < 0 || value >= LanguageCodes.Length) return;
         _settings.LanguageOverride = LanguageCodes[value];
-        StatusMessage = Localization.Loc.Get("Restart QuickProtect to apply the language change.");
+        ShowLanguageRestartHint = true;
     }
+
+    /// <summary>Installed app version for the Updates section, e.g. "v1.4.0".</summary>
+    public string AppVersion { get; } = "v" +
+        (Assembly.GetEntryAssembly()
+             ?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+             ?.InformationalVersion.Split('+')[0]
+         ?? Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3)
+         ?? "?");
 
     /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
     public LayoutViewModel Layout { get; }
@@ -119,7 +176,49 @@ public sealed partial class SettingsViewModel : ObservableObject
         _snapshotFolderDisplay = settings.SnapshotFolder ?? "";
         RefreshCertState();
         RefreshHotkey();
+        RefreshBadge();
+
+        service.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(ProtectService.ErrorMessage)
+                or nameof(ProtectService.Cameras)
+                or nameof(ProtectService.IsClassicLoggedIn))
+                Avalonia.Threading.Dispatcher.UIThread.Post(RefreshBadge);
+        };
     }
+
+    partial void OnSelectedSectionIndexChanged(int value) => RefreshBadge();
+
+    private void RefreshBadge()
+    {
+        if (SelectedSectionIndex == SectionPtz)
+        {
+            var configured = !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password);
+            BadgeConnected = _service.IsClassicLoggedIn;
+            BadgeText = _service.IsClassicLoggedIn
+                ? Localization.Loc.Get("Connected")
+                : configured ? Localization.Loc.Get("Not verified") : Localization.Loc.Get("Not configured");
+        }
+        else
+        {
+            BadgeConnected = _service.ErrorMessage == null && _service.Cameras.Count > 0;
+            BadgeText = _service.ErrorMessage == null
+                ? Localization.Loc.Get("Connected")
+                : Localization.Loc.Get("Disconnected");
+        }
+    }
+
+    // Credential fields auto-apply on edit (bindings update on focus loss), matching
+    // the live-apply behavior of every other control in this window.
+    partial void OnIpAddressChanged(string value)
+    {
+        _settings.IpAddress = value.Trim();
+        RefreshCertState();
+    }
+
+    partial void OnApiKeyChanged(string value) => _settings.ApiKey = value.Trim();
+    partial void OnUsernameChanged(string value) { _settings.Username = value.Trim(); RefreshBadge(); }
+    partial void OnPasswordChanged(string value) { _settings.Password = value; RefreshBadge(); }
 
     partial void OnShowFocusOverlayControlsChanged(bool value) => _settings.ShowFocusOverlayControls = value;
 
@@ -196,17 +295,6 @@ public sealed partial class SettingsViewModel : ObservableObject
                             && _trust.Pending(_settings.IpAddress) != null;
 
     [RelayCommand]
-    private async Task Save()
-    {
-        _settings.IpAddress = IpAddress.Trim();
-        _settings.ApiKey = ApiKey.Trim();
-        _settings.Username = Username.Trim();
-        _settings.Password = Password;
-        StatusMessage = Localization.Loc.Get("Saved. Testing connection…");
-        await TestConnection();
-    }
-
-    [RelayCommand]
     private async Task TestConnection()
     {
         _settings.IpAddress = IpAddress.Trim();
@@ -219,15 +307,35 @@ public sealed partial class SettingsViewModel : ObservableObject
                 .Replace("%lld", _service.Cameras.Count.ToString());
     }
 
+    /// <summary>Classic-API login check for the PTZ section (macOS runPtzTest).</summary>
+    [RelayCommand]
+    private async Task TestPtz()
+    {
+        PtzStatusMessage = Localization.Loc.Get("Signing in…");
+        var ok = await _service.ClassicLoginAsync();
+        PtzStatusMessage = ok
+            ? Localization.Loc.Get("Signed in · PTZ control ready")
+            : Localization.Loc.Get("Login failed — check the username and password");
+        RefreshBadge();
+    }
+
     [RelayCommand]
     private async Task CheckForUpdates()
     {
-        StatusMessage = Localization.Loc.Get("Checking for updates…");
+        UpdateStatusMessage = Localization.Loc.Get("Checking for updates…");
         await _updater.CheckForUpdateAsync();
-        StatusMessage = _updater.UpdateAvailable
+        UpdateStatusMessage = _updater.UpdateAvailable
             ? string.Format(Localization.Loc.Get("Update available: {0}"), _updater.LatestVersion)
             : Localization.Loc.Get("You're on the latest version.");
     }
+
+    [RelayCommand]
+    private static void OpenGitHub()
+        => UrlOpener.Open("https://github.com/cb2206/QuickProtect");
+
+    [RelayCommand]
+    private static void OpenLicense()
+        => UrlOpener.Open("https://github.com/cb2206/QuickProtect/blob/main/LICENSE");
 
     [RelayCommand]
     private void OpenReleasePage()

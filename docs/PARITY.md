@@ -28,10 +28,18 @@ port (`dotnet/`).
 - **TOFU certificate pinning** (`CertificateTrust`) end-to-end: HTTPS via
   `HttpClientHandler`, video via the tunnel's `SslStream` callback, with the
   "trust new certificate" Settings flow.
-- **Settings window** — connection, default quality, PTZ credentials,
-  launch-at-login, appearance (auto/light/dark), accent color (7 presets, applied
-  live), focus-controls toggle, snapshot destination (clipboard/folder + picker),
-  language picker, hotkey recorder, update banner.
+- **Settings window** — sidebar-sectioned like the macOS `SettingsView`
+  (General / Connection / PTZ / Cameras / Shortcuts / Updates) with the Aurora
+  card look (caption + label/control rows + hairlines) and a live
+  Connected/Disconnected header badge (classic-API-aware on the PTZ section).
+  General: launch-at-login, language picker, appearance (auto/light/dark),
+  accent color (7 presets, applied live), default quality, focus-controls
+  toggle, snapshot destination (clipboard/folder + picker). Connection: IP +
+  API key (reveal toggle), test with inline result, trust-new-certificate flow.
+  PTZ: classic credentials (reveal toggle) + its own login test. Shortcuts:
+  hotkey recorder + read-only in-app shortcut reference. Updates: version,
+  check button, release banner, About card (license/GitHub). Everything
+  auto-applies — no Save button (credentials commit on focus loss).
 - **Persistence** — `JsonFilePreferences` (≈ UserDefaults) + `ISecretStore`
   (DPAPI on Windows; libsecret via `secret-tool` on Linux, 0600-file fallback).
 - **Layout profiles** — create/rename/delete, per-camera show/hide, size,
@@ -85,7 +93,8 @@ port (`dotnet/`).
 | Topic | macOS | This port | Why |
 |---|---|---|---|
 | Audio playback | decoded + rendered (default muted) | **not yet implemented** — mute button is a stub | the FFmpeg engine is video-only so far; a WASAPI/ALSA audio sink is the next engine milestone |
-| Profile rename/delete in header menu | header profile menu | Settings → Cameras & Layout | header has switcher + save-as-new; full management lives in Settings |
+| Profile rename/delete in header menu | header profile menu | Settings → Cameras | header has switcher + save-as-new; full management lives in Settings |
+| About tab | separate sidebar tab | About card on the Updates section | six sections fit the window; split it out if it grows |
 | Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
 | Grid-tile PiP | optional per-camera PiP on grid tiles | focus-only PiP | each PiP is an extra server stream; cost outweighs the value at grid size |
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |

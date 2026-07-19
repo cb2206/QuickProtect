@@ -277,4 +277,10 @@ QuickProtect.</value></data>
   <data name="Video unavailable" xml:space="preserve"><value>Video non disponibile</value></data>
   <data name="Windows only for now (letter, number, or function key with modifiers)." xml:space="preserve"><value>Per ora solo Windows (lettera, numero o tasto funzione con modificatori).</value></data>
   <data name="You're on the latest version." xml:space="preserve"><value>Stai usando la versione più recente.</value></data>
+  <data name="Ctrl+scroll · + − · 0 resets" xml:space="preserve"><value>Ctrl+scorrimento · + − · 0 ripristina</value></data>
+  <data name="Mute audio" xml:space="preserve"><value>Disattiva l'audio</value></data>
+  <data name="PTZ" xml:space="preserve"><value>PTZ</value></data>
+  <data name="Signing in…" xml:space="preserve"><value>Accesso in corso…</value></data>
+  <data name="Swap secondary lens" xml:space="preserve"><value>Cambia l'obiettivo secondario</value></data>
+  <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>È normale se hai reinstallato o sostituito il controller — in caso contrario, potrebbe indicare che qualcuno sta intercettando la connessione. Considera attendibile il certificato solo se riconosci la modifica.</value></data>
 </root>
