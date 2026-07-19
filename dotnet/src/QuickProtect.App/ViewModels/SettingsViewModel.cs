@@ -140,6 +140,13 @@ public sealed partial class SettingsViewModel : ObservableObject
          ?? Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3)
          ?? "?");
 
+    /// <summary>
+    /// Hides the update-check row in store/packaged builds (Microsoft Store,
+    /// Flatpak, Snap) — there, updates arrive through the store or package
+    /// manager, mirroring the hidden Updates tab in macOS App Store builds.
+    /// </summary>
+    public bool IsUpdateCheckAvailable { get; } = !AppDistribution.IsExternallyManaged;
+
     /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
     public LayoutViewModel Layout { get; }
 

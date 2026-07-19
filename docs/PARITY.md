@@ -80,6 +80,12 @@ port (`dotnet/`).
 - **Onboarding** — 3-step wizard (Connect → PTZ → All set).
 - **Global hotkey** — native `RegisterHotKey` on Windows; Linux is a documented no-op.
 - **Update checker** — notify-only GitHub releases poll + Settings banner.
+  Both platforms only announce a release that carries an asset for the running
+  OS (`.dmg` / `-win` / `-linux` in the asset name — the naming convention is a
+  de facto API; see `UpdateAssets.swift` and `UpdateChecker.HasAsset`). The
+  .NET side detects externally-updated installs (`AppDistribution`: MSIX
+  package identity, `FLATPAK_ID`, `SNAP`) and keeps the updater idle there,
+  mirroring the macOS `_MASReceipt` guard.
 - **Theming** — light/auto/dark via Avalonia theme variants with the full Aurora
   token palette (23 semantic Qp* tokens per variant); video surfaces (grid tiles,
   focus, pinned windows) stay pinned dark exactly like macOS; accent-derived
@@ -123,7 +129,15 @@ port (`dotnet/`).
 
 ## Distribution (future)
 
-- **Windows**: `scripts/package-windows.ps1` → Inno Setup installer (done); code
-  signing still open. The notify-only updater policy carries over.
-- **Linux**: AppImage or Flatpak; bundle the FFmpeg 7.1 natives (as the Windows
-  installer does) or declare an FFmpeg 7.x runtime dependency.
+- **Windows** (decided 2026-07): paid = Microsoft Store as MSIX under a company
+  account (the Store signs and auto-updates it); free = the unsigned Inno Setup
+  installer from `scripts/package-windows.ps1` on GitHub releases (SmartScreen
+  supplies the deliberate friction — intentionally unsigned, like the macOS
+  DMG). No winget listing (frictionless `winget upgrade` would defeat that).
+  One release tag per version carries all OS assets:
+  `QuickProtect-<ver>.dmg` / `QuickProtect-<ver>-win-x64.exe` /
+  `QuickProtect-<ver>-linux-x64.tar.gz`.
+- **Linux** (deferred): frictionless-update channel wanted (Flathub preferred,
+  pending its AI-assisted-app policy; fallbacks AUR + AppImage/tarball). Bundle
+  the FFmpeg 7.1 natives (as the Windows installer does) or declare an FFmpeg
+  7.x runtime dependency.

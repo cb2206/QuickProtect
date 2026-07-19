@@ -119,6 +119,7 @@ targets:
           - TestRunner.swift
       # Include testable source files directly (no BUNDLE_LOADER needed)
       - path: QuickProtect/Services/RTPParser.swift
+      - path: QuickProtect/Services/UpdateAssets.swift
       - path: QuickProtect/Services/HotkeyManager.swift
       - path: QuickProtect/Models/AppSettings.swift
       - path: QuickProtect/Models/Camera.swift

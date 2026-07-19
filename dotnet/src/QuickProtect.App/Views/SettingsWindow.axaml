@@ -440,8 +440,8 @@
                     <TextBlock Grid.Column="0" Text="{loc:Loc 'Installed'}" Classes="rowLabel" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" Text="{Binding AppVersion}" Classes="rowLabel" VerticalAlignment="Center" />
                   </Grid>
-                  <Border Classes="hairline" />
-                  <Grid Classes="row" ColumnDefinitions="Auto,*">
+                  <Border Classes="hairline" IsVisible="{Binding IsUpdateCheckAvailable}" />
+                  <Grid Classes="row" ColumnDefinitions="Auto,*" IsVisible="{Binding IsUpdateCheckAvailable}">
                     <Button Grid.Column="0" Content="{loc:Loc 'Check for Updates'}"
                             Command="{Binding CheckForUpdatesCommand}" />
                     <TextBlock Grid.Column="1" Text="{Binding UpdateStatusMessage}" Classes="rowHint"

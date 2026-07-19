@@ -104,10 +104,17 @@ final class UpdateChecker: NSObject, ObservableObject {
                       let tagName = json["tag_name"] as? String,
                       let htmlURL = json["html_url"] as? String else { return }
 
+                // Only announce when the release actually carries a macOS
+                // asset — releases ship all platforms under one tag, but a
+                // platform's asset can lag (or a hotfix can be single-OS).
+                let assetNames = ((json["assets"] as? [[String: Any]]) ?? [])
+                    .compactMap { $0["name"] as? String }
+
                 let remote = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
                 self.latestVersion = remote
                 self.releaseURL = URL(string: htmlURL)
                 self.updateAvailable = self.isNewer(remote: remote, local: self.currentVersion)
+                    && UpdateAssets.containsMacAsset(assetNames)
             }
         }.resume()
     }
