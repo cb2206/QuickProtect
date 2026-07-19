@@ -30,7 +30,13 @@ public sealed class VideoStreamClient : IDisposable
     /// <summary>First frame of a session decoded — reports the native video size.</summary>
     public event Action<int, int>? VideoSizeKnown;
 
+    /// <summary>An audio track was found (or lost) for the current session.</summary>
+    public event Action<bool>? HasAudioChanged;
+
     public VideoState State { get; private set; } = VideoState.Idle;
+
+    /// <summary>True while the current session carries a decodable audio track.</summary>
+    public bool HasAudio { get; private set; }
 
     // Latest decoded frame (BGRA). Swapped under _frameLock; UI copies under the same lock.
     private readonly object _frameLock = new();
@@ -44,6 +50,28 @@ public sealed class VideoStreamClient : IDisposable
     private string? _pendingUrl;
     private volatile bool _stop;
     private volatile bool _restart;
+
+    // Audio routing (macOS RTSPClient parity): audio is decoded and rendered
+    // only while a focused/pinned view marks this client active; muted by
+    // default. Flags are set from the UI thread, consumed on the decode thread.
+    private volatile bool _audioActive;
+    private volatile bool _audioMuted = true;
+    private volatile bool _audioFlush;
+    private bool _sinkFailed; // decode-thread only; reset per session
+
+    /// <summary>
+    /// Route audio output to this client (the focused/pinned view) or release
+    /// it. The sink exists only while active — inactive streams skip audio
+    /// decoding entirely.
+    /// </summary>
+    public void SetAudioActive(bool active) => _audioActive = active;
+
+    /// <summary>Mute or unmute output. Takes effect immediately; decoding continues.</summary>
+    public void SetMuted(bool muted)
+    {
+        if (muted && !_audioMuted) _audioFlush = true; // drop what's queued
+        _audioMuted = muted;
+    }
 
     /// <summary>Start streaming <paramref name="url"/> (no-op when already on it).</summary>
     public void Start(string url)
@@ -162,6 +190,11 @@ public sealed class VideoStreamClient : IDisposable
         AVFrame* frame = null;
         AVFrame* bgra = null;
         AVPacket* packet = null;
+        AVCodecContext* audioCodec = null;
+        AVFrame* audioFrame = null;
+        SwrContext* swr = null;
+        IAudioSink? sink = null;
+        byte[]? pcm = null;
         try
         {
             AVDictionary* opts = null;
@@ -189,6 +222,24 @@ public sealed class VideoStreamClient : IDisposable
             rc = ffmpeg.avcodec_open2(codec, decoder, null);
             if (rc < 0) return LogAv("avcodec_open2", rc);
 
+            // Audio track (AAC on UniFi streams) — best-effort: a stream without
+            // one, or a codec that won't open, plays video-only.
+            AVCodec* audioDecoder = null;
+            var audioIdx = ffmpeg.av_find_best_stream(fmt, AVMediaType.AVMEDIA_TYPE_AUDIO, -1, vs, &audioDecoder, 0);
+            if (audioIdx >= 0 && audioDecoder != null)
+            {
+                audioCodec = ffmpeg.avcodec_alloc_context3(audioDecoder);
+                ffmpeg.avcodec_parameters_to_context(audioCodec, fmt->streams[audioIdx]->codecpar);
+                if (ffmpeg.avcodec_open2(audioCodec, audioDecoder, null) < 0)
+                {
+                    ffmpeg.avcodec_free_context(&audioCodec);
+                    audioCodec = null;
+                }
+            }
+            SetHasAudio(audioCodec != null);
+            if (audioCodec != null) audioFrame = ffmpeg.av_frame_alloc();
+            _sinkFailed = false;
+
             frame = ffmpeg.av_frame_alloc();
             bgra = ffmpeg.av_frame_alloc();
             packet = ffmpeg.av_packet_alloc();
@@ -204,10 +255,21 @@ public sealed class VideoStreamClient : IDisposable
 
             while (!_stop && !_restart)
             {
+                // Audio routing changed: tear the sink down when released so an
+                // unfocused stream costs nothing, flush on mute.
+                if (sink != null && !_audioActive) { sink.Dispose(); sink = null; }
+                if (_audioFlush) { sink?.Flush(); _audioFlush = false; }
+
                 rc = ffmpeg.av_read_frame(fmt, packet);
                 if (rc < 0)
                     return rc == ffmpeg.AVERROR_EOF; // EOF = clean end; else broken
 
+                if (audioCodec != null && packet->stream_index == audioIdx)
+                {
+                    if (_audioActive) DecodeAudio(audioCodec, packet, audioFrame, ref swr, ref sink, ref pcm);
+                    ffmpeg.av_packet_unref(packet);
+                    continue;
+                }
                 if (packet->stream_index != vs) { ffmpeg.av_packet_unref(packet); continue; }
                 if (!seenKeyframe)
                 {
@@ -275,6 +337,10 @@ public sealed class VideoStreamClient : IDisposable
         }
         finally
         {
+            sink?.Dispose();
+            if (swr != null) ffmpeg.swr_free(&swr);
+            if (audioFrame != null) ffmpeg.av_frame_free(&audioFrame);
+            if (audioCodec != null) ffmpeg.avcodec_free_context(&audioCodec);
             if (packet != null) ffmpeg.av_packet_free(&packet);
             if (frame != null) ffmpeg.av_frame_free(&frame);
             if (bgra != null) ffmpeg.av_frame_free(&bgra);
@@ -283,6 +349,70 @@ public sealed class VideoStreamClient : IDisposable
             if (fmt != null) ffmpeg.avformat_close_input(&fmt);
             GC.KeepAlive(interrupt);
         }
+    }
+
+    /// <summary>
+    /// Decode one audio packet and queue the PCM on the sink. The resampler and
+    /// sink are created lazily from the first decoded frame's real parameters
+    /// (planar float AAC → interleaved S16, up to stereo, native rate).
+    /// </summary>
+    private unsafe void DecodeAudio(AVCodecContext* codec, AVPacket* packet, AVFrame* frame,
+        ref SwrContext* swr, ref IAudioSink? sink, ref byte[]? pcm)
+    {
+        if (ffmpeg.avcodec_send_packet(codec, packet) < 0) return; // tolerate glitches
+        while (ffmpeg.avcodec_receive_frame(codec, frame) == 0)
+        {
+            var outChannels = Math.Min(2, frame->ch_layout.nb_channels);
+            if (swr == null)
+            {
+                AVChannelLayout outLayout;
+                ffmpeg.av_channel_layout_default(&outLayout, outChannels);
+                fixed (SwrContext** swrPtr = &swr)
+                {
+                    if (ffmpeg.swr_alloc_set_opts2(swrPtr,
+                            &outLayout, AVSampleFormat.AV_SAMPLE_FMT_S16, frame->sample_rate,
+                            &frame->ch_layout, (AVSampleFormat)frame->format, frame->sample_rate,
+                            0, null) < 0 || ffmpeg.swr_init(swr) < 0)
+                    {
+                        ffmpeg.av_frame_unref(frame);
+                        continue;
+                    }
+                }
+            }
+            if (sink == null && !_sinkFailed)
+            {
+                sink = CreateSink(codec, frame->sample_rate, outChannels);
+                _sinkFailed = sink == null; // don't retry every frame
+            }
+
+            var maxSamples = ffmpeg.swr_get_out_samples(swr, frame->nb_samples);
+            var needed = maxSamples * outChannels * 2;
+            if (pcm == null || pcm.Length < needed) pcm = new byte[needed];
+            fixed (byte* dst = pcm)
+            {
+                var outPlane = dst;
+                var got = ffmpeg.swr_convert(swr, &outPlane, maxSamples,
+                    frame->extended_data, frame->nb_samples);
+                if (got > 0 && !_audioMuted) sink?.Write(pcm, got * outChannels * 2);
+            }
+            ffmpeg.av_frame_unref(frame);
+        }
+    }
+
+    private unsafe IAudioSink? CreateSink(AVCodecContext* codec, int sampleRate, int channels)
+    {
+        var sink = AudioSink.Create(sampleRate, channels);
+        if (sink != null)
+            Log.Line($"[Audio] {ffmpeg.avcodec_get_name(codec->codec_id)} " +
+                     $"{sampleRate}Hz {channels}ch → sink started (muted={_audioMuted})");
+        return sink;
+    }
+
+    private void SetHasAudio(bool has)
+    {
+        if (HasAudio == has) return;
+        HasAudio = has;
+        HasAudioChanged?.Invoke(has);
     }
 
     private static bool LogAv(string what, int rc)

@@ -57,4 +57,7 @@ public partial class PinnedCameraWindow : Window
     }
 
     private void Unpin_Click(object? sender, RoutedEventArgs e) => Unpinned?.Invoke(CameraId);
+
+    private void Mute_Click(object? sender, RoutedEventArgs e)
+        => (DataContext as ViewModels.CameraTileViewModel)?.ToggleMute();
 }

@@ -69,6 +69,14 @@ port (`dotnet/`).
   straight from the video engine.
 - **Secondary-lens PiP** — package-camera side panel in focus with a **swap**
   button that exchanges playback between the lenses in place (no re-allocation).
+- **Audio playback** — the engine decodes the stream's audio track (Opus/AAC)
+  and renders it through a platform sink: WASAPI shared mode via NAudio on
+  Windows, ALSA via libasound P/Invoke on Linux (best-effort, untested until
+  the Linux phase). macOS parity: only the focused stream and pinned windows
+  are audio-active (the grid never plays), output is muted by default behind
+  the global speaker preference, pinned windows start muted with a
+  window-local toggle, and the Mute (M) control appears only when the stream
+  actually has audio. Mute flushes queued PCM so it takes effect immediately.
 - **Onboarding** — 3-step wizard (Connect → PTZ → All set).
 - **Global hotkey** — native `RegisterHotKey` on Windows; Linux is a documented no-op.
 - **Update checker** — notify-only GitHub releases poll + Settings banner.
@@ -92,7 +100,6 @@ port (`dotnet/`).
 
 | Topic | macOS | This port | Why |
 |---|---|---|---|
-| Audio playback | decoded + rendered (default muted) | **not yet implemented** — mute button is a stub | the FFmpeg engine is video-only so far; a WASAPI/ALSA audio sink is the next engine milestone |
 | Profile rename/delete in header menu | header profile menu | Settings → Cameras | header has switcher + save-as-new; full management lives in Settings |
 | About tab | separate sidebar tab | About card on the Updates section | six sections fit the window; split it out if it grows |
 | Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
@@ -111,6 +118,8 @@ port (`dotnet/`).
   window restore degrade to compositor placement; X11 behaves.
 - Global hotkey is a no-op (no portable X11/Wayland registration).
 - Snapshot-to-clipboard shells out to `wl-copy` or `xclip` (best-effort).
+- Audio needs `libasound.so.2` (ALSA); when missing (or PipeWire/Pulse lacks the
+  ALSA compat layer) streams play video-only with a logged notice.
 
 ## Distribution (future)
 

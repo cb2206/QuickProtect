@@ -170,9 +170,14 @@
                       ToolTip.Tip="{loc:Loc 'Toggle fit vs. fill'}">
                 <TextBlock><Run Text="◳ " /><Run Text="{loc:Loc 'Fit/Fill'}" /></TextBlock>
               </Button>
-              <Button Content="{loc:Loc 'Mute (M)'}" Click="Focus_Mute"
+              <Button Click="Focus_Mute" IsVisible="{Binding HasAudio}"
                       Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
-                      ToolTip.Tip="{loc:Loc 'Toggle audio'}" />
+                      ToolTip.Tip="{loc:Loc 'Toggle audio'}">
+                <Panel>
+                  <TextBlock Text="{loc:Loc 'Mute (M)'}" IsVisible="{Binding !IsMuted}" />
+                  <TextBlock Text="{loc:Loc 'Unmute (M)'}" IsVisible="{Binding IsMuted}" />
+                </Panel>
+              </Button>
               <Button Click="Focus_Snapshot"
                       Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
                       ToolTip.Tip="{loc:Loc 'Save a still frame'}">

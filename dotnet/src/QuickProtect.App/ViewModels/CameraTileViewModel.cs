@@ -28,6 +28,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     private VideoStreamCoordinator.Handle? _handle;
     private Action<VideoState>? _stateHandler;
     private Action<int, int>? _sizeHandler;
+    private Action<bool>? _audioHandler;
 
     [ObservableProperty] private string _name;
     [ObservableProperty] private bool _isOnline;
@@ -35,6 +36,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isPlaying;
     [ObservableProperty] private bool _isFocused;
     [ObservableProperty] private bool _isMuted;
+    /// <summary>True when the stream carries an audio track (shows the mute UI).</summary>
+    [ObservableProperty] private bool _hasAudio;
     [ObservableProperty] private bool _fillMode;
     [ObservableProperty] private double _tileWidth;
     [ObservableProperty] private double _tileHeight;
@@ -71,7 +74,9 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         Camera = camera;
         _name = camera.Name;
         _isOnline = camera.IsOnline;
-        _isMuted = !settings.SpeakerEnabled;
+        // Pinned windows always start muted with a window-local toggle (macOS
+        // behavior); everywhere else mute mirrors the global speaker preference.
+        _isMuted = pinned || !settings.SpeakerEnabled;
         _fillMode = settings.CameraFillMode(camera.Id) ?? false;
 
         _videoUnavailable = !FfmpegEngine.IsAvailable;
@@ -121,25 +126,41 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             _settings.CacheVideoDimensions((uint)w, (uint)h, Camera.Id);
             ApplyTileSize(_lastGridWidth); // tile height follows the real aspect
         });
+        _audioHandler = has => Dispatcher.UIThread.Post(() => HasAudio = has);
         client.StateChanged += _stateHandler;
         client.VideoSizeKnown += _sizeHandler;
+        client.HasAudioChanged += _audioHandler;
+        HasAudio = client.HasAudio;
     }
 
     private void UnsubscribeClient(VideoStreamClient client)
     {
         if (_stateHandler != null) client.StateChanged -= _stateHandler;
         if (_sizeHandler != null) client.VideoSizeKnown -= _sizeHandler;
+        if (_audioHandler != null) client.HasAudioChanged -= _audioHandler;
         _stateHandler = null;
         _sizeHandler = null;
+        _audioHandler = null;
     }
 
-    // MARK: - Audio mute (audio output lands with the engine's audio sink; the
-    // preference is kept so the UI and settings stay wired).
+    // MARK: - Audio (rendered by the engine's platform sink; macOS parity:
+    // only the focused stream and pinned windows are audio-active).
 
     public void ToggleMute()
     {
         IsMuted = !IsMuted;
-        _settings.SpeakerEnabled = !IsMuted;
+        // A pinned window's mute is window-local; focus mute is the global
+        // speaker preference (macOS toggleMute vs. PinnedCameraWindow).
+        if (!_pinned) _settings.SpeakerEnabled = !IsMuted;
+        Client?.SetMuted(IsMuted);
+    }
+
+    /// <summary>Route audio to this tile's client iff it is the focused or pinned view.</summary>
+    private void ApplyAudioRouting()
+    {
+        if (Client is not { } client) return;
+        client.SetMuted(IsMuted);
+        client.SetAudioActive(IsFocused || _pinned);
     }
 
     /// <summary>Toggle fit (letterbox) vs. fill (crop); rendered by VideoSurface.</summary>
@@ -249,6 +270,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         if (_handle is { } existing)
         {
             existing.SetDesiredQuality(quality);
+            ApplyAudioRouting();
             return Task.CompletedTask;
         }
 
@@ -256,6 +278,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         _handle = handle;
         SubscribeClient(handle.Client);
         Client = handle.Client;
+        ApplyAudioRouting();
         if (!handle.Client.HasFrame) IsLoading = true;
         IsPlaying = handle.Client.State == VideoState.Playing;
         return Task.CompletedTask;
@@ -276,13 +299,23 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         (Client, other.Client) = (theirs, mine);
         SubscribeClient(theirs);
         other.SubscribeClient(mine);
+        // Audio follows the focused tile onto its new client.
+        ApplyAudioRouting();
+        other.ApplyAudioRouting();
     }
 
     /// <summary>Release this tile's claim on the stream (the shared client stops
     /// and frees its allocation only when no other view is using it).</summary>
     public void Stop()
     {
-        if (Client is { } c) UnsubscribeClient(c);
+        if (Client is { } c)
+        {
+            // Release audio, but only if this tile routed it: the shared client
+            // may keep running for other views (e.g. the grid tile after focus
+            // exits), and a stopping grid tile must not silence a focused one.
+            if (IsFocused || _pinned) c.SetAudioActive(false);
+            UnsubscribeClient(c);
+        }
         _handle?.Dispose();
         _handle = null;
         IsPlaying = false;

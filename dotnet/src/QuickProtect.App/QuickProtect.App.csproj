@@ -23,6 +23,10 @@
          DynamicallyLoaded variant lets us point at per-RID native libraries. -->
     <PackageReference Include="FFmpeg.AutoGen.Abstractions" Version="7.1.1" />
     <PackageReference Include="FFmpeg.AutoGen.Bindings.DynamicallyLoaded" Version="7.1.1" />
+    <!-- WASAPI output for the engine's audio sink (Windows). Linux uses ALSA
+         via P/Invoke (AudioSink.cs); these managed packages are inert there. -->
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
 
   <!-- FFmpeg 7.1 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).

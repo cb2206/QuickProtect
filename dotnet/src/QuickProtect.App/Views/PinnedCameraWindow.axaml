@@ -19,13 +19,22 @@
     <DockPanel>
       <!-- Drag handle + controls. Docked so the native VideoView never covers it. -->
       <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Header_Drag" Name="Header">
-        <Grid ColumnDefinitions="*,Auto" Margin="8,4">
+        <Grid ColumnDefinitions="*,Auto,Auto" Margin="8,4">
           <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
                        IsVisible="{Binding IsOnline}" />
             <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontSize="11" />
           </StackPanel>
-          <Button Grid.Column="1" Content="✕" Click="Unpin_Click"
+          <!-- Window-local mute (starts muted; does not touch the global speaker setting) -->
+          <Button Grid.Column="1" Click="Mute_Click" IsVisible="{Binding HasAudio}"
+                  Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
+                  Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Toggle audio'}">
+            <Panel>
+              <TextBlock Text="🔊" IsVisible="{Binding !IsMuted}" />
+              <TextBlock Text="🔇" IsVisible="{Binding IsMuted}" />
+            </Panel>
+          </Button>
+          <Button Grid.Column="2" Content="✕" Click="Unpin_Click"
                   Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
                   Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Unpin'}" />
         </Grid>
