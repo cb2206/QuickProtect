@@ -117,7 +117,7 @@ live camera grid, focus view with PTZ (d-pad + keyboard, quick-tap min-burst),
 pinned always-on-top windows, snapshots (folder or clipboard), secondary-lens
 PiP, layout profiles, onboarding, global hotkey, notify-only update checks,
 TOFU certificate pinning end-to-end (API + video), theming with accent colors,
-and 7-language localization.
+audio playback (WASAPI/ALSA), and 7-language localization.
 
 See [`PARITY.md`](../docs/PARITY.md) for the detailed feature-by-feature status
 and the remaining polish items.

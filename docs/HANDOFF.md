@@ -1,12 +1,15 @@
 # Windows/Linux port — session handoff
 
 Cross-platform .NET 8 + Avalonia reimplementation of the macOS QuickProtect
-app, living in `dotnet/`. Branch: `feat/windows-linux-port`.
+app, living in `dotnet/`. Merged into `dev` 2026-07-19 (the `feat/windows-linux-port`
+branch was deleted after the merge — work now happens directly on `dev`).
 
 ## Status
 **Custom FFmpeg video engine + full macOS-parity UI, live-verified on Windows**
-against a real controller (7 cameras at 10.0.1.1). All 13 bugs from the
-2026-07-07 bug-report round are fixed and verified except audio (see below).
+against a real controller (7 cameras at 10.0.1.1), including audio playback
+(WASAPI/ALSA, see below). All 13 bugs from the 2026-07-07 bug-report round are
+fixed and verified. Not yet publicly released — no Windows/Linux download
+exists yet (`docs/PARITY.md`'s Distribution section tracks that work).
 See `PARITY.md` for the feature matrix and intentional differences.
 
 ## Architecture: the video engine (don't regress these)
@@ -33,9 +36,12 @@ libVLC is GONE. Video is the macOS-style custom pipeline:
 - **RTSPS**: `Core/Services/RtspTlsTunnel.cs` still carries TLS + TOFU pinning
   (FFmpeg plays plain rtsp://127.0.0.1). Keep it — it IS the cert policy.
 
-Known gap: **no audio yet** (mute button is a stub; macOS defaults muted too).
-Next engine milestone: WASAPI (Windows) / ALSA-Pulse (Linux) sink fed by the
-existing decode loop.
+Audio playback is done: the engine decodes the stream's audio track (Opus/AAC)
+and renders it through a platform sink — WASAPI shared mode via NAudio on
+Windows, ALSA via libasound P/Invoke on Linux (best-effort, untested until the
+Linux phase). Same macOS-parity rules as the Swift app: only the focused
+stream and pinned windows are audio-active, muted by default, Mute (M) only
+shown when the stream actually has audio.
 
 ## Dev environment (this ARM64 VM)
 
