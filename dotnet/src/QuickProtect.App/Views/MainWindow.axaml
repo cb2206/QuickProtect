@@ -50,6 +50,7 @@
             <ProgressBar IsIndeterminate="True" Width="60" Height="4"
                          IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
             <TextBox Text="{Binding SearchQuery}" Watermark="{loc:Loc 'Search'}" Width="130"
+                     Classes="clearButton"
                      Background="{DynamicResource QpSubtleSurface}" CornerRadius="6"
                      BorderBrush="{DynamicResource QpChipBorder}" />
           </StackPanel>
