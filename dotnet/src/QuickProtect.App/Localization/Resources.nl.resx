@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="API Key" xml:space="preserve"><value>API-sleutel</value></data>
+  <data name="About" xml:space="preserve"><value>Over</value></data>
+  <data name="Accent" xml:space="preserve"><value>Accent</value></data>
+  <data name="Add Camera" xml:space="preserve"><value>Camera toevoegen</value></data>
+  <data name="All set" xml:space="preserve"><value>Klaar</value></data>
+  <data name="Also show on the grid tile" xml:space="preserve"><value>Ook op de rastertegel tonen</value></data>
+  <data name="App replacement failed: %@" xml:space="preserve"><value>Vervangen van app mislukt: %@</value></data>
+  <data name="Appearance" xml:space="preserve"><value>Weergave</value></data>
+  <data name="Auto" xml:space="preserve"><value>Auto</value></data>
+  <data name="Auto streams low quality in the grid and high quality when a camera is enlarged — saving CPU and bandwidth. Override per camera by right-clicking its tile." xml:space="preserve"><value>Auto streamt in lage kwaliteit in het raster en in hoge kwaliteit wanneer een camera vergroot is — dat bespaart CPU en bandbreedte. Overschrijf dit per camera door rechts te klikken op de tegel.</value></data>
+  <data name="Automatically start QuickProtect when you log in." xml:space="preserve"><value>Start QuickProtect automatisch wanneer je inlogt.</value></data>
+  <data name="Back" xml:space="preserve"><value>Terug</value></data>
+  <data name="Back to grid (Esc)" xml:space="preserve"><value>Terug naar raster (Esc)</value></data>
+  <data name="Cameras" xml:space="preserve"><value>Camera's</value></data>
+  <data name="Can't reach controller" xml:space="preserve"><value>Controller niet bereikbaar</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Annuleer</value></data>
+  <data name="Capturing…" xml:space="preserve"><value>Bezig met vastleggen…</value></data>
+  <data name="Certificate" xml:space="preserve"><value>Certificaat</value></data>
+  <data name="Certificate changed" xml:space="preserve"><value>Certificaat gewijzigd</value></data>
+  <data name="Change" xml:space="preserve"><value>Wijzig</value></data>
+  <data name="Check for Updates" xml:space="preserve"><value>Zoek naar updates</value></data>
+  <data name="Checking…" xml:space="preserve"><value>Bezig met zoeken…</value></data>
+  <data name="Choose" xml:space="preserve"><value>Kiezen</value></data>
+  <data name="Choose a folder for saved snapshots" xml:space="preserve"><value>Kies een map voor opgeslagen momentopnamen</value></data>
+  <data name="Choose a snapshot folder in Settings" xml:space="preserve"><value>Kies een momentopnamemap in Instellingen</value></data>
+  <data name="Choose…" xml:space="preserve"><value>Kiezen…</value></data>
+  <data name="Classic API credentials" xml:space="preserve"><value>Inloggegevens klassieke API</value></data>
+  <data name="Clear" xml:space="preserve"><value>Wis</value></data>
+  <data name="Clear search" xml:space="preserve"><value>Zoekopdracht wissen</value></data>
+  <data name="Click" xml:space="preserve"><value>Klik</value></data>
+  <data name="Click the aperture icon in your menu bar to open the camera grid, or press your global shortcut." xml:space="preserve"><value>Klik op het diafragmasymbool in de menubalk om het cameraraster te openen, of gebruik je globale sneltoets.</value></data>
+  <data name="Clipboard" xml:space="preserve"><value>Klembord</value></data>
+  <data name="Connect" xml:space="preserve"><value>Verbinden</value></data>
+  <data name="Connect your controller" xml:space="preserve"><value>Verbind je controller</value></data>
+  <data name="Connected" xml:space="preserve"><value>Verbonden</value></data>
+  <data name="Connected, but no cameras came back. Adopt one in the Protect app, then refresh." xml:space="preserve"><value>Verbonden, maar geen camera's gevonden. Adopteer er een in de Protect-app en vernieuw daarna.</value></data>
+  <data name="Connecting…" xml:space="preserve"><value>Bezig met verbinden…</value></data>
+  <data name="Connection" xml:space="preserve"><value>Verbinding</value></data>
+  <data name="Continue" xml:space="preserve"><value>Ga door</value></data>
+  <data name="Controller" xml:space="preserve"><value>Controller</value></data>
+  <data name="Copied to clipboard" xml:space="preserve"><value>Gekopieerd naar klembord</value></data>
+  <data name="Dark" xml:space="preserve"><value>Donker</value></data>
+  <data name="Default" xml:space="preserve"><value>Standaard</value></data>
+  <data name="Default stream quality" xml:space="preserve"><value>Standaard streamkwaliteit</value></data>
+  <data name="Delete Profile" xml:space="preserve"><value>Profiel verwijderen</value></data>
+  <data name="Destination" xml:space="preserve"><value>Bestemming</value></data>
+  <data name="Digital zoom" xml:space="preserve"><value>Digitale zoom</value></data>
+  <data name="Disconnected" xml:space="preserve"><value>Verbroken</value></data>
+  <data name="Dismiss" xml:space="preserve"><value>Sluit</value></data>
+  <data name="Display fullscreen" xml:space="preserve"><value>Toon op volledig scherm</value></data>
+  <data name="Display the keyboard-shortcut hints and the on-screen PTZ pad when a camera is in focus." xml:space="preserve"><value>Toon de sneltoetshints en het PTZ-bedieningspaneel op het scherm wanneer een camera vergroot is.</value></data>
+  <data name="Double-click" xml:space="preserve"><value>Dubbelklik</value></data>
+  <data name="Download failed: %@" xml:space="preserve"><value>Download mislukt: %@</value></data>
+  <data name="Drag to resize" xml:space="preserve"><value>Sleep om te vergroten/verkleinen</value></data>
+  <data name="Enable" xml:space="preserve"><value>Inschakelen</value></data>
+  <data name="Enter your UniFi Protect controller's local IP and an API key from its settings." xml:space="preserve"><value>Voer het lokale IP-adres van je UniFi Protect-controller en een API-sleutel uit de instellingen in.</value></data>
+  <data name="Esc" xml:space="preserve"><value>Esc</value></data>
+  <data name="Exit / back" xml:space="preserve"><value>Sluiten / terug</value></data>
+  <data name="F  ·  Space" xml:space="preserve"><value>F  ·  Spatie</value></data>
+  <data name="Failed to mount the update DMG" xml:space="preserve"><value>Kan de update-DMG niet koppelen</value></data>
+  <data name="Failed to save download: %@" xml:space="preserve"><value>Kan download niet opslaan: %@</value></data>
+  <data name="Fill frame" xml:space="preserve"><value>Beeld vullen</value></data>
+  <data name="Finish" xml:space="preserve"><value>Voltooi</value></data>
+  <data name="Fit to frame" xml:space="preserve"><value>Passend maken</value></data>
+  <data name="Focus camera" xml:space="preserve"><value>Camera vergroten</value></data>
+  <data name="Focus view" xml:space="preserve"><value>Vergrote weergave</value></data>
+  <data name="Folder" xml:space="preserve"><value>Map</value></data>
+  <data name="Fullscreen" xml:space="preserve"><value>Volledig scherm</value></data>
+  <data name="Fullscreen (F)" xml:space="preserve"><value>Volledig scherm (F)</value></data>
+  <data name="General" xml:space="preserve"><value>Algemeen</value></data>
+  <data name="Get update" xml:space="preserve"><value>Update ophalen</value></data>
+  <data name="Global" xml:space="preserve"><value>Globaal</value></data>
+  <data name="Grid" xml:space="preserve"><value>Raster</value></data>
+  <data name="Hide this camera" xml:space="preserve"><value>Verberg deze camera</value></data>
+  <data name="High" xml:space="preserve"><value>Hoog</value></data>
+  <data name="IP Address" xml:space="preserve"><value>IP-adres</value></data>
+  <data name="Install Update" xml:space="preserve"><value>Installeer update</value></data>
+  <data name="Installed" xml:space="preserve"><value>Geïnstalleerd</value></data>
+  <data name="Installing update…" xml:space="preserve"><value>Update wordt geïnstalleerd…</value></data>
+  <data name="Integration API key from controller settings" xml:space="preserve"><value>Integratie-API-sleutel uit de controllerinstellingen</value></data>
+  <data name="Invalid IP address or URL." xml:space="preserve"><value>Ongeldig IP-adres of URL.</value></data>
+  <data name="LIVE" xml:space="preserve"><value>LIVE</value></data>
+  <data name="Large" xml:space="preserve"><value>Groot</value></data>
+  <data name="Last try: %@" xml:space="preserve"><value>Laatste poging: %@</value></data>
+  <data name="Launch at login" xml:space="preserve"><value>Start bij inloggen</value></data>
+  <data name="Legal" xml:space="preserve"><value>Juridisch</value></data>
+  <data name="License" xml:space="preserve"><value>Licentie</value></data>
+  <data name="Light" xml:space="preserve"><value>Licht</value></data>
+  <data name="Live UniFi Protect feeds, one click from your menu bar." xml:space="preserve"><value>Live UniFi Protect-feeds, één klik vanaf je menubalk.</value></data>
+  <data name="Local IP of your UniFi Protect controller" xml:space="preserve"><value>Lokaal IP-adres van je UniFi Protect-controller</value></data>
+  <data name="Local admin account on the Protect controller." xml:space="preserve"><value>Lokaal beheerdersaccount op de Protect-controller.</value></data>
+  <data name="Login failed — check the username and password" xml:space="preserve"><value>Inloggen mislukt — controleer gebruikersnaam en wachtwoord</value></data>
+  <data name="Login failed — check username and password" xml:space="preserve"><value>Inloggen mislukt — controleer gebruikersnaam en wachtwoord</value></data>
+  <data name="Low" xml:space="preserve"><value>Laag</value></data>
+  <data name="Medium" xml:space="preserve"><value>Gemiddeld</value></data>
+  <data name="Menu-bar status app for UniFi Protect. Live camera feeds, one click away." xml:space="preserve"><value>Menubalk-app voor UniFi Protect. Live camerabeelden, één klik verwijderd.</value></data>
+  <data name="Mute" xml:space="preserve"><value>Dempen</value></data>
+  <data name="Mute (M)" xml:space="preserve"><value>Dempen (M)</value></data>
+  <data name="No API key configured. Open Settings." xml:space="preserve"><value>Geen API-sleutel ingesteld. Open de instellingen.</value></data>
+  <data name="No DMG download URL found" xml:space="preserve"><value>Geen DMG-download-URL gevonden</value></data>
+  <data name="No IP address configured. Open Settings." xml:space="preserve"><value>Geen IP-adres ingesteld. Open de instellingen.</value></data>
+  <data name="No app bundle found in the DMG" xml:space="preserve"><value>Geen app gevonden in de DMG</value></data>
+  <data name="No cameras discovered yet. Run Test Connection on the Connection tab." xml:space="preserve"><value>Nog geen camera's gevonden. Voer ‘Verbinding testen’ uit op het tabblad Verbinding.</value></data>
+  <data name="No cameras yet" xml:space="preserve"><value>Nog geen camera's</value></data>
+  <data name="Not Now" xml:space="preserve"><value>Niet nu</value></data>
+  <data name="Not configured" xml:space="preserve"><value>Niet ingesteld</value></data>
+  <data name="Not verified" xml:space="preserve"><value>Niet geverifieerd</value></data>
+  <data name="Offline" xml:space="preserve"><value>Offline</value></data>
+  <data name="Open Settings" xml:space="preserve"><value>Open instellingen</value></data>
+  <data name="Open in Protect" xml:space="preserve"><value>Open in Protect</value></data>
+  <data name="PTZ (optional)" xml:space="preserve"><value>PTZ (optioneel)</value></data>
+  <data name="PTZ control (optional)" xml:space="preserve"><value>PTZ-bediening (optioneel)</value></data>
+  <data name="PTZ control uses the classic Protect API, which requires a local account. The Integration API (API Key) only exposes preset and patrol endpoints, not free-form movement." xml:space="preserve"><value>PTZ-bediening gebruikt de klassieke Protect-API, waarvoor een lokaal account nodig is. De integratie-API (API-sleutel) biedt alleen endpoints voor presets en patrouilles, geen vrije beweging.</value></data>
+  <data name="PTZ unavailable — check the username and password in Settings." xml:space="preserve"><value>PTZ niet beschikbaar — controleer gebruikersnaam en wachtwoord in de instellingen.</value></data>
+  <data name="PTZ · ARROW KEYS" xml:space="preserve"><value>PTZ · PIJLTOETSEN</value></data>
+  <data name="Pan &amp; tilt (PTZ)" xml:space="preserve"><value>Pannen en kantelen (PTZ)</value></data>
+  <data name="Pan / tilt" xml:space="preserve"><value>Pannen / kantelen</value></data>
+  <data name="Pan left" xml:space="preserve"><value>Naar links pannen</value></data>
+  <data name="Pan right" xml:space="preserve"><value>Naar rechts pannen</value></data>
+  <data name="Password" xml:space="preserve"><value>Wachtwoord</value></data>
+  <data name="Picture-in-picture when focused" xml:space="preserve"><value>Beeld-in-beeld bij vergrote weergave</value></data>
+  <data name="Pin as Floating Window" xml:space="preserve"><value>Vastmaken als zwevend venster</value></data>
+  <data name="Press S on a focused camera to capture a snapshot." xml:space="preserve"><value>Druk op S wanneer een camera vergroot is om een momentopname te maken.</value></data>
+  <data name="Press shortcut…" xml:space="preserve"><value>Druk op de sneltoets…</value></data>
+  <data name="Profile name" xml:space="preserve"><value>Profielnaam</value></data>
+  <data name="QuickProtect can start automatically when you log in so your cameras are always one click away." xml:space="preserve"><value>QuickProtect kan automatisch starten wanneer je inlogt, zodat je camera's altijd één klik verwijderd zijn.</value></data>
+  <data name="QuickProtect – Settings" xml:space="preserve"><value>QuickProtect – Instellingen</value></data>
+  <data name="Quit QuickProtect" xml:space="preserve"><value>Stop QuickProtect</value></data>
+  <data name="RTSP · no media" xml:space="preserve"><value>RTSP · geen media</value></data>
+  <data name="Reconnect" xml:space="preserve"><value>Opnieuw verbinden</value></data>
+  <data name="Refresh" xml:space="preserve"><value>Vernieuw</value></data>
+  <data name="Refresh cameras" xml:space="preserve"><value>Camera's vernieuwen</value></data>
+  <data name="Rename" xml:space="preserve"><value>Hernoem</value></data>
+  <data name="Rename Profile" xml:space="preserve"><value>Profiel hernoemen</value></data>
+  <data name="Rename Profile…" xml:space="preserve"><value>Profiel hernoemen…</value></data>
+  <data name="Reset size to Auto" xml:space="preserve"><value>Formaat terugzetten op Auto</value></data>
+  <data name="Retry" xml:space="preserve"><value>Opnieuw</value></data>
+  <data name="Save" xml:space="preserve"><value>Bewaar</value></data>
+  <data name="Save Current View as New Profile" xml:space="preserve"><value>Huidige weergave als nieuw profiel bewaren</value></data>
+  <data name="Save Current View as New Profile…" xml:space="preserve"><value>Huidige weergave als nieuw profiel bewaren…</value></data>
+  <data name="Save folder" xml:space="preserve"><value>Opslagmap</value></data>
+  <data name="Save snapshot" xml:space="preserve"><value>Momentopname bewaren</value></data>
+  <data name="Search cameras" xml:space="preserve"><value>Zoek camera's</value></data>
+  <data name="Settings" xml:space="preserve"><value>Instellingen</value></data>
+  <data name="Settings…" xml:space="preserve"><value>Instellingen…</value></data>
+  <data name="Shortcuts" xml:space="preserve"><value>Sneltoetsen</value></data>
+  <data name="Show or hide the camera grid from anywhere." xml:space="preserve"><value>Toon of verberg het cameraraster vanaf elke plek.</value></data>
+  <data name="Show overlay controls" xml:space="preserve"><value>Toon overlay-bediening</value></data>
+  <data name="Signed in · PTZ control ready" xml:space="preserve"><value>Ingelogd · PTZ-bediening gereed</value></data>
+  <data name="Signed in — PTZ control ready" xml:space="preserve"><value>Ingelogd — PTZ-bediening gereed</value></data>
+  <data name="Size" xml:space="preserve"><value>Formaat</value></data>
+  <data name="Skip" xml:space="preserve"><value>Sla over</value></data>
+  <data name="Small" xml:space="preserve"><value>Klein</value></data>
+  <data name="Snapshot" xml:space="preserve"><value>Momentopname</value></data>
+  <data name="Snapshot failed" xml:space="preserve"><value>Momentopname mislukt</value></data>
+  <data name="Snapshot saved" xml:space="preserve"><value>Momentopname opgeslagen</value></data>
+  <data name="Snapshots" xml:space="preserve"><value>Momentopnamen</value></data>
+  <data name="Snapshots are saved here as PNG files." xml:space="preserve"><value>Momentopnamen worden hier opgeslagen als PNG-bestanden.</value></data>
+  <data name="Source" xml:space="preserve"><value>Broncode</value></data>
+  <data name="Start QuickProtect at Login?" xml:space="preserve"><value>QuickProtect starten bij inloggen?</value></data>
+  <data name="Startup" xml:space="preserve"><value>Opstarten</value></data>
+  <data name="Step 1 of 3" xml:space="preserve"><value>Stap 1 van 3</value></data>
+  <data name="Step 2 of 3" xml:space="preserve"><value>Stap 2 van 3</value></data>
+  <data name="Step 3 of 3" xml:space="preserve"><value>Stap 3 van 3</value></data>
+  <data name="Stream protocol" xml:space="preserve"><value>Streamprotocol</value></data>
+  <data name="Stream quality" xml:space="preserve"><value>Streamkwaliteit</value></data>
+  <data name="Stream unavailable" xml:space="preserve"><value>Stream niet beschikbaar</value></data>
+  <data name="Streaming" xml:space="preserve"><value>Streamen</value></data>
+  <data name="Swap with main view (C)" xml:space="preserve"><value>Wisselen met de hoofdweergave (C)</value></data>
+  <data name="Switch layout profile" xml:space="preserve"><value>Lay-outprofiel wisselen</value></data>
+  <data name="Test Connection" xml:space="preserve"><value>Verbinding testen</value></data>
+  <data name="The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>De controller presenteert een nieuw certificaat (sleutel %@…). Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen — zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vertrouw het alleen als je de wijziging herkent.</value></data>
+  <data name="The controller's certificate changed. Open Settings to review and trust it." xml:space="preserve"><value>Het certificaat van de controller is gewijzigd. Open de instellingen om het te controleren en te vertrouwen.</value></data>
+  <data name="Theme" xml:space="preserve"><value>Thema</value></data>
+  <data name="Tilt down" xml:space="preserve"><value>Omlaag kantelen</value></data>
+  <data name="Tilt up" xml:space="preserve"><value>Omhoog kantelen</value></data>
+  <data name="To pan and tilt PTZ cameras, QuickProtect needs a local admin account. The Integration API key only exposes preset and patrol endpoints, not free-form movement. You can skip this and add it later in Settings." xml:space="preserve"><value>Om PTZ-camera's te pannen en te kantelen heeft QuickProtect een lokaal beheerdersaccount nodig. De integratie-API-sleutel biedt alleen endpoints voor presets en patrouilles, geen vrije beweging. Je kunt dit overslaan en het later in de instellingen toevoegen.</value></data>
+  <data name="Toggle QuickProtect" xml:space="preserve"><value>QuickProtect tonen/verbergen</value></data>
+  <data name="Trust new certificate" xml:space="preserve"><value>Nieuw certificaat vertrouwen</value></data>
+  <data name="Unmute (M)" xml:space="preserve"><value>Dempen opheffen (M)</value></data>
+  <data name="Unpin Floating Window" xml:space="preserve"><value>Zwevend venster losmaken</value></data>
+  <data name="Updates" xml:space="preserve"><value>Updates</value></data>
+  <data name="Use default" xml:space="preserve"><value>Standaard gebruiken</value></data>
+  <data name="Username" xml:space="preserve"><value>Gebruikersnaam</value></data>
+  <data name="Version" xml:space="preserve"><value>Versie</value></data>
+  <data name="View License" xml:space="preserve"><value>Bekijk licentie</value></data>
+  <data name="View fullscreen" xml:space="preserve"><value>Toon op volledig scherm</value></data>
+  <data name="View on GitHub" xml:space="preserve"><value>Bekijk op GitHub</value></data>
+  <data name="View the project source and releases." xml:space="preserve"><value>Bekijk de broncode en releases van het project.</value></data>
+  <data name="Visibility, size, and order apply to the “%@” profile. Switch profiles from the popover header." xml:space="preserve"><value>Zichtbaarheid, grootte en volgorde gelden voor het profiel ‘%@’. Wissel van profiel via de kop van de popover.</value></data>
+  <data name="Welcome to
+QuickProtect." xml:space="preserve"><value>Welkom bij
+QuickProtect.</value></data>
+  <data name="Within QuickProtect" xml:space="preserve"><value>Binnen QuickProtect</value></data>
+  <data name="You're all set." xml:space="preserve"><value>Alles is klaar.</value></data>
+  <data name="Zoom" xml:space="preserve"><value>Zoom</value></data>
+  <data name="Zoom (PTZ)" xml:space="preserve"><value>Zoom (PTZ)</value></data>
+  <data name="Zoom in (I)" xml:space="preserve"><value>Inzoomen (I)</value></data>
+  <data name="Zoom out (O)" xml:space="preserve"><value>Uitzoomen (O)</value></data>
+  <data name="back to popover" xml:space="preserve"><value>terug naar pop-over</value></data>
+  <data name="exit fullscreen" xml:space="preserve"><value>volledig scherm sluiten</value></data>
+  <data name="just now" xml:space="preserve"><value>zojuist</value></data>
+  <data name="v%@ available" xml:space="preserve"><value>v%@ beschikbaar</value></data>
+  <data name="© 2026 Christian Bartels · Released under the MIT License." xml:space="preserve"><value>© 2026 Christian Bartels · Uitgebracht onder de MIT-licentie.</value></data>
+  <data name="⌘+scroll" xml:space="preserve"><value>⌘+scrollen</value></data>
+  <data name="%lld cameras detected." xml:space="preserve"><value>%lld camera's gedetecteerd.</value></data>
+  <data name="%lld streams" xml:space="preserve"><value>%lld streams</value></data>
+  <data name="Connected — %lld cameras found" xml:space="preserve"><value>Verbonden — %lld camera's gevonden</value></data>
+  <data name="A new version ({0}) is available." xml:space="preserve"><value>Er is een nieuwe versie ({0}) beschikbaar.</value></data>
+  <data name="Accent color" xml:space="preserve"><value>Accentkleur</value></data>
+  <data name="Blue" xml:space="preserve"><value>Blauw</value></data>
+  <data name="Camera isn't playing yet." xml:space="preserve"><value>De camera speelt nog niet af.</value></data>
+  <data name="Cameras &amp; Layout" xml:space="preserve"><value>Camera's en indeling</value></data>
+  <data name="Can't create folder: {0}" xml:space="preserve"><value>Kan de map niet aanmaken: {0}</value></data>
+  <data name="Checking for updates…" xml:space="preserve"><value>Zoeken naar updates…</value></data>
+  <data name="Choose Folder…" xml:space="preserve"><value>Map kiezen…</value></data>
+  <data name="Click the aperture icon in your tray to open the camera grid, or press your global shortcut." xml:space="preserve"><value>Klik op het diafragmasymbool in het systeemvak om het cameraraster te openen, of gebruik je globale sneltoets.</value></data>
+  <data name="Clipboard is unavailable." xml:space="preserve"><value>Het klembord is niet beschikbaar.</value></data>
+  <data name="Controller Connection" xml:space="preserve"><value>Controllerverbinding</value></data>
+  <data name="Create" xml:space="preserve"><value>Aanmaken</value></data>
+  <data name="Delete" xml:space="preserve"><value>Verwijderen</value></data>
+  <data name="Error: {0}" xml:space="preserve"><value>Fout: {0}</value></data>
+  <data name="Esc back · F fullscreen · arrows pan/tilt · I/O zoom · +/− digital zoom (0 resets)" xml:space="preserve"><value>Esc terug · F volledig scherm · pijlen pannen/kantelen · I/O zoom · +/− digitale zoom (0 herstelt)</value></data>
+  <data name="Fit/Fill" xml:space="preserve"><value>Passend/Vullend</value></data>
+  <data name="Global shortcut (toggle camera panel)" xml:space="preserve"><value>Globale sneltoets (camerapaneel tonen/verbergen)</value></data>
+  <data name="Green" xml:space="preserve"><value>Groen</value></data>
+  <data name="IP address or hostname" xml:space="preserve"><value>IP-adres of hostnaam</value></data>
+  <data name="Integration API key" xml:space="preserve"><value>Integratie-API-sleutel</value></data>
+  <data name="Language" xml:space="preserve"><value>Taal</value></data>
+  <data name="Layout profile" xml:space="preserve"><value>Lay-outprofiel</value></data>
+  <data name="Live UniFi Protect feeds, one click from your tray." xml:space="preserve"><value>Live UniFi Protect-feeds, één klik vanaf je systeemvak.</value></data>
+  <data name="Local-account username and password enable pan/tilt/zoom and zoom-lens controls." xml:space="preserve"><value>De gebruikersnaam en het wachtwoord van een lokaal account maken pannen/kantelen/zoomen en de zoomlensbediening mogelijk.</value></data>
+  <data name="New certificate trusted." xml:space="preserve"><value>Nieuw certificaat vertrouwd.</value></data>
+  <data name="New profile name" xml:space="preserve"><value>Naam van nieuw profiel</value></data>
+  <data name="No cameras yet. Open Settings to connect your controller." xml:space="preserve"><value>Nog geen camera's. Open de instellingen om je controller te verbinden.</value></data>
+  <data name="Not set" xml:space="preserve"><value>Niet ingesteld</value></data>
+  <data name="Open QuickProtect" xml:space="preserve"><value>QuickProtect openen</value></data>
+  <data name="Open Release Page" xml:space="preserve"><value>Releasepagina openen</value></data>
+  <data name="Orange" xml:space="preserve"><value>Oranje</value></data>
+  <data name="Package camera" xml:space="preserve"><value>Pakketcamera</value></data>
+  <data name="Pin" xml:space="preserve"><value>Vastmaken</value></data>
+  <data name="Pin as an always-on-top window" xml:space="preserve"><value>Vastmaken als venster dat altijd bovenaan blijft</value></data>
+  <data name="Pink" xml:space="preserve"><value>Roze</value></data>
+  <data name="Press a key combination…" xml:space="preserve"><value>Druk op een toetsencombinatie…</value></data>
+  <data name="Purple" xml:space="preserve"><value>Paars</value></data>
+  <data name="Record" xml:space="preserve"><value>Vastleggen</value></data>
+  <data name="Red" xml:space="preserve"><value>Rood</value></data>
+  <data name="Restart QuickProtect to apply the language change." xml:space="preserve"><value>Start QuickProtect opnieuw om de taalwijziging toe te passen.</value></data>
+  <data name="Save a still frame" xml:space="preserve"><value>Een stilstaand beeld opslaan</value></data>
+  <data name="Save snapshots to" xml:space="preserve"><value>Momentopnamen opslaan in</value></data>
+  <data name="Saved" xml:space="preserve"><value>Opgeslagen</value></data>
+  <data name="Saved. Testing connection…" xml:space="preserve"><value>Opgeslagen. Verbinding wordt getest…</value></data>
+  <data name="Search" xml:space="preserve"><value>Zoeken</value></data>
+  <data name="Show focus-view controls (PTZ pad &amp; shortcut hints)" xml:space="preserve"><value>Bedieningselementen in de vergrote weergave tonen (PTZ-pad &amp; sneltoetshints)</value></data>
+  <data name="Snapshot (S)" xml:space="preserve"><value>Momentopname (S)</value></data>
+  <data name="Snapshot copied to clipboard" xml:space="preserve"><value>Momentopname naar het klembord gekopieerd</value></data>
+  <data name="Start QuickProtect at login" xml:space="preserve"><value>QuickProtect starten bij inloggen</value></data>
+  <data name="Swap with the main view" xml:space="preserve"><value>Wisselen met de hoofdweergave</value></data>
+  <data name="System default" xml:space="preserve"><value>Systeemstandaard</value></data>
+  <data name="Teal" xml:space="preserve"><value>Turquoise</value></data>
+  <data name="Testing…" xml:space="preserve"><value>Testen…</value></data>
+  <data name="The controller's certificate changed since you last connected." xml:space="preserve"><value>Het certificaat van de controller is sinds de laatste verbinding gewijzigd.</value></data>
+  <data name="To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings." xml:space="preserve"><value>Om PTZ-camera's te pannen en te kantelen heeft QuickProtect een lokaal beheerdersaccount nodig. Je kunt dit overslaan en het later in de instellingen toevoegen.</value></data>
+  <data name="Toggle audio" xml:space="preserve"><value>Geluid aan/uit</value></data>
+  <data name="Toggle fit vs. fill" xml:space="preserve"><value>Wisselen tussen passend en vullend</value></data>
+  <data name="Toggle visibility, set tile size, and reorder. Applies to this profile." xml:space="preserve"><value>Zichtbaarheid aan/uit, tegelgrootte instellen en herordenen. Geldt voor dit profiel.</value></data>
+  <data name="Unpin" xml:space="preserve"><value>Losmaken</value></data>
+  <data name="Unsupported key — use a letter, number, or function key." xml:space="preserve"><value>Niet-ondersteunde toets — gebruik een letter, cijfer of functietoets.</value></data>
+  <data name="Update available: {0}" xml:space="preserve"><value>Update beschikbaar: {0}</value></data>
+  <data name="Video is unavailable." xml:space="preserve"><value>De video is niet beschikbaar.</value></data>
+  <data name="Video unavailable" xml:space="preserve"><value>Video niet beschikbaar</value></data>
+  <data name="Windows only for now (letter, number, or function key with modifiers)." xml:space="preserve"><value>Voorlopig alleen Windows (letter, cijfer of functietoets met modificatietoetsen).</value></data>
+  <data name="You're on the latest version." xml:space="preserve"><value>Je gebruikt de nieuwste versie.</value></data>
+  <data name="Ctrl+scroll · + − · 0 resets" xml:space="preserve"><value>Ctrl+scrollen · + − · 0 herstelt</value></data>
+  <data name="Mute audio" xml:space="preserve"><value>Audio dempen</value></data>
+  <data name="PTZ" xml:space="preserve"><value>PTZ</value></data>
+  <data name="Signing in…" xml:space="preserve"><value>Aanmelden…</value></data>
+  <data name="Swap secondary lens" xml:space="preserve"><value>Tweede lens wisselen</value></data>
+  <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>Dit is normaal als je de controller opnieuw hebt geïnstalleerd of vervangen — zo niet, dan kan het erop wijzen dat iemand de verbinding onderschept. Vertrouw het certificaat alleen als je de wijziging herkent.</value></data>
+</root>

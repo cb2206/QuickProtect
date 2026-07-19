@@ -126,7 +126,7 @@ platform :mac do
 
   desc "Ship 1.1: set version to 1.1, push all localized metadata, attach build 2, and submit for review"
   lane :submit_v11 do
-    sh("cd .. && python3 scripts/gen_appstore_metadata.py")
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
     deliver(
       api_key: asc_api_key,
       app_identifier: APP_IDENTIFIER,
@@ -148,7 +148,7 @@ platform :mac do
 
   desc "Ship 1.2: set version to 1.2, push metadata, attach build 3, set review notes, submit"
   lane :submit_v12 do
-    sh("cd .. && python3 scripts/gen_appstore_metadata.py")
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
     notes = <<~NOTES
       QuickProtect is an independent, third-party macOS menu-bar client for viewing live camera feeds from the user's own UniFi Protect controller on their local network.
 
@@ -288,7 +288,7 @@ platform :mac do
 
   desc "Regenerate localized metadata from APP_STORE_LISTINGS.md and push it (no binary). Safe anytime."
   lane :metadata do
-    sh("cd .. && python3 scripts/gen_appstore_metadata.py")
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
     deliver(
       api_key: asc_api_key,
       app_identifier: APP_IDENTIFIER,
@@ -331,7 +331,7 @@ platform :mac do
   desc "Build, upload the binary + metadata, and submit the current version for review"
   lane :release do
     build
-    sh("cd .. && python3 scripts/gen_appstore_metadata.py")
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
     deliver(
       api_key: asc_api_key,
       app_identifier: APP_IDENTIFIER,

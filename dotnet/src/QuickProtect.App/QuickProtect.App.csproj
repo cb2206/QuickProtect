@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>QuickProtect.App</RootNamespace>
+    <AssemblyName>QuickProtect</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- The FFmpeg video engine works on raw AVFrame buffers -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Avalonia previewer / XAML compilation -->
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+    <!-- MVVM helpers (ObservableObject, RelayCommand) -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <!-- FFmpeg bindings for the custom video engine (demux + decode). The
+         DynamicallyLoaded variant lets us point at per-RID native libraries. -->
+    <PackageReference Include="FFmpeg.AutoGen.Abstractions" Version="7.1.1" />
+    <PackageReference Include="FFmpeg.AutoGen.Bindings.DynamicallyLoaded" Version="7.1.1" />
+    <!-- WASAPI output for the engine's audio sink (Windows). Linux uses ALSA
+         via P/Invoke (AudioSink.cs); these managed packages are inert there. -->
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+  </ItemGroup>
+
+  <!-- FFmpeg 7.1 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).
+       Bundled per-RID from desktop/native/ffmpeg/<rid>; a no-RID dev build picks
+       the host architecture so `dotnet run` works (natively, incl. win-arm64).
+       When the folder is absent (e.g. Linux without the script), the engine
+       falls back to system-installed FFmpeg libraries. -->
+  <PropertyGroup>
+    <FfmpegRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</FfmpegRid>
+    <FfmpegRid Condition="'$(FfmpegRid)' == '' and $([MSBuild]::IsOSPlatform('Windows')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">win-arm64</FfmpegRid>
+    <FfmpegRid Condition="'$(FfmpegRid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</FfmpegRid>
+    <FfmpegRid Condition="'$(FfmpegRid)' == '' and $([MSBuild]::IsOSPlatform('Linux')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</FfmpegRid>
+    <FfmpegRid Condition="'$(FfmpegRid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</FfmpegRid>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('..\..\native\ffmpeg\$(FfmpegRid)')">
+    <Content Include="..\..\native\ffmpeg\$(FfmpegRid)\*"
+             Link="ffmpeg\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuickProtect.Core\QuickProtect.Core.csproj" />
+  </ItemGroup>
+
+</Project>

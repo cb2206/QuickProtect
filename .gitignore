@@ -1,29 +1,39 @@
-# Xcode project (regenerate with `xcodegen generate`)
-*.xcodeproj/
-*.xcworkspace/
-
-# Build artifacts
-build/
-DerivedData/
-*.o
-*.swp
-
 # macOS
 .DS_Store
 
 # IDE
 .idea/
-*.xcuserdata/
 .claude/*
 !.claude/settings.json
-.build/
-
-# Fastlane secrets & generated output
-fastlane/.env
-*.p8
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/test_output/
+!.claude/hooks/
 
 # graphify knowledge graph (machine-specific, regenerate with `graphify update .`)
 graphify-out/
+
+# --- macos/ (Swift app) ---
+# Xcode project (regenerate with `xcodegen generate` in macos/)
+*.xcodeproj/
+*.xcworkspace/
+*.xcuserdata/
+
+# Build artifacts
+build/
+.build/
+DerivedData/
+*.o
+*.swp
+
+# Fastlane secrets & generated output
+macos/fastlane/.env
+*.p8
+macos/fastlane/report.xml
+macos/fastlane/Preview.html
+macos/fastlane/test_output/
+
+# --- dotnet/ (.NET port) ---
+# Build/packaging artifacts
+dotnet/dist/
+dotnet/publish-x64-debug/
+
+# FFmpeg native libraries (fetched by dotnet/scripts/get-ffmpeg.*)
+dotnet/native/

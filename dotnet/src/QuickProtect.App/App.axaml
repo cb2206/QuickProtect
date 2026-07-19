@@ -1,0 +1,129 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="QuickProtect.App.App">
+
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+
+  <Application.Resources>
+    <ResourceDictionary>
+
+      <!-- Aurora semantic tokens (port of the macOS AuroraTokens). Views reference
+           the Qp* brushes via DynamicResource so they re-resolve per theme variant
+           (and inside ThemeVariantScope RequestedThemeVariant="Dark" subtrees). -->
+      <ResourceDictionary.ThemeDictionaries>
+
+        <ResourceDictionary x:Key="Dark">
+          <Color x:Key="QpPopoverBgColor">#FF0A0A0B</Color>
+          <Color x:Key="QpGridBgColor">#FF050506</Color>
+          <Color x:Key="QpChromeColor">#C71C1C1E</Color>
+          <Color x:Key="QpChromeBorderColor">#14FFFFFF</Color>
+          <Color x:Key="QpChipColor">#8C000000</Color>
+          <Color x:Key="QpChipBorderColor">#1AFFFFFF</Color>
+          <Color x:Key="QpTextPrimaryColor">#FFF5F5F7</Color>
+          <Color x:Key="QpTextSecondaryColor">#99EBEBF5</Color>
+          <Color x:Key="QpTextTertiaryColor">#66EBEBF5</Color>
+          <Color x:Key="QpTextHintColor">#4DEBEBF5</Color>
+          <Color x:Key="QpDividerColor">#14FFFFFF</Color>
+          <Color x:Key="QpFieldBgColor">#4D000000</Color>
+          <Color x:Key="QpSectionBgColor">#0AFFFFFF</Color>
+          <Color x:Key="QpSubtleSurfaceColor">#0FFFFFFF</Color>
+          <Color x:Key="QpControlSurfaceColor">#1FFFFFFF</Color>
+          <Color x:Key="QpControlSurfaceHoverColor">#29FFFFFF</Color>
+          <Color x:Key="QpStatusGreenColor">#FF30D158</Color>
+          <Color x:Key="QpStatusGreenTextColor">#FF30D158</Color>
+          <Color x:Key="QpStatusGreenSurfaceColor">#2430D158</Color>
+          <Color x:Key="QpStatusRedColor">#FFFF453A</Color>
+          <Color x:Key="QpStatusRedSurfaceColor">#33FF453A</Color>
+          <Color x:Key="QpStatusOrangeSurfaceColor">#33FF9F0A</Color>
+          <Color x:Key="QpVideoBgColor">#FF000000</Color>
+
+          <SolidColorBrush x:Key="QpPopoverBg" Color="{StaticResource QpPopoverBgColor}" />
+          <SolidColorBrush x:Key="QpGridBg" Color="{StaticResource QpGridBgColor}" />
+          <SolidColorBrush x:Key="QpChrome" Color="{StaticResource QpChromeColor}" />
+          <SolidColorBrush x:Key="QpChromeBorder" Color="{StaticResource QpChromeBorderColor}" />
+          <SolidColorBrush x:Key="QpChip" Color="{StaticResource QpChipColor}" />
+          <SolidColorBrush x:Key="QpChipBorder" Color="{StaticResource QpChipBorderColor}" />
+          <SolidColorBrush x:Key="QpTextPrimary" Color="{StaticResource QpTextPrimaryColor}" />
+          <SolidColorBrush x:Key="QpTextSecondary" Color="{StaticResource QpTextSecondaryColor}" />
+          <SolidColorBrush x:Key="QpTextTertiary" Color="{StaticResource QpTextTertiaryColor}" />
+          <SolidColorBrush x:Key="QpTextHint" Color="{StaticResource QpTextHintColor}" />
+          <SolidColorBrush x:Key="QpDivider" Color="{StaticResource QpDividerColor}" />
+          <SolidColorBrush x:Key="QpFieldBg" Color="{StaticResource QpFieldBgColor}" />
+          <SolidColorBrush x:Key="QpSectionBg" Color="{StaticResource QpSectionBgColor}" />
+          <SolidColorBrush x:Key="QpSubtleSurface" Color="{StaticResource QpSubtleSurfaceColor}" />
+          <SolidColorBrush x:Key="QpControlSurface" Color="{StaticResource QpControlSurfaceColor}" />
+          <SolidColorBrush x:Key="QpControlSurfaceHover" Color="{StaticResource QpControlSurfaceHoverColor}" />
+          <SolidColorBrush x:Key="QpStatusGreen" Color="{StaticResource QpStatusGreenColor}" />
+          <SolidColorBrush x:Key="QpStatusGreenText" Color="{StaticResource QpStatusGreenTextColor}" />
+          <SolidColorBrush x:Key="QpStatusGreenSurface" Color="{StaticResource QpStatusGreenSurfaceColor}" />
+          <SolidColorBrush x:Key="QpStatusRed" Color="{StaticResource QpStatusRedColor}" />
+          <SolidColorBrush x:Key="QpStatusRedSurface" Color="{StaticResource QpStatusRedSurfaceColor}" />
+          <SolidColorBrush x:Key="QpStatusOrangeSurface" Color="{StaticResource QpStatusOrangeSurfaceColor}" />
+          <SolidColorBrush x:Key="QpVideoBg" Color="{StaticResource QpVideoBgColor}" />
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Light">
+          <Color x:Key="QpPopoverBgColor">#FFFFFFFF</Color>
+          <Color x:Key="QpGridBgColor">#FFEFEFF2</Color>
+          <Color x:Key="QpChromeColor">#D1F6F6F7</Color>
+          <Color x:Key="QpChromeBorderColor">#14000000</Color>
+          <Color x:Key="QpChipColor">#D1FFFFFF</Color>
+          <Color x:Key="QpChipBorderColor">#14000000</Color>
+          <Color x:Key="QpTextPrimaryColor">#FF1D1D1F</Color>
+          <Color x:Key="QpTextSecondaryColor">#993C3C43</Color>
+          <Color x:Key="QpTextTertiaryColor">#663C3C43</Color>
+          <Color x:Key="QpTextHintColor">#4D3C3C43</Color>
+          <Color x:Key="QpDividerColor">#14000000</Color>
+          <Color x:Key="QpFieldBgColor">#FFFFFFFF</Color>
+          <Color x:Key="QpSectionBgColor">#06000000</Color>
+          <Color x:Key="QpSubtleSurfaceColor">#0D000000</Color>
+          <Color x:Key="QpControlSurfaceColor">#14000000</Color>
+          <Color x:Key="QpControlSurfaceHoverColor">#1F000000</Color>
+          <Color x:Key="QpStatusGreenColor">#FF30D158</Color>
+          <Color x:Key="QpStatusGreenTextColor">#FF248A3D</Color>
+          <Color x:Key="QpStatusGreenSurfaceColor">#2E30D158</Color>
+          <Color x:Key="QpStatusRedColor">#FFFF453A</Color>
+          <Color x:Key="QpStatusRedSurfaceColor">#33FF453A</Color>
+          <Color x:Key="QpStatusOrangeSurfaceColor">#33FF9F0A</Color>
+          <Color x:Key="QpVideoBgColor">#FF000000</Color>
+
+          <SolidColorBrush x:Key="QpPopoverBg" Color="{StaticResource QpPopoverBgColor}" />
+          <SolidColorBrush x:Key="QpGridBg" Color="{StaticResource QpGridBgColor}" />
+          <SolidColorBrush x:Key="QpChrome" Color="{StaticResource QpChromeColor}" />
+          <SolidColorBrush x:Key="QpChromeBorder" Color="{StaticResource QpChromeBorderColor}" />
+          <SolidColorBrush x:Key="QpChip" Color="{StaticResource QpChipColor}" />
+          <SolidColorBrush x:Key="QpChipBorder" Color="{StaticResource QpChipBorderColor}" />
+          <SolidColorBrush x:Key="QpTextPrimary" Color="{StaticResource QpTextPrimaryColor}" />
+          <SolidColorBrush x:Key="QpTextSecondary" Color="{StaticResource QpTextSecondaryColor}" />
+          <SolidColorBrush x:Key="QpTextTertiary" Color="{StaticResource QpTextTertiaryColor}" />
+          <SolidColorBrush x:Key="QpTextHint" Color="{StaticResource QpTextHintColor}" />
+          <SolidColorBrush x:Key="QpDivider" Color="{StaticResource QpDividerColor}" />
+          <SolidColorBrush x:Key="QpFieldBg" Color="{StaticResource QpFieldBgColor}" />
+          <SolidColorBrush x:Key="QpSectionBg" Color="{StaticResource QpSectionBgColor}" />
+          <SolidColorBrush x:Key="QpSubtleSurface" Color="{StaticResource QpSubtleSurfaceColor}" />
+          <SolidColorBrush x:Key="QpControlSurface" Color="{StaticResource QpControlSurfaceColor}" />
+          <SolidColorBrush x:Key="QpControlSurfaceHover" Color="{StaticResource QpControlSurfaceHoverColor}" />
+          <SolidColorBrush x:Key="QpStatusGreen" Color="{StaticResource QpStatusGreenColor}" />
+          <SolidColorBrush x:Key="QpStatusGreenText" Color="{StaticResource QpStatusGreenTextColor}" />
+          <SolidColorBrush x:Key="QpStatusGreenSurface" Color="{StaticResource QpStatusGreenSurfaceColor}" />
+          <SolidColorBrush x:Key="QpStatusRed" Color="{StaticResource QpStatusRedColor}" />
+          <SolidColorBrush x:Key="QpStatusRedSurface" Color="{StaticResource QpStatusRedSurfaceColor}" />
+          <SolidColorBrush x:Key="QpStatusOrangeSurface" Color="{StaticResource QpStatusOrangeSurfaceColor}" />
+          <SolidColorBrush x:Key="QpVideoBg" Color="{StaticResource QpVideoBgColor}" />
+        </ResourceDictionary>
+
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Accent-derived brushes (same in both variants). Defaults for the stock
+           blue; App.ApplyAccent overwrites these at startup and on accent change. -->
+      <SolidColorBrush x:Key="QpAccent" Color="#FF0A84FF" />
+      <SolidColorBrush x:Key="QpAccentSurface" Color="#3B0A84FF" />
+      <SolidColorBrush x:Key="QpAccentStrong" Color="#CC0A84FF" />
+      <SolidColorBrush x:Key="QpAccentText" Color="#FF0A84FF" />
+
+    </ResourceDictionary>
+  </Application.Resources>
+
+</Application>
