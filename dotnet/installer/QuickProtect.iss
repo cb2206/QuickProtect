@@ -1,10 +1,13 @@
 ; Inno Setup script for the QuickProtect Windows build.
 ; Compile via dotnet/scripts/package-windows.ps1 (it publishes the app and
 ; passes AppVersion/PublishDir/OutputDir), or manually:
-;   iscc QuickProtect.iss /DAppVersion=1.2.1 /DPublishDir=..\dist\win-x64 /DOutputDir=..\dist
+;   iscc QuickProtect.iss /DAppVersion=1.3 /DPublishDir=..\dist\win-x64 /DOutputDir=..\dist
+;
+; The fallback below is only used for a manual iscc run without /DAppVersion;
+; package-windows.ps1 always passes the version from Directory.Build.props.
 
 #ifndef AppVersion
-  #define AppVersion "1.2.1"
+  #define AppVersion "1.3"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\dist\win-x64"
