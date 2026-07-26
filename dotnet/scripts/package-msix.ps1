@@ -1,20 +1,25 @@
 # Builds the Microsoft Store (MSIX) package.
-#   powershell -File dotnet/scripts/package-msix.ps1 [-Version 1.2.1] [-SelfSign]
-# Output: dotnet/dist/QuickProtect-<version>-win-x64.msix
+#   powershell -File dotnet/scripts/package-msix.ps1 [-Version 1.3] [-SelfSign]
+# Output: dotnet/dist/QuickProtect-<version>-win-x64.msix          (Store upload)
+#         dotnet/dist/QuickProtect-<version>-win-x64-sideload.msix (-SelfSign)
 #
 # Notes:
 #  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 7.1 natives
 #    the custom video engine uses; fetched on demand by get-ffmpeg.ps1).
-#  - Requires the Windows 10/11 SDK for makeappx.exe (and signtool.exe when
-#    -SelfSign is used):  winget install Microsoft.WindowsSDK
+#  - Needs makeappx.exe (and signtool.exe when -SelfSign is used). Uses an
+#    installed Windows 10/11 SDK if present — winget install
+#    Microsoft.WindowsSDK.10.0.26100 — otherwise falls back to fetching just the
+#    tools from NuGet via get-sdk-buildtools.ps1 (no admin, ~30 MB).
 #  - Store uploads are UNSIGNED — Partner Center re-signs the package with a
 #    Microsoft certificate, which is why the paid build needs no code-signing
 #    certificate of its own. -SelfSign exists only so the package can be
-#    sideloaded locally for testing; such a package is NOT what you upload.
+#    sideloaded locally for testing; such a package is NOT what you upload, so
+#    it is written to a separate *-sideload.msix filename to keep the two apart.
 #  - IdentityName/Publisher must match Partner Center → your app → Product
-#    identity exactly, or the upload is rejected. They are unknown until the
-#    app is reserved there, so the defaults below are deliberately invalid
-#    placeholders for everything except local -SelfSign testing.
+#    identity exactly, or the upload is rejected (both as the publisher string
+#    and via the package family name, whose suffix is a hash of it). The app is
+#    reserved, so the defaults below are the real values — a plain run with no
+#    -Publisher produces an uploadable package.
 
 param(
     [string]$Version,
@@ -45,15 +50,15 @@ $parts = $Version.Split('.')
 while ($parts.Count -lt 3) { $parts += "0" }
 $packageVersion = "{0}.{1}.{2}.0" -f $parts[0], $parts[1], $parts[2]
 
-# A self-signed package must carry the certificate's own subject as Publisher,
-# otherwise Windows refuses to install it.
+# Partner Center -> QuickProtect -> Product identity. Yields package family
+# name CBGroupLLC.QuickProtect_g3ygdvw278mtr; not a secret (it ships inside
+# every published package), but it must match exactly or the upload is rejected.
+$storePublisher = "CN=84A6E73B-CBE2-489D-A5CC-149A8CEFC7D1"
+# A self-signed package must instead carry the test certificate's own subject as
+# Publisher, otherwise Windows refuses to install it.
 $selfSignSubject = "CN=QuickProtect Local Test"
 if (-not $Publisher) {
-    $Publisher = if ($SelfSign) { $selfSignSubject } else { "CN=PLACEHOLDER-SET-FROM-PARTNER-CENTER" }
-}
-if (-not $SelfSign -and $Publisher -like "*PLACEHOLDER*") {
-    Write-Warning "Publisher is still a placeholder. The package will build but Partner Center will reject it."
-    Write-Warning "Pass -Publisher 'CN=<your GUID>' from Partner Center -> your app -> Product identity."
+    $Publisher = if ($SelfSign) { $selfSignSubject } else { $storePublisher }
 }
 
 & (Join-Path $PSScriptRoot "get-ffmpeg.ps1") -Rids win-x64
@@ -76,24 +81,46 @@ $manifest = $manifest.Replace("{{PublisherDisplayName}}", $PublisherDisplayName)
 $manifest = $manifest.Replace("{{Version}}", $packageVersion)
 Set-Content -Path (Join-Path $staging "AppxManifest.xml") -Value $manifest -Encoding UTF8
 
-# Locate makeappx.exe from the newest installed Windows SDK.
+# Locate makeappx.exe from the newest installed Windows SDK, falling back to the
+# NuGet build-tools package so packaging works without a full SDK install.
+# These are host tools, so they are probed by host architecture (x64 binaries
+# still run under emulation on arm64, hence the ordered preference list).
+$sdkToolArchs = switch ($env:PROCESSOR_ARCHITECTURE) {
+    "ARM64" { @("arm64", "x64") }
+    default { @("x64", "x86") }
+}
+
 function Find-SdkTool([string]$name) {
     $tool = Get-Command $name -ErrorAction SilentlyContinue
     if ($tool) { return $tool.Source }
+
+    # Newest installed Windows SDK.
     $roots = @("${env:ProgramFiles(x86)}\Windows Kits\10\bin", "$env:ProgramFiles\Windows Kits\10\bin")
     $found = $roots |
         Where-Object { Test-Path $_ } |
         ForEach-Object { Get-ChildItem $_ -Directory -ErrorAction SilentlyContinue } |
         Sort-Object Name -Descending |
-        ForEach-Object { Join-Path $_.FullName "x64\$name" } |
+        ForEach-Object { $dir = $_.FullName; $sdkToolArchs | ForEach-Object { Join-Path $dir "$_\$name" } } |
         Where-Object { Test-Path $_ } |
         Select-Object -First 1
-    if (-not $found) { throw "$name not found. Install the Windows SDK: winget install Microsoft.WindowsSDK" }
+    if ($found) { return $found }
+
+    # No SDK installed - fetch the tools from NuGet (cached in native/, gitignored).
+    & (Join-Path $PSScriptRoot "get-sdk-buildtools.ps1")
+    $toolRoot = Join-Path $desktop "native\sdk-buildtools"
+    $found = Get-ChildItem $toolRoot -Recurse -Filter $name -ErrorAction SilentlyContinue |
+        Where-Object { $sdkToolArchs -contains (Split-Path $_.DirectoryName -Leaf) } |
+        Sort-Object { $sdkToolArchs.IndexOf((Split-Path $_.DirectoryName -Leaf)) } |
+        Select-Object -First 1 -ExpandProperty FullName
+    if (-not $found) { throw "$name not found. Install the Windows SDK: winget install Microsoft.WindowsSDK.10.0.26100" }
     return $found
 }
 
 $makeappx = Find-SdkTool "makeappx.exe"
-$output = Join-Path $dist "QuickProtect-$Version-win-x64.msix"
+# Distinct filename for sideload builds so a test package can never be mistaken
+# for the uploadable one (they used to overwrite each other).
+$suffix = if ($SelfSign) { "-sideload" } else { "" }
+$output = Join-Path $dist "QuickProtect-$Version-win-x64$suffix.msix"
 if (Test-Path $output) { Remove-Item $output -Force }
 
 Write-Host "Packing with $makeappx..."

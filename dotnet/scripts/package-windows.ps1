@@ -1,5 +1,5 @@
 # Builds the free (unsigned) Windows installer for GitHub releases.
-#   powershell -File dotnet/scripts/package-windows.ps1 [-Version 1.2.1]
+#   powershell -File dotnet/scripts/package-windows.ps1 [-Version 1.3]
 # Output: dotnet/dist/QuickProtect-Setup-<version>-win-x64.exe
 #
 # The paid Microsoft Store build is a different artifact — see package-msix.ps1.
@@ -9,12 +9,20 @@
 #    the custom video engine uses; fetched on demand by get-ffmpeg.ps1).
 #  - Requires Inno Setup 6 (winget install JRSoftware.InnoSetup).
 
-param([string]$Version = "1.2.1")
+param([string]$Version)
 
 $ErrorActionPreference = "Stop"
 $desktop = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $desktop "dist"
 $publish = Join-Path $dist "win-x64"
+
+# Version defaults to the single source of truth so the installer can't drift
+# from the assembly version the updater compares against (same as package-msix.ps1).
+if (-not $Version) {
+    $props = Get-Content (Join-Path $desktop "Directory.Build.props") -Raw
+    if ($props -notmatch '<Version>([^<]+)</Version>') { throw "Could not read <Version> from Directory.Build.props" }
+    $Version = $Matches[1]
+}
 
 & (Join-Path $PSScriptRoot "get-ffmpeg.ps1") -Rids win-x64
 

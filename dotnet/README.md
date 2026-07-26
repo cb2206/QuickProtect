@@ -124,19 +124,44 @@ Partner Center re-signs it with a Microsoft certificate, so no code-signing
 certificate is needed.
 
 ```powershell
-winget install Microsoft.WindowsSDK   # once, for makeappx.exe
-powershell -File scripts/package-msix.ps1 -IdentityName <name> -Publisher "CN=<guid>"
+powershell -File scripts/package-msix.ps1
 # → dist/QuickProtect-<version>-win-x64.msix
 ```
 
-`-IdentityName` and `-Publisher` must match **Partner Center → your app →
-Product identity** exactly or the upload is rejected; they only exist once the
-app is reserved there. To sideload the package for local testing instead, run
-with `-SelfSign` and import the generated certificate into *Trusted People*:
+This needs `makeappx.exe`. If no Windows SDK is installed the script fetches
+just the tools from NuGet (~30 MB, no admin, cached in `native/`). To use a full
+SDK instead, install it once — note the ID is versioned, plain
+`Microsoft.WindowsSDK` no longer resolves:
+
+```powershell
+winget install Microsoft.WindowsSDK.10.0.26100
+```
+
+`-IdentityName` and `-Publisher` default to the reserved app's real values from
+**Partner Center → QuickProtect → Product identity**, so the plain command above
+is uploadable as-is. They must match exactly or the upload is rejected twice
+over: once on the publisher string, and once on the package family name, whose
+`_g3ygdvw278mtr` suffix is a hash of that publisher.
+
+To sideload for local testing instead, run with `-SelfSign` and import the
+generated certificate into *Trusted People*. This writes a **separate**
+`-sideload.msix` file — it carries the test certificate's identity and Partner
+Center will reject it, so never upload that one:
 
 ```powershell
 powershell -File scripts/package-msix.ps1 -SelfSign
+# → dist/QuickProtect-<version>-win-x64-sideload.msix
 ```
+
+The manifest declares only the `Windows.Desktop` device family, so in Partner
+Center leave **Windows 10/11 Desktop** checked and uncheck everything else —
+a checked family with no matching package blocks submission.
+
+Partner Center always flags `runFullTrust` as a restricted capability needing
+approval. That warning is expected, not a defect: it is required for any Win32
+app in an MSIX container and is reviewed during certification. Justify it in
+*Notes for certification* — full-trust desktop app bundling a native FFmpeg
+decoder, talking to the user's own UniFi Protect console on the LAN.
 
 The tile PNGs under `installer/msix/Assets/` are committed and drawn from the
 same Aurora design as the macOS icon. Regenerate them only if the icon changes
