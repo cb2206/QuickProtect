@@ -45,7 +45,10 @@ FIELDS = {
 SUPPORT_URL = "https://quickprotect.app/support/"
 MARKETING_URL = "https://quickprotect.app/"
 PRIVACY_URL = "https://quickprotect.app/support/privacy.html"
-COPYRIGHT = "2026 Christian Bartels"
+# The App Store account is an organization account, so the store-facing
+# copyright names the company, not the individual. This is separate from the
+# MIT license holder in LICENSE, which stays as-is.
+COPYRIGHT = "2026 CB Group LLC"
 PRIMARY_CATEGORY = "UTILITIES"
 
 FIELD_RE = re.compile(r"\*\*(.+?)\*\*\s*\n```\n(.*?)\n```", re.DOTALL)

@@ -1,1 +1,3 @@
-Primeira versão pública do QuickProtect.
+• Corrigida uma falha na visão geral das transmissões quando várias transmissões de câmera mudavam ao mesmo tempo.
+• A janela de câmeras agora fecha quando você muda para outro app com Command-Tab ou pelo Dock.
+• As verificações de atualização não anunciam mais uma versão até que a compilação para Mac esteja disponível.

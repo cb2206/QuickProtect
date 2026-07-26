@@ -1,1 +1,3 @@
-Erste öffentliche Version von QuickProtect.
+• Absturz in der Stream-Übersicht behoben, wenn sich mehrere Kamera-Streams gleichzeitig geändert haben.
+• Das Kamerafenster schließt sich jetzt, wenn du mit Befehl-Tab oder über das Dock zu einer anderen App wechselst.
+• Update-Prüfungen melden eine neue Version erst, wenn deren Mac-Build verfügbar ist.

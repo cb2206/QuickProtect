@@ -76,7 +76,9 @@ QuickProtect is an independent app and is not affiliated with or endorsed by Ubi
 
 **What's New**
 ```
-First public release of QuickProtect.
+• Fixed a crash in the stream overview when several camera streams changed at once.
+• The camera panel now closes when you switch to another app with Command-Tab or the Dock.
+• Update checks no longer announce a release until its Mac build is available.
 ```
 
 ---
@@ -133,7 +135,9 @@ QuickProtect ist eine unabhängige App und steht in keiner Verbindung zu Ubiquit
 
 **What's New**
 ```
-Erste öffentliche Version von QuickProtect.
+• Absturz in der Stream-Übersicht behoben, wenn sich mehrere Kamera-Streams gleichzeitig geändert haben.
+• Das Kamerafenster schließt sich jetzt, wenn du mit Befehl-Tab oder über das Dock zu einer anderen App wechselst.
+• Update-Prüfungen melden eine neue Version erst, wenn deren Mac-Build verfügbar ist.
 ```
 
 ---
@@ -190,7 +194,9 @@ QuickProtect est une app indépendante, non affiliée à Ubiquiti Inc. ni approu
 
 **What's New**
 ```
-Première version publique de QuickProtect.
+• Correction d'un plantage de la vue d'ensemble des flux lorsque plusieurs flux de caméra changeaient en même temps.
+• La fenêtre des caméras se ferme désormais lorsque vous passez à une autre app avec Commande-Tab ou le Dock.
+• Les vérifications de mise à jour n'annoncent plus une version tant que sa version Mac n'est pas disponible.
 ```
 
 ---
@@ -247,7 +253,9 @@ QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni res
 
 **What's New**
 ```
-Primera versión pública de QuickProtect.
+• Corregido un fallo en la vista general de transmisiones cuando varias transmisiones cambiaban a la vez.
+• La ventana de cámaras ahora se cierra cuando cambias a otra app con Comando-Tab o el Dock.
+• Las comprobaciones de actualización ya no anuncian una versión hasta que su compilación para Mac está disponible.
 ```
 
 ---
@@ -304,7 +312,9 @@ QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd d
 
 **What's New**
 ```
-Eerste openbare versie van QuickProtect.
+• Crash in het streamoverzicht verholpen wanneer meerdere camerastreams tegelijk wijzigden.
+• Het venster met camera's sluit nu wanneer je met Command-Tab of via het Dock naar een andere app gaat.
+• Updatecontroles melden een versie pas wanneer de Mac-versie ervan beschikbaar is.
 ```
 
 ---
@@ -361,7 +371,9 @@ QuickProtect è un'app indipendente e non è affiliata a Ubiquiti Inc. né appro
 
 **What's New**
 ```
-Prima versione pubblica di QuickProtect.
+• Risolto un arresto anomalo nella panoramica dei flussi quando più flussi delle telecamere cambiavano contemporaneamente.
+• La finestra delle telecamere ora si chiude quando passi a un'altra app con Comando-Tab o dal Dock.
+• I controlli degli aggiornamenti non annunciano più una versione finché la relativa versione per Mac non è disponibile.
 ```
 
 ---
@@ -418,5 +430,7 @@ O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiq
 
 **What's New**
 ```
-Primeira versão pública do QuickProtect.
+• Corrigida uma falha na visão geral das transmissões quando várias transmissões de câmera mudavam ao mesmo tempo.
+• A janela de câmeras agora fecha quando você muda para outro app com Command-Tab ou pelo Dock.
+• As verificações de atualização não anunciam mais uma versão até que a compilação para Mac esteja disponível.
 ```

@@ -1,1 +1,3 @@
-First public release of QuickProtect.
+• Fixed a crash in the stream overview when several camera streams changed at once.
+• The camera panel now closes when you switch to another app with Command-Tab or the Dock.
+• Update checks no longer announce a release until its Mac build is available.
