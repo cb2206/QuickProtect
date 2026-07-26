@@ -98,6 +98,7 @@
   <data name="Login failed — check the username and password" xml:space="preserve"><value>Anmeldung fehlgeschlagen – prüfe Benutzername und Passwort</value></data>
   <data name="Login failed — check username and password" xml:space="preserve"><value>Anmeldung fehlgeschlagen – prüfe Benutzername und Passwort</value></data>
   <data name="Low" xml:space="preserve"><value>Niedrig</value></data>
+  <data name="Managed by Windows under Settings → Apps → Startup." xml:space="preserve"><value>Wird von Windows verwaltet – unter Einstellungen → Apps → Autostart.</value></data>
   <data name="Medium" xml:space="preserve"><value>Mittel</value></data>
   <data name="Menu-bar status app for UniFi Protect. Live camera feeds, one click away." xml:space="preserve"><value>Menüleisten-App für UniFi Protect. Live-Kamerafeeds, nur einen Klick entfernt.</value></data>
   <data name="Mute" xml:space="preserve"><value>Stummschalten</value></data>

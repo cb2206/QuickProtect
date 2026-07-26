@@ -135,8 +135,15 @@ port (`dotnet/`).
   supplies the deliberate friction — intentionally unsigned, like the macOS
   DMG). No winget listing (frictionless `winget upgrade` would defeat that).
   One release tag per version carries all OS assets:
-  `QuickProtect-<ver>.dmg` / `QuickProtect-<ver>-win-x64.exe` /
+  `QuickProtect-<ver>.dmg` / `QuickProtect-Setup-<ver>-win-x64.exe` /
   `QuickProtect-<ver>-linux-x64.tar.gz`.
+  MSIX packaging is in place (`scripts/package-msix.ps1`,
+  `installer/msix/AppxManifest.xml`, committed tile assets); the Partner Center
+  identity/publisher values are the only missing inputs. Two container
+  behaviours are handled in code: `%APPDATA%` writes are redirected by Windows
+  (no change needed), and launch-at-login moves from the `Run` key — virtualised
+  away in a package — to the manifest's `windows.startupTask`, which the
+  Settings UI surfaces as a pointer to Windows' own switch.
 - **Linux** (deferred): frictionless-update channel wanted (Flathub preferred,
   pending its AI-assisted-app policy; fallbacks AUR + AppImage/tarball). Bundle
   the FFmpeg 7.1 natives (as the Windows installer does) or declare an FFmpeg

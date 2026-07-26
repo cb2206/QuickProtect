@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX manifest for the Microsoft Store build of QuickProtect.
+
+  The {{...}} tokens are substituted by dotnet/scripts/package-msix.ps1. Three
+  of them come from Partner Center once the app is reserved there and CANNOT be
+  guessed — a mismatch makes the Store reject the upload:
+
+    {{IdentityName}}          Package identity Name  (e.g. CBGroupLLC.QuickProtect)
+    {{Publisher}}             Package identity Publisher (e.g. CN=<GUID>)
+    {{PublisherDisplayName}}  The verified company name (CB Group LLC)
+
+  Find all three under Partner Center → your app → Product identity.
+
+  This is a full-trust Win32 app (Avalonia + a native FFmpeg engine), hence
+  the runFullTrust restricted capability and the Windows.FullTrustApplication
+  entry point rather than a UWP activation model.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop rescap">
+
+  <!-- Version must be four parts and the revision must be 0 for Store uploads;
+       the Store reserves the revision field for its own repackaging. -->
+  <Identity
+    Name="{{IdentityName}}"
+    Publisher="{{Publisher}}"
+    Version="{{Version}}"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>QuickProtect</DisplayName>
+    <PublisherDisplayName>{{PublisherDisplayName}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- 1809 is the oldest release with the MSIX features used here; the app
+         itself is self-contained, so no framework packages are required. -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <!-- The UI ships 7 languages (see Localization/Resources.*.resx); the
+         Store shows the listing in whichever of these matches the customer. -->
+    <Resource Language="en" />
+    <Resource Language="de" />
+    <Resource Language="fr" />
+    <Resource Language="es" />
+    <Resource Language="nl" />
+    <Resource Language="it" />
+    <Resource Language="pt-BR" />
+  </Resources>
+
+  <Applications>
+    <Application Id="QuickProtect" Executable="QuickProtect.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="QuickProtect"
+        Description="Live UniFi Protect camera feeds from the system tray, one click away."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="Assets\Wide310x150Logo.png"
+          Square71x71Logo="Assets\Square71x71Logo.png"
+          Square310x310Logo="Assets\Square310x310Logo.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- Launch at login. A packaged app cannot use the HKCU Run key (the
+             write is virtualised into the package and the OS never reads it),
+             so the setting is expressed here and toggled through the
+             StartupTask API. Enabled="false" keeps it opt-in; Windows also
+             surfaces it under Settings → Apps → Startup. -->
+        <desktop:Extension
+          Category="windows.startupTask"
+          Executable="QuickProtect.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask
+            TaskId="QuickProtectStartup"
+            Enabled="false"
+            DisplayName="QuickProtect" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Required for any Win32 app in an MSIX container. Declaring it means
+         the Store submission asks for a justification (the app bundles a
+         native FFmpeg video engine and runs outside the UWP sandbox). -->
+    <rescap:Capability Name="runFullTrust" />
+    <!-- The UniFi console is normally a LAN device; the update check and the
+         Store promo link reach the internet. -->
+    <Capability Name="internetClient" />
+    <Capability Name="privateNetworkClientServer" />
+  </Capabilities>
+</Package>

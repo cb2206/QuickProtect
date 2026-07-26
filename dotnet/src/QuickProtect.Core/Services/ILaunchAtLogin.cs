@@ -9,6 +9,14 @@ public interface ILaunchAtLogin
 {
     bool IsEnabled { get; }
     void SetEnabled(bool enabled);
+
+    /// <summary>
+    /// True when the OS owns this setting and the app cannot toggle it — an
+    /// MSIX package declares its startup task in the manifest, and Windows
+    /// exposes the switch under Settings → Apps → Startup instead. The UI
+    /// shows a pointer there rather than a toggle that would do nothing.
+    /// </summary>
+    bool IsManagedByOS => false;
 }
 
 /// <summary>No-op default used until the platform layer installs a real one.</summary>

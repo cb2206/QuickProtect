@@ -59,10 +59,13 @@ dotnet/
                    PinnedCameraWindow
       Localization/                # 7 languages from the macOS String Catalog
   tests/QuickProtect.Core.Tests/   # unit tests for the Core layer
-  installer/QuickProtect.iss       # Inno Setup script (Windows)
+  installer/QuickProtect.iss       # Inno Setup script (free GitHub build)
+  installer/msix/                  # MSIX manifest + tile assets (Store build)
   scripts/get-ffmpeg.ps1           # fetch FFmpeg natives (Windows RIDs by default)
   scripts/get-ffmpeg.sh            # same, for Linux (host-arch RID by default)
   scripts/package-windows.ps1      # publish + build the Windows installer
+  scripts/package-msix.ps1         # publish + build the Store (MSIX) package
+  scripts/generate-msix-assets.swift  # regenerate the MSIX tile PNGs (macOS)
 ```
 
 ## Build & run
@@ -104,11 +107,50 @@ next to it.
 
 ## Packaging (Windows)
 
+Two artifacts, matching the two distribution channels (see
+[`PARITY.md`](../docs/PARITY.md#distribution-future)).
+
+**Free build** — unsigned installer for GitHub releases. The SmartScreen
+warning it triggers is the intended friction; it is not signed on purpose.
+
 ```powershell
 winget install JRSoftware.InnoSetup   # once
 powershell -File scripts/package-windows.ps1
-# → dist/QuickProtect-Setup-<version>-x64.exe
+# → dist/QuickProtect-Setup-<version>-win-x64.exe
 ```
+
+**Paid build** — MSIX for the Microsoft Store. Upload the package *unsigned*;
+Partner Center re-signs it with a Microsoft certificate, so no code-signing
+certificate is needed.
+
+```powershell
+winget install Microsoft.WindowsSDK   # once, for makeappx.exe
+powershell -File scripts/package-msix.ps1 -IdentityName <name> -Publisher "CN=<guid>"
+# → dist/QuickProtect-<version>-win-x64.msix
+```
+
+`-IdentityName` and `-Publisher` must match **Partner Center → your app →
+Product identity** exactly or the upload is rejected; they only exist once the
+app is reserved there. To sideload the package for local testing instead, run
+with `-SelfSign` and import the generated certificate into *Trusted People*:
+
+```powershell
+powershell -File scripts/package-msix.ps1 -SelfSign
+```
+
+The tile PNGs under `installer/msix/Assets/` are committed and drawn from the
+same Aurora design as the macOS icon. Regenerate them only if the icon changes
+(requires macOS):
+
+```bash
+swift scripts/generate-msix-assets.swift installer/msix/Assets
+```
+
+Two behaviours differ inside the MSIX container, both handled in code:
+settings still land in `%APPDATA%\QuickProtect` (Windows redirects it into the
+package's private store), and launch-at-login switches from the `Run` registry
+key — which a packaged app cannot use — to the manifest's `windows.startupTask`,
+managed by Windows under Settings → Apps → Startup.
 
 ## Feature parity status
 

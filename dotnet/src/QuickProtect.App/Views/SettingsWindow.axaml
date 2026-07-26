@@ -97,10 +97,17 @@
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
                       <TextBlock Text="{loc:Loc 'Launch at login'}" Classes="rowLabel" />
-                      <TextBlock Text="{loc:Loc 'Automatically start QuickProtect when you log in.'}" Classes="rowHint" />
+                      <TextBlock Text="{loc:Loc 'Automatically start QuickProtect when you log in.'}" Classes="rowHint"
+                                 IsVisible="{Binding IsLaunchAtLoginConfigurable}" />
+                      <!-- Store builds: Windows owns the startup task (see the
+                           MSIX manifest), so point at its setting instead. -->
+                      <TextBlock Text="{loc:Loc 'Managed by Windows under Settings → Apps → Startup.'}" Classes="rowHint"
+                                 TextWrapping="Wrap"
+                                 IsVisible="{Binding !IsLaunchAtLoginConfigurable}" />
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding LaunchAtLogin}"
-                                  OnContent="{x:Null}" OffContent="{x:Null}" />
+                                  OnContent="{x:Null}" OffContent="{x:Null}"
+                                  IsVisible="{Binding IsLaunchAtLoginConfigurable}" />
                   </Grid>
                 </StackPanel>
               </Border>

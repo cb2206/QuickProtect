@@ -98,6 +98,7 @@
   <data name="Login failed — check the username and password" xml:space="preserve"><value>Error de inicio de sesión — comprueba el usuario y la contraseña</value></data>
   <data name="Login failed — check username and password" xml:space="preserve"><value>Error de inicio de sesión — comprueba el usuario y la contraseña</value></data>
   <data name="Low" xml:space="preserve"><value>Baja</value></data>
+  <data name="Managed by Windows under Settings → Apps → Startup." xml:space="preserve"><value>Administrado por Windows en Configuración → Aplicaciones → Inicio.</value></data>
   <data name="Medium" xml:space="preserve"><value>Mediano</value></data>
   <data name="Menu-bar status app for UniFi Protect. Live camera feeds, one click away." xml:space="preserve"><value>App de barra de menús para UniFi Protect. Transmisiones de cámaras en directo, a un solo clic.</value></data>
   <data name="Mute" xml:space="preserve"><value>Silenciar</value></data>

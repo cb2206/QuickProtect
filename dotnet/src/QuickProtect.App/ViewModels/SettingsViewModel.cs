@@ -147,6 +147,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// </summary>
     public bool IsUpdateCheckAvailable { get; } = !AppDistribution.IsExternallyManaged;
 
+    /// <summary>
+    /// False in an MSIX package, where Windows owns the startup switch. The
+    /// toggle is replaced by a pointer to the OS setting rather than shown as
+    /// a control that cannot take effect.
+    /// </summary>
+    public bool IsLaunchAtLoginConfigurable { get; private set; } = true;
+
     /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
     public LayoutViewModel Layout { get; }
 
@@ -174,6 +181,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _username = settings.Username;
         _password = settings.Password;
         _launchAtLogin = settings.LaunchAtLogin;
+        IsLaunchAtLoginConfigurable = !settings.LaunchManager.IsManagedByOS;
         _defaultQualityIndex = (int)settings.DefaultStreamQuality;
         _languageIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.LanguageOverride));
         _showFocusOverlayControls = settings.ShowFocusOverlayControls;

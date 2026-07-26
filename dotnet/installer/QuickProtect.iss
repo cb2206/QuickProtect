@@ -24,7 +24,10 @@ DefaultDirName={autopf}\QuickProtect
 DefaultGroupName=QuickProtect
 DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
-OutputBaseFilename=QuickProtect-Setup-{#AppVersion}-x64
+; The "-win" token is what the in-app update checker matches on to decide a
+; release carries a Windows build (UpdateChecker.HasCurrentPlatformAsset) —
+; keep it in the name.
+OutputBaseFilename=QuickProtect-Setup-{#AppVersion}-win-x64
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma2

@@ -13,17 +13,31 @@ public static class LaunchAtLoginFactory
     }
 }
 
-/// <summary>Windows "start at login" via the per-user Run registry key.</summary>
+/// <summary>
+/// Windows "start at login" via the per-user Run registry key.
+///
+/// In an MSIX package that key is the wrong mechanism: the write is
+/// virtualised into the package's private registry hive, so the OS never reads
+/// it back and the app would simply not start. Packaged builds therefore
+/// declare a <c>windows.startupTask</c> extension in the manifest and let
+/// Windows own the switch (Settings → Apps → Startup); this class reports that
+/// via <see cref="IsManagedByOS"/> instead of writing a key that does nothing.
+/// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class WindowsLaunchAtLogin : ILaunchAtLogin
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "QuickProtect";
 
+    public bool IsManagedByOS { get; } = AppDistribution.IsWindowsPackaged;
+
     public bool IsEnabled
     {
         get
         {
+            // The manifest's startup task is opt-in and its state lives with
+            // the OS; without WinRT there is nothing truthful to report.
+            if (IsManagedByOS) return false;
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey);
             return key?.GetValue(ValueName) is string;
         }
@@ -31,6 +45,7 @@ public sealed class WindowsLaunchAtLogin : ILaunchAtLogin
 
     public void SetEnabled(bool enabled)
     {
+        if (IsManagedByOS) return;
         using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey);
         if (key == null) return;
         if (enabled)

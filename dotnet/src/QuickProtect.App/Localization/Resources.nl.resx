@@ -98,6 +98,7 @@
   <data name="Login failed — check the username and password" xml:space="preserve"><value>Inloggen mislukt — controleer gebruikersnaam en wachtwoord</value></data>
   <data name="Login failed — check username and password" xml:space="preserve"><value>Inloggen mislukt — controleer gebruikersnaam en wachtwoord</value></data>
   <data name="Low" xml:space="preserve"><value>Laag</value></data>
+  <data name="Managed by Windows under Settings → Apps → Startup." xml:space="preserve"><value>Beheerd door Windows via Instellingen → Apps → Opstarten.</value></data>
   <data name="Medium" xml:space="preserve"><value>Gemiddeld</value></data>
   <data name="Menu-bar status app for UniFi Protect. Live camera feeds, one click away." xml:space="preserve"><value>Menubalk-app voor UniFi Protect. Live camerabeelden, één klik verwijderd.</value></data>
   <data name="Mute" xml:space="preserve"><value>Dempen</value></data>

@@ -1,6 +1,8 @@
-# Builds the distributable Windows installer.
+# Builds the free (unsigned) Windows installer for GitHub releases.
 #   powershell -File dotnet/scripts/package-windows.ps1 [-Version 1.2.1]
-# Output: dotnet/dist/QuickProtect-Setup-<version>-x64.exe
+# Output: dotnet/dist/QuickProtect-Setup-<version>-win-x64.exe
+#
+# The paid Microsoft Store build is a different artifact — see package-msix.ps1.
 #
 # Notes:
 #  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 7.1 natives
@@ -38,4 +40,4 @@ Write-Host "Compiling installer with $iscc..."
 & $iscc (Join-Path $desktop "installer\QuickProtect.iss") /DAppVersion=$Version /DPublishDir=$publish /DOutputDir=$dist
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
 
-Write-Host "Done: $dist\QuickProtect-Setup-$Version-x64.exe"
+Write-Host "Done: $dist\QuickProtect-Setup-$Version-win-x64.exe"
