@@ -242,10 +242,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         service.isPopoverOpen = true
         panel?.makeKeyAndOrderFront(nil)
 
-        // Close on outside click
+        // Close on outside click — but not on the status-bar button itself,
+        // which toggles through handleStatusBarClick (see below).
         if clickMonitor == nil {
             clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-                self?.closePanel()
+                guard let self, !self.isPointerOverStatusButton() else { return }
+                self.closePanel()
             }
         }
 
@@ -265,6 +267,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         Task { await service.fetchCameras() }
+    }
+
+    /// True while the pointer sits on the status-bar button.
+    ///
+    /// The panel is a non-activating panel, so the app stays inactive while it
+    /// is open and the global click monitor *does* see the status button's own
+    /// mouse-down. Closing there would let the matching mouse-up re-open the
+    /// panel via handleStatusBarClick — the icon would never appear to toggle.
+    /// Clicks on the button are left to that action instead.
+    private func isPointerOverStatusButton() -> Bool {
+        guard let button = statusItem?.button, let window = button.window else { return false }
+        let buttonRect = window.convertToScreen(button.convert(button.bounds, to: nil))
+        return buttonRect.contains(NSEvent.mouseLocation)
     }
 
     /// Anchor the panel under the status-bar button, clamped to the screen.
