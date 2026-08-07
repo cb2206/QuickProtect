@@ -106,10 +106,21 @@ port (`dotnet/`).
 
 - **Stream keep-alive on panel close** — macOS keeps streams connected for a
   configurable grace period (Settings → Connection, default 10 s, 0–60 s) so a
-  quick reopen shows video instantly, plus controller rate-limit hardening
-  (fetch coalescing/throttle, PTZ-enrichment throttle, no quality-ladder
-  retries on 429/5xx, one silent retry after a 429). The port tears streams
-  down on close and has the same fetch-per-open pattern — mirror both.
+  quick reopen shows video instantly. Covers the secondary (package-lens) PiP
+  stream too. Grace is flushed immediately on quit and on IP/API-key changes.
+- **Decode pause during the grace** — while the panel is closed, kept-alive
+  streams stop decoding and buffer the compressed GOP since the latest
+  keyframe (`PausedGOPBuffer`, 8 MB/camera cap); reopen burst-decodes it to
+  land on the live picture. Configurable via a "Pause decoding while closed"
+  switch shown only when the grace is > 0 (default on). In the port this
+  maps to the FFmpeg pipeline: stop sending packets to the decoder, buffer
+  from the last keyframe, drain on reopen.
+- **Controller rate-limit hardening** — fetch coalescing + 3 s throttle
+  (user-initiated refreshes bypass it), PTZ-enrichment throttle (5 min,
+  credential changes re-enrich), no quality-ladder retries on 429/5xx, one
+  silent camera-list retry after a 429, and no leaked server allocation when
+  a stream POST completes during close. Pure rules live in
+  `ControllerRequestPolicy` (macOS) — port them with tests.
 
 ## Intentional differences from macOS
 
