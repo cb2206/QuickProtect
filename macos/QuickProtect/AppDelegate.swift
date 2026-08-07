@@ -371,8 +371,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         streamTeardownWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(grace), execute: work)
         // The streams survive but nobody sees them — stop decoding until the
-        // panel reopens (each client buffers its current GOP for instant resume).
-        clientManager.setRenderPaused(true)
+        // panel reopens (each client buffers its current GOP for instant
+        // resume), unless the user opted out in Settings.
+        if AppSettings.shared.pauseDecodeWhileClosed {
+            clientManager.setRenderPaused(true)
+        }
     }
 
     /// Immediate stream teardown: the in-flight camera fetch, all RTSP sockets,

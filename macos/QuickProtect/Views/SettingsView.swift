@@ -226,6 +226,17 @@ struct SettingsView: View {
                         selection: $settings.streamKeepAliveSeconds
                     )
                 }
+                if settings.streamKeepAliveSeconds > 0 {
+                    AuroraSettingsRow(
+                        String(localized: "Pause decoding while closed"),
+                        hint: String(localized: "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen."),
+                        labelExpands: true
+                    ) {
+                        Toggle("", isOn: $settings.pauseDecodeWhileClosed)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                }
                 AuroraSettingsRow(isLast: true) {
                     HStack(spacing: 10) {
                         AuroraPrimaryButton(

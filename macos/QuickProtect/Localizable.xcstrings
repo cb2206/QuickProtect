@@ -9355,6 +9355,88 @@
           }
         }
       }
+    },
+    "Pause decoding while closed": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dekodierung bei geschlossenem Fenster pausieren"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suspendre le décodage quand le panneau est fermé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar la decodificación con el panel cerrado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decoderen pauzeren terwijl gesloten"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sospendi la decodifica a pannello chiuso"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar a decodificação enquanto fechado"
+          }
+        }
+      }
+    },
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

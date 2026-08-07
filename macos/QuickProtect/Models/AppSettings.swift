@@ -70,6 +70,14 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(streamKeepAliveSeconds, forKey: Keys.streamKeepAliveSeconds) }
     }
 
+    /// Whether video decoding is paused while the panel is closed during the
+    /// keep-alive grace: streams stay connected (instant reopen) but the CPU
+    /// drops to network-only. Only consulted when `streamKeepAliveSeconds > 0`.
+    /// Defaults to on.
+    @Published var pauseDecodeWhileClosed: Bool {
+        didSet { UserDefaults.standard.set(pauseDecodeWhileClosed, forKey: Keys.pauseDecodeWhileClosed) }
+    }
+
     /// Security-scoped bookmark to the folder where snapshots are saved.
     /// Used when `snapshotDestination` is `.folder`. The sandbox requires a
     /// bookmark to regain write access to a user-chosen folder across launches.
@@ -601,6 +609,7 @@ final class AppSettings: ObservableObject {
         static let pinnedCameras  = "unifi.pinnedCameras"
         static let appStorePromoShown = "unifi.appStorePromoShown"
         static let streamKeepAliveSeconds = "unifi.streamKeepAliveSeconds"
+        static let pauseDecodeWhileClosed = "unifi.pauseDecodeWhileClosed"
         static let lastPromotedUpdateVersion = "unifi.lastPromotedUpdateVersion"
     }
 
@@ -641,6 +650,10 @@ final class AppSettings: ObservableObject {
         snapshotFolderBookmark = UserDefaults.standard.data(forKey: Keys.snapshotFolderBookmark)
         let keepAlive = UserDefaults.standard.object(forKey: Keys.streamKeepAliveSeconds) as? Int
         streamKeepAliveSeconds = Self.clampStreamKeepAlive(keepAlive ?? Self.streamKeepAliveDefault)
+        let pauseDecode = UserDefaults.standard.object(forKey: Keys.pauseDecodeWhileClosed)
+        pauseDecodeWhileClosed = pauseDecode != nil
+            ? UserDefaults.standard.bool(forKey: Keys.pauseDecodeWhileClosed)
+            : true
         activeProfileID = UserDefaults.standard.string(forKey: Keys.activeProfileID) ?? Self.defaultProfileID
         migrateLayoutProfilesIfNeeded()
     }
