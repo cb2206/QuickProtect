@@ -111,6 +111,8 @@ public partial class MainWindow : Window
 
     // Start/stop streams as the panel is shown/hidden so a closed panel never
     // keeps server-side allocations alive (mirrors the macOS open/close cleanup).
+    // Teardown is deferred through the stream keep-alive grace (App.PanelClosed)
+    // so a quick reopen re-attaches to the still-connected streams.
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -118,13 +120,14 @@ public partial class MainWindow : Window
         {
             if (change.GetNewValue<bool>())
             {
+                App.Instance.PanelOpened();
                 PositionNearTray();
                 vm.StartAll();
             }
             else
             {
                 QuickProtect.Core.Services.AppSettings.Shared.SetPanelSize(Width, Height);
-                vm.StopAll();
+                App.Instance.PanelClosed(vm);
             }
         }
     }

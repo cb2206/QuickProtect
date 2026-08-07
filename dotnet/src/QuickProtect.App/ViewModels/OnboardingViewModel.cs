@@ -75,7 +75,7 @@ public sealed partial class OnboardingViewModel : ObservableObject
     {
         PersistConnection();
         StatusMessage = Localization.Loc.Get("Testing…");
-        await _service.FetchCamerasAsync();
+        await _service.FetchCamerasAsync(forced: true);
         CameraCount = _service.Cameras.Count;
         StatusMessage = _service.ErrorMessage is { } err
             ? string.Format(Localization.Loc.Get("Error: {0}"), err)

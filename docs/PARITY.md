@@ -101,26 +101,31 @@ port (`dotnet/`).
 - **Windows installer** — Inno Setup (`installer/QuickProtect.iss`) via
   `scripts/package-windows.ps1`, 7 wizard languages, closes the running tray app
   on upgrade.
+- **Stream keep-alive on panel close** — hiding the panel defers stream
+  teardown by a configurable grace (Settings → Connection: Off/5/10/30/60 s,
+  default 10 s) so a quick reopen re-attaches to the still-connected streams
+  instantly; covers the secondary (package-lens) PiP stream too.
+  `App.PanelClosed` / `PanelOpened` / `TeardownStreamsNow` mirror the macOS
+  `scheduleStreamTeardown` / `teardownStreamsNow`; the grace is flushed
+  immediately on quit and on IP/API-key changes.
+- **Decode pause during the grace** — kept-alive streams stop feeding packets
+  to the FFmpeg decoder while hidden and buffer the compressed GOP since the
+  latest keyframe (`PausedGopBuffer` in Core, unit-tested, 8 MB/camera cap);
+  reopen burst-decodes it to land on the live picture, or holds the last frame
+  until the stream's next keyframe when nothing replayable was buffered.
+  Configurable via the "Pause decoding while closed" switch, shown only when
+  the grace is > 0 (default on).
+- **Controller rate-limit hardening** — the pure rules live in
+  `ControllerRequestPolicy` (Core, unit-tested like macOS): camera-list fetch
+  coalescing + 3 s throttle (user-initiated refreshes bypass it),
+  PTZ-enrichment throttle (5 min, credential changes re-enrich), quality-ladder
+  abort on 429/5xx, one silent camera-list retry after a 429, and a stream
+  POST that completes after the panel closed releases its allocation instead
+  of leaking it server-side.
 
 ## Pending (macOS ahead)
 
-- **Stream keep-alive on panel close** — macOS keeps streams connected for a
-  configurable grace period (Settings → Connection, default 10 s, 0–60 s) so a
-  quick reopen shows video instantly. Covers the secondary (package-lens) PiP
-  stream too. Grace is flushed immediately on quit and on IP/API-key changes.
-- **Decode pause during the grace** — while the panel is closed, kept-alive
-  streams stop decoding and buffer the compressed GOP since the latest
-  keyframe (`PausedGOPBuffer`, 8 MB/camera cap); reopen burst-decodes it to
-  land on the live picture. Configurable via a "Pause decoding while closed"
-  switch shown only when the grace is > 0 (default on). In the port this
-  maps to the FFmpeg pipeline: stop sending packets to the decoder, buffer
-  from the last keyframe, drain on reopen.
-- **Controller rate-limit hardening** — fetch coalescing + 3 s throttle
-  (user-initiated refreshes bypass it), PTZ-enrichment throttle (5 min,
-  credential changes re-enrich), no quality-ladder retries on 429/5xx, one
-  silent camera-list retry after a 429, and no leaked server allocation when
-  a stream POST completes during close. Pure rules live in
-  `ControllerRequestPolicy` (macOS) — port them with tests.
+Nothing at the moment — the port is in sync with the macOS feature set.
 
 ## Intentional differences from macOS
 

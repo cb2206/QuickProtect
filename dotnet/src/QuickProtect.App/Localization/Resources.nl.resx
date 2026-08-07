@@ -85,6 +85,8 @@
   <data name="Installing update…" xml:space="preserve"><value>Update wordt geïnstalleerd…</value></data>
   <data name="Integration API key from controller settings" xml:space="preserve"><value>Integratie-API-sleutel uit de controllerinstellingen</value></data>
   <data name="Invalid IP address or URL." xml:space="preserve"><value>Ongeldig IP-adres of URL.</value></data>
+  <data name="Keep streams alive" xml:space="preserve"><value>Streams actief houden</value></data>
+  <data name="Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen." xml:space="preserve"><value>Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen.</value></data>
   <data name="LIVE" xml:space="preserve"><value>LIVE</value></data>
   <data name="Large" xml:space="preserve"><value>Groot</value></data>
   <data name="Last try: %@" xml:space="preserve"><value>Laatste poging: %@</value></data>
@@ -112,6 +114,7 @@
   <data name="Not Now" xml:space="preserve"><value>Niet nu</value></data>
   <data name="Not configured" xml:space="preserve"><value>Niet ingesteld</value></data>
   <data name="Not verified" xml:space="preserve"><value>Niet geverifieerd</value></data>
+  <data name="Off" xml:space="preserve"><value>Uit</value></data>
   <data name="Offline" xml:space="preserve"><value>Offline</value></data>
   <data name="Open Settings" xml:space="preserve"><value>Open instellingen</value></data>
   <data name="Open in Protect" xml:space="preserve"><value>Open in Protect</value></data>
@@ -125,6 +128,7 @@
   <data name="Pan left" xml:space="preserve"><value>Naar links pannen</value></data>
   <data name="Pan right" xml:space="preserve"><value>Naar rechts pannen</value></data>
   <data name="Password" xml:space="preserve"><value>Wachtwoord</value></data>
+  <data name="Pause decoding while closed" xml:space="preserve"><value>Decoderen pauzeren terwijl gesloten</value></data>
   <data name="Picture-in-picture when focused" xml:space="preserve"><value>Beeld-in-beeld bij vergrote weergave</value></data>
   <data name="Pin as Floating Window" xml:space="preserve"><value>Vastmaken als zwevend venster</value></data>
   <data name="Press S on a focused camera to capture a snapshot." xml:space="preserve"><value>Druk op S wanneer een camera vergroot is om een momentopname te maken.</value></data>
@@ -173,6 +177,7 @@
   <data name="Stream quality" xml:space="preserve"><value>Streamkwaliteit</value></data>
   <data name="Stream unavailable" xml:space="preserve"><value>Stream niet beschikbaar</value></data>
   <data name="Streaming" xml:space="preserve"><value>Streamen</value></data>
+  <data name="Streams stay connected for this long after closing, so a quick reopen shows video instantly" xml:space="preserve"><value>Streams blijven na het sluiten zo lang verbonden, zodat de video direct terug is bij opnieuw openen</value></data>
   <data name="Swap with main view (C)" xml:space="preserve"><value>Wisselen met de hoofdweergave (C)</value></data>
   <data name="Switch layout profile" xml:space="preserve"><value>Lay-outprofiel wisselen</value></data>
   <data name="Test Connection" xml:space="preserve"><value>Verbinding testen</value></data>

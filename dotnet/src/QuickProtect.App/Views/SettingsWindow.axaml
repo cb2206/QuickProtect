@@ -236,6 +236,26 @@
                              PasswordChar="•" Classes="revealPasswordButton" Width="240" VerticalAlignment="Center" />
                   </Grid>
                   <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                      <TextBlock Text="{loc:Loc 'Keep streams alive'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Streams stay connected for this long after closing, so a quick reopen shows video instantly'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding KeepAliveOptions}"
+                              SelectedIndex="{Binding KeepAliveIndex}" Width="140" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" IsVisible="{Binding PauseDecodeRowVisible}" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto" IsVisible="{Binding PauseDecodeRowVisible}">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                      <TextBlock Text="{loc:Loc 'Pause decoding while closed'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding PauseDecodeWhileClosed}"
+                                  OnContent="{x:Null}" OffContent="{x:Null}" />
+                  </Grid>
+                  <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="Auto,*">
                     <Button Grid.Column="0" Content="{loc:Loc 'Test Connection'}"
                             Command="{Binding TestConnectionCommand}" />

@@ -209,7 +209,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task Refresh() => await _service.FetchCamerasAsync();
+    private async Task Refresh() => await _service.FetchCamerasAsync(forced: true);
 
     // MARK: - Tile context-menu actions (macOS grid-tile menu parity)
 
@@ -331,6 +331,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         FocusTile = null;
         pip?.Dispose();
         ft.Dispose(); // releases the high-quality desire → shared stream settles back down
+    }
+
+    /// <summary>
+    /// Quiesce the hidden panel for the keep-alive grace: PTZ motion and audio
+    /// stop immediately (macOS destroys the view tree at close), but the tile
+    /// stream claims survive so the deferred teardown — or a quick reopen —
+    /// finds them intact. Covers the secondary-lens PiP stream too.
+    /// </summary>
+    public void QuiesceForHide()
+    {
+        FocusTile?.PtzStopAll();
+        FocusTile?.Client?.SetAudioActive(false);
+        SecondaryTile?.Client?.SetAudioActive(false);
     }
 
     /// <summary>Stop all tiles and release their server-side allocations (panel hidden).</summary>

@@ -98,7 +98,58 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
     // MARK: - Fetch camera list
 
-    public async Task FetchCamerasAsync()
+    // Fetch-coalescing state, touched from arbitrary caller contexts (tray
+    // toggle, refresh buttons, Settings). Guarded by _fetchLock.
+    private readonly object _fetchLock = new();
+    private Task? _fetchTask;
+    private CancellationTokenSource? _fetchCts;
+    private DateTime? _lastFetchSucceededAt;
+    private ControllerRequestPolicy.PtzEnrichRecord? _lastPtzEnrich;
+
+    /// <summary>
+    /// Fetches the camera list, coalescing concurrent calls into one request
+    /// chain (rapid panel toggles must not stack fetches against the
+    /// controller's 10 req/s limit) and throttling automatic refreshes.
+    /// <paramref name="forced"/> — a user-initiated refresh or Test Connection —
+    /// bypasses the throttle but still joins an in-flight fetch.
+    /// </summary>
+    public Task FetchCamerasAsync(bool forced = false)
+    {
+        lock (_fetchLock)
+        {
+            if (_fetchTask is { } existing) return existing;
+            if (!forced && ControllerRequestPolicy.ShouldSkipFetch(_lastFetchSucceededAt, DateTime.UtcNow))
+                return Task.CompletedTask;
+            _fetchCts?.Dispose();
+            _fetchCts = new CancellationTokenSource();
+            var ct = _fetchCts.Token;
+            // Task.Run so no part of the fetch executes inside this lock: a
+            // synchronously-failing fetch would otherwise clear _fetchTask
+            // before it is even assigned (the runner's finally serializes on
+            // the lock, which we still hold).
+            var task = Task.Run(() => RunFetchAsync(forced, ct));
+            _fetchTask = task;
+            return task;
+        }
+    }
+
+    /// <summary>
+    /// Cancels an in-flight camera fetch. Called by the deferred stream
+    /// teardown after the panel closes — a fetch that dies here must not
+    /// surface an error card (see the cancellation check in PerformFetchAsync).
+    /// </summary>
+    public void CancelFetch()
+    {
+        lock (_fetchLock) _fetchCts?.Cancel();
+    }
+
+    private async Task RunFetchAsync(bool forced, CancellationToken ct)
+    {
+        try { await PerformFetchAsync(forced, ct).ConfigureAwait(false); }
+        finally { lock (_fetchLock) _fetchTask = null; }
+    }
+
+    private async Task PerformFetchAsync(bool forced, CancellationToken ct)
     {
         Log.Line("[API] fetchCameras called");
         if (!Validate()) { Log.Line("[API] validate failed"); return; }
@@ -106,26 +157,72 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new InvalidOperationException("invalid URL");
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
-            req.Headers.TryAddWithoutValidation("Accept", "application/json");
-
-            using var resp = await _integration.SendAsync(req).ConfigureAwait(false);
-            var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode)
-                throw new ApiException((int)resp.StatusCode, body);
-
-            var cameras = ParseCameraList(body);
+            var cameras = await RequestCameraListAsync(ct).ConfigureAwait(false);
+            lock (_fetchLock) _lastFetchSucceededAt = DateTime.UtcNow;
             ApplySuccess(cameras);
 
-            if (!string.IsNullOrEmpty(_settings.Username) && !string.IsNullOrEmpty(_settings.Password))
-                await EnrichPtzFlagsAsync().ConfigureAwait(false);
+            // If classic API credentials are configured, enrich PTZ flags —
+            // throttled, since enrichment costs a login the controller audit-logs.
+            if (!string.IsNullOrEmpty(_settings.Username) && !string.IsNullOrEmpty(_settings.Password)
+                && (forced || !ShouldSkipPtzEnrich()))
+            {
+                await EnrichPtzFlagsAsync(ct).ConfigureAwait(false);
+                lock (_fetchLock)
+                    _lastPtzEnrich = new ControllerRequestPolicy.PtzEnrichRecord(
+                        DateTime.UtcNow, _settings.Username, _settings.Password);
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // A fetch cancelled by the deferred teardown isn't a failure the
+            // user should see — leave the camera list and error state alone.
+            IsLoading = false;
         }
         catch (Exception ex)
         {
             ApplyError(ex);
         }
+    }
+
+    private bool ShouldSkipPtzEnrich()
+    {
+        lock (_fetchLock)
+            return ControllerRequestPolicy.ShouldSkipPtzEnrich(
+                _lastPtzEnrich, _settings.Username, _settings.Password, DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// One camera-list request, retried once after the limiter's 1-second
+    /// window when the controller answers 429 — a rapid panel toggle should
+    /// recover silently rather than surface a rate-limit error card.
+    /// </summary>
+    private async Task<IReadOnlyList<Camera>> RequestCameraListAsync(CancellationToken ct)
+    {
+        try
+        {
+            return await RequestCameraListOnceAsync(ct).ConfigureAwait(false);
+        }
+        catch (ApiException e) when (e.StatusCode == 429)
+        {
+            Log.Line("[API] 429 — retrying after limiter window");
+            await Task.Delay(TimeSpan.FromSeconds(1.1), ct).ConfigureAwait(false);
+            return await RequestCameraListOnceAsync(ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<IReadOnlyList<Camera>> RequestCameraListOnceAsync(CancellationToken ct)
+    {
+        var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new InvalidOperationException("invalid URL");
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
+        req.Headers.TryAddWithoutValidation("Accept", "application/json");
+
+        using var resp = await _integration.SendAsync(req, ct).ConfigureAwait(false);
+        var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException((int)resp.StatusCode, body);
+
+        return ParseCameraList(body);
     }
 
     /// <summary>Integration API wraps the array as <c>{ "data": [...] }</c>; classic returns a bare array.</summary>
@@ -157,12 +254,17 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     {
         foreach (var tier in QualityFallbackLadder(quality))
         {
-            var url = await RequestRtspStreamUrlAsync(camera, tier, pinned).ConfigureAwait(false);
-            if (url != null)
+            var (outcome, url) = await RequestRtspStreamUrlAsync(camera, tier, pinned).ConfigureAwait(false);
+            switch (outcome)
             {
-                if (tier != quality)
-                    Log.Line($"[Stream] {quality} unavailable for {camera.Name}; using {tier}");
-                return (url, tier);
+                case StreamRequestOutcome.Success:
+                    if (tier != quality)
+                        Log.Line($"[Stream] {quality} unavailable for {camera.Name}; using {tier}");
+                    return (url!, tier);
+                case StreamRequestOutcome.QualityUnavailable:
+                    continue;
+                case StreamRequestOutcome.Failed:
+                    return null;
             }
         }
         return null;
@@ -176,11 +278,20 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         _ => new[] { quality } // a distinct lens (e.g. "package") is tried alone
     };
 
-    private async Task<string?> RequestRtspStreamUrlAsync(Camera camera, string quality, bool pinned)
+    /// <summary>
+    /// Result of one stream-creation POST, so the quality-fallback ladder can
+    /// tell "this camera doesn't offer that quality" (try the next tier) from
+    /// rate-limiting or an unreachable controller (abort the ladder — see
+    /// <see cref="ControllerRequestPolicy.AbortsQualityLadder"/>).
+    /// </summary>
+    private enum StreamRequestOutcome { Success, QualityUnavailable, Failed }
+
+    private async Task<(StreamRequestOutcome outcome, string? url)> RequestRtspStreamUrlAsync(
+        Camera camera, string quality, bool pinned)
     {
         Log.Line($"[Stream] requestRtspStreamURL({quality}) for {camera.Name}");
         var url = MakeUrl($"proxy/protect/integration/v1/cameras/{camera.Id}/rtsps-stream");
-        if (url == null) { Log.Line("[Stream] makeURL failed"); return null; }
+        if (url == null) { Log.Line("[Stream] makeURL failed"); return (StreamRequestOutcome.Failed, null); }
 
         try
         {
@@ -195,23 +306,24 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             if (resp.StatusCode != HttpStatusCode.OK)
             {
                 Log.Line($"[Stream] HTTP {(int)resp.StatusCode}: {body}");
-                return null;
+                return (ControllerRequestPolicy.AbortsQualityLadder((int)resp.StatusCode)
+                    ? StreamRequestOutcome.Failed : StreamRequestOutcome.QualityUnavailable, null);
             }
 
             using var doc = JsonDocument.Parse(body);
             if (!doc.RootElement.TryGetProperty(quality, out var v) || v.ValueKind != JsonValueKind.String)
-                return null;
+                return (StreamRequestOutcome.QualityUnavailable, null);
 
             var key = StreamKey(camera.Id, quality);
             lock (_streamLock) { (pinned ? _pinnedStreams : _activeStreams).Add(key); }
             var playable = ToPlayableUrl(v.GetString()!);
             Log.Line($"[Stream] Created {quality} for {camera.Name}: {playable}");
-            return playable;
+            return (StreamRequestOutcome.Success, playable);
         }
         catch (Exception ex)
         {
             Log.Line($"[Stream] request failed: {ex.Message}");
-            return null;
+            return (StreamRequestOutcome.Failed, null);
         }
     }
 
@@ -338,7 +450,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Cookie", $"TOKEN={token}");
     }
 
-    private async Task EnrichPtzFlagsAsync()
+    private async Task EnrichPtzFlagsAsync(CancellationToken ct = default)
     {
         if (!await ClassicLoginAsync().ConfigureAwait(false)) return;
         var url = MakeUrl("proxy/protect/api/cameras");
@@ -348,9 +460,9 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.TryAddWithoutValidation("Accept", "application/json");
             AddClassicAuth(req);
-            using var resp = await _classic.SendAsync(req).ConfigureAwait(false);
+            using var resp = await _classic.SendAsync(req, ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode) return;
-            var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             var classic = ParseCameraList(body);
             if (classic.Count == 0) return; // don't wipe known flags on a transient empty response
 

@@ -32,6 +32,8 @@ public sealed class AppSettings : INotifyPropertyChanged
         _ipAddress = _prefs.GetString(Keys.IpAddress) ?? "";
         _apiKey = LoadSecret(Keys.ApiKey);
         _usePlainRtsp = _prefs.GetBool(Keys.UsePlainRtsp) ?? true;
+        _streamKeepAliveSeconds = ClampStreamKeepAlive(_prefs.GetInt(Keys.StreamKeepAliveSeconds) ?? StreamKeepAliveDefault);
+        _pauseDecodeWhileClosed = _prefs.GetBool(Keys.PauseDecodeWhileClosed) ?? true;
         _username = LoadSecret(Keys.Username);
         _password = LoadSecret(Keys.Password);
         _defaultStreamQuality = StreamQualityExtensions.FromRawValue(_prefs.GetString(Keys.DefaultStreamQuality)) ?? StreamQuality.Auto;
@@ -81,6 +83,40 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => _usePlainRtsp;
         set { _usePlainRtsp = value; _prefs.SetBool(Keys.UsePlainRtsp, value); Raise(); }
+    }
+
+    /// <summary>Bounds and default (seconds) for <see cref="StreamKeepAliveSeconds"/>.</summary>
+    public const int StreamKeepAliveMin = 0;
+    public const int StreamKeepAliveMax = 60;
+    public const int StreamKeepAliveDefault = 10;
+
+    /// <summary>Clamps a stored keep-alive value into the supported range. Pure, so the
+    /// bounds are unit-testable without touching preferences.</summary>
+    public static int ClampStreamKeepAlive(int value)
+        => Math.Clamp(value, StreamKeepAliveMin, StreamKeepAliveMax);
+
+    private int _streamKeepAliveSeconds;
+    /// <summary>How long streams stay connected after the panel closes (0 = tear down
+    /// immediately), so a quick reopen shows video instantly.</summary>
+    public int StreamKeepAliveSeconds
+    {
+        get => _streamKeepAliveSeconds;
+        set
+        {
+            _streamKeepAliveSeconds = ClampStreamKeepAlive(value);
+            _prefs.SetInt(Keys.StreamKeepAliveSeconds, _streamKeepAliveSeconds);
+            Raise();
+        }
+    }
+
+    private bool _pauseDecodeWhileClosed;
+    /// <summary>Whether kept-alive streams stop decoding while the panel is hidden during the
+    /// keep-alive grace: streams stay connected (instant reopen) but the CPU drops
+    /// to network-only. Only consulted when <see cref="StreamKeepAliveSeconds"/> &gt; 0.</summary>
+    public bool PauseDecodeWhileClosed
+    {
+        get => _pauseDecodeWhileClosed;
+        set { _pauseDecodeWhileClosed = value; _prefs.SetBool(Keys.PauseDecodeWhileClosed, value); Raise(); }
     }
 
     // MARK: - Appearance / behavior
@@ -504,6 +540,8 @@ public sealed class AppSettings : INotifyPropertyChanged
         public const string IpAddress = "unifi.ipAddress";
         public const string ApiKey = "unifi.apiKey";
         public const string UsePlainRtsp = "unifi.usePlainRtsp";
+        public const string StreamKeepAliveSeconds = "unifi.streamKeepAliveSeconds";
+        public const string PauseDecodeWhileClosed = "unifi.pauseDecodeWhileClosed";
         public const string HiddenCameras = "unifi.hiddenCameras";
         public const string Profiles = "unifi.profiles";
         public const string ProfileLayout = "unifi.profileLayout";

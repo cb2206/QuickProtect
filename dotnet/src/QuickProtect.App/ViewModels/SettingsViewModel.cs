@@ -117,6 +117,29 @@ public sealed partial class SettingsViewModel : ObservableObject
         Localization.Loc.Get("Medium"), Localization.Loc.Get("Low")
     };
 
+    // Stream keep-alive grace on panel close (macOS: Settings → Connection).
+    public string[] KeepAliveOptions { get; } =
+        { Localization.Loc.Get("Off"), "5 s", "10 s", "30 s", "60 s" };
+    private static readonly int[] KeepAliveValues = { 0, 5, 10, 30, 60 };
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PauseDecodeRowVisible))]
+    private int _keepAliveIndex;
+
+    /// <summary>The pause-decode switch only applies while a grace is configured.</summary>
+    public bool PauseDecodeRowVisible => KeepAliveIndex > 0;
+
+    [ObservableProperty] private bool _pauseDecodeWhileClosed;
+
+    partial void OnKeepAliveIndexChanged(int value)
+    {
+        if (value < 0 || value >= KeepAliveValues.Length) return;
+        _settings.StreamKeepAliveSeconds = KeepAliveValues[value];
+    }
+
+    partial void OnPauseDecodeWhileClosedChanged(bool value)
+        => _settings.PauseDecodeWhileClosed = value;
+
     // Language picker: index 0 = system default, then one per supported culture.
     // The language names themselves are endonyms and stay untranslated.
     public string[] LanguageNames { get; } =
@@ -189,6 +212,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         _appearanceIndex = (int)settings.Appearance;
         _snapshotDestinationIndex = (int)settings.SnapshotDest;
         _snapshotFolderDisplay = settings.SnapshotFolder ?? "";
+        var keepAliveIdx = Array.IndexOf(KeepAliveValues, settings.StreamKeepAliveSeconds);
+        _keepAliveIndex = keepAliveIdx >= 0 ? keepAliveIdx
+            : Array.IndexOf(KeepAliveValues, AppSettings.StreamKeepAliveDefault);
+        _pauseDecodeWhileClosed = settings.PauseDecodeWhileClosed;
         RefreshCertState();
         RefreshHotkey();
         RefreshBadge();
@@ -314,7 +341,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _settings.IpAddress = IpAddress.Trim();
         _settings.ApiKey = ApiKey.Trim();
-        await _service.FetchCamerasAsync();
+        await _service.FetchCamerasAsync(forced: true);
         RefreshCertState();
         StatusMessage = _service.ErrorMessage is { } err
             ? string.Format(Localization.Loc.Get("Error: {0}"), err)

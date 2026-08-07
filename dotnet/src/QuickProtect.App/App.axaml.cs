@@ -27,6 +27,9 @@ public partial class App : Application
 
     private TrayIcon? _tray;
     private MainWindow? _mainWindow;
+    /// <summary>Pending deferred stream teardown while the keep-alive grace period
+    /// runs (see <see cref="PanelClosed"/>). Cancelled when the panel reopens in time.</summary>
+    private DispatcherTimer? _streamTeardownTimer;
     private SettingsWindow? _settingsWindow;
     private OnboardingWindow? _onboardingWindow;
     private IGlobalHotkey? _hotkey;
@@ -70,11 +73,27 @@ public partial class App : Application
         // Global hotkey toggles the panel; re-applied whenever the binding changes.
         _hotkey = GlobalHotkeyFactory.Create(ToggleMainWindow);
         ApplyHotkey();
+        // A controller/API-key change invalidates live streams and any pending
+        // keep-alive grace — stale clients would keep talking to the old host.
+        // The setters raise on every write (Settings re-applies unchanged text
+        // on focus loss), so only an actual value change tears down.
+        var lastIp = Settings.IpAddress;
+        var lastApiKey = Settings.ApiKey;
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == "GlobalHotkey") Dispatcher.UIThread.Post(ApplyHotkey);
             if (e.PropertyName == nameof(AppSettings.Appearance))
                 Dispatcher.UIThread.Post(() => ApplyAppearance(Settings.Appearance));
+            if (e.PropertyName == nameof(AppSettings.IpAddress) && Settings.IpAddress != lastIp)
+            {
+                lastIp = Settings.IpAddress;
+                Dispatcher.UIThread.Post(TeardownStreamsNow);
+            }
+            if (e.PropertyName == nameof(AppSettings.ApiKey) && Settings.ApiKey != lastApiKey)
+            {
+                lastApiKey = Settings.ApiKey;
+                Dispatcher.UIThread.Post(TeardownStreamsNow);
+            }
         };
 
         // Kick off an initial fetch when credentials already exist.
@@ -250,6 +269,77 @@ public partial class App : Application
         _hotkey?.Update(hk?.keyCode, hk?.modifiers);
     }
 
+    // MARK: - Stream keep-alive (the macOS scheduleStreamTeardown / teardownStreamsNow)
+
+    /// <summary>
+    /// Panel reopened: cancel any pending grace teardown so the still-connected
+    /// streams are reused (the fresh tiles re-attach via the coordinator), and
+    /// resume decode — each client burst-replays its buffered GOP so the picture
+    /// is live immediately (no-op when nothing was paused).
+    /// </summary>
+    public void PanelOpened()
+    {
+        CancelStreamTeardown();
+        Streams.SetRenderPaused(false);
+    }
+
+    /// <summary>
+    /// Panel hidden: tear streams down after the configured grace period instead
+    /// of at close, so a quick reopen shows video instantly and skips the fetch +
+    /// per-camera POST/DELETE churn that can trip the controller's 10 req/s
+    /// limit. A grace of 0 keeps the previous close-immediately behavior.
+    /// </summary>
+    public void PanelClosed(MainViewModel vm)
+    {
+        CancelStreamTeardown();
+        var grace = Settings.StreamKeepAliveSeconds;
+        if (grace <= 0)
+        {
+            TeardownStreamsNow();
+            return;
+        }
+        // Motion and audio stop at close (macOS destroys the view tree here);
+        // the streams and tile claims survive for the deferred teardown.
+        vm.QuiesceForHide();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(grace) };
+        timer.Tick += (_, _) => TeardownStreamsNow();
+        _streamTeardownTimer = timer;
+        timer.Start();
+        // The streams survive but nobody sees them — stop decoding until the
+        // panel reopens (each client buffers its current GOP for instant
+        // resume), unless the user opted out in Settings.
+        if (Settings.PauseDecodeWhileClosed)
+            Streams.SetRenderPaused(true);
+    }
+
+    /// <summary>
+    /// Immediate stream teardown: the in-flight camera fetch, all tile streams,
+    /// and the server-side allocations (DELETE per stream). Runs on grace
+    /// expiry, app quit, and connection-settings changes.
+    /// </summary>
+    public void TeardownStreamsNow()
+    {
+        CancelStreamTeardown();
+        Service.CancelFetch();
+        // Reset the pause flag so a client that restarts later decodes again.
+        Streams.SetRenderPaused(false);
+        if (_mainWindow?.DataContext is MainViewModel vm)
+        {
+            vm.StopAll();
+        }
+        else
+        {
+            Streams.ReleaseAllExceptPinned();
+            Service.CleanupStreams();
+        }
+    }
+
+    private void CancelStreamTeardown()
+    {
+        _streamTeardownTimer?.Stop();
+        _streamTeardownTimer = null;
+    }
+
     private void Service_ShowError(string message)
     {
         // Lightweight surface for now; a styled alert is a follow-up.
@@ -267,7 +357,10 @@ public partial class App : Application
 
     private void OnExit()
     {
-        // Release server-side stream allocations before the process dies.
+        // Release server-side stream allocations before the process dies. The
+        // keep-alive grace doesn't apply on quit — flush it immediately.
+        CancelStreamTeardown();
+        Service.CancelFetch();
         _hotkey?.Dispose();
         Updater.Dispose();
         PinnedWindows.CloseAll();

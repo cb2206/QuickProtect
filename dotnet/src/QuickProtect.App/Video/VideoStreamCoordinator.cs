@@ -109,6 +109,18 @@ public sealed class VideoStreamCoordinator : IDisposable
         Resolve(entry, immediate: false);
     }
 
+    /// <summary>
+    /// Pause or resume display decode on every non-pinned stream (stream
+    /// keep-alive grace — pinned windows stay visible and keep decoding).
+    /// The macOS analog is RTSPClientManager.setRenderPaused.
+    /// </summary>
+    public void SetRenderPaused(bool paused)
+    {
+        List<VideoStreamClient> clients;
+        lock (_lock) clients = _entries.Values.Where(e => !e.Pinned).Select(e => e.Client).ToList();
+        foreach (var client in clients) client.SetRenderPaused(paused);
+    }
+
     /// <summary>Stop every non-pinned stream and free its allocation (panel closed).</summary>
     public void ReleaseAllExceptPinned()
     {
@@ -184,6 +196,18 @@ public sealed class VideoStreamCoordinator : IDisposable
                 ? await _service.CreatePinnedStreamUrlAsync(entry.Camera, quality)
                 : await _service.CreateRtspStreamUrlAsync(entry.Camera, quality);
             if (result is not { } r) return;
+
+            // The last consumer may have released while the POST was in flight
+            // (panel closed): adopting the allocation now would leak it
+            // server-side — release it instead and leave the client stopped.
+            bool abandoned;
+            lock (_lock) abandoned = entry.Desires.Count == 0;
+            if (abandoned)
+            {
+                if (entry.Pinned) _service.ReleasePinnedStream(entry.Camera.Id, r.quality);
+                else _service.ReleaseStream(entry.Camera.Id, r.quality);
+                return;
+            }
 
             var old = entry.ActiveQuality;
             entry.ActiveQuality = r.quality;

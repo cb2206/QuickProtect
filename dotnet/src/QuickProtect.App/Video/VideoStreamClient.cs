@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using FFmpeg.AutoGen.Abstractions;
+using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App.Video;
@@ -72,6 +73,24 @@ public sealed class VideoStreamClient : IDisposable
         if (muted && !_audioMuted) _audioFlush = true; // drop what's queued
         _audioMuted = muted;
     }
+
+    // Render pause (stream keep-alive grace). While paused, compressed video
+    // packets are buffered instead of decoded so a hidden panel costs no decode
+    // CPU; the flag is set from the UI thread, consumed on the decode thread.
+    private volatile bool _renderPaused;
+
+    /// <summary>
+    /// Pause or resume decode while the stream stays connected. Used for the
+    /// keep-alive grace after the panel closes: decoding frames nobody sees is
+    /// wasted CPU, but the connection must survive so a quick reopen is
+    /// instant. While paused, compressed packets are buffered from the most
+    /// recent keyframe (<see cref="PausedGopBuffer"/>); resume burst-decodes
+    /// them, catching the picture up to live immediately. If nothing replayable
+    /// was buffered (paused mid-GOP, or the buffer overflowed), the last frame
+    /// stays on screen and decoding waits for the next keyframe — feeding
+    /// P-frames whose references were never decoded would only produce garbage.
+    /// </summary>
+    public void SetRenderPaused(bool paused) => _renderPaused = paused;
 
     /// <summary>Start streaming <paramref name="url"/> (no-op when already on it).</summary>
     public void Start(string url)
@@ -252,6 +271,75 @@ public sealed class VideoStreamClient : IDisposable
             // if no keyframe shows up within 15s, decode anyway (and log it).
             var seenKeyframe = false;
             var keyframeDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+            // Keep-alive grace: per-session GOP buffer filled while _renderPaused
+            // (a reconnect while paused starts over — the old session's packets
+            // are useless against a fresh decoder).
+            var pausedGop = new PausedGopBuffer();
+            var wasPaused = false;
+
+            // Drain every decoded frame into the latest-wins BGRA buffer. The
+            // codec/frame pointers come in as parameters: capturing them would
+            // forbid the &codec/&frame cleanup below (CS1686).
+            void ReceiveFrames(AVCodecContext* dec, AVFrame* frm)
+            {
+                while (ffmpeg.avcodec_receive_frame(dec, frm) == 0)
+                {
+                    if (!sizeReported && frm->width > 0)
+                    {
+                        sizeReported = true;
+                        VideoSizeKnown?.Invoke(frm->width, frm->height);
+                    }
+
+                    sws = ffmpeg.sws_getCachedContext(sws,
+                        frm->width, frm->height, (AVPixelFormat)frm->format,
+                        frm->width, frm->height, AVPixelFormat.AV_PIX_FMT_BGRA,
+                        ffmpeg.SWS_BILINEAR, null, null, null);
+
+                    var stride = frm->width * 4;
+                    lock (_frameLock)
+                    {
+                        var needed = stride * frm->height;
+                        if (_frame == null || _frame.Length < needed ||
+                            _width != frm->width || _height != frm->height)
+                        {
+                            _frame = new byte[needed];
+                            _width = frm->width;
+                            _height = frm->height;
+                            _stride = stride;
+                        }
+                        fixed (byte* dst = _frame)
+                        {
+                            var dstPlanes = new byte*[] { dst };
+                            var dstStrides = new[] { stride };
+                            ffmpeg.sws_scale(sws, frm->data, frm->linesize, 0, frm->height,
+                                dstPlanes, dstStrides);
+                        }
+                        _seq++;
+                    }
+                    ffmpeg.av_frame_unref(frm);
+
+                    // First frame → Playing immediately (macOS DisplayImmediately parity).
+                    if (State != VideoState.Playing) SetState(VideoState.Playing);
+                    FrameReady?.Invoke();
+                }
+            }
+
+            // Decode one buffered packet from the paused GOP (resume burst).
+            void SendBuffered(AVCodecContext* dec, AVFrame* frm, byte[] data)
+            {
+                var pkt = ffmpeg.av_packet_alloc();
+                if (pkt == null) return;
+                try
+                {
+                    if (ffmpeg.av_new_packet(pkt, data.Length) < 0) return;
+                    Marshal.Copy(data, 0, (IntPtr)pkt->data, data.Length);
+                    if (ffmpeg.avcodec_send_packet(dec, pkt) >= 0) ReceiveFrames(dec, frm);
+                }
+                finally
+                {
+                    ffmpeg.av_packet_free(&pkt);
+                }
+            }
 
             while (!_stop && !_restart)
             {
@@ -271,9 +359,41 @@ public sealed class VideoStreamClient : IDisposable
                     continue;
                 }
                 if (packet->stream_index != vs) { ffmpeg.av_packet_unref(packet); continue; }
+                var isKeyframe = (packet->flags & ffmpeg.AV_PKT_FLAG_KEY) != 0;
+
+                // Keep-alive grace: buffer instead of decode while the panel is hidden.
+                if (_renderPaused)
+                {
+                    wasPaused = true;
+                    var data = new byte[packet->size];
+                    Marshal.Copy((IntPtr)packet->data, data, 0, packet->size);
+                    pausedGop.Add(data, isKeyframe);
+                    ffmpeg.av_packet_unref(packet);
+                    continue;
+                }
+                if (wasPaused)
+                {
+                    wasPaused = false;
+                    var gop = pausedGop.Drain();
+                    if (gop.Count > 0)
+                    {
+                        // Burst-decode the buffered GOP (it starts at a keyframe)
+                        // so the picture lands on live immediately.
+                        seenKeyframe = true;
+                        foreach (var data in gop) SendBuffered(codec, frame, data);
+                    }
+                    else
+                    {
+                        // Nothing replayable (paused mid-GOP, or the GOP overflowed
+                        // the cap): hold the last frame and wait for the next keyframe.
+                        seenKeyframe = false;
+                        keyframeDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+                    }
+                }
+
                 if (!seenKeyframe)
                 {
-                    if ((packet->flags & ffmpeg.AV_PKT_FLAG_KEY) != 0)
+                    if (isKeyframe)
                     {
                         seenKeyframe = true;
                     }
@@ -292,46 +412,7 @@ public sealed class VideoStreamClient : IDisposable
                 ffmpeg.av_packet_unref(packet);
                 if (rc < 0 && rc != ffmpeg.AVERROR(ffmpeg.EAGAIN)) continue; // tolerate glitches
 
-                while (ffmpeg.avcodec_receive_frame(codec, frame) == 0)
-                {
-                    if (!sizeReported && frame->width > 0)
-                    {
-                        sizeReported = true;
-                        VideoSizeKnown?.Invoke(frame->width, frame->height);
-                    }
-
-                    sws = ffmpeg.sws_getCachedContext(sws,
-                        frame->width, frame->height, (AVPixelFormat)frame->format,
-                        frame->width, frame->height, AVPixelFormat.AV_PIX_FMT_BGRA,
-                        ffmpeg.SWS_BILINEAR, null, null, null);
-
-                    var stride = frame->width * 4;
-                    lock (_frameLock)
-                    {
-                        var needed = stride * frame->height;
-                        if (_frame == null || _frame.Length < needed ||
-                            _width != frame->width || _height != frame->height)
-                        {
-                            _frame = new byte[needed];
-                            _width = frame->width;
-                            _height = frame->height;
-                            _stride = stride;
-                        }
-                        fixed (byte* dst = _frame)
-                        {
-                            var dstPlanes = new byte*[] { dst };
-                            var dstStrides = new[] { stride };
-                            ffmpeg.sws_scale(sws, frame->data, frame->linesize, 0, frame->height,
-                                dstPlanes, dstStrides);
-                        }
-                        _seq++;
-                    }
-                    ffmpeg.av_frame_unref(frame);
-
-                    // First frame → Playing immediately (macOS DisplayImmediately parity).
-                    if (State != VideoState.Playing) SetState(VideoState.Playing);
-                    FrameReady?.Invoke();
-                }
+                ReceiveFrames(codec, frame);
             }
             return true;
         }

@@ -85,6 +85,8 @@
   <data name="Installing update…" xml:space="preserve"><value>Installazione aggiornamento…</value></data>
   <data name="Integration API key from controller settings" xml:space="preserve"><value>Chiave dell'API di integrazione dalle impostazioni del controller</value></data>
   <data name="Invalid IP address or URL." xml:space="preserve"><value>Indirizzo IP o URL non valido.</value></data>
+  <data name="Keep streams alive" xml:space="preserve"><value>Mantieni attivi gli stream</value></data>
+  <data name="Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen." xml:space="preserve"><value>Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l&#x27;uso della CPU quasi a zero. L&#x27;immagine si aggiorna all&#x27;istante alla riapertura.</value></data>
   <data name="LIVE" xml:space="preserve"><value>LIVE</value></data>
   <data name="Large" xml:space="preserve"><value>Grande</value></data>
   <data name="Last try: %@" xml:space="preserve"><value>Ultimo tentativo: %@</value></data>
@@ -112,6 +114,7 @@
   <data name="Not Now" xml:space="preserve"><value>Non ora</value></data>
   <data name="Not configured" xml:space="preserve"><value>Non configurato</value></data>
   <data name="Not verified" xml:space="preserve"><value>Non verificato</value></data>
+  <data name="Off" xml:space="preserve"><value>Disattivato</value></data>
   <data name="Offline" xml:space="preserve"><value>Offline</value></data>
   <data name="Open Settings" xml:space="preserve"><value>Apri impostazioni</value></data>
   <data name="Open in Protect" xml:space="preserve"><value>Apri in Protect</value></data>
@@ -125,6 +128,7 @@
   <data name="Pan left" xml:space="preserve"><value>Brandeggio a sinistra</value></data>
   <data name="Pan right" xml:space="preserve"><value>Brandeggio a destra</value></data>
   <data name="Password" xml:space="preserve"><value>Password</value></data>
+  <data name="Pause decoding while closed" xml:space="preserve"><value>Sospendi la decodifica a pannello chiuso</value></data>
   <data name="Picture-in-picture when focused" xml:space="preserve"><value>Immagine nell'immagine nella vista ingrandita</value></data>
   <data name="Pin as Floating Window" xml:space="preserve"><value>Blocca come finestra mobile</value></data>
   <data name="Press S on a focused camera to capture a snapshot." xml:space="preserve"><value>Premi S quando una telecamera è ingrandita per acquisire un'istantanea.</value></data>
@@ -173,6 +177,7 @@
   <data name="Stream quality" xml:space="preserve"><value>Qualità dello stream</value></data>
   <data name="Stream unavailable" xml:space="preserve"><value>Stream non disponibile</value></data>
   <data name="Streaming" xml:space="preserve"><value>Streaming</value></data>
+  <data name="Streams stay connected for this long after closing, so a quick reopen shows video instantly" xml:space="preserve"><value>Gli stream restano connessi per questo tempo dopo la chiusura, così il video appare subito alla riapertura</value></data>
   <data name="Swap with main view (C)" xml:space="preserve"><value>Scambia con la vista principale (C)</value></data>
   <data name="Switch layout profile" xml:space="preserve"><value>Cambia profilo di layout</value></data>
   <data name="Test Connection" xml:space="preserve"><value>Prova connessione</value></data>
