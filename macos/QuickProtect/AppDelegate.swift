@@ -36,6 +36,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // macOS 26 attaches its AutoFill heuristic (a SafariPlatformSupport
+        // remote view) to every plain NSTextField. When that XPC service
+        // idle-exits, a stale ViewBridge observer survives and aborts the app
+        // on the next makeKeyAndOrderFront (NSRemoteView assertion in
+        // containingWindowWillOrderOnScreen). No field here wants
+        // password/one-time-code autofill, so disable the heuristic wholesale.
+        // Undocumented but established key (used by Ghostty among others).
+        UserDefaults.standard.register(defaults: ["NSAutoFillHeuristicControllerEnabled": false])
         setupStatusBar()
         setupGlobalHotkey()
         NotificationCenter.default.addObserver(forName: .closeCameraPanel, object: nil, queue: .main) { [weak self] _ in
@@ -330,6 +338,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func closePanel() {
+        // End any editing session first, so system views attached to the field
+        // editor (AutoFill completion list, input-method candidates) detach
+        // while their XPC service is still alive instead of leaving a stale
+        // ViewBridge observer behind.
+        panel?.makeFirstResponder(nil)
         service.isPopoverOpen = false
         // Tear streams down explicitly (after the keep-alive grace): the hosting
         // controller is destroyed below in the same runloop turn, so a SwiftUI
@@ -571,7 +584,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 forName: NSWindow.willCloseNotification,
                 object: win,
                 queue: .main
-            ) { [weak self] _ in
+            ) { [weak self] note in
+                // Same stale-ViewBridge-observer concern as closePanel(): end
+                // editing before the window goes away.
+                (note.object as? NSWindow)?.makeFirstResponder(nil)
                 self?.settingsWindow = nil
                 NSApp.setActivationPolicy(.accessory)
             }
