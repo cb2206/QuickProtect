@@ -120,6 +120,7 @@ targets:
       # Include testable source files directly (no BUNDLE_LOADER needed)
       - path: QuickProtect/Services/RTPParser.swift
       - path: QuickProtect/Services/ControllerRequestPolicy.swift
+      - path: QuickProtect/Services/PausedGOPBuffer.swift
       - path: QuickProtect/Services/UpdateAssets.swift
       - path: QuickProtect/Services/HotkeyManager.swift
       - path: QuickProtect/Models/AppSettings.swift

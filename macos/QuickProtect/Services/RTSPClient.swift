@@ -76,6 +76,13 @@ final class RTSPClient: ObservableObject {
     private var pendingNALs: [[UInt8]] = []
     private var hasFrameSignalled = false   // queue-only: gates the one-shot hasFrame publish
 
+    // Render pause (stream keep-alive grace) — all queue-only. While paused,
+    // access units are buffered instead of enqueued so the display layer does
+    // no decode work for a hidden panel; see setRenderPaused(_:).
+    private var renderPaused = false
+    private var pausedGOP = PausedGOPBuffer()
+    private var awaitingKeyframeAfterResume = false
+
     // Audio (queue-only). The renderer exists only while this client is the
     // focused stream; muting toggles its output without tearing it down.
     private var audioRenderer: AudioRenderer?
@@ -185,6 +192,9 @@ final class RTSPClient: ObservableObject {
             sequenceNumber   = 0
             formatDescription = nil
             hasFrameSignalled = false
+            renderPaused     = false
+            pausedGOP        = PausedGOPBuffer()
+            awaitingKeyframeAfterResume = false
 
             guard let host = url.host,
                   let rawPort = url.port,
@@ -244,6 +254,32 @@ final class RTSPClient: ObservableObject {
     func disconnect() {
         queue.async { [self] in
             disconnectOnQueue()
+        }
+    }
+
+    // MARK: - Render pause (called from main thread)
+
+    /// Pause or resume display-layer decode while the stream stays connected.
+    /// Used for the keep-alive grace after the panel closes: decoding frames
+    /// nobody sees is wasted CPU, but the RTSP session must survive so a quick
+    /// reopen is instant. While paused, compressed access units are buffered
+    /// from the most recent keyframe (`PausedGOPBuffer`); resume burst-replays
+    /// them through the normal enqueue path, catching the picture up to live
+    /// immediately. If nothing replayable was buffered (paused mid-GOP, or the
+    /// buffer overflowed), the last frame stays on the layer and enqueueing
+    /// waits for the next keyframe — feeding P-frames whose references were
+    /// never decoded would only produce garbage.
+    func setRenderPaused(_ paused: Bool) {
+        queue.async { [self] in
+            guard renderPaused != paused else { return }
+            renderPaused = paused
+            if paused { return }
+            let gop = pausedGOP.drain()
+            if let fmt = formatDescription, !gop.isEmpty {
+                for nals in gop { enqueueAccessUnit(nals, formatDescription: fmt) }
+            } else {
+                awaitingKeyframeAfterResume = true
+            }
         }
     }
 
@@ -407,6 +443,10 @@ final class RTSPClient: ObservableObject {
         audioRenderer = nil
         aacDepacketizer = nil
         teardownCaptureSession()
+        // Free any GOP held while paused (grace teardown arrives paused).
+        renderPaused = false
+        pausedGOP = PausedGOPBuffer()
+        awaitingKeyframeAfterResume = false
         if flushDisplay { displayLayer.flush() }
         DispatchQueue.main.async { [self] in
             isConnected = false
@@ -860,7 +900,32 @@ final class RTSPClient: ObservableObject {
 
     // MARK: - AVCC/HVCC → CMSampleBuffer → display layer
 
+    /// Whether an access unit starts with a keyframe NAL (H.264 IDR / HEVC
+    /// IRAP). Queue-only — reads `codec`.
+    private func isKeyframeAccessUnit(_ nals: [[UInt8]]) -> Bool {
+        guard let firstNAL = nals.first, !firstNAL.isEmpty else { return false }
+        if codec == "H265", firstNAL.count >= 2 {
+            if case .keyframe = RTPParser.classifyH265NAL(firstNAL[0]) { return true }
+            return false
+        }
+        return RTPParser.classifyH264NAL(firstNAL[0]) == .idr
+    }
+
     private func enqueueAccessUnit(_ nals: [[UInt8]], formatDescription: CMVideoFormatDescription) {
+        let isKeyframe = isKeyframeAccessUnit(nals)
+
+        // Keep-alive grace: buffer instead of decode while the panel is hidden.
+        if renderPaused {
+            pausedGOP.add(nals, isKeyframe: isKeyframe)
+            return
+        }
+        // Resume without a replayable GOP: hold the last frame until the stream
+        // delivers a keyframe that re-anchors the reference chain.
+        if awaitingKeyframeAfterResume {
+            guard isKeyframe else { return }
+            awaitingKeyframeAfterResume = false
+        }
+
         let totalSize = nals.reduce(0) { $0 + 4 + $1.count }
         guard totalSize > 0, let mem = malloc(totalSize) else { return }
         let ptr = mem.bindMemory(to: UInt8.self, capacity: totalSize)
@@ -897,14 +962,6 @@ final class RTSPClient: ObservableObject {
             sampleSizeEntryCount: 0, sampleSizeArray: nil, sampleBufferOut: &sb)
 
         if let sb {
-            let firstNAL = nals[0]
-            let isKeyframe: Bool
-            if codec == "H265", firstNAL.count >= 2 {
-                if case .keyframe = RTPParser.classifyH265NAL(firstNAL[0]) { isKeyframe = true }
-                else { isKeyframe = false }
-            } else {
-                isKeyframe = RTPParser.classifyH264NAL(firstNAL[0]) == .idr
-            }
             if let attachments = CMSampleBufferGetSampleAttachmentsArray(sb, createIfNecessary: true) as? [NSMutableDictionary] {
                 for dict in attachments {
                     dict[kCMSampleAttachmentKey_DependsOnOthers] = !isKeyframe

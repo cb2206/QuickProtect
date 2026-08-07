@@ -216,13 +216,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - Camera panel (resizable, anchored to status bar)
 
     private func showPanel() {
-        guard let button = statusItem?.button else { return }
+        guard statusItem?.button != nil else { return }
 
         // Reopening within the keep-alive grace reuses the still-connected
         // streams: cancel their pending teardown, and the fresh tiles attach to
         // the live clients via RTSPClientManager (hasFrame → instant video).
+        // Resuming render replays each client's buffered GOP so the picture is
+        // live immediately (no-op when nothing was paused).
         streamTeardownWork?.cancel()
         streamTeardownWork = nil
+        clientManager.setRenderPaused(false)
 
         if panel == nil {
             let size = savedPanelSize()
@@ -367,6 +370,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         streamTeardownWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(grace), execute: work)
+        // The streams survive but nobody sees them — stop decoding until the
+        // panel reopens (each client buffers its current GOP for instant resume).
+        clientManager.setRenderPaused(true)
     }
 
     /// Immediate stream teardown: the in-flight camera fetch, all RTSP sockets,

@@ -18,6 +18,15 @@ final class RTSPClientManager: ObservableObject {
         return client
     }
 
+    /// Pause or resume display decode on every owned client. Paused while the
+    /// panel is hidden during the keep-alive grace (streams stay connected but
+    /// nobody sees them); resumed when the panel reopens in time.
+    func setRenderPaused(_ paused: Bool) {
+        for client in clients.values {
+            client.setRenderPaused(paused)
+        }
+    }
+
     /// Disconnects and removes all clients (called when popover closes).
     func disconnectAll() {
         for client in clients.values {
