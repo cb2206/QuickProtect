@@ -102,6 +102,15 @@ port (`dotnet/`).
   `scripts/package-windows.ps1`, 7 wizard languages, closes the running tray app
   on upgrade.
 
+## Pending (macOS ahead)
+
+- **Stream keep-alive on panel close** — macOS keeps streams connected for a
+  configurable grace period (Settings → Connection, default 10 s, 0–60 s) so a
+  quick reopen shows video instantly, plus controller rate-limit hardening
+  (fetch coalescing/throttle, PTZ-enrichment throttle, no quality-ladder
+  retries on 429/5xx, one silent retry after a 429). The port tears streams
+  down on close and has the same fetch-per-open pattern — mirror both.
+
 ## Intentional differences from macOS
 
 | Topic | macOS | This port | Why |

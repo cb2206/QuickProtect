@@ -53,6 +53,23 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(defaultStreamQuality.rawValue, forKey: Keys.defaultStreamQuality) }
     }
 
+    /// Bounds and default (seconds) for `streamKeepAliveSeconds`.
+    static let streamKeepAliveRange = 0...60
+    static let streamKeepAliveDefault = 10
+
+    /// Clamps a stored keep-alive value into the supported range. Pure, so the
+    /// bounds are unit-testable without touching UserDefaults.
+    static func clampStreamKeepAlive(_ value: Int) -> Int {
+        min(max(value, streamKeepAliveRange.lowerBound), streamKeepAliveRange.upperBound)
+    }
+
+    /// How long (seconds) camera streams stay connected after the panel closes,
+    /// so a quick reopen shows video instantly instead of re-fetching and
+    /// re-creating every stream. 0 disconnects immediately on close.
+    @Published var streamKeepAliveSeconds: Int {
+        didSet { UserDefaults.standard.set(streamKeepAliveSeconds, forKey: Keys.streamKeepAliveSeconds) }
+    }
+
     /// Security-scoped bookmark to the folder where snapshots are saved.
     /// Used when `snapshotDestination` is `.folder`. The sandbox requires a
     /// bookmark to regain write access to a user-chosen folder across launches.
@@ -583,6 +600,7 @@ final class AppSettings: ObservableObject {
         static let cameraStreamQualities = "unifi.cameraStreamQualities"
         static let pinnedCameras  = "unifi.pinnedCameras"
         static let appStorePromoShown = "unifi.appStorePromoShown"
+        static let streamKeepAliveSeconds = "unifi.streamKeepAliveSeconds"
         static let lastPromotedUpdateVersion = "unifi.lastPromotedUpdateVersion"
     }
 
@@ -621,6 +639,8 @@ final class AppSettings: ObservableObject {
         defaultStreamQuality = StreamQuality(
             rawValue: UserDefaults.standard.string(forKey: Keys.defaultStreamQuality) ?? "") ?? .auto
         snapshotFolderBookmark = UserDefaults.standard.data(forKey: Keys.snapshotFolderBookmark)
+        let keepAlive = UserDefaults.standard.object(forKey: Keys.streamKeepAliveSeconds) as? Int
+        streamKeepAliveSeconds = Self.clampStreamKeepAlive(keepAlive ?? Self.streamKeepAliveDefault)
         activeProfileID = UserDefaults.standard.string(forKey: Keys.activeProfileID) ?? Self.defaultProfileID
         migrateLayoutProfilesIfNeeded()
     }

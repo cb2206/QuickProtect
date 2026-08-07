@@ -211,6 +211,21 @@ struct SettingsView: View {
                         selection: $settings.usePlainRtsp
                     )
                 }
+                AuroraSettingsRow(
+                    String(localized: "Keep streams alive"),
+                    hint: String(localized: "Streams stay connected for this long after closing, so a quick reopen shows video instantly")
+                ) {
+                    AuroraSegmented(
+                        options: [
+                            (String(localized: "Off"), 0),
+                            ("5 s", 5),
+                            ("10 s", 10),
+                            ("30 s", 30),
+                            ("60 s", 60)
+                        ],
+                        selection: $settings.streamKeepAliveSeconds
+                    )
+                }
                 AuroraSettingsRow(isLast: true) {
                     HStack(spacing: 10) {
                         AuroraPrimaryButton(
@@ -715,7 +730,7 @@ struct SettingsView: View {
         isTesting = true
         testResult = nil
         Task {
-            await service.fetchCameras()
+            await service.fetchCameras(forced: true)
             isTesting = false
             if let err = service.errorMessage {
                 testResult = TestResult(message: err, icon: "xmark.circle.fill", color: .red)

@@ -52,7 +52,7 @@ struct PopoverContentView: View {
             searchField
 
             HeaderIconButton(systemName: "arrow.clockwise", help: String(localized: "Refresh cameras")) {
-                Task { await service.fetchCameras() }
+                Task { await service.fetchCameras(forced: true) }
             }
             .disabled(service.isLoading)
 

@@ -14,6 +14,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var onboardingWindow: NSWindow?
     private var promoWindow: NSWindow?
     private var updateSubscription: AnyCancellable?
+    private var connectionSettingsSubscription: AnyCancellable?
+    /// Pending deferred stream teardown while the keep-alive grace period runs
+    /// (see `scheduleStreamTeardown`). Cancelled when the panel reopens in time.
+    private var streamTeardownWork: DispatchWorkItem?
     private var clickMonitor: Any?
     private var appSwitchObserver: NSObjectProtocol?
     private var savedPanelFrame: NSRect?
@@ -53,6 +57,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
         }
+        // A controller/API-key change invalidates live streams and any pending
+        // keep-alive grace — stale clients would keep talking to the old host.
+        connectionSettingsSubscription = s.$ipAddress.dropFirst().removeDuplicates()
+            .merge(with: s.$apiKey.dropFirst().removeDuplicates())
+            .sink { [weak self] _ in self?.teardownStreamsNow() }
         if !s.hasCompletedOnboarding {
             showOnboarding()
         } else {
@@ -65,8 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         // Release camera streams (RTSP TEARDOWN + server-side DELETE) so the
-        // controller doesn't keep sessions alive against a dead process.
+        // controller doesn't keep sessions alive against a dead process. The
+        // keep-alive grace doesn't apply on quit — flush it immediately.
         closePanel()
+        teardownStreamsNow()
         // Pinned windows hold their own streams — tear them down too. Their
         // persistence is kept so they reopen on next launch.
         pinnedWindows.closeAll()
@@ -207,6 +218,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func showPanel() {
         guard let button = statusItem?.button else { return }
 
+        // Reopening within the keep-alive grace reuses the still-connected
+        // streams: cancel their pending teardown, and the fresh tiles attach to
+        // the live clients via RTSPClientManager (hasFrame → instant video).
+        streamTeardownWork?.cancel()
+        streamTeardownWork = nil
+
         if panel == nil {
             let size = savedPanelSize()
             let content = PopoverContentView(service: service, clientManager: clientManager) { [weak self] in
@@ -311,11 +328,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func closePanel() {
         service.isPopoverOpen = false
-        // Tear streams down explicitly: the hosting controller is destroyed
-        // below in the same runloop turn, so a SwiftUI .onChange observing
-        // isPopoverOpen would never get an update pass to run in.
-        clientManager.disconnectAll()
-        service.cleanupStreams()
+        // Tear streams down explicitly (after the keep-alive grace): the hosting
+        // controller is destroyed below in the same runloop turn, so a SwiftUI
+        // .onChange observing isPopoverOpen would never get an update pass to
+        // run in.
+        scheduleStreamTeardown()
         panel?.orderOut(nil)
         // Destroy the hosting controller so the panel is rebuilt fresh in
         // showPanel().
@@ -329,6 +346,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             appSwitchObserver = nil
         }
+    }
+
+    // MARK: - Stream keep-alive
+
+    /// Tears streams down after the configured grace period instead of at close,
+    /// so a quick reopen shows video instantly and skips the fetch + per-camera
+    /// POST/DELETE churn that can trip the controller's 10 req/s limit. A grace
+    /// of 0 keeps the previous close-immediately behavior.
+    private func scheduleStreamTeardown() {
+        streamTeardownWork?.cancel()
+        let grace = AppSettings.shared.streamKeepAliveSeconds
+        guard grace > 0 else {
+            teardownStreamsNow()
+            return
+        }
+        let work = DispatchWorkItem { [weak self] in
+            self?.streamTeardownWork = nil
+            self?.teardownStreamsNow()
+        }
+        streamTeardownWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(grace), execute: work)
+    }
+
+    /// Immediate stream teardown: the in-flight camera fetch, all RTSP sockets,
+    /// and the server-side allocations (DELETE per stream). Runs on grace
+    /// expiry, app quit, and connection-settings changes.
+    private func teardownStreamsNow() {
+        streamTeardownWork?.cancel()
+        streamTeardownWork = nil
+        service.cancelFetch()
+        clientManager.disconnectAll()
+        service.cleanupStreams()
     }
 
     private func savedPanelSize() -> NSSize {

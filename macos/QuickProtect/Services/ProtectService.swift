@@ -101,44 +101,134 @@ final class ProtectService: NSObject, ObservableObject {
 
     // MARK: - Fetch camera list
 
-    func fetchCameras() async {
+    /// Guards the fetch-coalescing state below, which is touched from arbitrary
+    /// caller contexts (status-bar toggle, refresh buttons, Settings).
+    private let fetchLock = NSLock()
+    private var _fetchTask: Task<Void, Never>?
+    private var _lastFetchSucceededAt: Date?
+    private var _lastPtzEnrich: ControllerRequestPolicy.PtzEnrichRecord?
+
+    /// Fetches the camera list, coalescing concurrent calls into one request
+    /// chain (rapid panel toggles must not stack fetches against the
+    /// controller's 10 req/s limit) and throttling automatic refreshes.
+    /// `forced` — a user-initiated refresh or Test Connection — bypasses the
+    /// throttle but still joins an in-flight fetch.
+    func fetchCameras(forced: Bool = false) async {
+        guard let (task, started) = joinOrStartFetch(forced: forced) else { return }
+        await task.value
+        if started { clearFetchTask() }
+    }
+
+    /// Atomically joins the in-flight fetch or starts a new one; `nil` when the
+    /// throttle says the current list is fresh enough. Synchronous so the lock
+    /// never spans a suspension point.
+    private func joinOrStartFetch(forced: Bool) -> (task: Task<Void, Never>, started: Bool)? {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        if let existing = _fetchTask { return (existing, false) }
+        if !forced, ControllerRequestPolicy.shouldSkipFetch(
+            lastSuccess: _lastFetchSucceededAt, now: Date()) {
+            return nil
+        }
+        let task = Task { await self.performFetch(forced: forced) }
+        _fetchTask = task
+        return (task, true)
+    }
+
+    private func clearFetchTask() {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        _fetchTask = nil
+    }
+
+    /// Cancels an in-flight camera fetch. Called by the deferred stream
+    /// teardown after the panel closes — a fetch that dies here must not
+    /// surface an error card (see the cancellation check in `performFetch`).
+    func cancelFetch() {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        _fetchTask?.cancel()
+    }
+
+    private func performFetch(forced: Bool) async {
         RTSPClient.log("[API] fetchCameras called")
         guard validate() else { RTSPClient.log("[API] validate failed"); return }
         await setLoading(true)
 
         do {
-            // Integration API camera list — works with X-API-Key, returns id/name/state.
-            // RTSP URLs are created on-demand via POST rtsps-stream, not stored here.
-            guard let url = makeURL(path: "proxy/protect/integration/v1/cameras") else {
-                throw APIError.invalidURL
-            }
-            var request = URLRequest(url: url, timeoutInterval: 10)
-            request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-            let (data, response) = try await tlsSession.data(for: request)
-            guard let http = response as? HTTPURLResponse else { throw APIError.invalidURL }
-            guard (200...299).contains(http.statusCode) else {
-                throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
-            }
-
-            // Integration API wraps the array: { "data": [...] }
-            struct Wrapped: Decodable { let data: [Camera] }
-            let cameras: [Camera]
-            if let w = try? JSONDecoder().decode(Wrapped.self, from: data) {
-                cameras = w.data
-            } else {
-                cameras = try JSONDecoder().decode([Camera].self, from: data)
-            }
+            let cameras = try await requestCameraList()
+            markFetchSucceeded()
             await applySuccess(cameras)
 
             // If classic API credentials are configured, enrich PTZ flags
-            if !settings.username.isEmpty && !settings.password.isEmpty {
+            if !settings.username.isEmpty && !settings.password.isEmpty,
+               forced || !shouldSkipPtzEnrich() {
                 await enrichPtzFlags()
+                markPtzEnriched()
             }
         } catch {
+            // A fetch cancelled by the deferred teardown isn't a failure the
+            // user should see — leave the camera list and error state alone.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                await setLoading(false)
+                return
+            }
             await applyError(error)
         }
+    }
+
+    /// One camera-list request, retried once after the limiter's 1-second
+    /// window when the controller answers 429 — a rapid panel toggle should
+    /// recover silently rather than surface a rate-limit error card.
+    private func requestCameraList() async throws -> [Camera] {
+        do {
+            return try await requestCameraListOnce()
+        } catch APIError.http(429, _) {
+            RTSPClient.log("[API] 429 — retrying after limiter window")
+            try await Task.sleep(nanoseconds: 1_100_000_000)
+            return try await requestCameraListOnce()
+        }
+    }
+
+    private func requestCameraListOnce() async throws -> [Camera] {
+        // Integration API camera list — works with X-API-Key, returns id/name/state.
+        // RTSP URLs are created on-demand via POST rtsps-stream, not stored here.
+        guard let url = makeURL(path: "proxy/protect/integration/v1/cameras") else {
+            throw APIError.invalidURL
+        }
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await tlsSession.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidURL }
+        guard (200...299).contains(http.statusCode) else {
+            throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+
+        // Integration API wraps the array: { "data": [...] }
+        struct Wrapped: Decodable { let data: [Camera] }
+        if let w = try? JSONDecoder().decode(Wrapped.self, from: data) {
+            return w.data
+        }
+        return try JSONDecoder().decode([Camera].self, from: data)
+    }
+
+    private func markFetchSucceeded() {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        _lastFetchSucceededAt = Date()
+    }
+
+    private func shouldSkipPtzEnrich() -> Bool {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        return ControllerRequestPolicy.shouldSkipPtzEnrich(
+            last: _lastPtzEnrich,
+            username: settings.username,
+            password: settings.password,
+            now: Date())
+    }
+
+    private func markPtzEnriched() {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        _lastPtzEnrich = ControllerRequestPolicy.PtzEnrichRecord(
+            at: Date(), username: settings.username, password: settings.password)
     }
 
     // MARK: - RTSP stream creation (Integration API)
@@ -151,11 +241,16 @@ final class ProtectService: NSObject, ObservableObject {
     func createRtspStreamURL(for camera: Camera,
                              quality: String = "medium") async -> (url: URL, quality: String)? {
         for tier in Self.qualityFallbackLadder(from: quality) {
-            if let url = await requestRtspStreamURL(for: camera, quality: tier) {
+            switch await requestRtspStreamURL(for: camera, quality: tier) {
+            case .success(let url):
                 if tier != quality {
                     RTSPClient.log("[Stream] \(quality) unavailable for \(camera.name); using \(tier)")
                 }
                 return (url, tier)
+            case .qualityUnavailable:
+                continue
+            case .failed:
+                return nil
             }
         }
         return nil
@@ -168,11 +263,16 @@ final class ProtectService: NSObject, ObservableObject {
     func createPinnedStreamURL(for camera: Camera,
                                quality: String = "high") async -> (url: URL, quality: String)? {
         for tier in Self.qualityFallbackLadder(from: quality) {
-            if let url = await requestRtspStreamURL(for: camera, quality: tier, pinned: true) {
+            switch await requestRtspStreamURL(for: camera, quality: tier, pinned: true) {
+            case .success(let url):
                 if tier != quality {
                     RTSPClient.log("[Stream] pinned \(quality) unavailable for \(camera.name); using \(tier)")
                 }
                 return (url, tier)
+            case .qualityUnavailable:
+                continue
+            case .failed:
+                return nil
             }
         }
         return nil
@@ -191,14 +291,23 @@ final class ProtectService: NSObject, ObservableObject {
         }
     }
 
-    /// Single POST attempt for one quality. Returns the playable URL, or `nil` if
-    /// the endpoint errors or doesn't offer that quality.
+    /// Result of one stream-creation POST, so the quality-fallback ladder can
+    /// tell "this camera doesn't offer that quality" (try the next tier) from
+    /// rate-limiting or an unreachable controller (abort the ladder — see
+    /// `ControllerRequestPolicy.abortsQualityLadder`).
+    private enum StreamRequestOutcome {
+        case success(URL)
+        case qualityUnavailable
+        case failed
+    }
+
+    /// Single POST attempt for one quality.
     private func requestRtspStreamURL(for camera: Camera, quality: String,
-                                      pinned: Bool = false) async -> URL? {
+                                      pinned: Bool = false) async -> StreamRequestOutcome {
         RTSPClient.log("[Stream] requestRtspStreamURL(\(quality)) for \(camera.name)")
         guard let url = makeURL(
             path: "proxy/protect/integration/v1/cameras/\(camera.id)/rtsps-stream"
-        ) else { RTSPClient.log("[Stream] makeURL failed"); return nil }
+        ) else { RTSPClient.log("[Stream] makeURL failed"); return .failed }
 
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.httpMethod = "POST"
@@ -211,21 +320,31 @@ final class ProtectService: NSObject, ObservableObject {
 
         guard let (data, resp) = try? await tlsSession.data(for: request) else {
             RTSPClient.log("[Stream] HTTP request failed (no response)")
-            return nil
+            return .failed
         }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         guard status == 200 else {
             RTSPClient.log("[Stream] HTTP \(status): \(String(data: data, encoding: .utf8) ?? "")")
-            return nil
+            return ControllerRequestPolicy.abortsQualityLadder(httpStatus: status)
+                ? .failed : .qualityUnavailable
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rtspsString = json[quality] as? String else { return nil }
+              let rtspsString = json[quality] as? String else { return .qualityUnavailable }
+
+        // The panel may have closed while the POST was in flight. cleanupStreams()
+        // has already drained the tracking set by now, so recording the allocation
+        // would leak it server-side — release it instead.
+        guard !Task.isCancelled else {
+            deleteRtspStream(for: camera.id, quality: quality)
+            return .failed
+        }
 
         trackStream(streamKey(camera.id, quality), pinned: pinned)
         let playable = toPlayableURL(rtspsString)
         RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable?.absoluteString ?? "nil")")
-        return playable
+        guard let playable else { return .qualityUnavailable }
+        return .success(playable)
     }
 
     // MARK: - RTSP stream cleanup

@@ -300,7 +300,7 @@ struct OnboardingView: View {
         isTesting = true
         testResult = nil
         Task {
-            await service.fetchCameras()
+            await service.fetchCameras(forced: true)
             isTesting = false
             if let err = service.errorMessage {
                 testResult = TestResult(connected: false, message: err)

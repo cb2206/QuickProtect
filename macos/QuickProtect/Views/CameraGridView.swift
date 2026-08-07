@@ -64,7 +64,7 @@ struct CameraGridView: View {
             systemImage: "exclamationmark.circle",
             title: String(localized: "Can't reach controller"),
             message: message,
-            primary: (String(localized: "Retry"), { lastRetryAt = Date(); Task { await service.fetchCameras() } }),
+            primary: (String(localized: "Retry"), { lastRetryAt = Date(); Task { await service.fetchCameras(forced: true) } }),
             secondary: (String(localized: "Open Settings"), onOpenSettings),
             footer: lastRetryAt.map { String(localized: "Last try: \(Self.relativeAgo(from: $0))") }
         )
@@ -77,7 +77,7 @@ struct CameraGridView: View {
             systemImage: "video.slash",
             title: String(localized: "No cameras yet"),
             message: String(localized: "Connected, but no cameras came back. Adopt one in the Protect app, then refresh."),
-            primary: (String(localized: "Refresh"), { Task { await service.fetchCameras() } }),
+            primary: (String(localized: "Refresh"), { Task { await service.fetchCameras(forced: true) } }),
             secondary: (String(localized: "Open in Protect"), openProtectDashboard),
             footer: nil
         )
