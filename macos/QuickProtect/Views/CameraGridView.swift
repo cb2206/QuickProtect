@@ -476,7 +476,7 @@ struct CameraCell: View {
             removeMouseMonitor()
             hudHideWorkItem?.cancel()
             deactivateAudio()
-            stopSecondaryStream()
+            stopSecondaryStreamUnlessKeptAlive()
         }
         .onChange(of: service.isPopoverOpen) { open in
             if open {
@@ -489,7 +489,7 @@ struct CameraCell: View {
                 downSwitchWork = nil
                 preservingFrame = false
                 mode = .connecting
-                stopSecondaryStream()
+                stopSecondaryStreamUnlessKeptAlive()
             }
         }
         .onChange(of: rtspClient.hasFrame) { ready in
@@ -1053,6 +1053,22 @@ struct CameraCell: View {
             secondaryStreamTask = nil
             secondaryClient.connect(to: stream.url)
         }
+    }
+
+    /// Panel-close variant of `stopSecondaryStream`: with a keep-alive grace
+    /// configured, leave the live stream to the deferred teardown — the client
+    /// is owned by RTSPClientManager (disconnectAll) and its allocation stays
+    /// in the tracking set (cleanupStreams) — so a quick reopen resumes the
+    /// PiP instantly, mirroring the primary stream. Only the in-flight
+    /// creation task is cancelled. Tile teardown while the panel stays open
+    /// (unfocus, PiP toggled off) stops the stream as before.
+    private func stopSecondaryStreamUnlessKeptAlive() {
+        guard !service.isPopoverOpen, AppSettings.shared.streamKeepAliveSeconds > 0 else {
+            stopSecondaryStream()
+            return
+        }
+        secondaryStreamTask?.cancel()
+        secondaryStreamTask = nil
     }
 
     /// Disconnect the secondary lens and release its server-side allocation.
