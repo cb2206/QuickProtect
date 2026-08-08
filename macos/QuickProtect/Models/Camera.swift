@@ -110,6 +110,24 @@ struct Camera: Identifiable {
     }
 
     var isOnline: Bool { state == "CONNECTED" }
+
+    /// Carries `isPtz`/`canZoom` forward from `previous` into `fresh` by camera
+    /// id. Integration-API payloads never include these flags, so a plain
+    /// refresh would otherwise wipe them until the throttled classic-API
+    /// enrichment runs again. Flags are only ever set true here — the periodic
+    /// enrichment remains the sole authority that can clear them.
+    static func preservingEnrichmentFlags(from previous: [Camera],
+                                          into fresh: [Camera]) -> [Camera] {
+        let ptzIds = Set(previous.filter(\.isPtz).map(\.id))
+        let zoomIds = Set(previous.filter(\.canZoom).map(\.id))
+        guard !ptzIds.isEmpty || !zoomIds.isEmpty else { return fresh }
+        return fresh.map { cam in
+            var c = cam
+            if ptzIds.contains(cam.id) { c.isPtz = true }
+            if zoomIds.contains(cam.id) { c.canZoom = true }
+            return c
+        }
+    }
 }
 
 // MARK: - Codable (lenient — handles both classic and integration API shapes)

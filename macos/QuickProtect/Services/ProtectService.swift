@@ -157,11 +157,15 @@ final class ProtectService: NSObject, ObservableObject {
             markFetchSucceeded()
             await applySuccess(cameras)
 
-            // If classic API credentials are configured, enrich PTZ flags
+            // If classic API credentials are configured, enrich PTZ flags.
+            // Only a successful enrichment arms the throttle — a transient
+            // failure (e.g. a 429 in the panel-open burst) must not silence
+            // PTZ enrichment for the whole throttle window.
             if !settings.username.isEmpty && !settings.password.isEmpty,
                forced || !shouldSkipPtzEnrich() {
-                await enrichPtzFlags()
-                markPtzEnriched()
+                if await enrichPtzFlags() {
+                    markPtzEnriched()
+                }
             }
         } catch {
             // A fetch cancelled by the deferred teardown isn't a failure the
@@ -448,9 +452,14 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     /// Fetches camera list from classic API and merges isPtz flags into existing cameras.
-    private func enrichPtzFlags() async {
-        guard await classicLogin() else { return }
-        guard let url = makeURL(path: "proxy/protect/api/cameras") else { return }
+    /// Returns `true` only when flags were actually applied, so the caller can
+    /// arm the enrichment throttle on success alone.
+    private func enrichPtzFlags() async -> Bool {
+        guard await classicLogin() else {
+            RTSPClient.log("[PTZ] enrich failed: classic login failed")
+            return false
+        }
+        guard let url = makeURL(path: "proxy/protect/api/cameras") else { return false }
 
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -459,9 +468,19 @@ final class ProtectService: NSObject, ObservableObject {
             request.setValue("TOKEN=\(token)", forHTTPHeaderField: "Cookie")
         }
 
-        guard let (data, resp) = try? await classicSession.data(for: request),
-              let http = resp as? HTTPURLResponse,
-              (200...299).contains(http.statusCode) else { return }
+        let data: Data
+        do {
+            let (body, resp) = try await classicSession.data(for: request)
+            let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            guard (200...299).contains(status) else {
+                RTSPClient.log("[PTZ] enrich failed: HTTP \(status)")
+                return false
+            }
+            data = body
+        } catch {
+            RTSPClient.log("[PTZ] enrich failed: \(error.localizedDescription)")
+            return false
+        }
 
         // Classic API returns a plain array (not wrapped in {data: [...]})
         let classicCameras = (try? JSONDecoder().decode([Camera].self, from: data)) ?? []
@@ -469,7 +488,10 @@ final class ProtectService: NSObject, ObservableObject {
         // Only apply flags when we actually got a camera list back. A transient
         // empty/failed response must not wipe previously-known PTZ flags; but when
         // the list is present it is authoritative (a camera that lost PTZ is cleared).
-        guard !classicCameras.isEmpty else { return }
+        guard !classicCameras.isEmpty else {
+            RTSPClient.log("[PTZ] enrich failed: empty or undecodable camera list")
+            return false
+        }
         let ptzIds = Set(classicCameras.filter(\.isPtz).map(\.id))
         let zoomIds = Set(classicCameras.filter(\.canZoom).map(\.id))
 
@@ -481,6 +503,7 @@ final class ProtectService: NSObject, ObservableObject {
                 return c
             }
         }
+        return true
     }
 
     // MARK: - PTZ control (classic API — continuous velocity moves)
@@ -623,7 +646,10 @@ final class ProtectService: NSObject, ObservableObject {
     private func applySuccess(_ cameras: [Camera]) async {
         RTSPClient.log("[API] applySuccess: \(cameras.count) cameras")
         await MainActor.run {
-            self.cameras = cameras
+            // Integration-API payloads carry no PTZ flags; keep what the
+            // classic-API enrichment already established (it may be throttled
+            // and not run again for minutes).
+            self.cameras = Camera.preservingEnrichmentFlags(from: self.cameras, into: cameras)
             self.isLoading = false
             self.errorMessage = nil
         }
