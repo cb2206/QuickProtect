@@ -31,7 +31,6 @@ public sealed class AppSettings : INotifyPropertyChanged
         _secrets = secrets;
         _ipAddress = _prefs.GetString(Keys.IpAddress) ?? "";
         _apiKey = LoadSecret(Keys.ApiKey);
-        _usePlainRtsp = _prefs.GetBool(Keys.UsePlainRtsp) ?? true;
         _streamKeepAliveSeconds = ClampStreamKeepAlive(_prefs.GetInt(Keys.StreamKeepAliveSeconds) ?? StreamKeepAliveDefault);
         _pauseDecodeWhileClosed = _prefs.GetBool(Keys.PauseDecodeWhileClosed) ?? true;
         _username = LoadSecret(Keys.Username);
@@ -76,13 +75,6 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => _password;
         set { _password = value; _secrets.Set(Keys.Password, value); Raise(); }
-    }
-
-    private bool _usePlainRtsp;
-    public bool UsePlainRtsp
-    {
-        get => _usePlainRtsp;
-        set { _usePlainRtsp = value; _prefs.SetBool(Keys.UsePlainRtsp, value); Raise(); }
     }
 
     /// <summary>Bounds and default (seconds) for <see cref="StreamKeepAliveSeconds"/>.</summary>
@@ -539,7 +531,10 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         public const string IpAddress = "unifi.ipAddress";
         public const string ApiKey = "unifi.apiKey";
-        public const string UsePlainRtsp = "unifi.usePlainRtsp";
+        // "unifi.usePlainRtsp" retired: the Integration API's stream tokens are
+        // only valid on rtsps://:7441, so a plain-RTSP mode can't exist for
+        // these on-demand streams (see the macOS ProtectService.toPlayableURL
+        // note). Old preference files may still carry the key; it's ignored.
         public const string StreamKeepAliveSeconds = "unifi.streamKeepAliveSeconds";
         public const string PauseDecodeWhileClosed = "unifi.pauseDecodeWhileClosed";
         public const string HiddenCameras = "unifi.hiddenCameras";
