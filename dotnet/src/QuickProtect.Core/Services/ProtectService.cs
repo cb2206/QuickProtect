@@ -163,10 +163,13 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
             // If classic API credentials are configured, enrich PTZ flags —
             // throttled, since enrichment costs a login the controller audit-logs.
+            // Only a SUCCESSFUL enrichment arms the throttle: recording a failed
+            // attempt (e.g. a 429 in the panel-open request burst) would leave
+            // the cameras flagged non-PTZ for the whole throttle window.
             if (!string.IsNullOrEmpty(_settings.Username) && !string.IsNullOrEmpty(_settings.Password)
-                && (forced || !ShouldSkipPtzEnrich()))
+                && (forced || !ShouldSkipPtzEnrich())
+                && await EnrichPtzFlagsAsync(ct).ConfigureAwait(false))
             {
-                await EnrichPtzFlagsAsync(ct).ConfigureAwait(false);
                 lock (_fetchLock)
                     _lastPtzEnrich = new ControllerRequestPolicy.PtzEnrichRecord(
                         DateTime.UtcNow, _settings.Username, _settings.Password);
@@ -450,21 +453,30 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Cookie", $"TOKEN={token}");
     }
 
-    private async Task EnrichPtzFlagsAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Applies classic-API PTZ/zoom capability flags to the current camera list.
+    /// Best-effort (PTZ simply stays unavailable on failure), but returns whether
+    /// flags were actually applied so the caller only throttles real successes.
+    /// </summary>
+    private async Task<bool> EnrichPtzFlagsAsync(CancellationToken ct = default)
     {
-        if (!await ClassicLoginAsync().ConfigureAwait(false)) return;
+        if (!await ClassicLoginAsync().ConfigureAwait(false)) return false;
         var url = MakeUrl("proxy/protect/api/cameras");
-        if (url == null) return;
+        if (url == null) return false;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.TryAddWithoutValidation("Accept", "application/json");
             AddClassicAuth(req);
             using var resp = await _classic.SendAsync(req, ct).ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode) return;
+            if (!resp.IsSuccessStatusCode)
+            {
+                Log.Line($"[PTZ] enrichment fetch failed (HTTP {(int)resp.StatusCode})");
+                return false;
+            }
             var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             var classic = ParseCameraList(body);
-            if (classic.Count == 0) return; // don't wipe known flags on a transient empty response
+            if (classic.Count == 0) return false; // don't wipe known flags on a transient empty response
 
             var ptz = classic.Where(c => c.IsPtz).Select(c => c.Id).ToHashSet();
             var zoom = classic.Where(c => c.CanZoom).Select(c => c.Id).ToHashSet();
@@ -474,8 +486,14 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
                 cam.CanZoom = zoom.Contains(cam.Id);
             }
             Raise(nameof(Cameras));
+            Log.Line($"[PTZ] enrichment applied: {ptz.Count} PTZ, {zoom.Count} zoom-capable");
+            return true;
         }
-        catch { /* enrichment is best-effort */ }
+        catch (Exception ex)
+        {
+            Log.Line($"[PTZ] enrichment failed: {ex.Message}");
+            return false;
+        }
     }
 
     // MARK: - PTZ control (classic API — continuous velocity moves)
@@ -577,9 +595,33 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private void ApplySuccess(IReadOnlyList<Camera> cameras)
     {
         Log.Line($"[API] applySuccess: {cameras.Count} cameras");
-        Cameras = cameras;
+        Cameras = PreserveEnrichmentFlags(Cameras, cameras);
         IsLoading = false;
         ErrorMessage = null;
+    }
+
+    /// <summary>
+    /// Carries classic-API enrichment (IsPtz/CanZoom) from the previous camera
+    /// list onto a freshly fetched one. Integration API responses carry no
+    /// featureFlags, so without this every fetch resets the flags to false —
+    /// and the enrichment that restores them is throttled, so a panel reopen
+    /// inside the throttle window would lose PTZ until the next enrichment.
+    /// Flags are only ever carried forward (never cleared); the periodic
+    /// enrichment remains the authority that can clear them.
+    /// </summary>
+    public static IReadOnlyList<Camera> PreserveEnrichmentFlags(
+        IReadOnlyList<Camera> previous, IReadOnlyList<Camera> fresh)
+    {
+        if (previous.Count == 0) return fresh;
+        var ptz = previous.Where(c => c.IsPtz).Select(c => c.Id).ToHashSet();
+        var zoom = previous.Where(c => c.CanZoom).Select(c => c.Id).ToHashSet();
+        if (ptz.Count == 0 && zoom.Count == 0) return fresh;
+        foreach (var cam in fresh)
+        {
+            if (ptz.Contains(cam.Id)) cam.IsPtz = true;
+            if (zoom.Contains(cam.Id)) cam.CanZoom = true;
+        }
+        return fresh;
     }
 
     private void ApplyError(Exception ex)
