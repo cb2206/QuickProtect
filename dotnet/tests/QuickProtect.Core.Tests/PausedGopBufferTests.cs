@@ -80,6 +80,33 @@ public class PausedGopBufferTests
     }
 
     [Fact]
+    public void WantsPacket_matches_what_add_would_store()
+    {
+        var buf = new PausedGopBuffer(byteLimit: 200);
+
+        // Empty buffer: keyframes wanted, mid-GOP packets not.
+        Assert.True(buf.WantsPacket(isKeyframe: true));
+        Assert.False(buf.WantsPacket(isKeyframe: false));
+
+        // Anchored GOP: everything wanted.
+        buf.Add(Packet(100), isKeyframe: true);
+        Assert.True(buf.WantsPacket(isKeyframe: false));
+        Assert.True(buf.WantsPacket(isKeyframe: true));
+
+        // Overflowed: only a fresh keyframe restarts buffering.
+        buf.Add(Packet(150), isKeyframe: false);
+        Assert.True(buf.IsEmpty);
+        Assert.False(buf.WantsPacket(isKeyframe: false));
+        Assert.True(buf.WantsPacket(isKeyframe: true));
+
+        // After a drain the cycle starts over.
+        buf.Add(Packet(50), isKeyframe: true);
+        buf.Drain();
+        Assert.False(buf.WantsPacket(isKeyframe: false));
+        Assert.True(buf.WantsPacket(isKeyframe: true));
+    }
+
+    [Fact]
     public void Drain_after_overflow_is_empty_but_reusable()
     {
         var buf = new PausedGopBuffer(byteLimit: 100);

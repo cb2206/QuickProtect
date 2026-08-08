@@ -77,42 +77,93 @@ public sealed class RtspTlsTunnel : IDisposable
         catch (Exception ex) { Log.Line($"[Tunnel] accept loop ended for {host}:{port}: {ex.Message}"); }
     }
 
-    /// <summary>One tunneled connection: local plain TCP ⇄ TLS to the controller.</summary>
+    /// <summary>
+    /// Socket and pump buffer size. RTSP-interleaved media arrives as a dense
+    /// stream of small TCP segments; generous buffers let each blocking read
+    /// drain more per wakeup instead of waking per segment.
+    /// </summary>
+    private const int PumpBufferSize = 256 * 1024;
+
+    /// <summary>
+    /// One tunneled connection: local plain TCP ⇄ TLS to the controller.
+    /// After the TLS handshake the byte pumps run on two dedicated blocking
+    /// threads rather than async thread-pool continuations: at media packet
+    /// rates the per-read dispatch of the async machinery dominated the
+    /// keep-alive CPU cost (measured ~30% of a core for 6 idle-but-connected
+    /// streams), while a blocking read costs only the wakeup itself.
+    /// </summary>
     private async Task ServeAsync(TcpClient client, string host, int port, CancellationToken ct)
     {
-        using var local = client;
-        using var upstream = new TcpClient();
+        var local = client;
+        var upstream = new TcpClient();
+        SslStream? tls = null;
         try
         {
             local.NoDelay = true;
+            local.ReceiveBufferSize = PumpBufferSize;
+            local.SendBufferSize = PumpBufferSize;
             await upstream.ConnectAsync(host, port, ct);
             upstream.NoDelay = true;
+            upstream.ReceiveBufferSize = PumpBufferSize;
+            upstream.SendBufferSize = PumpBufferSize;
 
-            await using var tls = new SslStream(upstream.GetStream(), leaveInnerStreamOpen: false,
+            tls = new SslStream(upstream.GetStream(), leaveInnerStreamOpen: false,
                 (_, cert, _, _) => cert != null && _trust.Evaluate(host, ToX509v2(cert)));
             await tls.AuthenticateAsClientAsync(
                 new SslClientAuthenticationOptions { TargetHost = host }, ct);
-
-            var localStream = local.GetStream();
-            // Pump both directions; when either side closes, tear down the pair.
-            // Each pump observes its own exception — a reset from the controller
-            // (normal when a stream allocation is released) must not surface as
-            // an unobserved task exception.
-            var up = PumpAsync(localStream, tls, ct);
-            var down = PumpAsync(tls, localStream, ct);
-            await Task.WhenAny(up, down);
         }
-        catch (OperationCanceledException) { /* shutting down */ }
+        catch (OperationCanceledException)
+        {
+            tls?.Dispose();
+            local.Dispose();
+            upstream.Dispose();
+            return;
+        }
         catch (Exception ex)
         {
             Log.Line($"[Tunnel] connection to {host}:{port} failed: {ex.Message}");
+            tls?.Dispose();
+            local.Dispose();
+            upstream.Dispose();
+            return;
         }
+
+        // Both pumps share one idempotent cleanup: whichever direction ends
+        // first (EOF, reset, or tunnel disposal) closes both sockets, which
+        // unblocks the peer thread's read. A reset from the controller is
+        // normal when a stream allocation is released.
+        var localStream = local.GetStream();
+        var cleanedUp = 0;
+        CancellationTokenRegistration reg = default;
+        void Cleanup()
+        {
+            if (Interlocked.Exchange(ref cleanedUp, 1) == 1) return;
+            try { tls!.Dispose(); } catch { /* already torn down */ }
+            try { local.Dispose(); } catch { /* already torn down */ }
+            try { upstream.Dispose(); } catch { /* already torn down */ }
+            reg.Dispose();
+        }
+        reg = ct.Register(Cleanup);
+        StartPump("QP-Tunnel-up", localStream, tls, Cleanup);
+        StartPump("QP-Tunnel-down", tls, localStream, Cleanup);
     }
 
-    private static async Task PumpAsync(Stream from, Stream to, CancellationToken ct)
+    private static void StartPump(string name, Stream from, Stream to, Action onDone)
     {
-        try { await from.CopyToAsync(to, ct).ConfigureAwait(false); }
-        catch { /* connection torn down — expected on either side closing */ }
+        var thread = new Thread(() =>
+        {
+            var buf = new byte[PumpBufferSize];
+            try
+            {
+                int n;
+                while ((n = from.Read(buf, 0, buf.Length)) > 0)
+                    to.Write(buf, 0, n);
+            }
+            catch { /* connection torn down — expected on either side closing */ }
+            finally { onDone(); }
+        })
+        { IsBackground = true, Name = name };
+        thread.Start();
     }
 
     private static X509Certificate2 ToX509v2(X509Certificate cert)

@@ -38,6 +38,14 @@ public sealed class PausedGopBuffer
     /// </summary>
     public bool IsEmpty => _packets.Count == 0;
 
+    /// <summary>
+    /// Whether <see cref="Add"/> would actually store a packet right now. Lets
+    /// the caller skip materializing (copying) packets that would be discarded
+    /// anyway — mid-GOP packets before the first keyframe, or anything after an
+    /// overflow until the next keyframe.
+    /// </summary>
+    public bool WantsPacket(bool isKeyframe) => isKeyframe || (!_dropped && _packets.Count > 0);
+
     public void Add(byte[] packet, bool isKeyframe)
     {
         if (isKeyframe)

@@ -158,11 +158,82 @@ public sealed class VideoStreamClient : IDisposable
         }
     }
 
+    /// <summary>Native size of the latest decoded frame (0×0 before the first frame).</summary>
+    public (int Width, int Height) FrameSize
+    {
+        get { lock (_frameLock) return (_width, _height); }
+    }
+
+    /// <summary>
+    /// Copy the latest frame straight into caller-owned memory (e.g. a locked
+    /// WriteableBitmap), skipping the intermediate managed buffer that
+    /// <see cref="TryCopyFrame"/> needs. Returns false when there is no new
+    /// frame since <paramref name="seenSeq"/>, or when the frame no longer
+    /// matches the expected size (stream switched resolution) — the caller
+    /// should re-read <see cref="FrameSize"/> and retry with a matching target.
+    /// </summary>
+    public bool TryCopyFrameTo(IntPtr dest, int destRowBytes, int expectedWidth, int expectedHeight,
+        ref long seenSeq)
+    {
+        lock (_frameLock)
+        {
+            if (_frame == null || _seq == seenSeq) return false;
+            if (_width != expectedWidth || _height != expectedHeight) return false;
+            if (destRowBytes == _stride)
+            {
+                Marshal.Copy(_frame, 0, dest, _stride * _height);
+            }
+            else
+            {
+                for (var row = 0; row < _height; row++)
+                    Marshal.Copy(_frame, row * _stride, dest + row * destRowBytes, _stride);
+            }
+            seenSeq = _seq;
+            return true;
+        }
+    }
+
     /// <summary>Whether at least one frame has ever been decoded (for keep-last-frame UIs).</summary>
     public bool HasFrame
     {
         get { lock (_frameLock) return _frame != null; }
     }
+
+    // MARK: - Hardware decode (D3D11VA on Windows, VAAPI on Linux)
+
+    // Platform hardware decoder surface. Decode runs on the GPU's fixed-function
+    // block and only the finished NV12 frame is copied back — the software
+    // H.264/HEVC decode this replaces was the largest CPU cost per stream.
+    private static readonly AVHWDeviceType HwDeviceType = OperatingSystem.IsWindows()
+        ? AVHWDeviceType.AV_HWDEVICE_TYPE_D3D11VA
+        : AVHWDeviceType.AV_HWDEVICE_TYPE_VAAPI;
+
+    private static readonly AVPixelFormat HwPixelFormat = OperatingSystem.IsWindows()
+        ? AVPixelFormat.AV_PIX_FMT_D3D11
+        : AVPixelFormat.AV_PIX_FMT_VAAPI;
+
+    // Static delegate so the native function pointer stays valid for the
+    // process lifetime (same reason the interrupt callback is kept alive).
+    private static readonly unsafe AVCodecContext_get_format PickHwFormat = GetHwFormat;
+
+    /// <summary>
+    /// FFmpeg's negotiation callback: prefer the platform hardware surface when
+    /// the decoder offers it. When hwaccel init fails (no GPU decoder for this
+    /// codec/profile — common in VMs), FFmpeg calls again without the hardware
+    /// format in the list and the first software format wins, so the session
+    /// degrades to software decode instead of erroring.
+    /// </summary>
+    private static unsafe AVPixelFormat GetHwFormat(AVCodecContext* ctx, AVPixelFormat* formats)
+    {
+        for (var p = formats; *p != AVPixelFormat.AV_PIX_FMT_NONE; p++)
+            if (*p == HwPixelFormat)
+                return HwPixelFormat;
+        return *formats;
+    }
+
+    // One-shot log flags (the session loop reconnects forever — per-session
+    // logging would spam).
+    private static int _hwLogged;
 
     // MARK: - Decode loop
 
@@ -205,9 +276,10 @@ public sealed class VideoStreamClient : IDisposable
         fmt->interrupt_callback.callback = interrupt;
 
         AVCodecContext* codec = null;
+        AVBufferRef* hwDevice = null;
         SwsContext* sws = null;
         AVFrame* frame = null;
-        AVFrame* bgra = null;
+        AVFrame* hwTransfer = null;
         AVPacket* packet = null;
         AVCodecContext* audioCodec = null;
         AVFrame* audioFrame = null;
@@ -238,6 +310,22 @@ public sealed class VideoStreamClient : IDisposable
             ffmpeg.avcodec_parameters_to_context(codec, fmt->streams[vs]->codecpar);
             codec->flags |= ffmpeg.AV_CODEC_FLAG_LOW_DELAY;
             codec->thread_count = Math.Min(2, Environment.ProcessorCount);
+
+            // Hardware decode when the platform offers a device; failure at any
+            // stage (device creation here, hwaccel init later via GetHwFormat)
+            // falls back to software without ending the session.
+            if (ffmpeg.av_hwdevice_ctx_create(&hwDevice, HwDeviceType, null, null, 0) >= 0)
+            {
+                codec->hw_device_ctx = ffmpeg.av_buffer_ref(hwDevice);
+                codec->get_format = PickHwFormat;
+                if (Interlocked.Exchange(ref _hwLogged, 1) == 0)
+                    Log.Line($"[Video] hardware decode device ready ({HwDeviceType})");
+            }
+            else if (Interlocked.Exchange(ref _hwLogged, 1) == 0)
+            {
+                Log.Line($"[Video] no {HwDeviceType} device — software decode");
+            }
+
             rc = ffmpeg.avcodec_open2(codec, decoder, null);
             if (rc < 0) return LogAv("avcodec_open2", rc);
 
@@ -260,7 +348,7 @@ public sealed class VideoStreamClient : IDisposable
             _sinkFailed = false;
 
             frame = ffmpeg.av_frame_alloc();
-            bgra = ffmpeg.av_frame_alloc();
+            hwTransfer = ffmpeg.av_frame_alloc();
             packet = ffmpeg.av_packet_alloc();
             var sizeReported = false;
             // Joining an RTSP stream mid-GOP means P/B-frames reference frames we
@@ -280,42 +368,56 @@ public sealed class VideoStreamClient : IDisposable
             // Drain every decoded frame into the latest-wins BGRA buffer. The
             // codec/frame pointers come in as parameters: capturing them would
             // forbid the &codec/&frame cleanup below (CS1686).
-            void ReceiveFrames(AVCodecContext* dec, AVFrame* frm)
+            void ReceiveFrames(AVCodecContext* dec, AVFrame* frm, AVFrame* hwSw)
             {
                 while (ffmpeg.avcodec_receive_frame(dec, frm) == 0)
                 {
-                    if (!sizeReported && frm->width > 0)
+                    // Hardware-decoded frames live on a GPU surface; download to
+                    // system memory (NV12) for the sws conversion below.
+                    var src = frm;
+                    if (frm->format == (int)HwPixelFormat)
+                    {
+                        if (ffmpeg.av_hwframe_transfer_data(hwSw, frm, 0) < 0)
+                        {
+                            ffmpeg.av_frame_unref(frm);
+                            continue;
+                        }
+                        src = hwSw;
+                    }
+
+                    if (!sizeReported && src->width > 0)
                     {
                         sizeReported = true;
-                        VideoSizeKnown?.Invoke(frm->width, frm->height);
+                        VideoSizeKnown?.Invoke(src->width, src->height);
                     }
 
                     sws = ffmpeg.sws_getCachedContext(sws,
-                        frm->width, frm->height, (AVPixelFormat)frm->format,
-                        frm->width, frm->height, AVPixelFormat.AV_PIX_FMT_BGRA,
+                        src->width, src->height, (AVPixelFormat)src->format,
+                        src->width, src->height, AVPixelFormat.AV_PIX_FMT_BGRA,
                         ffmpeg.SWS_BILINEAR, null, null, null);
 
-                    var stride = frm->width * 4;
+                    var stride = src->width * 4;
                     lock (_frameLock)
                     {
-                        var needed = stride * frm->height;
+                        var needed = stride * src->height;
                         if (_frame == null || _frame.Length < needed ||
-                            _width != frm->width || _height != frm->height)
+                            _width != src->width || _height != src->height)
                         {
                             _frame = new byte[needed];
-                            _width = frm->width;
-                            _height = frm->height;
+                            _width = src->width;
+                            _height = src->height;
                             _stride = stride;
                         }
                         fixed (byte* dst = _frame)
                         {
                             var dstPlanes = new byte*[] { dst };
                             var dstStrides = new[] { stride };
-                            ffmpeg.sws_scale(sws, frm->data, frm->linesize, 0, frm->height,
+                            ffmpeg.sws_scale(sws, src->data, src->linesize, 0, src->height,
                                 dstPlanes, dstStrides);
                         }
                         _seq++;
                     }
+                    if (src == hwSw) ffmpeg.av_frame_unref(hwSw);
                     ffmpeg.av_frame_unref(frm);
 
                     // First frame → Playing immediately (macOS DisplayImmediately parity).
@@ -325,7 +427,7 @@ public sealed class VideoStreamClient : IDisposable
             }
 
             // Decode one buffered packet from the paused GOP (resume burst).
-            void SendBuffered(AVCodecContext* dec, AVFrame* frm, byte[] data)
+            void SendBuffered(AVCodecContext* dec, AVFrame* frm, AVFrame* hwSw, byte[] data)
             {
                 var pkt = ffmpeg.av_packet_alloc();
                 if (pkt == null) return;
@@ -333,7 +435,7 @@ public sealed class VideoStreamClient : IDisposable
                 {
                     if (ffmpeg.av_new_packet(pkt, data.Length) < 0) return;
                     Marshal.Copy(data, 0, (IntPtr)pkt->data, data.Length);
-                    if (ffmpeg.avcodec_send_packet(dec, pkt) >= 0) ReceiveFrames(dec, frm);
+                    if (ffmpeg.avcodec_send_packet(dec, pkt) >= 0) ReceiveFrames(dec, frm, hwSw);
                 }
                 finally
                 {
@@ -361,13 +463,18 @@ public sealed class VideoStreamClient : IDisposable
                 if (packet->stream_index != vs) { ffmpeg.av_packet_unref(packet); continue; }
                 var isKeyframe = (packet->flags & ffmpeg.AV_PKT_FLAG_KEY) != 0;
 
-                // Keep-alive grace: buffer instead of decode while the panel is hidden.
+                // Keep-alive grace: buffer instead of decode while the panel is
+                // hidden. Only materialize packets the buffer will keep — copying
+                // mid-GOP packets it discards anyway is pure GC churn.
                 if (_renderPaused)
                 {
                     wasPaused = true;
-                    var data = new byte[packet->size];
-                    Marshal.Copy((IntPtr)packet->data, data, 0, packet->size);
-                    pausedGop.Add(data, isKeyframe);
+                    if (pausedGop.WantsPacket(isKeyframe))
+                    {
+                        var data = new byte[packet->size];
+                        Marshal.Copy((IntPtr)packet->data, data, 0, packet->size);
+                        pausedGop.Add(data, isKeyframe);
+                    }
                     ffmpeg.av_packet_unref(packet);
                     continue;
                 }
@@ -380,7 +487,7 @@ public sealed class VideoStreamClient : IDisposable
                         // Burst-decode the buffered GOP (it starts at a keyframe)
                         // so the picture lands on live immediately.
                         seenKeyframe = true;
-                        foreach (var data in gop) SendBuffered(codec, frame, data);
+                        foreach (var data in gop) SendBuffered(codec, frame, hwTransfer, data);
                     }
                     else
                     {
@@ -412,7 +519,7 @@ public sealed class VideoStreamClient : IDisposable
                 ffmpeg.av_packet_unref(packet);
                 if (rc < 0 && rc != ffmpeg.AVERROR(ffmpeg.EAGAIN)) continue; // tolerate glitches
 
-                ReceiveFrames(codec, frame);
+                ReceiveFrames(codec, frame, hwTransfer);
             }
             return true;
         }
@@ -424,9 +531,10 @@ public sealed class VideoStreamClient : IDisposable
             if (audioCodec != null) ffmpeg.avcodec_free_context(&audioCodec);
             if (packet != null) ffmpeg.av_packet_free(&packet);
             if (frame != null) ffmpeg.av_frame_free(&frame);
-            if (bgra != null) ffmpeg.av_frame_free(&bgra);
+            if (hwTransfer != null) ffmpeg.av_frame_free(&hwTransfer);
             if (sws != null) ffmpeg.sws_freeContext(sws);
             if (codec != null) ffmpeg.avcodec_free_context(&codec);
+            if (hwDevice != null) ffmpeg.av_buffer_unref(&hwDevice);
             if (fmt != null) ffmpeg.avformat_close_input(&fmt);
             GC.KeepAlive(interrupt);
         }

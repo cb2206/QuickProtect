@@ -4,7 +4,6 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
-using System.Runtime.InteropServices;
 
 namespace QuickProtect.App.Video;
 
@@ -69,7 +68,6 @@ public sealed class VideoSurface : Control
     }
 
     private WriteableBitmap? _bitmap;
-    private byte[]? _copy;
     private long _seq = -1;
     private int _updatePending; // 0/1, Interlocked
 
@@ -124,26 +122,32 @@ public sealed class VideoSurface : Control
     {
         var client = Source;
         if (client == null) return;
-        if (!client.TryCopyFrame(ref _copy, ref _seq, out var w, out var h, out var stride) || _copy == null)
-            return;
 
-        if (_bitmap == null || _bitmap.PixelSize.Width != w || _bitmap.PixelSize.Height != h)
-            _bitmap = new WriteableBitmap(new PixelSize(w, h), new Vector(96, 96),
-                PixelFormat.Bgra8888, AlphaFormat.Opaque);
-
-        using (var fb = _bitmap.Lock())
+        // Copy the frame straight into the locked bitmap — no intermediate
+        // buffer. If the stream switches resolution between the size query and
+        // the copy, the copy reports a mismatch and one retry re-sizes the
+        // bitmap; a second failure means another switch is in flight and the
+        // next FrameReady will catch up.
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            if (fb.RowBytes == stride)
+            var (w, h) = client.FrameSize;
+            if (w <= 0 || h <= 0) return;
+
+            if (_bitmap == null || _bitmap.PixelSize.Width != w || _bitmap.PixelSize.Height != h)
+                _bitmap = new WriteableBitmap(new PixelSize(w, h), new Vector(96, 96),
+                    PixelFormat.Bgra8888, AlphaFormat.Opaque);
+
+            bool copied;
+            using (var fb = _bitmap.Lock())
+                copied = client.TryCopyFrameTo(fb.Address, fb.RowBytes, w, h, ref _seq);
+            if (copied)
             {
-                Marshal.Copy(_copy, 0, fb.Address, stride * h);
+                InvalidateVisual();
+                return;
             }
-            else
-            {
-                for (var row = 0; row < h; row++)
-                    Marshal.Copy(_copy, row * stride, fb.Address + row * fb.RowBytes, stride);
-            }
+            var (nw, nh) = client.FrameSize;
+            if (nw == w && nh == h) return; // no new frame — nothing to redraw
         }
-        InvalidateVisual();
     }
 
     public override void Render(DrawingContext context)

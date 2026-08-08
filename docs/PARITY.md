@@ -13,8 +13,12 @@ port (`dotnet/`).
   drag handle, per-profile size persistence.
 - **Live video via the custom FFmpeg engine** — the macOS-style pipeline:
   libavformat/libavcodec demux + decode per stream (`Video/VideoStreamClient`),
-  frames composited by `Video/VideoSurface` as ordinary Avalonia content (video
-  is clickable, gesture-capable, overlayable — no native child windows).
+  hardware-accelerated where the platform offers it (D3D11VA on Windows, VAAPI
+  on Linux — the VideoToolbox analog; falls back to software per stream via
+  `get_format` negotiation), frames composited by `Video/VideoSurface` as
+  ordinary Avalonia content, copied once from the decode buffer straight into
+  the locked bitmap (video is clickable, gesture-capable, overlayable — no
+  native child windows).
   `Video/VideoStreamCoordinator` shares one client per camera lens across
   grid/focus/pinned views: focus adopts the running grid stream instantly and
   upgrades quality in place (last frame kept, no grey flash); panel open
