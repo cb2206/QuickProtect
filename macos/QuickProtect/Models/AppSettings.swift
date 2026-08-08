@@ -22,10 +22,6 @@ final class AppSettings: ObservableObject {
         didSet { KeychainStore.set(apiKey, account: Keys.apiKey) }
     }
 
-    @Published var usePlainRtsp: Bool {
-        didSet { UserDefaults.standard.set(usePlainRtsp, forKey: Keys.usePlainRtsp) }
-    }
-
     /// Username for classic API auth (required for PTZ control).
     /// Sensitive — stored in the Keychain, not UserDefaults.
     @Published var username: String {
@@ -581,7 +577,10 @@ final class AppSettings: ObservableObject {
     private enum Keys {
         static let ipAddress      = "unifi.ipAddress"
         static let apiKey         = "unifi.apiKey"
-        static let usePlainRtsp   = "unifi.usePlainRtsp"
+        // "unifi.usePlainRtsp" retired: the Integration API's stream tokens are
+        // only valid on rtsps://:7441, so a plain-RTSP mode can't exist for
+        // these on-demand streams (see ProtectService.toPlayableURL). Old
+        // preference files may still carry the key; it's ignored.
         static let perDisplay     = "unifi.perDisplay"
         static let hiddenCameras  = "unifi.hiddenCameras"
         static let profiles       = "unifi.profiles"
@@ -629,8 +628,6 @@ final class AppSettings: ObservableObject {
     private init() {
         ipAddress    = UserDefaults.standard.string(forKey: Keys.ipAddress) ?? ""
         apiKey       = Self.loadSecret(Keys.apiKey)
-        let stored = UserDefaults.standard.object(forKey: Keys.usePlainRtsp)
-        usePlainRtsp = stored != nil ? UserDefaults.standard.bool(forKey: Keys.usePlainRtsp) : true
         username     = Self.loadSecret(Keys.username)
         password     = Self.loadSecret(Keys.password)
         launchAtLogin = UserDefaults.standard.bool(forKey: Keys.launchAtLogin)

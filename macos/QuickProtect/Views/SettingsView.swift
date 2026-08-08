@@ -205,12 +205,6 @@ struct SettingsView: View {
                         .help(showApiKey ? "Hide API key" : "Show API key")
                     }
                 }
-                AuroraSettingsRow(String(localized: "Stream protocol")) {
-                    AuroraSegmented(
-                        options: [("RTSPS (TLS)", false), ("RTSP (7447)", true)],
-                        selection: $settings.usePlainRtsp
-                    )
-                }
                 AuroraSettingsRow(
                     String(localized: "Keep streams alive"),
                     hint: String(localized: "Streams stay connected for this long after closing, so a quick reopen shows video instantly")
