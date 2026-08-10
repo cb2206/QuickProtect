@@ -58,8 +58,19 @@ def main():
     with open(SRC, encoding="utf-8") as f:
         text = f.read()
 
+    # The listings doc holds one level-1 section per store; only the Apple
+    # App Store section feeds deliver (the Microsoft Store one has its own
+    # field set and would otherwise clobber the ASC metadata).
+    apple = next(
+        (s for s in re.split(r"^# ", text, flags=re.MULTILINE)
+         if s.startswith("Apple App Store")),
+        None,
+    )
+    if apple is None:
+        sys.exit("No '# Apple App Store' section found in " + SRC)
+
     # Split into language sections on level-2 headings.
-    sections = re.split(r"^## ", text, flags=re.MULTILINE)[1:]
+    sections = re.split(r"^## ", apple, flags=re.MULTILINE)[1:]
 
     had_error = False
     locales_written = []
