@@ -328,6 +328,26 @@ platform :mac do
     )
   end
 
+  desc "Upload an already-exported .pkg and resubmit the current version for review (no rebuild, no metadata)"
+  lane :resubmit do
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      pkg: PKG_PATH,
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,         # you press "Release" once approved
+      force: true,
+      run_precheck_before_submit: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+
   desc "Build, upload the binary + metadata, and submit the current version for review"
   lane :release do
     build
