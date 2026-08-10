@@ -161,19 +161,19 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 - Audio needs `libasound.so.2` (ALSA); when missing (or PipeWire/Pulse lacks the
   ALSA compat layer) streams play video-only with a logged notice.
 
-## Distribution (future)
+## Distribution
 
-- **Windows** (decided 2026-07): paid = Microsoft Store as MSIX under a company
-  account (the Store signs and auto-updates it); free = the unsigned Inno Setup
-  installer from `scripts/package-windows.ps1` on GitHub releases (SmartScreen
-  supplies the deliberate friction — intentionally unsigned, like the macOS
-  DMG). No winget listing (frictionless `winget upgrade` would defeat that).
-  One release tag per version carries all OS assets:
+- **Windows** (shipped with 1.3, 2026-08): paid = Microsoft Store as MSIX under
+  a company account (the Store signs and auto-updates it); free = the unsigned
+  Inno Setup installer from `scripts/package-windows.ps1` on GitHub releases
+  (SmartScreen supplies the deliberate friction — intentionally unsigned, like
+  the macOS DMG). No winget listing (frictionless `winget upgrade` would defeat
+  that). One release tag per version carries all OS assets:
   `QuickProtect-<ver>.dmg` / `QuickProtect-Setup-<ver>-win-x64.exe` /
   `QuickProtect-<ver>-linux-x64.tar.gz`.
-  MSIX packaging is in place (`scripts/package-msix.ps1`,
-  `installer/msix/AppxManifest.xml`, committed tile assets); the Partner Center
-  identity/publisher values are the only missing inputs. Two container
+  MSIX packaging: `scripts/package-msix.ps1` +
+  `installer/msix/AppxManifest.xml` (committed tile assets); the Partner Center
+  identity/publisher values are supplied at package time. Two container
   behaviours are handled in code: `%APPDATA%` writes are redirected by Windows
   (no change needed), and launch-at-login moves from the `Run` key — virtualised
   away in a package — to the manifest's `windows.startupTask`, which the

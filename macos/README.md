@@ -10,7 +10,7 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 
 **Looking for a signed binary?** [Download QuickProtect from the App Store](https://apps.apple.com/app/id6776899427) — sandboxed, auto-updating, and notarized by Apple. The [GitHub release](https://github.com/cb2206/QuickProtect/releases) DMG is intentionally unsigned (see [Installing an Unsigned App](#installing-an-unsigned-app)).
 
-**On Windows or Linux?** See the [.NET/Avalonia port](../dotnet/README.md) in this repo.
+**On Windows?** QuickProtect ships there too — via the Microsoft Store or the unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases). See the [.NET/Avalonia port](../dotnet/README.md) (which also targets Linux; that release is still pending).
 
 ![QuickProtect](../docs/screenshots/appstore-1.png)
 

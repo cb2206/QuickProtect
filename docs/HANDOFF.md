@@ -8,8 +8,10 @@ branch was deleted after the merge — work now happens directly on `dev`).
 **Custom FFmpeg video engine + full macOS-parity UI, live-verified on Windows**
 against a real controller (7 cameras at 10.0.1.1), including audio playback
 (WASAPI/ALSA, see below). All 13 bugs from the 2026-07-07 bug-report round are
-fixed and verified. Not yet publicly released — no Windows/Linux download
-exists yet (`docs/PARITY.md`'s Distribution section tracks that work).
+fixed and verified. Publicly released since 1.3 (2026-08): Microsoft Store
+(paid MSIX) + the unsigned Inno Setup installer on GitHub releases
+(`docs/PARITY.md`'s Distribution section has the channel details; Linux is
+still unreleased).
 See `PARITY.md` for the feature matrix and intentional differences.
 
 ## Architecture: the video engine (don't regress these)
@@ -63,7 +65,7 @@ cd dotnet
 powershell -File scripts/get-ffmpeg.ps1        # once per checkout
 dotnet build QuickProtect.sln
 dotnet test tests/QuickProtect.Core.Tests
-powershell -File scripts/package-windows.ps1   # → dist/QuickProtect-Setup-<v>-x64.exe
+powershell -File scripts/package-windows.ps1   # → dist/QuickProtect-Setup-<v>-win-x64.exe
 ```
 
 ## Next phase: Linux

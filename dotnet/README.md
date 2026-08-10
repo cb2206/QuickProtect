@@ -9,6 +9,11 @@ runs on **Windows and Linux** (and macOS, if ever wanted).
 > shared with the Swift sources at the source level — only the behavior and the
 > UniFi Protect protocol logic are ported.
 
+The Windows build ships on the **Microsoft Store** (signed, auto-updating) and
+as a free unsigned installer on
+[GitHub Releases](https://github.com/cb2206/QuickProtect/releases); the Linux
+release is still pending (see [`PARITY.md`](../docs/PARITY.md) → Distribution).
+
 ## Why this stack
 
 | Concern | macOS (Swift) | This port |
