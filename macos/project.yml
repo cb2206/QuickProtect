@@ -58,7 +58,7 @@ targets:
         # Marketing version (bump on release). project.yml is the source of truth —
         # `xcodegen generate` writes these into Info.plist, so never hand-edit the plist.
         CFBundleShortVersionString: "1.3"
-        CFBundleVersion: "5"
+        CFBundleVersion: "6"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
         # Advertise the languages the app ships (English + German) so the system
