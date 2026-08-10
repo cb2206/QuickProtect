@@ -1,0 +1,35 @@
+name: macOS
+
+on:
+  push:
+    branches: [main, dev, "feat/**"]
+    paths:
+      - "macos/**"
+      - ".github/workflows/ci-macos.yml"
+  pull_request:
+    paths:
+      - "macos/**"
+      - ".github/workflows/ci-macos.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen and SwiftLint
+        run: brew install xcodegen swiftlint
+
+      - name: Generate Xcode project
+        working-directory: macos
+        run: xcodegen generate
+
+      # Debug builds sign ad-hoc (see project.yml), so no certificates are needed.
+      - name: Run tests
+        working-directory: macos
+        run: xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet
+
+      - name: SwiftLint (strict)
+        working-directory: macos
+        run: swiftlint lint --strict

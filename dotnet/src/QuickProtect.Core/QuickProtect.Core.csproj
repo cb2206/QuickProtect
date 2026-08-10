@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Portable domain layer: models, UniFi Protect API client, settings, cert pinning.
+       No UI / no platform-windowing dependencies, so it builds identically on
+       Windows and Linux (and macOS, for future Avalonia reuse). -->
+  <PropertyGroup>
+    <RootNamespace>QuickProtect.Core</RootNamespace>
+    <AssemblyName>QuickProtect.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- DPAPI for the Windows secret store. The package is a no-op shim on
+         non-Windows targets; we guard usage with OperatingSystem.IsWindows(). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

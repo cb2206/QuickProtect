@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:video="clr-namespace:QuickProtect.App.Video"
+        xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
+        x:Class="QuickProtect.App.Views.PinnedCameraWindow"
+        x:DataType="vm:CameraTileViewModel"
+        Title="QuickProtect"
+        Width="360" Height="203"
+        MinWidth="200" MinHeight="120"
+        Topmost="True"
+        ShowInTaskbar="False"
+        SystemDecorations="None"
+        Background="{DynamicResource QpVideoBg}"
+        CanResize="True">
+
+  <!-- The whole pinned window is a video surface: pinned to the Dark variant like macOS. -->
+  <ThemeVariantScope RequestedThemeVariant="Dark">
+    <DockPanel>
+      <!-- Drag handle + controls. Docked so the native VideoView never covers it. -->
+      <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Header_Drag" Name="Header">
+        <Grid ColumnDefinitions="*,Auto,Auto" Margin="8,4">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
+                       IsVisible="{Binding IsOnline}" />
+            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontSize="11" />
+          </StackPanel>
+          <!-- Window-local mute (starts muted; does not touch the global speaker setting) -->
+          <Button Grid.Column="1" Click="Mute_Click" IsVisible="{Binding HasAudio}"
+                  Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
+                  Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Toggle audio'}">
+            <Panel>
+              <TextBlock Text="🔊" IsVisible="{Binding !IsMuted}" />
+              <TextBlock Text="🔇" IsVisible="{Binding IsMuted}" />
+            </Panel>
+          </Button>
+          <Button Grid.Column="2" Content="✕" Click="Unpin_Click"
+                  Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
+                  Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Unpin'}" />
+        </Grid>
+      </Border>
+
+      <Grid>
+        <video:VideoSurface Source="{Binding Client}" Fill="True" />
+        <ProgressBar IsIndeterminate="True" Width="50" Height="4"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     IsVisible="{Binding IsLoading}" />
+      </Grid>
+    </DockPanel>
+  </ThemeVariantScope>
+</Window>

@@ -1,0 +1,601 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
+        x:Class="QuickProtect.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="{loc:Loc 'QuickProtect – Settings'}"
+        Width="840" Height="620"
+        Background="{DynamicResource QpPopoverBg}"
+        WindowStartupLocation="CenterScreen"
+        CanResize="True" MinWidth="720" MinHeight="520">
+
+  <!-- Sidebar + detail pane, mirroring the macOS SettingsView layout. -->
+  <Grid ColumnDefinitions="200,*">
+
+    <!-- ============ SIDEBAR ============ -->
+    <Border Grid.Column="0" Background="{DynamicResource QpChrome}"
+            BorderBrush="{DynamicResource QpDivider}" BorderThickness="0,0,1,0">
+      <DockPanel Margin="10,14">
+        <TextBlock DockPanel.Dock="Top" Text="QuickProtect" FontSize="14" FontWeight="SemiBold"
+                   Foreground="{DynamicResource QpTextPrimary}" Margin="10,0,0,14" />
+        <ListBox Classes="sidebar" SelectedIndex="{Binding SelectedSectionIndex, Mode=TwoWay}"
+                 Background="Transparent">
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="9">
+              <TextBlock Text="⚙" Classes="sideIcon" />
+              <TextBlock Text="{loc:Loc 'General'}" Classes="sideLabel" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="9">
+              <TextBlock Text="⇄" Classes="sideIcon" />
+              <TextBlock Text="{loc:Loc 'Connection'}" Classes="sideLabel" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="9">
+              <TextBlock Text="✛" Classes="sideIcon" />
+              <TextBlock Text="{loc:Loc 'PTZ'}" Classes="sideLabel" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="9">
+              <TextBlock Text="▦" Classes="sideIcon" />
+              <TextBlock Text="{loc:Loc 'Cameras'}" Classes="sideLabel" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="9">
+              <TextBlock Text="⌨" Classes="sideIcon" />
+              <TextBlock Text="{loc:Loc 'Shortcuts'}" Classes="sideLabel" />
+            </StackPanel>
+          </ListBoxItem>
+          <ListBoxItem>
+            <StackPanel Orientation="Horizontal" Spacing="9">
+              <TextBlock Text="⤓" Classes="sideIcon" />
+              <TextBlock Text="{loc:Loc 'Updates'}" Classes="sideLabel" />
+            </StackPanel>
+          </ListBoxItem>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- ============ DETAIL PANE ============ -->
+    <Grid Grid.Column="1" RowDefinitions="Auto,*">
+
+      <!-- Section header with connection status pill (PTZ-aware on the PTZ tab) -->
+      <Border Grid.Row="0" Height="52" Padding="22,0"
+              BorderBrush="{DynamicResource QpDivider}" BorderThickness="0,0,0,1">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="{Binding SectionTitle}" FontSize="15" FontWeight="SemiBold"
+                     Foreground="{DynamicResource QpTextPrimary}" VerticalAlignment="Center" />
+          <Border Grid.Column="1" Background="{DynamicResource QpSubtleSurface}"
+                  CornerRadius="9" Padding="8,3" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <Ellipse Width="6" Height="6" Fill="{DynamicResource QpStatusGreen}"
+                       VerticalAlignment="Center" IsVisible="{Binding BadgeConnected}" />
+              <Ellipse Width="6" Height="6" Fill="{DynamicResource QpStatusRed}"
+                       VerticalAlignment="Center" IsVisible="{Binding !BadgeConnected}" />
+              <TextBlock Text="{Binding BadgeText}" FontSize="11"
+                         Foreground="{DynamicResource QpTextSecondary}" />
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+
+      <ScrollViewer Grid.Row="1">
+        <StackPanel Margin="22" Spacing="18">
+
+          <!-- ============ GENERAL ============ -->
+          <StackPanel Spacing="18" IsVisible="{Binding IsGeneralSection}">
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Startup'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Launch at login'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Automatically start QuickProtect when you log in.'}" Classes="rowHint"
+                                 IsVisible="{Binding IsLaunchAtLoginConfigurable}" />
+                      <!-- Store builds: Windows owns the startup task (see the
+                           MSIX manifest), so point at its setting instead. -->
+                      <TextBlock Text="{loc:Loc 'Managed by Windows under Settings → Apps → Startup.'}" Classes="rowHint"
+                                 TextWrapping="Wrap"
+                                 IsVisible="{Binding !IsLaunchAtLoginConfigurable}" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding LaunchAtLogin}"
+                                  OnContent="{x:Null}" OffContent="{x:Null}"
+                                  IsVisible="{Binding IsLaunchAtLoginConfigurable}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Language'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Language'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Restart QuickProtect to apply the language change.'}"
+                                 Classes="rowHint" IsVisible="{Binding ShowLanguageRestartHint}" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding LanguageNames}"
+                              SelectedIndex="{Binding LanguageIndex}" Width="180" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Appearance'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Theme'}" Classes="rowLabel" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding AppearanceOptions}"
+                              SelectedIndex="{Binding AppearanceIndex}" Width="140" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Accent color'}" Classes="rowLabel" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding AccentNames}"
+                              SelectedIndex="{Binding AccentIndex}" Width="140" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Streaming'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                      <TextBlock Text="{loc:Loc 'Default stream quality'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Auto streams low quality in the grid and high quality when a camera is enlarged — saving CPU and bandwidth. Override per camera by right-clicking its tile.'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding QualityOptions}"
+                              SelectedIndex="{Binding DefaultQualityIndex}" Width="140" VerticalAlignment="Center" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Focus view'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Show overlay controls'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Display the keyboard-shortcut hints and the on-screen PTZ pad when a camera is in focus.'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowFocusOverlayControls}"
+                                  OnContent="{x:Null}" OffContent="{x:Null}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Snapshots'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Destination'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Press S on a focused camera to capture a snapshot.'}" Classes="rowHint" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding SnapshotDestinations}"
+                              SelectedIndex="{Binding SnapshotDestinationIndex}" Width="140" />
+                  </Grid>
+                  <Border Classes="hairline" IsVisible="{Binding SnapshotFolderRowVisible}" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto" IsVisible="{Binding SnapshotFolderRowVisible}">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                      <TextBlock Text="{loc:Loc 'Save folder'}" Classes="rowLabel" />
+                      <TextBlock Text="{Binding SnapshotFolderDisplay}" Classes="rowHint"
+                                 TextTrimming="CharacterEllipsis" MaxWidth="380" HorizontalAlignment="Left" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="{loc:Loc 'Choose Folder…'}"
+                            Command="{Binding ChooseSnapshotFolderCommand}" VerticalAlignment="Center" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+          </StackPanel>
+
+          <!-- ============ CONNECTION ============ -->
+          <StackPanel Spacing="18" IsVisible="{Binding IsConnectionSection}">
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Controller'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'IP address or hostname'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Local IP of your UniFi Protect controller'}" Classes="rowHint" />
+                    </StackPanel>
+                    <TextBox Grid.Column="1" Text="{Binding IpAddress, UpdateSourceTrigger=LostFocus}"
+                             Watermark="192.168.1.1" Width="240" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Integration API key'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Integration API key from controller settings'}" Classes="rowHint" />
+                    </StackPanel>
+                    <TextBox Grid.Column="1" Text="{Binding ApiKey, UpdateSourceTrigger=LostFocus}"
+                             PasswordChar="•" Classes="revealPasswordButton" Width="240" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                      <TextBlock Text="{loc:Loc 'Keep streams alive'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Streams stay connected for this long after closing, so a quick reopen shows video instantly'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding KeepAliveOptions}"
+                              SelectedIndex="{Binding KeepAliveIndex}" Width="140" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" IsVisible="{Binding PauseDecodeRowVisible}" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto" IsVisible="{Binding PauseDecodeRowVisible}">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                      <TextBlock Text="{loc:Loc 'Pause decoding while closed'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding PauseDecodeWhileClosed}"
+                                  OnContent="{x:Null}" OffContent="{x:Null}" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="Auto,*">
+                    <Button Grid.Column="0" Content="{loc:Loc 'Test Connection'}"
+                            Command="{Binding TestConnectionCommand}" />
+                    <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Classes="rowHint"
+                               VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6" IsVisible="{Binding HasPendingCert}">
+              <TextBlock Text="{loc:Loc 'Certificate'}" Classes="cardCaption" />
+              <Border Background="{DynamicResource QpStatusOrangeSurface}" CornerRadius="8" Padding="14,10">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{loc:Loc 'The controller\'s certificate changed since you last connected.'}"
+                             Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
+                  <TextBlock Text="{loc:Loc 'This is expected if you reinstalled or replaced the controller — but if you didn\'t, it may indicate someone intercepting the connection. Trust it only if you recognize the change.'}"
+                             Classes="rowHint" TextWrapping="Wrap" />
+                  <Button Content="{loc:Loc 'Trust new certificate'}" Command="{Binding TrustNewCertificateCommand}" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+          </StackPanel>
+
+          <!-- ============ PTZ ============ -->
+          <StackPanel Spacing="18" IsVisible="{Binding IsPtzSection}">
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Classic API credentials'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Username'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Local admin account on the Protect controller.'}" Classes="rowHint" />
+                    </StackPanel>
+                    <TextBox Grid.Column="1" Text="{Binding Username, UpdateSourceTrigger=LostFocus}"
+                             Width="240" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Password'}" Classes="rowLabel" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Password, UpdateSourceTrigger=LostFocus}"
+                             PasswordChar="•" Classes="revealPasswordButton" Width="240" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="Auto,*">
+                    <Button Grid.Column="0" Content="{loc:Loc 'Test Connection'}" Command="{Binding TestPtzCommand}" />
+                    <TextBlock Grid.Column="1" Text="{Binding PtzStatusMessage}" Classes="rowHint"
+                               VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <TextBlock Text="{loc:Loc 'PTZ control uses the classic Protect API, which requires a local account. The Integration API (API Key) only exposes preset and patrol endpoints, not free-form movement.'}"
+                       Classes="rowHint" TextWrapping="Wrap" />
+
+          </StackPanel>
+
+          <!-- ============ CAMERAS ============ -->
+          <!-- NOTE: bindings go through Layout.* from the window's SettingsViewModel.
+               Setting DataContext + x:DataType on the section breaks compiled
+               bindings (the DataContext binding is typed against the *child* type
+               and never resolves — the section renders empty). -->
+          <StackPanel Spacing="18" IsVisible="{Binding IsCamerasSection}">
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Layout profile'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <ComboBox Grid.Column="0" ItemsSource="{Binding Layout.ProfileNames}"
+                              SelectedIndex="{Binding Layout.SelectedProfileIndex}" MinWidth="200"
+                              HorizontalAlignment="Left" />
+                    <Button Grid.Column="1" Content="{loc:Loc 'Delete'}" Command="{Binding Layout.DeleteProfileCommand}" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto,Auto">
+                    <TextBox Grid.Column="0" Text="{Binding Layout.NewProfileName}"
+                             Watermark="{loc:Loc 'New profile name'}" MaxWidth="240" HorizontalAlignment="Left" />
+                    <Button Grid.Column="1" Content="{loc:Loc 'Create'}" Command="{Binding Layout.CreateProfileCommand}"
+                            Margin="0,0,8,0" />
+                    <Button Grid.Column="2" Content="{loc:Loc 'Rename'}" Command="{Binding Layout.RenameProfileCommand}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Cameras'}" Classes="cardCaption" />
+              <TextBlock Text="{loc:Loc 'Toggle visibility, set tile size, and reorder. Applies to this profile.'}"
+                         Classes="rowHint" />
+              <ItemsControl ItemsSource="{Binding Layout.Rows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CameraRowViewModel">
+                    <Border Background="{DynamicResource QpSubtleSurface}" CornerRadius="6" Padding="10,6" Margin="0,3"
+                            BorderBrush="{DynamicResource QpChipBorder}" BorderThickness="1">
+                      <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                          <CheckBox Grid.Column="0" IsChecked="{Binding IsVisible}" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}"
+                                     VerticalAlignment="Center" Margin="6,0" />
+                          <ComboBox Grid.Column="2" ItemsSource="{Binding SizeOptions}"
+                                    SelectedIndex="{Binding SizeIndex}" Width="110" Margin="0,0,8,0" />
+                          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
+                            <Button Content="▲" Command="{Binding MoveUpCommand}" Padding="8,2" />
+                            <Button Content="▼" Command="{Binding MoveDownCommand}" Padding="8,2" />
+                          </StackPanel>
+                        </Grid>
+                        <!-- Secondary-lens (package camera) PiP toggles, doorbells only
+                             (macOS SettingsView secondaryLensRow) -->
+                        <StackPanel IsVisible="{Binding HasSecondaryLens}" Margin="30,4,0,2" Spacing="0">
+                          <TextBlock Text="{Binding SecondaryLensLabel}" FontSize="12" FontWeight="Medium"
+                                     Foreground="{DynamicResource QpTextPrimary}" />
+                          <Grid ColumnDefinitions="*,Auto" Margin="12,0,0,0">
+                            <TextBlock Grid.Column="0" Text="{loc:Loc 'Picture-in-picture when focused'}"
+                                       Classes="rowHint" VerticalAlignment="Center" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowsPip}"
+                                          OnContent="{x:Null}" OffContent="{x:Null}" />
+                          </Grid>
+                          <Grid ColumnDefinitions="*,Auto" Margin="12,0,0,0">
+                            <TextBlock Grid.Column="0" Text="{loc:Loc 'Also show on the grid tile'}"
+                                       Classes="rowHint" VerticalAlignment="Center" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowsGridPip}"
+                                          OnContent="{x:Null}" OffContent="{x:Null}" />
+                          </Grid>
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+          </StackPanel>
+
+          <!-- ============ SHORTCUTS ============ -->
+          <StackPanel Spacing="18" IsVisible="{Binding IsShortcutsSection}">
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Global'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Toggle QuickProtect'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Show or hide the camera grid from anywhere.'}" Classes="rowHint" />
+                      <TextBlock Text="{loc:Loc 'Windows only for now (letter, number, or function key with modifiers).'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <Border Background="{DynamicResource QpSubtleSurface}" CornerRadius="6" Padding="10,5" MinWidth="140"
+                              BorderBrush="{DynamicResource QpDivider}" BorderThickness="1">
+                        <TextBlock Text="{Binding HotkeyDisplay}" Foreground="{DynamicResource QpAccentText}"
+                                   FontFamily="Consolas,Menlo,monospace" FontSize="12" VerticalAlignment="Center" />
+                      </Border>
+                      <Button Content="{loc:Loc 'Record'}" Command="{Binding RecordHotkeyCommand}" />
+                      <Button Content="{loc:Loc 'Clear'}" Command="{Binding ClearHotkeyCommand}" />
+                    </StackPanel>
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Within QuickProtect'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Focus camera'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="{loc:Loc 'Click'}" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Display fullscreen'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="F" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Exit / back'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="Esc" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Pan &amp; tilt (PTZ)'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="← → ↑ ↓" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Zoom (PTZ)'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="I · O" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Snapshot'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="S" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Mute audio'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="M" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Swap secondary lens'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="C" Classes="keyHint" />
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Digital zoom'}" Classes="rowLabel" />
+                    <TextBlock Grid.Column="1" Text="{loc:Loc 'Ctrl+scroll · + − · 0 resets'}" Classes="keyHint" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+          </StackPanel>
+
+          <!-- ============ UPDATES & ABOUT ============ -->
+          <StackPanel Spacing="18" IsVisible="{Binding IsUpdatesSection}">
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Version'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{loc:Loc 'Installed'}" Classes="rowLabel" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding AppVersion}" Classes="rowLabel" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" IsVisible="{Binding IsUpdateCheckAvailable}" />
+                  <Grid Classes="row" ColumnDefinitions="Auto,*" IsVisible="{Binding IsUpdateCheckAvailable}">
+                    <Button Grid.Column="0" Content="{loc:Loc 'Check for Updates'}"
+                            Command="{Binding CheckForUpdatesCommand}" />
+                    <TextBlock Grid.Column="1" Text="{Binding UpdateStatusMessage}" Classes="rowHint"
+                               VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <Border Background="{DynamicResource QpStatusGreenSurface}" CornerRadius="8" Padding="14,10"
+                    IsVisible="{Binding UpdateAvailable}">
+              <StackPanel Spacing="8">
+                <TextBlock Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap"
+                           Text="{Binding UpdateBannerText}" />
+                <Button Content="{loc:Loc 'Open Release Page'}" Command="{Binding OpenReleasePageCommand}" />
+              </StackPanel>
+            </Border>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'About'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="QuickProtect" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Menu-bar status app for UniFi Protect. Live camera feeds, one click away.'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                  </Grid>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="*,Auto,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
+                      <TextBlock Text="{loc:Loc 'License'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc '© 2026 Christian Bartels · Released under the MIT License.'}" Classes="rowHint" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="{loc:Loc 'View License'}" Command="{Binding OpenLicenseCommand}"
+                            Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Content="{loc:Loc 'View on GitHub'}" Command="{Binding OpenGitHubCommand}"
+                            VerticalAlignment="Center" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+          </StackPanel>
+
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+
+  <Window.Styles>
+    <!-- Sidebar -->
+    <Style Selector="ListBox.sidebar ListBoxItem">
+      <Setter Property="Padding" Value="10,7" />
+      <Setter Property="Margin" Value="0,1" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="TextBlock.sideIcon">
+      <Setter Property="Foreground" Value="{DynamicResource QpTextSecondary}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Width" Value="18" />
+      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.sideLabel">
+      <Setter Property="Foreground" Value="{DynamicResource QpTextPrimary}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Settings cards (macOS AuroraSettingsSection / AuroraSettingsRow) -->
+    <Style Selector="TextBlock.cardCaption">
+      <Setter Property="Foreground" Value="{DynamicResource QpTextSecondary}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="2,0,0,0" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource QpSectionBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource QpDivider}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Grid.row">
+      <Setter Property="Margin" Value="14,10" />
+    </Style>
+    <Style Selector="Border.hairline">
+      <Setter Property="Height" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource QpDivider}" />
+      <Setter Property="Margin" Value="14,0" />
+    </Style>
+    <Style Selector="TextBlock.rowLabel">
+      <Setter Property="Foreground" Value="{DynamicResource QpTextPrimary}" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="TextBlock.rowHint">
+      <Setter Property="Foreground" Value="{DynamicResource QpTextTertiary}" />
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.keyHint">
+      <Setter Property="Foreground" Value="{DynamicResource QpTextSecondary}" />
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
+</Window>

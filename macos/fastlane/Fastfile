@@ -1,0 +1,351 @@
+# QuickProtect — App Store Connect pipeline
+#
+# Auth: App Store Connect API key, read from fastlane/.env (gitignored).
+# Required env vars: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH  (see .env.example)
+#
+# Common usage:
+#   fastlane mac metadata   # push all 7 localized listings (no binary) — safe anytime
+#   fastlane mac build      # archive Release + export an App Store .pkg
+#   fastlane mac release    # build + upload binary + metadata + submit for review
+
+default_platform(:mac)
+opt_out_usage
+
+APP_IDENTIFIER = "com.cb.quickprotect"
+SCHEME = "QuickProtect"
+PKG_PATH = "build/fastlane/QuickProtect.pkg"
+
+def asc_api_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    key_filepath: ENV.fetch("ASC_KEY_PATH"),
+    duration: 1200,
+    in_house: false
+  )
+end
+
+# Authenticate the Spaceship Connect API client (for direct model calls).
+def connect_token
+  Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    filepath: File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+  )
+end
+
+ACTIVE_REVIEW_STATES = %w[WAITING_FOR_REVIEW READY_FOR_REVIEW UNRESOLVED_ISSUES IN_REVIEW].freeze
+
+platform :mac do
+  desc "Read-only: verify API auth and print current App Store version states"
+  lane :auth_check do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("Authenticated, but app #{APP_IDENTIFIER} not found on this account") unless app
+    UI.success("Auth OK — #{app.name} (id #{app.id})")
+    app.get_app_store_versions.each do |v|
+      UI.message("  version #{v.version_string} — state: #{v.app_store_state}")
+    end
+  end
+
+  desc "Read-only: show version states + recent build processing status"
+  lane :status do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.success("#{app.name} (id #{app.id})")
+    UI.header("App Store versions")
+    app.get_app_store_versions.each do |v|
+      UI.message("  #{v.version_string} — #{v.app_store_state} [id #{v.id}, #{v.platform}, created #{v.created_date}]")
+    end
+    UI.header("Recent builds")
+    Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 5).each do |b|
+      UI.message("  build #{b.version} (app v#{b.app_version}) — #{b.processing_state}")
+    end
+  end
+
+  desc "Read-only: list review submissions (state + platform + items)"
+  lane :review_subs do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    subs = app.get_review_submissions
+    if subs.empty?
+      UI.message("No review submissions.")
+    else
+      subs.each do |s|
+        UI.success("submission #{s.id} | state=#{s.state} | platform=#{s.platform}")
+        begin
+          s.review_submission_items.each do |it|
+            UI.message("   item #{it.id}")
+          end
+        rescue => e
+          UI.message("   (items unavailable: #{e.message})")
+        end
+      end
+    end
+    UI.header("Non-macOS version drafts (stray)")
+    strays = app.get_app_store_versions.select { |v| v.platform != "MAC_OS" }
+    strays.each { |v| UI.important("  #{v.platform} #{v.version_string} — #{v.app_store_state} [#{v.id}]") }
+    UI.message("  none") if strays.empty?
+  end
+
+  desc "Read-only: dump the App Review contact + notes for every version"
+  lane :review_detail do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    app.get_app_store_versions.each do |v|
+      r = asc_get("/v1/appStoreVersions/#{v.id}/appStoreReviewDetail")
+      a = (r["data"] || {})["attributes"] || {}
+      UI.success("v#{v.version_string} (#{v.app_store_state})")
+      UI.message("  contact: #{a['contactFirstName']} #{a['contactLastName']} | #{a['contactEmail']} | #{a['contactPhone']}")
+      UI.message("  demoAccountRequired: #{a['demoAccountRequired']}  demoUser: #{a['demoAccountName']}")
+      UI.message("  notes: #{a['notes']}")
+    end
+  end
+
+  desc "Remove the current version from App Store review (frees the slot to ship a new version)"
+  lane :cancel_review do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    active = app.get_review_submissions.find { |s| ACTIVE_REVIEW_STATES.include?(s.state) }
+    if active.nil?
+      UI.message("No active review submission — nothing to cancel.")
+      next
+    end
+    UI.important("Canceling review submission (state: #{active.state})…")
+    active.cancel_submission
+    # Wait until the version returns to an editable state.
+    20.times do
+      v = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::MAC_OS)
+      if v
+        UI.success("Review canceled — version #{v.version_string} is now editable (#{v.app_store_state}).")
+        break
+      end
+      sleep(3)
+    end
+  end
+
+  desc "Ship 1.1: set version to 1.1, push all localized metadata, attach build 2, and submit for review"
+  lane :submit_v11 do
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      app_version: "1.1",
+      build_number: "2",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,           # you press "Release" once approved
+      force: true,
+      run_precheck_before_submit: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+
+  desc "Ship 1.2: set version to 1.2, push metadata, attach build 3, set review notes, submit"
+  lane :submit_v12 do
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
+    notes = <<~NOTES
+      QuickProtect is an independent, third-party macOS menu-bar client for viewing live camera feeds from the user's own UniFi Protect controller on their local network.
+
+      DEMO VIDEO (full first-run setup + entire workflow, on a physical Mac with real hardware):
+      https://youtu.be/pR5uPUn2PSg
+      It shows: launching the app, the first-run setup where the controller IP address and Integration API key are entered (the "pairing" step), cameras loading into the live grid, focus and fullscreen, and PTZ control.
+
+      GUIDELINE 2.1 / 2.1(a) — HARDWARE REQUIRED:
+      The app requires a UniFi Protect controller reachable on the local network. The controller is hardware on a private LAN and cannot be shipped to the reviewer, so a demo account is not possible. The demo video above shows the complete setup and all functionality on real hardware.
+
+      GUIDELINE 5.2.1 — THIRD-PARTY TRADEMARK:
+      QuickProtect is not affiliated with, authorized by, or endorsed by Ubiquiti Inc., and contains no Ubiquiti logos, artwork, or code. "UniFi" and "UniFi Protect" are used only nominatively to describe the hardware the app is compatible with. A non-affiliation disclaimer is included in the app description, and the Ubiquiti company name has been removed from the keywords.
+
+      GUIDELINE 1.5 — SUPPORT URL:
+      The support URL now points to a dedicated support site: https://quickprotect.app/support/ (contact: hello@quickprotect.app), replacing the previous GitHub URL.
+
+      Thank you for the review.
+    NOTES
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      app_version: "1.2",
+      build_number: "3",
+      skip_binary_upload: true,           # build 3 is uploaded separately first
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,           # you press "Release" once approved
+      force: true,
+      run_precheck_before_submit: false,
+      app_review_information: {
+        first_name: "Christian",
+        last_name: "Bartels",
+        phone_number: "[REDACTED-PHONE]",
+        email_address: "christian@thebartels.de",
+        demo_user: "",
+        demo_password: "",
+        notes: notes
+      },
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+
+  desc "Cleanup: delete stray non-macOS version drafts (only deletes editable PREPARE_FOR_SUBMISSION)"
+  lane :delete_stray_ios do
+    connect_token
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    strays = app.get_app_store_versions.select do |v|
+      v.platform != "MAC_OS" && v.app_store_state == "PREPARE_FOR_SUBMISSION"
+    end
+    if strays.empty?
+      UI.message("No stray non-macOS drafts to delete.")
+      next
+    end
+    strays.each do |v|
+      UI.important("Deleting #{v.platform} version #{v.version_string} (id #{v.id}, #{v.app_store_state})…")
+      Spaceship::ConnectAPI.client.tunes_request_client.delete("v1/appStoreVersions/#{v.id}")
+      UI.success("Deleted #{v.id}")
+    end
+  end
+
+  # --- Xcode Cloud helpers (public ASC API; needs an Admin key) ---
+  def asc_get(path)
+    require "net/http"
+    require "json"
+    token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      filepath: File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+    )
+    uri = URI("https://api.appstoreconnect.apple.com#{path}")
+    req = Net::HTTP::Get.new(uri)
+    req["Authorization"] = "Bearer #{token.text}"
+    res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |h| h.request(req) }
+    JSON.parse(res.body)
+  end
+
+  def asc_patch(path, body)
+    require "net/http"
+    require "json"
+    token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      filepath: File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+    )
+    uri = URI("https://api.appstoreconnect.apple.com#{path}")
+    req = Net::HTTP::Patch.new(uri)
+    req["Authorization"] = "Bearer #{token.text}"
+    req["Content-Type"] = "application/json"
+    req.body = body.to_json
+    Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |h| h.request(req) }
+  end
+
+  desc "Disable all enabled Xcode Cloud workflows (stops failing CI builds + emails; reversible)"
+  lane :ci_disable do
+    products = asc_get("/v1/ciProducts?limit=200")
+    (products["data"] || []).each do |prod|
+      wfs = asc_get("/v1/ciProducts/#{prod['id']}/workflows?limit=200")
+      (wfs["data"] || []).each do |wf|
+        next unless wf.dig("attributes", "isEnabled")
+        name = wf.dig("attributes", "name")
+        UI.important("Disabling workflow '#{name}' (#{wf['id']})…")
+        res = asc_patch("/v1/ciWorkflows/#{wf['id']}", {
+          data: { type: "ciWorkflows", id: wf["id"], attributes: { isEnabled: false } }
+        })
+        if res.code.to_i.between?(200, 299)
+          UI.success("Disabled '#{name}' (HTTP #{res.code})")
+        else
+          UI.error("Failed to disable '#{name}' (HTTP #{res.code}): #{res.body}")
+        end
+      end
+    end
+  end
+
+  desc "Read-only: list Xcode Cloud products and workflows"
+  lane :ci_status do
+    products = asc_get("/v1/ciProducts?limit=200")
+    data = products["data"] || []
+    UI.success("Xcode Cloud products: #{data.size}")
+    data.each do |prod|
+      UI.message("Product: #{prod.dig('attributes', 'name')} (#{prod['id']})")
+      wfs = asc_get("/v1/ciProducts/#{prod['id']}/workflows?limit=200")
+      (wfs["data"] || []).each do |wf|
+        UI.important("  workflow '#{wf.dig('attributes', 'name')}' (#{wf['id']}) enabled=#{wf.dig('attributes', 'isEnabled')}")
+      end
+    end
+    UI.message(products["errors"].to_s) if products["errors"]
+  end
+
+  desc "Regenerate the Xcode project from project.yml (it is gitignored)"
+  lane :gen do
+    sh("cd .. && xcodegen generate")
+  end
+
+  desc "Regenerate localized metadata from APP_STORE_LISTINGS.md and push it (no binary). Safe anytime."
+  lane :metadata do
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      force: true,                      # skip the interactive HTML preview
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Archive a Release build and export an App Store .pkg into build/fastlane/"
+  lane :build do
+    gen
+    key_path = File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+    auth = "-allowProvisioningUpdates " \
+           "-authenticationKeyPath #{key_path} " \
+           "-authenticationKeyID #{ENV.fetch('ASC_KEY_ID')} " \
+           "-authenticationKeyIssuerID #{ENV.fetch('ASC_ISSUER_ID')}"
+    build_mac_app(
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build/fastlane",
+      output_name: "QuickProtect",
+      xcargs: auth # gym applies this to both the archive and the export steps
+    )
+  end
+
+  desc "Upload an already-exported .pkg to App Store Connect (no submit, no metadata)"
+  lane :upload_build do
+    upload_to_testflight(
+      api_key: asc_api_key,
+      pkg: PKG_PATH,
+      skip_submission: true,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Build, upload the binary + metadata, and submit the current version for review"
+  lane :release do
+    build
+    sh("cd .. && python3 tools/gen_appstore_metadata.py")
+    deliver(
+      api_key: asc_api_key,
+      app_identifier: APP_IDENTIFIER,
+      platform: "osx",
+      pkg: PKG_PATH,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,         # you press "Release" once approved
+      force: true,
+      run_precheck_before_submit: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+end
