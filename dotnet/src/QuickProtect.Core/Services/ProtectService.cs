@@ -453,6 +453,55 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Cookie", $"TOKEN={token}");
     }
 
+    // MARK: - Package snapshot (classic API)
+
+    /// <summary>
+    /// Fetches a JPEG snapshot of a camera's package lens. The package stream
+    /// runs at 2 fps, so a client joining it mid-GOP waits many seconds for the
+    /// first keyframe — the UI bridges that gap with this snapshot. Classic API
+    /// only: the Integration API has no package-snapshot endpoint.
+    /// </summary>
+    public async Task<byte[]?> FetchPackageSnapshotAsync(Camera camera)
+    {
+        if (camera.Secondary == null) return null;
+        bool hasToken;
+        lock (_credLock) hasToken = !string.IsNullOrEmpty(_tokenCookie);
+        if (!hasToken && !await ClassicLoginAsync().ConfigureAwait(false)) return null;
+
+        var (bytes, unauthorized) = await RequestPackageSnapshotAsync(camera).ConfigureAwait(false);
+        if (bytes != null) return bytes;
+        // Expired session (token timeout, controller restart): one fresh login,
+        // one retry. Other failures just return null — a login wouldn't help,
+        // and every login is audit-logged on the controller.
+        if (!unauthorized || !await ClassicLoginAsync().ConfigureAwait(false)) return null;
+        return (await RequestPackageSnapshotAsync(camera).ConfigureAwait(false)).bytes;
+    }
+
+    private async Task<(byte[]? bytes, bool unauthorized)> RequestPackageSnapshotAsync(Camera camera)
+    {
+        var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // cache-buster: always a fresh capture
+        var url = MakeUrl($"proxy/protect/api/cameras/{camera.Id}/package-snapshot?ts={ts}");
+        if (url == null) return (null, false);
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            AddClassicAuth(req);
+            using var resp = await _classic.SendAsync(req).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                Log.Line($"[Snapshot] package-snapshot HTTP {(int)resp.StatusCode}");
+                return (null, resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden);
+            }
+            var bytes = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            return (bytes.Length > 0 ? bytes : null, false);
+        }
+        catch (Exception ex)
+        {
+            Log.Line($"[Snapshot] package-snapshot request failed: {ex.Message}");
+            return (null, false);
+        }
+    }
+
     /// <summary>
     /// Applies classic-API PTZ/zoom capability flags to the current camera list.
     /// Best-effort (PTZ simply stays unavailable on failure), but returns whether

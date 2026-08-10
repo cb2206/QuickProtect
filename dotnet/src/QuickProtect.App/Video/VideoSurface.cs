@@ -4,6 +4,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using QuickProtect.Core.Services;
 
 namespace QuickProtect.App.Video;
 
@@ -79,12 +80,17 @@ public sealed class VideoSurface : Control
 
     private void OnSourceChanged(AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.OldValue is VideoStreamClient old) old.FrameReady -= OnFrameReady;
+        if (e.OldValue is VideoStreamClient old)
+        {
+            old.FrameReady -= OnFrameReady;
+            old.PlaceholderChanged -= OnPlaceholderChanged;
+        }
         _seq = -1;
         _bitmap = null;
         if (e.NewValue is VideoStreamClient client)
         {
             client.FrameReady += OnFrameReady;
+            client.PlaceholderChanged += OnPlaceholderChanged;
             if (client.HasFrame) OnFrameReady(); // adopt an already-running stream instantly
         }
         InvalidateVisual();
@@ -93,7 +99,11 @@ public sealed class VideoSurface : Control
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        if (Source is { } s) s.FrameReady -= OnFrameReady;
+        if (Source is { } s)
+        {
+            s.FrameReady -= OnFrameReady;
+            s.PlaceholderChanged -= OnPlaceholderChanged;
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -103,9 +113,13 @@ public sealed class VideoSurface : Control
         {
             s.FrameReady -= OnFrameReady; // no double-subscribe
             s.FrameReady += OnFrameReady;
+            s.PlaceholderChanged -= OnPlaceholderChanged;
+            s.PlaceholderChanged += OnPlaceholderChanged;
             if (s.HasFrame) OnFrameReady();
         }
     }
+
+    private void OnPlaceholderChanged() => Dispatcher.UIThread.Post(InvalidateVisual);
 
     // Decode thread → coalesced UI update (at most one queued at a time).
     private void OnFrameReady()
@@ -150,9 +164,42 @@ public sealed class VideoSurface : Control
         }
     }
 
+    /// <summary>
+    /// Decoded placeholder for pre-first-frame rendering (the 2 fps package
+    /// lens waits many seconds for its first keyframe). Cached per byte-array
+    /// instance so the JPEG is decoded once, not per render pass.
+    /// </summary>
+    private Bitmap? PlaceholderBitmap()
+    {
+        var src = Source;
+        if (src == null || src.HasFrame) return null;
+        var bytes = src.PlaceholderImage;
+        if (bytes == null) return null;
+        if (!ReferenceEquals(bytes, _placeholderBytes))
+        {
+            _placeholderBytes = bytes;
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                _placeholder = new Bitmap(ms);
+            }
+            catch (Exception ex)
+            {
+                Log.Line($"[Snapshot] placeholder decode failed: {ex.Message}");
+                _placeholder = null;
+            }
+        }
+        return _placeholder;
+    }
+
+    private Bitmap? _placeholder;
+    private byte[]? _placeholderBytes;
+
     public override void Render(DrawingContext context)
     {
-        var bmp = _bitmap;
+        // Live frames always win; the placeholder only covers the gap before
+        // the first decode.
+        Bitmap? bmp = _bitmap ?? PlaceholderBitmap();
         var bounds = Bounds;
         if (bmp == null || bounds.Width < 1 || bounds.Height < 1) return;
 

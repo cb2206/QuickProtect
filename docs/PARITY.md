@@ -73,6 +73,9 @@ port (`dotnet/`).
   straight from the video engine.
 - **Secondary-lens PiP** — package-camera side panel in focus with a **swap**
   button that exchanges playback between the lenses in place (no re-allocation).
+  A classic-API `package-snapshot` JPEG bridges the stream's keyframe wait (the
+  2 fps package lens joins mid-GOP, so the first paintable IDR can be many
+  seconds out) — shown until the first decoded frame, like macOS.
 - **Audio playback** — the engine decodes the stream's audio track (Opus/AAC)
   and renders it through a platform sink: WASAPI shared mode via NAudio on
   Windows, ALSA via libasound P/Invoke on Linux (best-effort, untested until

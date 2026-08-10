@@ -39,6 +39,23 @@ public sealed class VideoStreamClient : IDisposable
     /// <summary>True while the current session carries a decodable audio track.</summary>
     public bool HasAudio { get; private set; }
 
+    /// <summary>
+    /// Controller-provided JPEG shown by <see cref="VideoSurface"/> while no
+    /// frame has been decoded yet. Set for streams whose first keyframe is many
+    /// seconds away (the 2 fps package lens joins mid-GOP and can't paint until
+    /// the next IDR). Raw encoded bytes — the client stays UI-toolkit-free.
+    /// </summary>
+    public byte[]? PlaceholderImage { get; private set; }
+
+    /// <summary>Placeholder set (raised on the setter's thread, marshal in the UI).</summary>
+    public event Action? PlaceholderChanged;
+
+    public void SetPlaceholder(byte[] jpeg)
+    {
+        PlaceholderImage = jpeg;
+        PlaceholderChanged?.Invoke();
+    }
+
     // Latest decoded frame (BGRA). Swapped under _frameLock; UI copies under the same lock.
     private readonly object _frameLock = new();
     private byte[]? _frame;

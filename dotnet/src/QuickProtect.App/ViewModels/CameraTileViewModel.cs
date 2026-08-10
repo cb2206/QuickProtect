@@ -281,7 +281,20 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         ApplyAudioRouting();
         if (!handle.Client.HasFrame) IsLoading = true;
         IsPlaying = handle.Client.State == VideoState.Playing;
+        // Package lens: bridge the stream's keyframe wait (2 fps → the first
+        // IDR can be many seconds out) with a controller snapshot, drawn by
+        // VideoSurface until the first decoded frame replaces it.
+        if (_fixedQuality != null && !handle.Client.HasFrame)
+            _ = FetchPlaceholderAsync(handle.Client);
         return Task.CompletedTask;
+    }
+
+    /// <summary>One-shot snapshot fetch for the secondary-lens PiP. Re-fetched on
+    /// each focus open so a reopened PiP doesn't briefly show a stale scene.</summary>
+    private async Task FetchPlaceholderAsync(VideoStreamClient client)
+    {
+        var jpeg = await _service.FetchPackageSnapshotAsync(Camera).ConfigureAwait(false);
+        if (jpeg != null && !client.HasFrame) client.SetPlaceholder(jpeg);
     }
 
     /// <summary>
