@@ -6,6 +6,11 @@ A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Prote
   <a href="https://apps.apple.com/app/id6776899427"><img alt="Download QuickProtect on the App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="52"></a>
 </p>
 
+**Get QuickProtect**
+
+- **macOS** — [Mac App Store](https://apps.apple.com/app/id6776899427) (signed, sandboxed, auto-updating) or the free unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
+- **Windows** — Microsoft Store (signed, auto-updating — listing rolling out) or the free unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
+
 ![QuickProtect](docs/screenshots/appstore-1.png)
 
 ## Features
@@ -30,7 +35,7 @@ This repo hosts two independent implementations that share behavior, not code:
 | Folder | What it is |
 |---|---|
 | [`macos/`](macos/) | The original macOS menu-bar app — Swift/SwiftUI/AppKit with a custom RTSP/RTP client. Ships on the [App Store](https://apps.apple.com/app/id6776899427) and as an unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases). |
-| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. |
+| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. Ships on the Microsoft Store and as an unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases); Linux release pending. |
 | [`docs/`](docs/) | Cross-platform docs: [feature parity](docs/PARITY.md) between the two implementations, [privacy policy](docs/PRIVACY.md), App Store listings, screenshots. |
 | [`scripts/`](scripts/) | Per-platform build & run entry points (see below). |
 
