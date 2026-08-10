@@ -37,6 +37,7 @@ nl→nl-NL, it→it, pt-BR→pt-BR. (Change es in the generator for es-MX.)
 | `upload_build` | Upload an exported `.pkg` to App Store Connect (no submit) |
 | `cancel_review` | Remove the current version from review (frees the slot) |
 | `resubmit` | Upload an already-exported `.pkg` + resubmit the current version (no rebuild, no metadata) |
+| `submit_only` | Submit the current version with an already-uploaded build (`build:6` option or `SUBMIT_BUILD` env) — for when the binary is up but the submit failed |
 | `submit_v11` | Set version 1.1, push metadata, attach build 2, submit |
 | `release` | build → upload → metadata → submit (the going-forward one-shot) |
 | `delete_stray_ios` | Cleanup: delete stray non-macOS editable version drafts |
@@ -62,3 +63,8 @@ nl→nl-NL, it→it, pt-BR→pt-BR. (Change es in the generator for es-MX.)
   then `xcodebuild -exportArchive` (signing happens at export, so the patched
   plist is what gets signed), copy the pkg over `build/fastlane/QuickProtect.pkg`,
   and run `fastlane mac resubmit`. Long-term fix: build on a release-OS machine.
+- **"A review submission is already in progress"** when resubmitting after a
+  binary rejection: the old review submission lingers in `UNRESOLVED_ISSUES`.
+  Run `cancel_review` (the version stays editable with its metadata), then
+  `submit_only` with the new build number — don't re-run `resubmit`, its pkg
+  re-upload would trip the duplicate-binary check.
