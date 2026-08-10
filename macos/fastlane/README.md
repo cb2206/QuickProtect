@@ -127,6 +127,22 @@ Archive a Release build and export an App Store .pkg into build/fastlane/
 
 Upload an already-exported .pkg to App Store Connect (no submit, no metadata)
 
+### mac submit_only
+
+```sh
+[bundle exec] fastlane mac submit_only
+```
+
+Submit the current version for review using an already-uploaded build (no upload, no metadata)
+
+### mac resubmit
+
+```sh
+[bundle exec] fastlane mac resubmit
+```
+
+Upload an already-exported .pkg and resubmit the current version for review (no rebuild, no metadata)
+
 ### mac release
 
 ```sh

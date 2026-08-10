@@ -36,6 +36,8 @@ nl→nl-NL, it→it, pt-BR→pt-BR. (Change es in the generator for es-MX.)
 | `build` | Archive Release + export a signed App Store `.pkg` (cloud signing) |
 | `upload_build` | Upload an exported `.pkg` to App Store Connect (no submit) |
 | `cancel_review` | Remove the current version from review (frees the slot) |
+| `resubmit` | Upload an already-exported `.pkg` + resubmit the current version (no rebuild, no metadata) |
+| `submit_only` | Submit the current version with an already-uploaded build (`build:6` option or `SUBMIT_BUILD` env) — for when the binary is up but the submit failed |
 | `submit_v11` | Set version 1.1, push metadata, attach build 2, submit |
 | `release` | build → upload → metadata → submit (the going-forward one-shot) |
 | `delete_stray_ios` | Cleanup: delete stray non-macOS editable version drafts |
@@ -50,3 +52,19 @@ nl→nl-NL, it→it, pt-BR→pt-BR. (Change es in the generator for es-MX.)
   not `PREPARE_FOR_SUBMISSION` — that's normal for a self-withdrawn version.
 - Screenshots aren't automated (the `screenshots/` dir isn't in deliver's
   `metadata/<locale>/` layout). Manage those in App Store Connect.
+- **Building on a beta macOS ⇒ ITMS-90301** ("not currently accepting
+  applications built with this version of the OS"), even with a release Xcode
+  and SDK — the validator rejects the beta `BuildMachineOSBuild` stamp (e.g.
+  `26A5388g`) in the app's Info.plist. Happened with 1.3 build 5 (2026-08-10).
+  Workaround from a beta machine: bump `CFBundleVersion` in `project.yml`,
+  archive with `xcodebuild archive` (cloud-signing auth args), patch the stamp
+  in the **archive** to the current public build
+  (`PlistBuddy -c 'Set :BuildMachineOSBuild <public>' …/Products/Applications/QuickProtect.app/Contents/Info.plist`),
+  then `xcodebuild -exportArchive` (signing happens at export, so the patched
+  plist is what gets signed), copy the pkg over `build/fastlane/QuickProtect.pkg`,
+  and run `fastlane mac resubmit`. Long-term fix: build on a release-OS machine.
+- **"A review submission is already in progress"** when resubmitting after a
+  binary rejection: the old review submission lingers in `UNRESOLVED_ISSUES`.
+  Run `cancel_review` (the version stays editable with its metadata), then
+  `submit_only` with the new build number — don't re-run `resubmit`, its pkg
+  re-upload would trip the duplicate-binary check.
