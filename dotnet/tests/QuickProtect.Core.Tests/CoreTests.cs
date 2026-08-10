@@ -396,6 +396,34 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void Secondary_lens_pip_defaults_focus_on_grid_off()
+    {
+        var s = New();
+        Assert.True(s.ShowsSecondaryLensPip("doorbell"));
+        Assert.False(s.ShowsSecondaryLensPipInGrid("doorbell"));
+
+        s.SetShowsSecondaryLensPip(false, "doorbell");
+        s.SetShowsSecondaryLensPipInGrid(true, "doorbell");
+        Assert.False(s.ShowsSecondaryLensPip("doorbell"));
+        Assert.True(s.ShowsSecondaryLensPipInGrid("doorbell"));
+        // Per-camera: other cameras keep the defaults.
+        Assert.True(s.ShowsSecondaryLensPip("other"));
+        Assert.False(s.ShowsSecondaryLensPipInGrid("other"));
+    }
+
+    [Fact]
+    public void Secondary_lens_pip_setters_raise_change_notifications()
+    {
+        var s = New();
+        var raised = new List<string?>();
+        s.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        s.SetShowsSecondaryLensPip(false, "doorbell");
+        s.SetShowsSecondaryLensPipInGrid(true, "doorbell");
+        Assert.Contains(nameof(AppSettings.ShowsSecondaryLensPip), raised);
+        Assert.Contains(nameof(AppSettings.ShowsSecondaryLensPipInGrid), raised);
+    }
+
+    [Fact]
     public void Legacy_plaintext_secret_migrates_into_secret_store()
     {
         var prefs = new InMemoryPreferences();

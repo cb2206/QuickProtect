@@ -254,6 +254,24 @@ public sealed class AppSettings : INotifyPropertyChanged
         var dict = _prefs.GetJson<Dictionary<string, bool>>(Keys.SecondaryLensPip) ?? new();
         dict[id] = on;
         _prefs.SetJson(Keys.SecondaryLensPip, dict);
+        Raise(nameof(ShowsSecondaryLensPip));
+    }
+
+    /// <summary>Whether the secondary-lens PiP is also shown on the camera's grid
+    /// tile (not just the focus view). Defaults to false: a grid PiP is tiny and
+    /// keeps a second server-side stream running whenever the grid is visible.</summary>
+    public bool ShowsSecondaryLensPipInGrid(string id)
+    {
+        var dict = _prefs.GetJson<Dictionary<string, bool>>(Keys.SecondaryLensPipGrid);
+        return dict != null && dict.TryGetValue(id, out var v) && v;
+    }
+
+    public void SetShowsSecondaryLensPipInGrid(bool on, string id)
+    {
+        var dict = _prefs.GetJson<Dictionary<string, bool>>(Keys.SecondaryLensPipGrid) ?? new();
+        dict[id] = on;
+        _prefs.SetJson(Keys.SecondaryLensPipGrid, dict);
+        Raise(nameof(ShowsSecondaryLensPipInGrid));
     }
 
     // MARK: - Layout profiles
@@ -560,6 +578,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         public const string CameraStreamQualities = "unifi.cameraStreamQualities";
         public const string CameraFillModes = "unifi.cameraFillModes";
         public const string SecondaryLensPip = "unifi.secondaryLensPip";
+        public const string SecondaryLensPipGrid = "unifi.secondaryLensPipGrid";
         public const string PinnedCameras = "unifi.pinnedCameras";
     }
 }

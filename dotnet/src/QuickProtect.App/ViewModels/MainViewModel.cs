@@ -158,12 +158,43 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(AppSettings.ShowsSecondaryLensPip)
+            or nameof(AppSettings.ShowsSecondaryLensPipInGrid))
+        {
+            Dispatcher.UIThread.Post(ApplySecondaryLensSettings);
+            return;
+        }
         if (e.PropertyName is not (nameof(AppSettings.Profiles) or nameof(AppSettings.ActiveProfileId))) return;
         Dispatcher.UIThread.Post(() =>
         {
             RebuildProfiles();
             RebuildTiles();
         });
+    }
+
+    /// <summary>
+    /// A per-camera PiP toggle changed in Settings: start/stop the grid PiPs and,
+    /// if a camera is focused, add or remove its focus PiP in place (macOS reacts
+    /// live the same way).
+    /// </summary>
+    private void ApplySecondaryLensSettings()
+    {
+        foreach (var tile in Tiles) tile.RefreshGridPip();
+
+        if (FocusTile is not { } ft) return;
+        var lens = ft.Camera.Secondary;
+        var wants = lens != null && _settings.ShowsSecondaryLensPip(ft.Camera.Id);
+        if (wants && SecondaryTile == null)
+        {
+            var pip = new CameraTileViewModel(ft.Camera, _service, _settings, fixedQuality: lens!.Quality);
+            SecondaryTile = pip;
+            _ = pip.StartAsync();
+        }
+        else if (!wants && SecondaryTile is { } pip)
+        {
+            SecondaryTile = null;
+            pip.Dispose();
+        }
     }
 
     private void RebuildTiles()

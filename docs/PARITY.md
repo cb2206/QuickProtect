@@ -72,7 +72,10 @@ port (`dotnet/`).
   folder, honoring the destination setting; captures the latest decoded frame
   straight from the video engine.
 - **Secondary-lens PiP** — package-camera side panel in focus with a **swap**
-  button that exchanges playback between the lenses in place (no re-allocation).
+  button that exchanges playback between the lenses in place (no re-allocation);
+  optional per-camera PiP on the grid tile too (default off — an extra server
+  stream per tile), both behind per-doorbell toggles in Settings → Cameras,
+  matching the macOS `secondaryLensRow`.
   A classic-API `package-snapshot` JPEG bridges the stream's keyframe wait (the
   2 fps package lens joins mid-GOP, so the first paintable IDR can be many
   seconds out) — shown until the first decoded frame, like macOS.
@@ -141,7 +144,6 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 | Profile rename/delete in header menu | header profile menu | Settings → Cameras | header has switcher + save-as-new; full management lives in Settings |
 | About tab | separate sidebar tab | About card on the Updates section | six sections fit the window; split it out if it grows |
 | Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
-| Grid-tile PiP | optional per-camera PiP on grid tiles | focus-only PiP | each PiP is an extra server stream; cost outweighs the value at grid size |
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
 

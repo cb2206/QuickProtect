@@ -33,7 +33,9 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _name;
     [ObservableProperty] private bool _isOnline;
     [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private bool _isPlaying;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GridPipVisible))]
+    private bool _isPlaying;
     [ObservableProperty] private bool _isFocused;
     [ObservableProperty] private bool _isMuted;
     /// <summary>True when the stream carries an audio track (shows the mute UI).</summary>
@@ -45,6 +47,53 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _videoUnavailable;
     /// <summary>False when filtered out by the header search box.</summary>
     [ObservableProperty] private bool _matchesSearch = true;
+
+    // MARK: - Grid-tile secondary-lens PiP (macOS showsGridPip; per-camera opt-in)
+
+    /// <summary>
+    /// Child tile streaming the secondary lens (e.g. doorbell package camera) as
+    /// a small overlay on this grid tile. Null unless the camera has a second
+    /// lens and the per-camera grid-PiP setting is on. Display-only — swapping
+    /// lenses lives in the focus view.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GridPipVisible))]
+    private CameraTileViewModel? _gridPip;
+
+    /// <summary>Shown once the main tile is live, so the PiP never floats over a
+    /// spinner or an offline notice (macOS gates on appearsLive the same way).</summary>
+    public bool GridPipVisible => GridPip != null && IsPlaying;
+
+    // Compact PiP sizing: ~30% of the tile width, 4:3 (the package lens is
+    // 1600×1200) — the macOS grid-PiP math.
+    [ObservableProperty] private double _gridPipWidth = 56;
+    [ObservableProperty] private double _gridPipHeight = 42;
+
+    /// <summary>
+    /// Start or stop the grid PiP to match the camera and the per-camera setting.
+    /// Called on stream start, on camera refresh, and when the setting changes.
+    /// Only real grid tiles get one — never the focus/pinned/PiP tiles themselves.
+    /// </summary>
+    public void RefreshGridPip()
+    {
+        var lens = Camera.Secondary;
+        var wants = lens != null && !_pinned && _fixedQuality == null && !IsFocused
+            && Camera.IsOnline && FfmpegEngine.IsAvailable
+            && _settings.ShowsSecondaryLensPipInGrid(Camera.Id);
+        if (wants)
+        {
+            if (GridPip != null) return;
+            var pip = new CameraTileViewModel(Camera, _service, _settings, fixedQuality: lens!.Quality);
+            GridPip = pip;
+            _ = pip.StartAsync();
+        }
+        else if (GridPip is { } pip)
+        {
+            // Unbind before disposing so the VideoSurface detaches first.
+            GridPip = null;
+            pip.Dispose();
+        }
+    }
 
     // Digital zoom viewport (bound by VideoSurface; Core math in DigitalZoom).
     [ObservableProperty] private double _zoom = 1.0;
@@ -110,6 +159,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         var width = span * colWidth + (span - 1) * GridSpacing;
         TileWidth = width;
         TileHeight = width / (_settings.CachedAspectRatio(Camera.Id) ?? 16.0 / 9.0);
+        GridPipWidth = Math.Max(56, width * 0.30);
+        GridPipHeight = GridPipWidth * 0.75;
     }
 
     private void SubscribeClient(VideoStreamClient client)
@@ -180,6 +231,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         ApplyTileSize(_lastGridWidth);
         OnPropertyChanged(nameof(IsPtz));
         OnPropertyChanged(nameof(CanZoom));
+        RefreshGridPip(); // secondary lens or online state may have changed
     }
 
     public bool IsPtz => Camera.IsPtz;
@@ -267,6 +319,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
                 .Resolve(focused: IsFocused || _pinned, gridIsLarge: gridIsLarge)
                 .ApiValue();
 
+        RefreshGridPip();
+
         if (_handle is { } existing)
         {
             existing.SetDesiredQuality(quality);
@@ -321,6 +375,12 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     /// and frees its allocation only when no other view is using it).</summary>
     public void Stop()
     {
+        if (GridPip is { } pip)
+        {
+            // Drop the PiP's claim too; StartAsync recreates it on reopen.
+            GridPip = null;
+            pip.Dispose();
+        }
         if (Client is { } c)
         {
             // Release audio, but only if this tile routed it: the shared client

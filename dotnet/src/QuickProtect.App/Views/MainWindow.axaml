@@ -117,6 +117,16 @@
                                    VerticalAlignment="Center" IsVisible="{Binding IsPtz}" />
                       </StackPanel>
                     </Border>
+                    <!-- Secondary-lens PiP (package camera), bottom-right — compact,
+                         display-only; enabled per camera in Settings → Cameras -->
+                    <Border Width="{Binding GridPipWidth}" Height="{Binding GridPipHeight}"
+                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="6"
+                            CornerRadius="5" ClipToBounds="True"
+                            Background="{DynamicResource QpVideoBg}"
+                            BorderBrush="{DynamicResource QpChipBorder}" BorderThickness="1"
+                            IsVisible="{Binding GridPipVisible}">
+                      <video:VideoSurface Source="{Binding GridPip.Client}" Fill="True" />
+                    </Border>
                   </Grid>
                 </Border>
               </DataTemplate>

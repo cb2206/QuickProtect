@@ -355,17 +355,37 @@
                   <DataTemplate x:DataType="vm:CameraRowViewModel">
                     <Border Background="{DynamicResource QpSubtleSurface}" CornerRadius="6" Padding="10,6" Margin="0,3"
                             BorderBrush="{DynamicResource QpChipBorder}" BorderThickness="1">
-                      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                        <CheckBox Grid.Column="0" IsChecked="{Binding IsVisible}" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}"
-                                   VerticalAlignment="Center" Margin="6,0" />
-                        <ComboBox Grid.Column="2" ItemsSource="{Binding SizeOptions}"
-                                  SelectedIndex="{Binding SizeIndex}" Width="110" Margin="0,0,8,0" />
-                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
-                          <Button Content="▲" Command="{Binding MoveUpCommand}" Padding="8,2" />
-                          <Button Content="▼" Command="{Binding MoveDownCommand}" Padding="8,2" />
+                      <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                          <CheckBox Grid.Column="0" IsChecked="{Binding IsVisible}" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}"
+                                     VerticalAlignment="Center" Margin="6,0" />
+                          <ComboBox Grid.Column="2" ItemsSource="{Binding SizeOptions}"
+                                    SelectedIndex="{Binding SizeIndex}" Width="110" Margin="0,0,8,0" />
+                          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
+                            <Button Content="▲" Command="{Binding MoveUpCommand}" Padding="8,2" />
+                            <Button Content="▼" Command="{Binding MoveDownCommand}" Padding="8,2" />
+                          </StackPanel>
+                        </Grid>
+                        <!-- Secondary-lens (package camera) PiP toggles, doorbells only
+                             (macOS SettingsView secondaryLensRow) -->
+                        <StackPanel IsVisible="{Binding HasSecondaryLens}" Margin="30,4,0,2" Spacing="0">
+                          <TextBlock Text="{Binding SecondaryLensLabel}" FontSize="12" FontWeight="Medium"
+                                     Foreground="{DynamicResource QpTextPrimary}" />
+                          <Grid ColumnDefinitions="*,Auto" Margin="12,0,0,0">
+                            <TextBlock Grid.Column="0" Text="{loc:Loc 'Picture-in-picture when focused'}"
+                                       Classes="rowHint" VerticalAlignment="Center" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowsPip}"
+                                          OnContent="{x:Null}" OffContent="{x:Null}" />
+                          </Grid>
+                          <Grid ColumnDefinitions="*,Auto" Margin="12,0,0,0">
+                            <TextBlock Grid.Column="0" Text="{loc:Loc 'Also show on the grid tile'}"
+                                       Classes="rowHint" VerticalAlignment="Center" />
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowsGridPip}"
+                                          OnContent="{x:Null}" OffContent="{x:Null}" />
+                          </Grid>
                         </StackPanel>
-                      </Grid>
+                      </StackPanel>
                     </Border>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
