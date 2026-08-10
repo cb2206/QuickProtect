@@ -268,6 +268,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         positionPanelBelowStatusItem()
 
         service.isPopoverOpen = true
+        // A sheet still attached from a previous presentation is hosted in a
+        // ViewBridge remote view; ordering the window on screen with a stale
+        // one raises inside -[NSRemoteView containingWindowWillOrderOnScreen:]
+        // and aborts (crash 2026-08-09). End sheets before the window shows.
+        if let p = panel {
+            for sheet in p.sheets { p.endSheet(sheet) }
+        }
         panel?.makeKeyAndOrderFront(nil)
 
         // Close on outside click — but not on the status-bar button itself,
@@ -343,6 +350,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // while their XPC service is still alive instead of leaving a stale
         // ViewBridge observer behind.
         panel?.makeFirstResponder(nil)
+        // Likewise end any attached sheet now, while its ViewBridge service is
+        // still alive — a sheet left attached past orderOut keeps a stale
+        // remote-view observer that can throw on the next order-on-screen.
+        if let p = panel {
+            for sheet in p.sheets { p.endSheet(sheet) }
+        }
         service.isPopoverOpen = false
         // Tear streams down explicitly (after the keep-alive grace): the hosting
         // controller is destroyed below in the same runloop turn, so a SwiftUI
