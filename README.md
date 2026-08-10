@@ -1,6 +1,6 @@
 # QuickProtect
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/cb2206)
+If you find QuickProtect useful, consider donating: [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/cb2206)
 
 A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Protect controller — no browser or UniFi Protect app needed.
 
