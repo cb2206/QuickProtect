@@ -18,6 +18,10 @@ final class RTSPClient: ObservableObject {
     /// `isConnected` flips at RTP setup — before any picture exists — so the UI
     /// keys its "now showing video" state off this instead to avoid a black gap.
     @Published var hasFrame     = false
+    /// Controller-provided JPEG shown by the views while `hasFrame` is false.
+    /// Set for streams whose first keyframe is many seconds away (the 2 fps
+    /// package lens joins mid-GOP and can't paint until the next IDR).
+    @Published var placeholderImage: CGImage?
     @Published var error: String?
     @Published var videoDimensions: CGSize = .zero
     /// True once an AAC audio track has been negotiated for this stream.

@@ -506,6 +506,57 @@ final class ProtectService: NSObject, ObservableObject {
         return true
     }
 
+    // MARK: - Package snapshot (classic API)
+
+    /// Fetches a JPEG snapshot of a camera's package lens. The package stream
+    /// runs at 2 fps, so a client joining it mid-GOP waits many seconds for the
+    /// first keyframe — the views bridge that gap with this snapshot. Classic
+    /// API only: the Integration API has no package-snapshot endpoint.
+    func fetchPackageSnapshot(for camera: Camera) async -> CGImage? {
+        guard camera.secondaryLens != nil else { return nil }
+        if tokenCookie == nil {
+            guard await classicLogin() else { return nil }
+        }
+        let first = await requestPackageSnapshot(for: camera)
+        if let image = first.image { return image }
+        // Expired session (token timeout, controller restart): one fresh login,
+        // one retry. Other failures just return nil — a login wouldn't help,
+        // and every login is audit-logged on the controller.
+        guard first.unauthorized, await classicLogin() else { return nil }
+        return await requestPackageSnapshot(for: camera).image
+    }
+
+    private func requestPackageSnapshot(for camera: Camera) async -> (image: CGImage?, unauthorized: Bool) {
+        let ts = Int(Date().timeIntervalSince1970 * 1000)   // cache-buster: always a fresh capture
+        guard let url = makeURL(path: "proxy/protect/api/cameras/\(camera.id)/package-snapshot?ts=\(ts)") else {
+            return (nil, false)
+        }
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        // Manually set TOKEN cookie — HTTPCookieStorage() may not auto-forward it
+        if let token = tokenCookie {
+            request.setValue("TOKEN=\(token)", forHTTPHeaderField: "Cookie")
+        }
+        let data: Data
+        let status: Int
+        do {
+            let (body, resp) = try await classicSession.data(for: request)
+            status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            data = body
+        } catch {
+            RTSPClient.log("[Snapshot] package-snapshot request failed: \(error.localizedDescription)")
+            return (nil, false)
+        }
+        guard (200...299).contains(status) else {
+            RTSPClient.log("[Snapshot] package-snapshot HTTP \(status)")
+            return (nil, status == 401 || status == 403)
+        }
+        guard let image = NSBitmapImageRep(data: data)?.cgImage else {
+            RTSPClient.log("[Snapshot] package-snapshot undecodable (\(data.count) bytes)")
+            return (nil, false)
+        }
+        return (image, false)
+    }
+
     // MARK: - PTZ control (classic API — continuous velocity moves)
 
     /// Commanded velocity per axis on the controller's ±1000 scale. One

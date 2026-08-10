@@ -234,6 +234,7 @@ struct CameraCell: View {
     @State private var mode: Mode = .connecting
     @State private var streamTask: Task<Void, Never>?
     @State private var secondaryStreamTask: Task<Void, Never>?
+    @State private var packageSnapshotTask: Task<Void, Never>?
     /// Concrete quality the primary client is currently connected (or connecting)
     /// at. Tracks the resolved substream so a quality change can release the old
     /// server allocation instead of leaking it until cleanup.
@@ -395,6 +396,18 @@ struct CameraCell: View {
                     .onChange(of: geo.size) { cellSize = $0 }
             }
             .background(Color(white: 0.05))
+
+            // Package lens swapped into the main viewport before its first
+            // keyframe: show the controller snapshot until real frames arrive.
+            // Main-lens clients never carry a placeholder, so this is inert
+            // for ordinary tiles.
+            if !primaryClient.hasFrame, let placeholder = primaryClient.placeholderImage {
+                Image(decorative: placeholder, scale: 1)
+                    .resizable()
+                    .aspectRatio(contentMode: isFocused && !focusFillMode ? .fit : .fill)
+                    .frame(width: cellSize.width, height: cellSize.height)
+                    .clipped()
+            }
 
             // During a quality switch the previous frame is held on the display
             // layer (keepLastFrame), so suppress the connecting spinner — the held
@@ -1042,6 +1055,7 @@ struct CameraCell: View {
         guard secondaryStreamTask == nil else { return }
         guard service.isPopoverOpen, camera.isOnline else { return }
 
+        startPackagePlaceholderFetch()
         secondaryStreamTask = Task {
             // The package lens is its own quality with no fallback, so the served
             // quality always matches lens.quality — only the URL is needed here.
@@ -1069,6 +1083,22 @@ struct CameraCell: View {
         }
         secondaryStreamTask?.cancel()
         secondaryStreamTask = nil
+        packageSnapshotTask?.cancel()
+        packageSnapshotTask = nil
+    }
+
+    /// One-shot snapshot fetch that bridges the package stream's keyframe wait:
+    /// the placeholder shows in the PiP (or swapped viewport) until the first
+    /// decoded frame replaces it. Refreshed on every stream (re)start so a
+    /// reopened panel doesn't briefly show a stale scene.
+    private func startPackagePlaceholderFetch() {
+        guard packageSnapshotTask == nil, !secondaryClient.hasFrame else { return }
+        packageSnapshotTask = Task {
+            let image = await service.fetchPackageSnapshot(for: camera)
+            packageSnapshotTask = nil
+            guard !Task.isCancelled, let image, !secondaryClient.hasFrame else { return }
+            secondaryClient.placeholderImage = image
+        }
     }
 
     /// Disconnect the secondary lens and release its server-side allocation.
@@ -1076,6 +1106,8 @@ struct CameraCell: View {
     private func stopSecondaryStream() {
         secondaryStreamTask?.cancel()
         secondaryStreamTask = nil
+        packageSnapshotTask?.cancel()
+        packageSnapshotTask = nil
         secondaryClient.disconnect()
         if let lens = camera.secondaryLens {
             service.releaseStream(for: camera.id, quality: lens.quality)
@@ -1256,10 +1288,20 @@ struct CameraCell: View {
             .background(Color(white: 0.05))
 
             if !pipClient.hasFrame {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Snapshot placeholder while the stream waits for its first
+                // keyframe (many seconds on the 2 fps package lens).
+                if let placeholder = pipClient.placeholderImage {
+                    Image(decorative: placeholder, scale: 1)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: width, height: height)
+                        .clipped()
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
 
             if !compact {
