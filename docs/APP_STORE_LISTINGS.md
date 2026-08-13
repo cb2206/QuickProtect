@@ -71,7 +71,7 @@ FEATURES
 • Light, dark, and automatic themes with accent colors
 • Global keyboard shortcut to show or hide the grid
 • Launch at login
-• Free and open-source (MIT)
+• Open source (MIT)
 
 REQUIREMENTS
 • A UniFi Protect controller on your local network
@@ -128,7 +128,7 @@ FUNKTIONEN
 • Helles, dunkles und automatisches Design mit Akzentfarben
 • Globaler Kurzbefehl zum Ein- und Ausblenden des Rasters
 • Beim Anmelden starten
-• Kostenlos und quelloffen (MIT)
+• Quelloffen (MIT)
 
 VORAUSSETZUNGEN
 • Ein UniFi-Protect-Controller im lokalen Netzwerk
@@ -185,7 +185,7 @@ FONCTIONNALITÉS
 • Thèmes clair, sombre et automatique avec couleurs d'accent
 • Raccourci clavier global pour afficher ou masquer la grille
 • Lancement à la connexion
-• Gratuit et open source (MIT)
+• Open source (MIT)
 
 CONFIGURATION REQUISE
 • Un contrôleur UniFi Protect sur votre réseau local
@@ -242,7 +242,7 @@ FUNCIONES
 • Temas claro, oscuro y automático con colores de acento
 • Atajo de teclado global para mostrar u ocultar la cuadrícula
 • Abrir al iniciar sesión
-• Gratis y de código abierto (MIT)
+• Código abierto (MIT)
 
 REQUISITOS
 • Un controlador UniFi Protect en tu red local
@@ -299,7 +299,7 @@ FUNCTIES
 • Lichte, donkere en automatische thema's met accentkleuren
 • Globale sneltoets om het raster te tonen of te verbergen
 • Starten bij inloggen
-• Gratis en open source (MIT)
+• Open source (MIT)
 
 VEREISTEN
 • Een UniFi Protect-controller op je lokale netwerk
@@ -356,7 +356,7 @@ FUNZIONI
 • Temi chiaro, scuro e automatico con colori d'accento
 • Scorciatoia da tastiera globale per mostrare o nascondere la griglia
 • Avvio all'accesso
-• Gratuito e open source (MIT)
+• Open source (MIT)
 
 REQUISITI
 • Un controller UniFi Protect sulla tua rete locale
@@ -413,7 +413,7 @@ RECURSOS
 • Temas claro, escuro e automático com cores de destaque
 • Atalho de teclado global para mostrar ou ocultar a grade
 • Abrir ao fazer login
-• Gratuito e de código aberto (MIT)
+• Código aberto (MIT)
 
 REQUISITOS
 • Um controlador UniFi Protect na sua rede local
@@ -440,6 +440,7 @@ Partner Center field limits (per language):
 
 | Field | Limit |
 |---|---|
+| Product name | reserved in Partner Center (not free text) |
 | Description | 10,000 characters |
 | What's new in this version | 1,500 characters (leave **blank** on the first submission — Partner Center guidance) |
 | Product features | up to 20 entries, 200 characters each |
@@ -450,6 +451,16 @@ Partner Center field limits (per language):
 Notes:
 - **Partner Center is edited by hand; this file is the master copy.** Update
   here first, then paste into Partner Center with the next submission.
+- **This is the paid build.** Per `PARITY.md` → Distribution, the Store MSIX is
+  the paid channel; the free channel is the unsigned Inno Setup installer on
+  GitHub releases. The copy therefore never calls the app *free* — it says
+  *open source (MIT)*, and the description names what buying here adds
+  (supporting development, automatic updates through the Store).
+- **Minimum OS is Windows 10 1809 (build 17763), x64**, taken from
+  `TargetDeviceFamily` in `dotnet/installer/msix/AppxManifest.xml`. If that
+  manifest changes, change it here too.
+- Register is per-language and matches the App Store listing: German, Spanish,
+  Dutch, Italian informal; French formal *vous*; Brazilian Portuguese *você*.
 - Windows wording differs from macOS on purpose: *system tray* instead of
   *menu bar*, *Start with Windows* instead of *Launch at login*. The Windows
   listing also mentions features the Mac copy omits (pinned always-on-top
@@ -465,7 +476,10 @@ Notes:
   Microsoft Store release." lines below apply only if a first-submission note
   is ever wanted.
 - **Copyright and trademark info** is the same line for every language
-  (legal text, kept in English):
+  (legal text, kept in English). It names **CB Group LLC**, matching the Store
+  `PublisherDisplayName` and the organization account the app publishes under —
+  deliberately *not* the MIT license holder in `LICENSE` (Christian Bartels),
+  which is a separate legal attribution and stays unchanged:
 
 ```
 © CB Group LLC. UniFi and UniFi Protect are trademarks of Ubiquiti Inc. QuickProtect is an independent app, not affiliated with or endorsed by Ubiquiti Inc.
@@ -488,6 +502,8 @@ REQUIREMENTS
 • An Integration API key from your controller (for the camera list and live streams)
 • A local admin account — optional, only needed for PTZ control
 
+QuickProtect is open source under the MIT license. Buying it here supports development and gets you automatic updates through the Microsoft Store.
+
 QuickProtect is an independent app and is not affiliated with or endorsed by Ubiquiti Inc. UniFi and UniFi Protect are trademarks of Ubiquiti Inc.
 ```
 
@@ -504,7 +520,7 @@ QuickProtect is an independent app and is not affiliated with or endorsed by Ubi
 • Light, dark, and automatic themes with accent colors
 • Global keyboard shortcut to show or hide the grid
 • Start with Windows
-• Free and open-source (MIT)
+• Open source (MIT)
 ```
 
 **Short description**
@@ -546,6 +562,8 @@ VORAUSSETZUNGEN
 • Ein Integrations-API-Schlüssel deines Controllers (für die Kameraliste und Live-Streams)
 • Ein lokales Admin-Konto – optional, nur für die PTZ-Steuerung nötig
 
+QuickProtect ist quelloffen unter der MIT-Lizenz. Der Kauf hier unterstützt die Entwicklung und bringt dir automatische Updates über den Microsoft Store.
+
 QuickProtect ist eine unabhängige App und steht in keiner Verbindung zu Ubiquiti Inc. und wird von Ubiquiti Inc. nicht unterstützt. UniFi und UniFi Protect sind Marken von Ubiquiti Inc.
 ```
 
@@ -562,7 +580,7 @@ QuickProtect ist eine unabhängige App und steht in keiner Verbindung zu Ubiquit
 • Helles, dunkles und automatisches Design mit Akzentfarben
 • Globaler Kurzbefehl zum Ein- und Ausblenden des Rasters
 • Automatisch mit Windows starten
-• Kostenlos und quelloffen (MIT)
+• Quelloffen (MIT)
 ```
 
 **Short description**
@@ -604,6 +622,8 @@ CONFIGURATION REQUISE
 • Une clé de l'API d'intégration de votre contrôleur (pour la liste des caméras et les flux en direct)
 • Un compte administrateur local — facultatif, requis uniquement pour le contrôle PTZ
 
+QuickProtect est open source sous licence MIT. L'acheter ici soutient le développement et vous donne les mises à jour automatiques via le Microsoft Store.
+
 QuickProtect est une app indépendante, non affiliée à Ubiquiti Inc. ni approuvée par Ubiquiti Inc. UniFi et UniFi Protect sont des marques d'Ubiquiti Inc.
 ```
 
@@ -620,7 +640,7 @@ QuickProtect est une app indépendante, non affiliée à Ubiquiti Inc. ni approu
 • Thèmes clair, sombre et automatique avec couleurs d'accent
 • Raccourci clavier global pour afficher ou masquer la grille
 • Démarrage avec Windows
-• Gratuit et open source (MIT)
+• Open source (MIT)
 ```
 
 **Short description**
@@ -662,6 +682,8 @@ REQUISITOS
 • Una clave de la API de integración de tu controlador (para la lista de cámaras y las transmisiones en vivo)
 • Una cuenta de administrador local: opcional, solo necesaria para el control PTZ
 
+QuickProtect es de código abierto con licencia MIT. Comprarlo aquí apoya el desarrollo y te da actualizaciones automáticas a través de Microsoft Store.
+
 QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni respaldada por ella. UniFi y UniFi Protect son marcas de Ubiquiti Inc.
 ```
 
@@ -678,7 +700,7 @@ QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni res
 • Temas claro, oscuro y automático con colores de acento
 • Atajo de teclado global para mostrar u ocultar la cuadrícula
 • Iniciar con Windows
-• Gratis y de código abierto (MIT)
+• Código abierto (MIT)
 ```
 
 **Short description**
@@ -720,6 +742,8 @@ VEREISTEN
 • Een integratie-API-sleutel van je controller (voor de cameralijst en live streams)
 • Een lokaal beheerdersaccount — optioneel, alleen nodig voor PTZ-bediening
 
+QuickProtect is open source onder de MIT-licentie. Het hier kopen steunt de ontwikkeling en geeft je automatische updates via de Microsoft Store.
+
 QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd door Ubiquiti Inc. UniFi en UniFi Protect zijn handelsmerken van Ubiquiti Inc.
 ```
 
@@ -736,7 +760,7 @@ QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd d
 • Lichte, donkere en automatische thema's met accentkleuren
 • Globale sneltoets om het raster te tonen of te verbergen
 • Starten met Windows
-• Gratis en open source (MIT)
+• Open source (MIT)
 ```
 
 **Short description**
@@ -778,6 +802,8 @@ REQUISITI
 • Una chiave dell'API di integrazione del controller (per l'elenco delle telecamere e i flussi dal vivo)
 • Un account amministratore locale — facoltativo, necessario solo per il controllo PTZ
 
+QuickProtect è open source con licenza MIT. Acquistarlo qui sostiene lo sviluppo e ti offre gli aggiornamenti automatici tramite Microsoft Store.
+
 QuickProtect è un'app indipendente e non è affiliata a Ubiquiti Inc. né approvata da quest'ultima. UniFi e UniFi Protect sono marchi di Ubiquiti Inc.
 ```
 
@@ -794,7 +820,7 @@ QuickProtect è un'app indipendente e non è affiliata a Ubiquiti Inc. né appro
 • Temi chiaro, scuro e automatico con colori d'accento
 • Scorciatoia da tastiera globale per mostrare o nascondere la griglia
 • Avvio con Windows
-• Gratuito e open source (MIT)
+• Open source (MIT)
 ```
 
 **Short description**
@@ -836,6 +862,8 @@ REQUISITOS
 • Uma chave da API de integração do seu controlador (para a lista de câmeras e as transmissões ao vivo)
 • Uma conta de administrador local — opcional, necessária apenas para o controle PTZ
 
+O QuickProtect é de código aberto sob a licença MIT. Comprá-lo aqui apoia o desenvolvimento e garante atualizações automáticas pela Microsoft Store.
+
 O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiquiti Inc. UniFi e UniFi Protect são marcas comerciais da Ubiquiti Inc.
 ```
 
@@ -852,7 +880,7 @@ O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiq
 • Temas claro, escuro e automático com cores de destaque
 • Atalho de teclado global para mostrar ou ocultar a grade
 • Iniciar com o Windows
-• Gratuito e de código aberto (MIT)
+• Código aberto (MIT)
 ```
 
 **Short description**

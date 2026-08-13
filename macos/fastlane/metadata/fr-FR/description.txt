@@ -14,7 +14,7 @@ FONCTIONNALITÉS
 • Thèmes clair, sombre et automatique avec couleurs d'accent
 • Raccourci clavier global pour afficher ou masquer la grille
 • Lancement à la connexion
-• Gratuit et open source (MIT)
+• Open source (MIT)
 
 CONFIGURATION REQUISE
 • Un contrôleur UniFi Protect sur votre réseau local

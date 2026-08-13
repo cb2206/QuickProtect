@@ -14,7 +14,7 @@ FUNKTIONEN
 • Helles, dunkles und automatisches Design mit Akzentfarben
 • Globaler Kurzbefehl zum Ein- und Ausblenden des Rasters
 • Beim Anmelden starten
-• Kostenlos und quelloffen (MIT)
+• Quelloffen (MIT)
 
 VORAUSSETZUNGEN
 • Ein UniFi-Protect-Controller im lokalen Netzwerk

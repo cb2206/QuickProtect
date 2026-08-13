@@ -14,7 +14,7 @@ FUNCIONES
 • Temas claro, oscuro y automático con colores de acento
 • Atajo de teclado global para mostrar u ocultar la cuadrícula
 • Abrir al iniciar sesión
-• Gratis y de código abierto (MIT)
+• Código abierto (MIT)
 
 REQUISITOS
 • Un controlador UniFi Protect en tu red local

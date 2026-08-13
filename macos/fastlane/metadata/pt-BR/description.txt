@@ -14,7 +14,7 @@ RECURSOS
 • Temas claro, escuro e automático com cores de destaque
 • Atalho de teclado global para mostrar ou ocultar a grade
 • Abrir ao fazer login
-• Gratuito e de código aberto (MIT)
+• Código aberto (MIT)
 
 REQUISITOS
 • Um controlador UniFi Protect na sua rede local
