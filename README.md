@@ -11,7 +11,8 @@ A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Prote
 **Get QuickProtect**
 
 - **macOS** — [Mac App Store](https://apps.apple.com/app/id6776899427) (signed, sandboxed, auto-updating) or the free unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
-- **Windows** — Microsoft Store (signed, auto-updating — listing rolling out) or the free unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
+- **Windows** — Microsoft Store (signed, auto-updating) or the free unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
+- **Linux** — free self-contained x64 tarball on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases) (AUR package `quickprotect-bin` coming)
 
 <details name="screenshot" open>
 <summary><strong>🖥 macOS</strong></summary>
@@ -49,7 +50,7 @@ This repo hosts two independent implementations that share behavior, not code:
 | Folder | What it is |
 |---|---|
 | [`macos/`](macos/) | The original macOS menu-bar app — Swift/SwiftUI/AppKit with a custom RTSP/RTP client. Ships on the [App Store](https://apps.apple.com/app/id6776899427) and as an unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases). |
-| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. Ships on the Microsoft Store and as an unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases); Linux release pending. |
+| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. Ships on the Microsoft Store, as an unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), and (since 1.3.1) as a Linux x64 tarball on the same releases. |
 | [`docs/`](docs/) | Cross-platform docs: [feature parity](docs/PARITY.md) between the two implementations, [privacy policy](docs/PRIVACY.md), App Store listings, screenshots. |
 | [`scripts/`](scripts/) | Per-platform build & run entry points (see below). |
 
