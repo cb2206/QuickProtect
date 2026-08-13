@@ -243,12 +243,14 @@
           </StackPanel>
         </StackPanel>
 
-        <!-- Keyboard hints, bottom-left (macOS AuroraFocusHints) -->
+        <!-- Keyboard hints, bottom-left (macOS AuroraFocusHints: ~85% dark backing,
+             80% white text, hairline border — readable over any video scene) -->
         <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16"
-                Background="{DynamicResource QpChip}" CornerRadius="8" Padding="10,6"
+                Background="#D9141416" CornerRadius="8" Padding="12,7"
+                BorderBrush="#1AFFFFFF" BorderThickness="1"
                 IsVisible="{Binding ControlsVisible}">
           <TextBlock Text="{loc:Loc 'Click video: back · F fullscreen · arrows pan/tilt · I/O zoom · scroll pan · Ctrl+scroll digital zoom (0 resets)'}"
-                     Foreground="{DynamicResource QpTextHint}" FontSize="11" />
+                     Foreground="#CCFFFFFF" FontSize="12" />
         </Border>
 
         <!-- Secondary-lens PiP: bottom-right overlay, tap (or C) to swap -->
