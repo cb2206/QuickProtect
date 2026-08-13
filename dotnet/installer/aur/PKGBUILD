@@ -1,9 +1,10 @@
 # Maintainer: Christian Bartels <hello@quickprotect.app>
 #
 # AUR package for the GitHub-release Linux tarball (built by
-# .github/workflows/release.yml). To publish a new version: bump pkgver,
-# run `updpkgsums` (fills the real sha256), `makepkg --printsrcinfo > .SRCINFO`,
-# then push to the AUR repo. FFmpeg is bundled in the tarball (LGPL shared,
+# .github/workflows/release.yml). To publish a new version: bump pkgver, set
+# sha256sums to the release asset's digest (`gh api .../releases/latest` shows
+# it, or run `updpkgsums`), `makepkg --printsrcinfo > .SRCINFO`, then push to
+# the AUR repo. FFmpeg is bundled in the tarball (LGPL shared,
 # BtbN builds), so no ffmpeg dependency here; ALSA is optional (video-only
 # without it), the global hotkey uses the XDG Desktop Portal.
 
@@ -20,7 +21,7 @@ optdepends=('alsa-lib: audio playback'
             'xdg-desktop-portal: global hotkey support')
 options=('!strip')
 source=("$url/releases/download/v$pkgver/QuickProtect-$pkgver-linux-x64.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('e57fd766560b64a4f62ff0b8d937c10aaf0a2055995f052f679d406fc641a58b')
 
 package() {
     cd "QuickProtect-$pkgver-linux-x64"
