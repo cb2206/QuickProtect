@@ -1,3 +1,1 @@
-• Absturz in der Stream-Übersicht behoben, wenn sich mehrere Kamera-Streams gleichzeitig geändert haben.
-• Das Kamerafenster schließt sich jetzt, wenn du mit Befehl-Tab oder über das Dock zu einer anderen App wechselst.
-• Update-Prüfungen melden eine neue Version erst, wenn deren Mac-Build verfügbar ist.
+• Qualitätswechsel sind jetzt nahtlos – wenn du eine Kamera vergrößerst oder in den Vollbildmodus wechselst, friert das Video nicht mehr kurz ein.

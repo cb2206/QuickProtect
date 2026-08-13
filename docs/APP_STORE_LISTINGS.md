@@ -83,9 +83,7 @@ QuickProtect is an independent app and is not affiliated with or endorsed by Ubi
 
 **What's New**
 ```
-• Fixed a crash in the stream overview when several camera streams changed at once.
-• The camera panel now closes when you switch to another app with Command-Tab or the Dock.
-• Update checks no longer announce a release until its Mac build is available.
+• Switching stream quality is now seamless — focusing a camera or going fullscreen no longer freezes the video for a moment.
 ```
 
 ---
@@ -142,9 +140,7 @@ QuickProtect ist eine unabhängige App und steht in keiner Verbindung zu Ubiquit
 
 **What's New**
 ```
-• Absturz in der Stream-Übersicht behoben, wenn sich mehrere Kamera-Streams gleichzeitig geändert haben.
-• Das Kamerafenster schließt sich jetzt, wenn du mit Befehl-Tab oder über das Dock zu einer anderen App wechselst.
-• Update-Prüfungen melden eine neue Version erst, wenn deren Mac-Build verfügbar ist.
+• Qualitätswechsel sind jetzt nahtlos – wenn du eine Kamera vergrößerst oder in den Vollbildmodus wechselst, friert das Video nicht mehr kurz ein.
 ```
 
 ---
@@ -201,9 +197,7 @@ QuickProtect est une app indépendante, non affiliée à Ubiquiti Inc. ni approu
 
 **What's New**
 ```
-• Correction d'un plantage de la vue d'ensemble des flux lorsque plusieurs flux de caméra changeaient en même temps.
-• La fenêtre des caméras se ferme désormais lorsque vous passez à une autre app avec Commande-Tab ou le Dock.
-• Les vérifications de mise à jour n'annoncent plus une version tant que sa version Mac n'est pas disponible.
+• Le changement de qualité du flux est désormais fluide : agrandir une caméra ou passer en plein écran ne fige plus la vidéo un instant.
 ```
 
 ---
@@ -260,9 +254,7 @@ QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni res
 
 **What's New**
 ```
-• Corregido un fallo en la vista general de transmisiones cuando varias transmisiones cambiaban a la vez.
-• La ventana de cámaras ahora se cierra cuando cambias a otra app con Comando-Tab o el Dock.
-• Las comprobaciones de actualización ya no anuncian una versión hasta que su compilación para Mac está disponible.
+• El cambio de calidad de la transmisión ahora es fluido: ampliar una cámara o pasar a pantalla completa ya no congela el vídeo por un momento.
 ```
 
 ---
@@ -319,9 +311,7 @@ QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd d
 
 **What's New**
 ```
-• Crash in het streamoverzicht verholpen wanneer meerdere camerastreams tegelijk wijzigden.
-• Het venster met camera's sluit nu wanneer je met Command-Tab of via het Dock naar een andere app gaat.
-• Updatecontroles melden een versie pas wanneer de Mac-versie ervan beschikbaar is.
+• Wisselen van streamkwaliteit gaat nu naadloos — een camera vergroten of naar volledig scherm gaan bevriest het beeld niet meer even.
 ```
 
 ---
@@ -378,9 +368,7 @@ QuickProtect è un'app indipendente e non è affiliata a Ubiquiti Inc. né appro
 
 **What's New**
 ```
-• Risolto un arresto anomalo nella panoramica dei flussi quando più flussi delle telecamere cambiavano contemporaneamente.
-• La finestra delle telecamere ora si chiude quando passi a un'altra app con Comando-Tab o dal Dock.
-• I controlli degli aggiornamenti non annunciano più una versione finché la relativa versione per Mac non è disponibile.
+• Il cambio di qualità del flusso ora è fluido: ingrandire una telecamera o passare a schermo intero non blocca più il video per un istante.
 ```
 
 ---
@@ -437,9 +425,7 @@ O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiq
 
 **What's New**
 ```
-• Corrigida uma falha na visão geral das transmissões quando várias transmissões de câmera mudavam ao mesmo tempo.
-• A janela de câmeras agora fecha quando você muda para outro app com Command-Tab ou pelo Dock.
-• As verificações de atualização não anunciam mais uma versão até que a compilação para Mac esteja disponível.
+• A troca de qualidade da transmissão agora é perfeita — ampliar uma câmera ou entrar em tela cheia não congela mais o vídeo por um instante.
 ```
 
 ---
@@ -539,7 +525,8 @@ PTZ
 
 **What's New**
 ```
-Initial Microsoft Store release.
+• Switching stream quality is now seamless — focusing a camera or going fullscreen no longer freezes the video for a moment.
+• The focus view now shows its keyboard shortcuts as key hints.
 ```
 
 ---
@@ -596,7 +583,8 @@ PTZ
 
 **What's New**
 ```
-Erste Veröffentlichung im Microsoft Store.
+• Qualitätswechsel sind jetzt nahtlos – wenn du eine Kamera vergrößerst oder in den Vollbildmodus wechselst, friert das Video nicht mehr kurz ein.
+• Die Großansicht zeigt jetzt ihre Tastaturkürzel als Tastenhinweise an.
 ```
 
 ---
@@ -653,7 +641,8 @@ PTZ
 
 **What's New**
 ```
-Première version sur le Microsoft Store.
+• Le changement de qualité du flux est désormais fluide : agrandir une caméra ou passer en plein écran ne fige plus la vidéo un instant.
+• La vue agrandie affiche désormais ses raccourcis clavier sous forme de touches.
 ```
 
 ---
@@ -710,7 +699,8 @@ PTZ
 
 **What's New**
 ```
-Primera versión en Microsoft Store.
+• El cambio de calidad de la transmisión ahora es fluido: ampliar una cámara o pasar a pantalla completa ya no congela el vídeo por un momento.
+• La vista ampliada ahora muestra sus atajos de teclado como indicaciones de teclas.
 ```
 
 ---
@@ -767,7 +757,8 @@ PTZ
 
 **What's New**
 ```
-Eerste release in de Microsoft Store.
+• Wisselen van streamkwaliteit gaat nu naadloos — een camera vergroten of naar volledig scherm gaan bevriest het beeld niet meer even.
+• De vergrote weergave toont nu de sneltoetsen als toetshints.
 ```
 
 ---
@@ -824,7 +815,8 @@ PTZ
 
 **What's New**
 ```
-Prima versione sul Microsoft Store.
+• Il cambio di qualità del flusso ora è fluido: ingrandire una telecamera o passare a schermo intero non blocca più il video per un istante.
+• La vista ingrandita ora mostra le scorciatoie da tastiera come suggerimenti dei tasti.
 ```
 
 ---
@@ -881,5 +873,6 @@ PTZ
 
 **What's New**
 ```
-Primeira versão na Microsoft Store.
+• A troca de qualidade da transmissão agora é perfeita — ampliar uma câmera ou entrar em tela cheia não congela mais o vídeo por um instante.
+• A visualização ampliada agora mostra os atalhos de teclado como dicas de teclas.
 ```
