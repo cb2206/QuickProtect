@@ -14,7 +14,7 @@ FUNZIONI
 • Temi chiaro, scuro e automatico con colori d'accento
 • Scorciatoia da tastiera globale per mostrare o nascondere la griglia
 • Avvio all'accesso
-• Gratuito e open source (MIT)
+• Open source (MIT)
 
 REQUISITI
 • Un controller UniFi Protect sulla tua rete locale

@@ -14,7 +14,7 @@ FEATURES
 • Light, dark, and automatic themes with accent colors
 • Global keyboard shortcut to show or hide the grid
 • Launch at login
-• Free and open-source (MIT)
+• Open source (MIT)
 
 REQUIREMENTS
 • A UniFi Protect controller on your local network

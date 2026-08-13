@@ -14,7 +14,7 @@ FUNCTIES
 • Lichte, donkere en automatische thema's met accentkleuren
 • Globale sneltoets om het raster te tonen of te verbergen
 • Starten bij inloggen
-• Gratis en open source (MIT)
+• Open source (MIT)
 
 VEREISTEN
 • Een UniFi Protect-controller op je lokale netwerk

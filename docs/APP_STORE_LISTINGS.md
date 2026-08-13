@@ -71,7 +71,7 @@ FEATURES
 • Light, dark, and automatic themes with accent colors
 • Global keyboard shortcut to show or hide the grid
 • Launch at login
-• Free and open-source (MIT)
+• Open source (MIT)
 
 REQUIREMENTS
 • A UniFi Protect controller on your local network
@@ -128,7 +128,7 @@ FUNKTIONEN
 • Helles, dunkles und automatisches Design mit Akzentfarben
 • Globaler Kurzbefehl zum Ein- und Ausblenden des Rasters
 • Beim Anmelden starten
-• Kostenlos und quelloffen (MIT)
+• Quelloffen (MIT)
 
 VORAUSSETZUNGEN
 • Ein UniFi-Protect-Controller im lokalen Netzwerk
@@ -185,7 +185,7 @@ FONCTIONNALITÉS
 • Thèmes clair, sombre et automatique avec couleurs d'accent
 • Raccourci clavier global pour afficher ou masquer la grille
 • Lancement à la connexion
-• Gratuit et open source (MIT)
+• Open source (MIT)
 
 CONFIGURATION REQUISE
 • Un contrôleur UniFi Protect sur votre réseau local
@@ -242,7 +242,7 @@ FUNCIONES
 • Temas claro, oscuro y automático con colores de acento
 • Atajo de teclado global para mostrar u ocultar la cuadrícula
 • Abrir al iniciar sesión
-• Gratis y de código abierto (MIT)
+• Código abierto (MIT)
 
 REQUISITOS
 • Un controlador UniFi Protect en tu red local
@@ -299,7 +299,7 @@ FUNCTIES
 • Lichte, donkere en automatische thema's met accentkleuren
 • Globale sneltoets om het raster te tonen of te verbergen
 • Starten bij inloggen
-• Gratis en open source (MIT)
+• Open source (MIT)
 
 VEREISTEN
 • Een UniFi Protect-controller op je lokale netwerk
@@ -356,7 +356,7 @@ FUNZIONI
 • Temi chiaro, scuro e automatico con colori d'accento
 • Scorciatoia da tastiera globale per mostrare o nascondere la griglia
 • Avvio all'accesso
-• Gratuito e open source (MIT)
+• Open source (MIT)
 
 REQUISITI
 • Un controller UniFi Protect sulla tua rete locale
@@ -413,7 +413,7 @@ RECURSOS
 • Temas claro, escuro e automático com cores de destaque
 • Atalho de teclado global para mostrar ou ocultar a grade
 • Abrir ao fazer login
-• Gratuito e de código aberto (MIT)
+• Código aberto (MIT)
 
 REQUISITOS
 • Um controlador UniFi Protect na sua rede local
