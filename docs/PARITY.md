@@ -21,8 +21,10 @@ port (`dotnet/`).
   native child windows).
   `Video/VideoStreamCoordinator` shares one client per camera lens across
   grid/focus/pinned views: focus adopts the running grid stream instantly and
-  upgrades quality in place (last frame kept, no grey flash); panel open
-  connects in a 90 ms cascade. Native binaries per RID incl. **win-arm64**
+  upgrades quality seamlessly — the old session keeps painting while the new
+  one warms up, taking over at its first decoded frame (both sides: .NET
+  `VideoStreamClient` generations, macOS `RTSPClient.switchStream` handover
+  child); panel open connects in a 90 ms cascade. Native binaries per RID incl. **win-arm64**
   (`scripts/get-ffmpeg.ps1`); RTSPS rides `RtspTlsTunnel` (Core) — a 127.0.0.1
   listener piping bytes over TLS with the same TOFU pinning as the API (FFmpeg
   gets plain rtsp; keep the tunnel, it carries the certificate policy).
@@ -48,8 +50,8 @@ port (`dotnet/`).
   (DPAPI on Windows; libsecret via `secret-tool` on Linux, 0600-file fallback).
 - **Layout profiles** — create/rename/delete, per-camera show/hide, size,
   reorder (Settings list **and** in-grid drag-to-reorder with persistence).
-- **Focus view** — instant entry (adopts the grid stream, quality upgrades in
-  place), fit/fill, snapshot (S), fullscreen (F), click video to return,
+- **Focus view** — instant entry (adopts the grid stream, quality upgrades
+  seamlessly), fit/fill, snapshot (S), fullscreen (F), click video to return,
   double-click opens in Protect, overlay chrome/PTZ pad/hints/PiP like
   AuroraFocusOverlay.
 - **Digital zoom + pan** — 1–8× (`DigitalZoom` in Core, unit-tested):
@@ -88,7 +90,9 @@ port (`dotnet/`).
   window-local toggle, and the Mute (M) control appears only when the stream
   actually has audio. Mute flushes queued PCM so it takes effect immediately.
 - **Onboarding** — 3-step wizard (Connect → PTZ → All set).
-- **Global hotkey** — native `RegisterHotKey` on Windows; Linux is a documented no-op.
+- **Global hotkey** — native `RegisterHotKey` on Windows; XDG Desktop Portal
+  `GlobalShortcuts` on Linux (see the platform note below for the
+  compositor-owned-binding caveats).
 - **Update checker** — notify-only GitHub releases poll + Settings banner.
   Both platforms only announce a release that carries an asset for the running
   OS (`.dmg` / `-win` / `-linux` in the asset name — the naming convention is a
@@ -154,9 +158,33 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 - The rtsps TLS tunnel works unchanged on Linux (pure .NET sockets).
 - Tray icons need StatusNotifierItem/appindicator support (GNOME may need an
   extension) — without a tray, add a `--open-panel` desktop entry as fallback.
+- **Tray left-click opens the menu on GNOME, not the panel** (verified on
+  Ubuntu 26.04, 2026-08-10): our SNI item is correct (`ItemIsMenu=false`,
+  `Activate` exported and working — verified via a direct DBus call), but
+  GNOME's `ubuntu-appindicators` extension by design opens the menu on single
+  left-click for any icon that has a menu; **double left-click** calls
+  `Activate` (opens the panel), middle-click sends `SecondaryActivate`.
+  Not fixable app-side: an icon with no menu gets *no* single-click action at
+  all under that extension, so keep the menu (first item "Open QuickProtect"
+  is the mitigation). KDE Plasma follows the SNI spec — left-click activates
+  there, matching Windows.
 - Wayland ignores absolute window positioning: the popover anchor and pinned
   window restore degrade to compositor placement; X11 behaves.
-- Global hotkey is a no-op (no portable X11/Wayland registration).
+- Global hotkey (implemented 2026-08-10, verified on Ubuntu 26.04 GNOME
+  Wayland): `PortalGlobalHotkey` binds through the XDG Desktop Portal
+  `org.freedesktop.portal.GlobalShortcuts` interface (GNOME 45+ and KDE
+  Plasma 5.27+, Wayland and X11 alike). Caveats, all inherent to the portal
+  model where the **compositor owns the binding**:
+  - The first BindShortcuts per app shows a system consent dialog; on GNOME
+    the user picks the actual combo *in that dialog* — the in-app recorded
+    combo is only a `preferred_trigger` hint, so the effective binding can
+    differ from what the app's Shortcuts settings display (the granted
+    trigger is logged: `[Hotkey] bound via portal: …`). KDE honors the hint
+    without a dialog.
+  - GNOME remembers the grant: relaunching rebinds silently (verified).
+  - Environments without the portal (bare X11 window managers) log
+    `[Hotkey] portal GlobalShortcuts unavailable` and stay a no-op; an
+    `XGrabKey` fallback remains possible if anyone asks for it.
 - Snapshot-to-clipboard shells out to `wl-copy` or `xclip` (best-effort).
 - Audio needs `libasound.so.2` (ALSA); when missing (or PipeWire/Pulse lacks the
   ALSA compat layer) streams play video-only with a logged notice.
@@ -178,7 +206,21 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   (no change needed), and launch-at-login moves from the `Run` key — virtualised
   away in a package — to the manifest's `windows.startupTask`, which the
   Settings UI surfaces as a pointer to Windows' own switch.
-- **Linux** (deferred): frictionless-update channel wanted (Flathub preferred,
-  pending its AI-assisted-app policy; fallbacks AUR + AppImage/tarball). Bundle
-  the FFmpeg 7.1 natives (as the Windows installer does) or declare an FFmpeg
-  7.x runtime dependency.
+- **Linux** (decided 2026-08, ships with 1.3.1): GitHub-release tarball
+  (`scripts/package-linux.sh`, self-contained linux-x64 with the FFmpeg 7.1
+  natives bundled, plus a .desktop template + icon) with the in-app
+  notify-only update check, and an AUR package (`quickprotect-bin`,
+  `installer/aur/PKGBUILD`, consumes the tarball). Linux is free-only — there
+  is no viable paid Linux store, and unlike winget on Windows the frictionless
+  free channel cannibalizes nothing here. **Flathub is out**: its 2026-05-29
+  policy rejects new submissions with AI-generated/AI-assisted code (a
+  discretionary carve-out for "mature, well-maintained projects" exists — ask
+  Flathub first if this is ever revisited; a rejected submission risks a ban).
+  Snap and AppImage were skipped deliberately (confinement pain / no audience
+  gain over the tarball); revisit only if users ask.
+- **Release artifacts** are built by `.github/workflows/release.yml` on a
+  `v<version>` tag push: DMG (ad-hoc signed, macos-15) + Inno Setup exe
+  (windows-latest) + Linux tarball (ubuntu-latest), attached to a **draft**
+  release after checking the tag matches both version sources. Publishing the
+  draft is manual — that's the moment existing installs get update-notified.
+  Store submissions stay manual (fastlane on a Mac / Partner Center).

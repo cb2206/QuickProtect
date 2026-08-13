@@ -211,12 +211,23 @@ public sealed class VideoStreamCoordinator : IDisposable
 
             var old = entry.ActiveQuality;
             entry.ActiveQuality = r.quality;
-            entry.Client.Start(FfmpegEngine.MapUrl(r.url)); // Start switches in place when running
-
             if (old != null && old != r.quality)
             {
-                if (entry.Pinned) _service.ReleasePinnedStream(entry.Camera.Id, old);
-                else _service.ReleaseStream(entry.Camera.Id, old);
+                // Seamless switch: the client keeps the old session decoding
+                // (live picture) until the new one paints its first frame.
+                // Releasing the old allocation any earlier would kill that
+                // session server-side and freeze the picture for the handover.
+                var pinned = entry.Pinned;
+                var cameraId = entry.Camera.Id;
+                entry.Client.Start(FfmpegEngine.MapUrl(r.url), onPreviousSessionEnded: () =>
+                {
+                    if (pinned) _service.ReleasePinnedStream(cameraId, old);
+                    else _service.ReleaseStream(cameraId, old);
+                });
+            }
+            else
+            {
+                entry.Client.Start(FfmpegEngine.MapUrl(r.url));
             }
         }
         catch (Exception ex)

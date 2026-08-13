@@ -243,12 +243,47 @@
           </StackPanel>
         </StackPanel>
 
-        <!-- Keyboard hints, bottom-left (macOS AuroraFocusHints) -->
+        <!-- Keyboard hints, bottom-left (macOS AuroraFocusHints: keycap chips with
+             labels on an ~85% dark backing — readable over any video scene) -->
         <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16"
-                Background="{DynamicResource QpChip}" CornerRadius="8" Padding="10,6"
+                Background="#D9141416" CornerRadius="8" Padding="12,7"
+                BorderBrush="#1AFFFFFF" BorderThickness="1"
                 IsVisible="{Binding ControlsVisible}">
-          <TextBlock Text="{loc:Loc 'Click video: back · F fullscreen · arrows pan/tilt · I/O zoom · scroll pan · Ctrl+scroll digital zoom (0 resets)'}"
-                     Foreground="{DynamicResource QpTextHint}" FontSize="11" />
+          <StackPanel Orientation="Horizontal" Spacing="14"
+                      DataContext="{Binding FocusTile}" x:DataType="vm:CameraTileViewModel">
+            <StackPanel Classes="hint">
+              <Border Classes="keycap"><TextBlock Text="F" /></Border>
+              <TextBlock Classes="hintLabel" Text="{loc:Loc 'Fullscreen'}" />
+            </StackPanel>
+            <StackPanel Classes="hint">
+              <Border Classes="keycap"><TextBlock Text="Esc" /></Border>
+              <TextBlock Classes="hintLabel" Text="{loc:Loc 'Back'}" />
+            </StackPanel>
+            <StackPanel Classes="hint">
+              <Border Classes="keycap"><TextBlock Text="S" /></Border>
+              <TextBlock Classes="hintLabel" Text="{loc:Loc 'Snapshot'}" />
+            </StackPanel>
+            <StackPanel Classes="hint" IsVisible="{Binding HasAudio}">
+              <Border Classes="keycap"><TextBlock Text="M" /></Border>
+              <TextBlock Classes="hintLabel" Text="{loc:Loc 'Mute'}" />
+            </StackPanel>
+            <StackPanel Classes="hint" IsVisible="{Binding IsPtz}">
+              <StackPanel Orientation="Horizontal" Spacing="2">
+                <Border Classes="keycap"><TextBlock Text="←" /></Border>
+                <Border Classes="keycap"><TextBlock Text="→" /></Border>
+                <Border Classes="keycap"><TextBlock Text="↑" /></Border>
+                <Border Classes="keycap"><TextBlock Text="↓" /></Border>
+              </StackPanel>
+              <TextBlock Classes="hintLabel" Text="{loc:Loc 'Pan / tilt'}" />
+            </StackPanel>
+            <StackPanel Classes="hint" IsVisible="{Binding CanZoom}">
+              <StackPanel Orientation="Horizontal" Spacing="2">
+                <Border Classes="keycap"><TextBlock Text="I" /></Border>
+                <Border Classes="keycap"><TextBlock Text="O" /></Border>
+              </StackPanel>
+              <TextBlock Classes="hintLabel" Text="{loc:Loc 'Zoom'}" />
+            </StackPanel>
+          </StackPanel>
         </Border>
 
         <!-- Secondary-lens PiP: bottom-right overlay, tap (or C) to swap -->
@@ -303,6 +338,31 @@
       <Setter Property="Foreground" Value="{DynamicResource QpTextPrimary}" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <!-- Focus-hint keycap chips (macOS AuroraFocusHints.Hint) -->
+    <Style Selector="StackPanel.hint">
+      <Setter Property="Orientation" Value="Horizontal" />
+      <Setter Property="Spacing" Value="5" />
+    </Style>
+    <Style Selector="Border.keycap">
+      <Setter Property="Background" Value="#1FFFFFFF" />
+      <Setter Property="BorderBrush" Value="#2EFFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Padding" Value="5,1" />
+      <Setter Property="MinWidth" Value="18" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.keycap TextBlock">
+      <Setter Property="FontFamily" Value="Consolas,Menlo,DejaVu Sans Mono" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.hintLabel">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="#CCFFFFFF" />
       <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
   </Window.Styles>

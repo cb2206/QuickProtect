@@ -8,6 +8,12 @@ import VideoToolbox
 /// All data processing runs on a dedicated serial queue to keep the main thread free.
 /// Only @Published property updates are dispatched to the main thread for SwiftUI.
 /// AVSampleBufferDisplayLayer.enqueue() is thread-safe and called from the processing queue.
+///
+/// Quality switches are seamless (`switchStream(to:completion:)`): the current
+/// session keeps painting while a hidden child client — sharing this queue and
+/// display layer — connects and decodes the new stream's first frame; that
+/// frame replaces the picture in place and the child's session is adopted
+/// wholesale. Mirrors the .NET `VideoStreamClient` double-buffered switching.
 final class RTSPClient: ObservableObject {
 
     // MARK: - Published (main-thread only)
@@ -31,9 +37,11 @@ final class RTSPClient: ObservableObject {
 
     // MARK: - Dedicated processing queue
     // All mutable state below is accessed exclusively on this queue.
-    // NWConnection callbacks also fire on this queue.
+    // NWConnection callbacks also fire on this queue. A handover child (see
+    // switchStream) shares its owner's queue, so a takeover is a plain
+    // sequential step on one serial queue, never a cross-queue race.
 
-    private let queue = DispatchQueue(label: "com.quickprotect.rtsp", qos: .userInitiated)
+    private let queue: DispatchQueue
 
     // MARK: - Resource limits (defend against a hostile/buggy endpoint)
     // RTSP control responses (incl. SDP) are small; an unbounded Content-Length or
@@ -108,9 +116,25 @@ final class RTSPClient: ObservableObject {
     private var captureLoggedFirstFrame = false               // one-shot debug log
     private var captureSeenKeyframe = false                   // gate decode until first IDR
 
+    // Seamless quality switch (queue-only). switchStream(to:) warms the
+    // next-quality session up in a hidden child client on this same serial
+    // queue while this one keeps painting; the child's whole session is
+    // adopted at its first enqueued frame (completeHandover). Mirrors the
+    // .NET VideoStreamClient's generation-gated double-buffering.
+    private weak var handoverOwner: RTSPClient?    // set only on warm-up children
+    private weak var adoptedBy: RTSPClient?        // routes the in-flight receive after adoption
+    private var handoverChild: RTSPClient?         // set only on owners
+    private var handoverCompletion: ((Bool) -> Void)?
+    private var handoverGen = 0                    // guards the grace timeout
+    private var readyToAdopt = false               // child: first frame enqueued
+    /// How long a warm-up may take before the switch is abandoned and the
+    /// current stream simply keeps playing (the pre-handover behavior).
+    private static let handoverGrace: TimeInterval = 10
+
     // MARK: - Init
 
     init() {
+        queue = DispatchQueue(label: "com.quickprotect.rtsp", qos: .userInitiated)
         displayLayer.videoGravity = .resizeAspectFill
         var tb: CMTimebase?
         CMTimebaseCreateWithSourceClock(allocator: kCFAllocatorDefault,
@@ -121,6 +145,16 @@ final class RTSPClient: ObservableObject {
             CMTimebaseSetRate(tb, rate: 1.0)
             displayLayer.controlTimebase = tb
         }
+    }
+
+    /// A warm-up client for a seamless quality switch: shares the owner's
+    /// serial queue and its display layer (already configured — gravity,
+    /// timebase), so its first decoded frame replaces the picture in place.
+    /// Never handed to views; its @Published state is throwaway.
+    private init(handoverFor owner: RTSPClient) {
+        queue = owner.queue
+        displayLayer = owner.displayLayer
+        handoverOwner = owner
     }
 
     deinit {
@@ -231,23 +265,7 @@ final class RTSPClient: ObservableObject {
             let conn   = NWConnection(host: NWEndpoint.Host(host), port: port, using: params)
             connection = conn
 
-            conn.stateUpdateHandler = { [weak self] state in
-                guard let self else { return }
-                self.queue.async {
-                    guard conn === self.connection else { return }
-                    Self.dbg("[RTSP] NWConnection state: \(state)")
-                    switch state {
-                    case .ready:
-                        self.sendOptions()
-                    case .failed(let e):
-                        Self.dbg("[RTSP] Connection FAILED: \(e.localizedDescription)")
-                        DispatchQueue.main.async { self.error = e.localizedDescription }
-                    case .cancelled:
-                        DispatchQueue.main.async { self.isConnected = false }
-                    default: break
-                    }
-                }
-            }
+            installStateHandler(on: conn)
 
             // Start on our queue — all callbacks fire here, no Task overhead
             conn.start(queue: queue)
@@ -259,6 +277,155 @@ final class RTSPClient: ObservableObject {
         queue.async { [self] in
             disconnectOnQueue()
         }
+    }
+
+    /// (Re)point the connection's state callbacks at this client — used at
+    /// connect and again when a handover adopts the child's connection.
+    /// Replacing the handler never replays the current state, so re-installing
+    /// on an established connection sends no spurious OPTIONS.
+    private func installStateHandler(on conn: NWConnection) {
+        conn.stateUpdateHandler = { [weak self] state in
+            guard let self else { return }
+            self.queue.async {
+                guard conn === self.connection else { return }
+                Self.dbg("[RTSP] NWConnection state: \(state)")
+                switch state {
+                case .ready:
+                    self.sendOptions()
+                case .failed(let e):
+                    Self.dbg("[RTSP] Connection FAILED: \(e.localizedDescription)")
+                    DispatchQueue.main.async { self.error = e.localizedDescription }
+                case .cancelled:
+                    DispatchQueue.main.async { self.isConnected = false }
+                default: break
+                }
+            }
+        }
+    }
+
+    // MARK: - Seamless quality switch (handover)
+
+    /// Switch this stream to a new URL (a quality change) without freezing the
+    /// picture: the current session keeps painting while a hidden child client
+    /// connects and decodes the new stream's first frame — the moment it lands,
+    /// the child's session is adopted wholesale and the old one is torn down.
+    /// If the new stream produces no frame within the grace window, the switch
+    /// is abandoned and the current stream just keeps playing.
+    ///
+    /// `completion` (main thread): `true` — the new stream is live, release the
+    /// replaced server-side allocation; `false` — the switch was abandoned,
+    /// release the *new* allocation instead.
+    func switchStream(to url: URL, completion: @escaping (Bool) -> Void) {
+        queue.async { [self] in
+            // A newer switch abandons any warm-up still in flight.
+            cancelHandoverOnQueue()
+
+            // Nothing on screen to preserve (initial connect, failed stream):
+            // plain reconnect, which is exactly the pre-handover behavior.
+            guard connection != nil, hasFrameSignalled else {
+                DispatchQueue.main.async { completion(true) }
+                connect(to: url, keepLastFrame: true)
+                return
+            }
+
+            handoverCompletion = completion
+            let child = RTSPClient(handoverFor: self)
+            handoverChild = child
+            handoverGen &+= 1
+            let gen = handoverGen
+            child.connect(to: url, keepLastFrame: true)
+            queue.asyncAfter(deadline: .now() + Self.handoverGrace) { [weak self] in
+                guard let self, self.handoverGen == gen, self.handoverChild != nil else { return }
+                Self.dbg("[RTSP] handover timed out — keeping the current stream")
+                self.cancelHandoverOnQueue()
+            }
+        }
+    }
+
+    /// Adopt the warm-up child's session wholesale: retire the current
+    /// connection, take over the child's connection and parser state, and
+    /// re-point the connection's callbacks here. Runs on `queue`, called from
+    /// the child's receive-completion tail so no parse is in flight on either
+    /// side (the child's buffer cursor is quiescent when it's copied).
+    private func completeHandover(adopting child: RTSPClient) {
+        guard child === handoverChild else { return } // cancelled/superseded meanwhile
+        handoverChild = nil
+        child.handoverOwner = nil
+        child.adoptedBy = self
+
+        retireCurrentSessionOnQueue()
+        adoptSessionState(from: child)
+        child.connection = nil // the child's state/receive guards bail from now on
+        if let conn = connection { installStateHandler(on: conn) }
+
+        // Audio is negotiated per session: rebuild the renderer for the new track.
+        audioRenderer?.stop()
+        audioRenderer = nil
+        aacDepacketizer = nil
+        if audioActive, inRTPMode { startAudioRenderer() }
+
+        // The new session anchors its own pause/replay state.
+        pausedGOP = PausedGOPBuffer()
+        awaitingKeyframeAfterResume = false
+
+        let dims: CGSize? = formatDescription.map {
+            let d = CMVideoFormatDescriptionGetDimensions($0)
+            return CGSize(width: CGFloat(d.width), height: CGFloat(d.height))
+        }
+        let audio = audioInfo != nil
+        DispatchQueue.main.async { [self] in
+            if let dims { videoDimensions = dims }
+            hasAudio = audio
+            isConnected = true
+            error = nil
+        }
+        Self.dbg("[RTSP] handover complete: \(currentURL?.absoluteString ?? "?")")
+        finishHandover(success: true)
+    }
+
+    /// Copy every session-scoped field from the child. Keep in sync with the
+    /// queue-only state block at the top of the class (owner-scoped state —
+    /// audio routing, capture, pause, handover bookkeeping — stays put).
+    private func adoptSessionState(from child: RTSPClient) {
+        connection        = child.connection
+        currentURL        = child.currentURL
+        buffer            = child.buffer
+        bufferOffset      = child.bufferOffset
+        inRTPMode         = child.inRTPMode
+        cSeq              = child.cSeq
+        sessionId         = child.sessionId
+        trackControl      = child.trackControl
+        awaiting          = child.awaiting
+        audioInfo         = child.audioInfo
+        videoRTPChannel   = child.videoRTPChannel
+        audioRTPChannel   = child.audioRTPChannel
+        codec             = child.codec
+        fuBuffer          = child.fuBuffer
+        formatDescription = child.formatDescription
+        sequenceNumber    = child.sequenceNumber
+        hevcVPS           = child.hevcVPS
+        hevcSPS           = child.hevcSPS
+        hevcPPS           = child.hevcPPS
+        h264SPS           = child.h264SPS
+        h264PPS           = child.h264PPS
+        pendingNALs       = child.pendingNALs
+    }
+
+    /// Abandon a warm-up in flight, keeping the current stream. Queue-only.
+    private func cancelHandoverOnQueue() {
+        guard let child = handoverChild else { return }
+        handoverChild = nil
+        child.handoverOwner = nil
+        child.disconnectOnQueue(flushDisplay: false) // never flush the shared layer
+        finishHandover(success: false)
+    }
+
+    /// Invalidate the grace timeout and deliver the switch outcome. Queue-only.
+    private func finishHandover(success: Bool) {
+        handoverGen &+= 1
+        guard let completion = handoverCompletion else { return }
+        handoverCompletion = nil
+        DispatchQueue.main.async { completion(success) }
     }
 
     // MARK: - Render pause (called from main thread)
@@ -425,6 +592,29 @@ final class RTSPClient: ObservableObject {
     // MARK: - Internal disconnect (must be called on queue)
 
     private func disconnectOnQueue(flushDisplay: Bool = true) {
+        cancelHandoverOnQueue() // a warm-up child must not outlive its owner's session
+        retireCurrentSessionOnQueue()
+        audioRenderer?.stop()
+        audioRenderer = nil
+        aacDepacketizer = nil
+        teardownCaptureSession()
+        // Free any GOP held while paused (grace teardown arrives paused).
+        renderPaused = false
+        pausedGOP = PausedGOPBuffer()
+        awaitingKeyframeAfterResume = false
+        if flushDisplay { displayLayer.flush() }
+        DispatchQueue.main.async { [self] in
+            isConnected = false
+            hasFrame    = false
+            error = nil
+        }
+    }
+
+    /// TEARDOWN + cancel the current connection without touching the display
+    /// layer or published state — used by the full disconnect above and by a
+    /// handover retiring the outgoing session while its replacement is already
+    /// painting. Queue-only.
+    private func retireCurrentSessionOnQueue() {
         // Send TEARDOWN to free server-side resources before closing the connection
         if let conn = connection, let url = currentURL, !sessionId.isEmpty {
             let seq = nextCSeq()
@@ -443,20 +633,6 @@ final class RTSPClient: ObservableObject {
             connection?.cancel()
         }
         connection = nil
-        audioRenderer?.stop()
-        audioRenderer = nil
-        aacDepacketizer = nil
-        teardownCaptureSession()
-        // Free any GOP held while paused (grace teardown arrives paused).
-        renderPaused = false
-        pausedGOP = PausedGOPBuffer()
-        awaitingKeyframeAfterResume = false
-        if flushDisplay { displayLayer.flush() }
-        DispatchQueue.main.async { [self] in
-            isConnected = false
-            hasFrame    = false
-            error = nil
-        }
     }
 
     // MARK: - Receive loop (runs on queue)
@@ -473,11 +649,19 @@ final class RTSPClient: ObservableObject {
                 }
                 self.processBuffer()
             }
+            // Warm-up child with its first frame on screen: hand the whole
+            // session to the owner now that this chunk's parse has quiesced
+            // (adopting mid-parse would snapshot a moving buffer cursor). The
+            // re-arm below then runs on the owner, completing the migration.
+            if self.readyToAdopt, let owner = self.handoverOwner {
+                self.readyToAdopt = false
+                owner.completeHandover(adopting: self)
+            }
             if let e = err {
                 Self.dbg("[RTSP] Receive error: \(e.localizedDescription)")
                 DispatchQueue.main.async { self.error = e.localizedDescription }
             } else if !isComplete {
-                self.scheduleReceive(conn: conn)
+                (self.adoptedBy ?? self).scheduleReceive(conn: conn)
             }
         }
     }
@@ -977,7 +1161,13 @@ final class RTSPClient: ObservableObject {
             if captureActive { decodeForCapture(sb, format: formatDescription, isKeyframe: isKeyframe) }
             if !hasFrameSignalled {
                 hasFrameSignalled = true
-                DispatchQueue.main.async { self.hasFrame = true }
+                if handoverOwner != nil {
+                    // Warm-up child: its first frame just replaced the picture —
+                    // flag for adoption at the receive-completion tail.
+                    readyToAdopt = true
+                } else {
+                    DispatchQueue.main.async { self.hasFrame = true }
+                }
             }
         }
     }

@@ -17,8 +17,14 @@ public enum VideoState
 /// One live RTSP stream: demux + decode on a dedicated thread, latest-frame-wins
 /// BGRA buffer for the UI. Mirrors the macOS RTSPClient behaviors that matter:
 /// the first decoded frame is displayed immediately, the last frame is kept on
-/// screen through reconnects and quality switches (no grey flash), and a broken
-/// connection retries with backoff until <see cref="Stop"/>.
+/// screen through reconnects, and a broken connection retries with backoff until
+/// <see cref="Stop"/>.
+///
+/// Quality switches are seamless: the old session keeps decoding (live picture)
+/// while the new one connects and waits for its first keyframe on a second
+/// thread; the new session takes over the frame buffer at its first decoded
+/// frame, which retires the old session. Each session carries a generation
+/// number — only the highest generation that has produced a frame may publish.
 /// </summary>
 public sealed class VideoStreamClient : IDisposable
 {
@@ -63,11 +69,26 @@ public sealed class VideoStreamClient : IDisposable
     private long _seq;
 
     private readonly object _ctrlLock = new();
-    private Thread? _thread;
+    private readonly List<(int Gen, Thread Thread)> _threads = new();
     private string? _url;
-    private string? _pendingUrl;
     private volatile bool _stop;
-    private volatile bool _restart;
+
+    // Session generations (seamless switching). _latestGen is the newest session
+    // started; _paintGen is the one owning the frame buffer (bumped under
+    // _frameLock when a newer session decodes its first frame). An old session
+    // retires once outpainted, or after the grace window if the new one never
+    // paints (bad URL, dead substream) — then the last frame stays on screen and
+    // the new session keeps retrying, which is the old non-seamless behavior.
+    private volatile int _latestGen;
+    private volatile int _paintGen;
+    private long _switchDeadlineTicks;
+    private static readonly TimeSpan SwitchGrace = TimeSpan.FromSeconds(10);
+
+    // Deferred actions for quality switches: each entry runs once every session
+    // with Gen <= Ceiling has fully ended (the coordinator releases the old
+    // substream allocation there — releasing earlier would kill the old stream
+    // mid-handover and freeze the picture).
+    private readonly List<(int Ceiling, Action Done)> _handoffs = new();
 
     // Audio routing (macOS RTSPClient parity): audio is decoded and rendered
     // only while a focused/pinned view marks this client active; muted by
@@ -109,47 +130,63 @@ public sealed class VideoStreamClient : IDisposable
     /// </summary>
     public void SetRenderPaused(bool paused) => _renderPaused = paused;
 
-    /// <summary>Start streaming <paramref name="url"/> (no-op when already on it).</summary>
-    public void Start(string url)
+    /// <summary>
+    /// Start streaming <paramref name="url"/> (no-op when already on it). When a
+    /// different URL is already playing, switches seamlessly: the old session
+    /// keeps rendering until the new one produces its first frame.
+    /// <paramref name="onPreviousSessionEnded"/> runs once every pre-switch
+    /// session has fully ended (or immediately when there was nothing to switch
+    /// from) — the coordinator releases the old substream allocation there.
+    /// </summary>
+    public void Start(string url, Action? onPreviousSessionEnded = null)
     {
+        Action? fireNow = null;
         lock (_ctrlLock)
         {
-            if (_thread is { IsAlive: true })
+            if (!_stop && _threads.Any(t => t.Thread.IsAlive))
             {
-                if (url != _url) SwitchUrl(url);
-                return;
+                if (url != _url)
+                {
+                    _url = url;
+                    if (onPreviousSessionEnded != null)
+                        _handoffs.Add((_latestGen, onPreviousSessionEnded));
+                    Volatile.Write(ref _switchDeadlineTicks, (DateTime.UtcNow + SwitchGrace).Ticks);
+                    StartSessionThreadLocked(url);
+                }
+                else
+                {
+                    fireNow = onPreviousSessionEnded; // same URL: nothing to hand over
+                }
             }
-            _url = url;
-            _stop = false;
-            _restart = false;
-            _thread = new Thread(RunLoop) { IsBackground = true, Name = "QP-Video" };
-            _thread.Start();
+            else
+            {
+                _threads.Clear();
+                _url = url;
+                _stop = false;
+                StartSessionThreadLocked(url);
+                fireNow = onPreviousSessionEnded; // no previous session
+            }
         }
+        fireNow?.Invoke();
     }
 
-    /// <summary>
-    /// Switch to a new URL in place (quality change / PiP swap). The current
-    /// frame stays on screen until the new stream delivers its first frame.
-    /// </summary>
-    public void SwitchUrl(string url)
+    private void StartSessionThreadLocked(string url)
     {
-        lock (_ctrlLock)
-        {
-            _pendingUrl = url;
-            _restart = true;
-        }
+        var gen = ++_latestGen;
+        var thread = new Thread(() => RunLoop(url, gen)) { IsBackground = true, Name = "QP-Video" };
+        _threads.Add((gen, thread));
+        thread.Start();
     }
 
     public void Stop()
     {
-        Thread? t;
+        Thread[] threads;
         lock (_ctrlLock)
         {
             _stop = true;
-            t = _thread;
-            _thread = null;
+            threads = _threads.Select(t => t.Thread).ToArray();
         }
-        t?.Join(3000);
+        foreach (var t in threads) t.Join(3000);
         SetState(VideoState.Idle);
     }
 
@@ -254,42 +291,71 @@ public sealed class VideoStreamClient : IDisposable
 
     // MARK: - Decode loop
 
-    private void RunLoop()
+    /// <summary>
+    /// True when this session generation must retire: a newer session owns the
+    /// frame buffer, or a newer one exists and the handover grace has expired.
+    /// </summary>
+    private bool Superseded(int gen)
     {
-        var backoff = TimeSpan.FromMilliseconds(500);
-        while (!_stop)
+        if (gen < _paintGen) return true;
+        if (gen == _latestGen) return false;
+        return DateTime.UtcNow.Ticks > Volatile.Read(ref _switchDeadlineTicks);
+    }
+
+    /// <summary>Fires handoff actions whose sessions have all ended (see <see cref="_handoffs"/>).</summary>
+    private void OnSessionThreadExit(int gen)
+    {
+        var fire = new List<Action>();
+        lock (_ctrlLock)
         {
-            string url;
-            lock (_ctrlLock)
+            _threads.RemoveAll(t => t.Gen == gen);
+            for (var i = _handoffs.Count - 1; i >= 0; i--)
             {
-                if (_pendingUrl != null) { _url = _pendingUrl; _pendingUrl = null; }
-                _restart = false;
-                url = _url!;
+                var (ceiling, done) = _handoffs[i];
+                if (gen > ceiling || _threads.Any(t => t.Gen <= ceiling)) continue;
+                fire.Add(done);
+                _handoffs.RemoveAt(i);
             }
+        }
+        foreach (var done in fire) done();
+    }
 
-            SetState(HasFrame ? State : VideoState.Connecting);
-            var ok = false;
-            try { ok = RunSession(url); }
-            catch (Exception ex) { Log.Line($"[Video] session error: {ex.Message}"); }
+    private void RunLoop(string url, int gen)
+    {
+        try
+        {
+            var backoff = TimeSpan.FromMilliseconds(500);
+            while (!_stop && !Superseded(gen))
+            {
+                SetState(HasFrame ? State : VideoState.Connecting);
+                var ok = false;
+                try { ok = RunSession(url, gen); }
+                catch (Exception ex) { Log.Line($"[Video] session error: {ex.Message}"); }
 
-            if (_stop) break;
-            if (_restart) { backoff = TimeSpan.FromMilliseconds(250); continue; } // deliberate switch
-            SetState(VideoState.Connecting);
-            // Broken stream: retry with backoff (keeping the last frame on screen).
-            Thread.Sleep(ok ? TimeSpan.FromMilliseconds(500) : backoff);
-            if (!ok) backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, TimeSpan.FromSeconds(5).Ticks));
+                if (_stop || Superseded(gen)) break;
+                // Broken stream: retry with backoff (keeping the last frame on
+                // screen). Only the painting session flips the UI to Connecting —
+                // a warming-up switch target must not spinner over a live picture.
+                if (gen == _paintGen) SetState(VideoState.Connecting);
+                Thread.Sleep(ok ? TimeSpan.FromMilliseconds(500) : backoff);
+                if (!ok) backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, TimeSpan.FromSeconds(5).Ticks));
+            }
+        }
+        finally
+        {
+            OnSessionThreadExit(gen);
         }
     }
 
     /// <summary>One demux/decode session. Returns true when it ended cleanly (EOF).</summary>
-    private unsafe bool RunSession(string url)
+    private unsafe bool RunSession(string url, int gen)
     {
         AVFormatContext* fmt = ffmpeg.avformat_alloc_context();
         if (fmt == null) return false;
 
-        // Abort blocking I/O on stop/switch — without this a dead controller
+        // Abort blocking I/O on stop/supersession — without this a dead controller
         // connection would hang the thread for the full socket timeout.
-        var interrupt = new AVIOInterruptCB_callback(_ => _stop || _restart ? 1 : 0);
+        var interrupt = new AVIOInterruptCB_callback(_ => _stop || Superseded(gen) ? 1 : 0);
         fmt->interrupt_callback.callback = interrupt;
 
         AVCodecContext* codec = null;
@@ -402,7 +468,7 @@ public sealed class VideoStreamClient : IDisposable
                         src = hwSw;
                     }
 
-                    if (!sizeReported && src->width > 0)
+                    if (!sizeReported && src->width > 0 && gen >= _paintGen)
                     {
                         sizeReported = true;
                         VideoSizeKnown?.Invoke(src->width, src->height);
@@ -414,28 +480,39 @@ public sealed class VideoStreamClient : IDisposable
                         ffmpeg.SWS_BILINEAR, null, null, null);
 
                     var stride = src->width * 4;
+                    var published = false;
                     lock (_frameLock)
                     {
-                        var needed = stride * src->height;
-                        if (_frame == null || _frame.Length < needed ||
-                            _width != src->width || _height != src->height)
+                        // Seamless-switch gate: only the newest generation that
+                        // has reached this point may publish. Decoding the first
+                        // frame IS the takeover — the outpainted session retires
+                        // via Superseded() in its loop conditions.
+                        if (gen >= _paintGen)
                         {
-                            _frame = new byte[needed];
-                            _width = src->width;
-                            _height = src->height;
-                            _stride = stride;
+                            _paintGen = gen;
+                            var needed = stride * src->height;
+                            if (_frame == null || _frame.Length < needed ||
+                                _width != src->width || _height != src->height)
+                            {
+                                _frame = new byte[needed];
+                                _width = src->width;
+                                _height = src->height;
+                                _stride = stride;
+                            }
+                            fixed (byte* dst = _frame)
+                            {
+                                var dstPlanes = new byte*[] { dst };
+                                var dstStrides = new[] { stride };
+                                ffmpeg.sws_scale(sws, src->data, src->linesize, 0, src->height,
+                                    dstPlanes, dstStrides);
+                            }
+                            _seq++;
+                            published = true;
                         }
-                        fixed (byte* dst = _frame)
-                        {
-                            var dstPlanes = new byte*[] { dst };
-                            var dstStrides = new[] { stride };
-                            ffmpeg.sws_scale(sws, src->data, src->linesize, 0, src->height,
-                                dstPlanes, dstStrides);
-                        }
-                        _seq++;
                     }
                     if (src == hwSw) ffmpeg.av_frame_unref(hwSw);
                     ffmpeg.av_frame_unref(frm);
+                    if (!published) return; // outpainted by a newer session: stop draining
 
                     // First frame → Playing immediately (macOS DisplayImmediately parity).
                     if (State != VideoState.Playing) SetState(VideoState.Playing);
@@ -460,7 +537,7 @@ public sealed class VideoStreamClient : IDisposable
                 }
             }
 
-            while (!_stop && !_restart)
+            while (!_stop && !Superseded(gen))
             {
                 // Audio routing changed: tear the sink down when released so an
                 // unfocused stream costs nothing, flush on mute.
@@ -473,7 +550,10 @@ public sealed class VideoStreamClient : IDisposable
 
                 if (audioCodec != null && packet->stream_index == audioIdx)
                 {
-                    if (_audioActive) DecodeAudio(audioCodec, packet, audioFrame, ref swr, ref sink, ref pcm);
+                    // Audio follows the painting session only — a warming-up
+                    // switch target must not double the soundtrack.
+                    if (_audioActive && gen == _paintGen)
+                        DecodeAudio(audioCodec, packet, audioFrame, ref swr, ref sink, ref pcm);
                     ffmpeg.av_packet_unref(packet);
                     continue;
                 }
