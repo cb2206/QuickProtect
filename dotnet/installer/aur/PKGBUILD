@@ -1,0 +1,39 @@
+# Maintainer: Christian Bartels <hello@quickprotect.app>
+#
+# AUR package for the GitHub-release Linux tarball (built by
+# .github/workflows/release.yml). To publish a new version: bump pkgver,
+# run `updpkgsums` (fills the real sha256), `makepkg --printsrcinfo > .SRCINFO`,
+# then push to the AUR repo. FFmpeg is bundled in the tarball (LGPL shared,
+# BtbN builds), so no ffmpeg dependency here; ALSA is optional (video-only
+# without it), the global hotkey uses the XDG Desktop Portal.
+
+pkgname=quickprotect-bin
+pkgver=1.3.1
+pkgrel=1
+pkgdesc="Live viewer for UniFi Protect cameras — grid, focus view, PTZ, snapshots, tray app"
+arch=('x86_64')
+url="https://github.com/cb2206/QuickProtect"
+license=('MIT')
+provides=('quickprotect')
+conflicts=('quickprotect')
+optdepends=('alsa-lib: audio playback'
+            'xdg-desktop-portal: global hotkey support')
+options=('!strip')
+source=("$url/releases/download/v$pkgver/QuickProtect-$pkgver-linux-x64.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "QuickProtect-$pkgver-linux-x64"
+
+    install -dm755 "$pkgdir/opt/quickprotect"
+    cp -a QuickProtect/. "$pkgdir/opt/quickprotect/"
+    chmod 755 "$pkgdir/opt/quickprotect/QuickProtect"
+
+    install -dm755 "$pkgdir/usr/bin"
+    ln -s /opt/quickprotect/QuickProtect "$pkgdir/usr/bin/quickprotect"
+
+    install -Dm644 quickprotect.desktop \
+        "$pkgdir/usr/share/applications/quickprotect.desktop"
+    install -Dm644 quickprotect.png \
+        "$pkgdir/usr/share/pixmaps/quickprotect.png"
+}

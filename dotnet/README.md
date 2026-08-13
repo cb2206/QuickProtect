@@ -12,7 +12,8 @@ runs on **Windows and Linux** (and macOS, if ever wanted).
 The Windows build ships on the **Microsoft Store** (signed, auto-updating) and
 as a free unsigned installer on
 [GitHub Releases](https://github.com/cb2206/QuickProtect/releases); the Linux
-release is still pending (see [`PARITY.md`](../docs/PARITY.md) → Distribution).
+build ships (since 1.3.1) as a self-contained x64 tarball on the same releases
+(see [`PARITY.md`](../docs/PARITY.md) → Distribution for the channel details).
 
 ## Why this stack
 

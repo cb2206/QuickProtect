@@ -1,3 +1,1 @@
-• Corregido un fallo en la vista general de transmisiones cuando varias transmisiones cambiaban a la vez.
-• La ventana de cámaras ahora se cierra cuando cambias a otra app con Comando-Tab o el Dock.
-• Las comprobaciones de actualización ya no anuncian una versión hasta que su compilación para Mac está disponible.
+• El cambio de calidad de la transmisión ahora es fluido: ampliar una cámara o pasar a pantalla completa ya no congela el vídeo por un momento.

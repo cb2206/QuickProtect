@@ -1,0 +1,118 @@
+name: release
+
+# Builds the GitHub-release artifacts for a version tag and attaches them to a
+# DRAFT release — review and publish it manually. Publishing is the moment the
+# in-app update checks (macOS UpdateChecker.swift / .NET UpdateChecker.cs) see
+# the version via releases/latest; both only announce once the running
+# platform's asset is present, so the asset names below are a de facto API.
+#
+# Store builds are separate: Mac App Store via fastlane (macos/fastlane/),
+# Microsoft Store via dotnet/scripts/package-msix.ps1 + Partner Center.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  # The tag is the release version; fail fast if the sources disagree with it.
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches project.yml and Directory.Build.props
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          mac="$(sed -n 's/.*CFBundleShortVersionString: "\([^"]*\)".*/\1/p' macos/project.yml)"
+          net="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' dotnet/Directory.Build.props)"
+          echo "tag=$ver macos=$mac dotnet=$net"
+          [ "$ver" = "$mac" ] && [ "$ver" = "$net" ] || {
+            echo "::error::Version mismatch — bump macos/project.yml and dotnet/Directory.Build.props to $ver before tagging."
+            exit 1
+          }
+
+  macos-dmg:
+    needs: check-version
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      # The GitHub build is intentionally unsigned (see UpdateChecker.swift's
+      # AppDistribution note) — ad-hoc signing, same overrides as Debug in
+      # project.yml. Release config keeps ONLY_ACTIVE_ARCH=NO → universal.
+      - name: Build Release (ad-hoc signed)
+        working-directory: macos
+        run: |
+          xcodegen generate
+          xcodebuild -project QuickProtect.xcodeproj -scheme QuickProtect \
+            -configuration Release -destination 'platform=macOS' SYMROOT=build \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+            ENABLE_HARDENED_RUNTIME=NO build -quiet
+      - name: Package DMG
+        working-directory: macos
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          staging=$(mktemp -d)
+          cp -R build/Release/QuickProtect.app "$staging/"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname QuickProtect -srcfolder "$staging" \
+            -ov -format UDZO "QuickProtect-$ver.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: macos/QuickProtect-*.dmg
+          if-no-files-found: error
+
+  windows-installer:
+    needs: check-version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build installer
+        run: powershell -File dotnet/scripts/package-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dotnet/dist/QuickProtect-Setup-*-win-x64.exe
+          if-no-files-found: error
+
+  linux-tarball:
+    needs: check-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build tarball
+        run: dotnet/scripts/package-linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-tarball
+          path: dotnet/dist/QuickProtect-*-linux-x64.tar.gz
+          if-no-files-found: error
+
+  draft-release:
+    needs: [macos-dmg, windows-installer, linux-tarball]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft --generate-notes \
+            --title "QuickProtect ${GITHUB_REF_NAME#v}" \
+            QuickProtect-*.dmg QuickProtect-Setup-*.exe QuickProtect-*.tar.gz

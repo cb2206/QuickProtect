@@ -1,3 +1,1 @@
-• Correction d'un plantage de la vue d'ensemble des flux lorsque plusieurs flux de caméra changeaient en même temps.
-• La fenêtre des caméras se ferme désormais lorsque vous passez à une autre app avec Commande-Tab ou le Dock.
-• Les vérifications de mise à jour n'annoncent plus une version tant que sa version Mac n'est pas disponible.
+• Le changement de qualité du flux est désormais fluide : agrandir une caméra ou passer en plein écran ne fige plus la vidéo un instant.
