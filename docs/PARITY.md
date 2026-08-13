@@ -88,7 +88,9 @@ port (`dotnet/`).
   window-local toggle, and the Mute (M) control appears only when the stream
   actually has audio. Mute flushes queued PCM so it takes effect immediately.
 - **Onboarding** — 3-step wizard (Connect → PTZ → All set).
-- **Global hotkey** — native `RegisterHotKey` on Windows; Linux is a documented no-op.
+- **Global hotkey** — native `RegisterHotKey` on Windows; XDG Desktop Portal
+  `GlobalShortcuts` on Linux (see the platform note below for the
+  compositor-owned-binding caveats).
 - **Update checker** — notify-only GitHub releases poll + Settings banner.
   Both platforms only announce a release that carries an asset for the running
   OS (`.dmg` / `-win` / `-linux` in the asset name — the naming convention is a
@@ -154,9 +156,33 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 - The rtsps TLS tunnel works unchanged on Linux (pure .NET sockets).
 - Tray icons need StatusNotifierItem/appindicator support (GNOME may need an
   extension) — without a tray, add a `--open-panel` desktop entry as fallback.
+- **Tray left-click opens the menu on GNOME, not the panel** (verified on
+  Ubuntu 26.04, 2026-08-10): our SNI item is correct (`ItemIsMenu=false`,
+  `Activate` exported and working — verified via a direct DBus call), but
+  GNOME's `ubuntu-appindicators` extension by design opens the menu on single
+  left-click for any icon that has a menu; **double left-click** calls
+  `Activate` (opens the panel), middle-click sends `SecondaryActivate`.
+  Not fixable app-side: an icon with no menu gets *no* single-click action at
+  all under that extension, so keep the menu (first item "Open QuickProtect"
+  is the mitigation). KDE Plasma follows the SNI spec — left-click activates
+  there, matching Windows.
 - Wayland ignores absolute window positioning: the popover anchor and pinned
   window restore degrade to compositor placement; X11 behaves.
-- Global hotkey is a no-op (no portable X11/Wayland registration).
+- Global hotkey (implemented 2026-08-10, verified on Ubuntu 26.04 GNOME
+  Wayland): `PortalGlobalHotkey` binds through the XDG Desktop Portal
+  `org.freedesktop.portal.GlobalShortcuts` interface (GNOME 45+ and KDE
+  Plasma 5.27+, Wayland and X11 alike). Caveats, all inherent to the portal
+  model where the **compositor owns the binding**:
+  - The first BindShortcuts per app shows a system consent dialog; on GNOME
+    the user picks the actual combo *in that dialog* — the in-app recorded
+    combo is only a `preferred_trigger` hint, so the effective binding can
+    differ from what the app's Shortcuts settings display (the granted
+    trigger is logged: `[Hotkey] bound via portal: …`). KDE honors the hint
+    without a dialog.
+  - GNOME remembers the grant: relaunching rebinds silently (verified).
+  - Environments without the portal (bare X11 window managers) log
+    `[Hotkey] portal GlobalShortcuts unavailable` and stay a no-op; an
+    `XGrabKey` fallback remains possible if anyone asks for it.
 - Snapshot-to-clipboard shells out to `wl-copy` or `xclip` (best-effort).
 - Audio needs `libasound.so.2` (ALSA); when missing (or PipeWire/Pulse lacks the
   ALSA compat layer) streams play video-only with a logged notice.

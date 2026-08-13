@@ -9,8 +9,9 @@ namespace QuickProtect.App.Platform;
 /// <summary>
 /// A system-wide hotkey that toggles the camera panel. Stored generically in
 /// settings as (keyCode = Win32 virtual-key, modifiers = Win32 MOD_* flags).
-/// Windows registers it natively; on Linux this is a documented no-op (X11/Wayland
-/// global hotkeys aren't portably registrable — track in PARITY.md).
+/// Windows registers it natively; Linux binds it through the XDG Desktop
+/// Portal (see <see cref="PortalGlobalHotkey"/>); portal-less environments
+/// are a documented no-op — track in PARITY.md.
 /// </summary>
 public interface IGlobalHotkey : IDisposable
 {
@@ -21,7 +22,9 @@ public interface IGlobalHotkey : IDisposable
 public static class GlobalHotkeyFactory
 {
     public static IGlobalHotkey Create(Action onTriggered)
-        => OperatingSystem.IsWindows() ? new WindowsGlobalHotkey(onTriggered) : new NoopGlobalHotkey();
+        => OperatingSystem.IsWindows() ? new WindowsGlobalHotkey(onTriggered)
+        : OperatingSystem.IsLinux() ? new PortalGlobalHotkey(onTriggered)
+        : new NoopGlobalHotkey();
 }
 
 public sealed class NoopGlobalHotkey : IGlobalHotkey
@@ -154,6 +157,28 @@ public static class HotkeyCodec
         if ((mod & 4) != 0) parts.Add("Shift");
         if ((mod & 8) != 0) parts.Add("Win");
         parts.Add(KeyName(keyCode.Value));
+        return string.Join("+", parts);
+    }
+
+    /// <summary>
+    /// XDG "shortcuts" spec trigger string for the portal, e.g. "CTRL+SHIFT+p".
+    /// A hint only — the compositor (or the user, in its consent dialog) has
+    /// the final say on the binding.
+    /// </summary>
+    public static string PortalTrigger(int keyCode, int modifiers)
+    {
+        var parts = new List<string>();
+        if ((modifiers & 2) != 0) parts.Add("CTRL");
+        if ((modifiers & 1) != 0) parts.Add("ALT");
+        if ((modifiers & 4) != 0) parts.Add("SHIFT");
+        if ((modifiers & 8) != 0) parts.Add("LOGO");
+        parts.Add(keyCode switch
+        {
+            >= 0x41 and <= 0x5A => char.ToLowerInvariant((char)keyCode).ToString(), // a-z
+            >= 0x30 and <= 0x39 => ((char)keyCode).ToString(),                      // 0-9
+            >= 0x70 and <= 0x87 => "F" + (keyCode - 0x6F),                          // F1-F24
+            _ => "unknown"
+        });
         return string.Join("+", parts);
     }
 
