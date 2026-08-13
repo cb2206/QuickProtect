@@ -9,9 +9,10 @@ branch was deleted after the merge — work now happens directly on `dev`).
 against a real controller (7 cameras at 10.0.1.1), including audio playback
 (WASAPI/ALSA, see below). All 13 bugs from the 2026-07-07 bug-report round are
 fixed and verified. Publicly released since 1.3 (2026-08): Microsoft Store
-(paid MSIX) + the unsigned Inno Setup installer on GitHub releases
-(`docs/PARITY.md`'s Distribution section has the channel details; Linux is
-still unreleased).
+(paid MSIX) + the unsigned Inno Setup installer on GitHub releases. Linux
+ships since 1.3.1 (2026-08) as a self-contained tarball on the same releases,
+with an AUR package (`quickprotect-bin`) prepared in `dotnet/installer/aur/`
+(`docs/PARITY.md`'s Distribution section has the channel details).
 See `PARITY.md` for the feature matrix and intentional differences.
 
 ## Architecture: the video engine (don't regress these)
