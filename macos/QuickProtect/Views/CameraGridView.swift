@@ -1018,24 +1018,62 @@ struct CameraCell: View {
         }
     }
 
-    /// Reconnect the primary stream at the now-desired quality, holding the
-    /// current frame on the display layer through the switch so it dissolves into
-    /// the new feed rather than flashing grey. Releases the previous server-side
-    /// allocation; `connect(keepLastFrame:)` sends the RTSP TEARDOWN for the old
-    /// session without flushing the layer.
+    /// Switch the primary stream to the now-desired quality — seamlessly when a
+    /// picture is on screen: the current session keeps painting while the new
+    /// one warms up (`RTSPClient.switchStream`), and the server-side allocations
+    /// are settled from the outcome — the replaced quality on success, the
+    /// unused new one on abandonment. The new substream is allocated BEFORE the
+    /// running one is touched, so an allocation failure just leaves the current
+    /// stream playing. Without a live picture there is nothing to hand over, so
+    /// it falls back to the plain release-and-reconnect path.
     private func applyQualitySwitch() {
         downSwitchWork = nil
+        guard rtspClient.hasFrame else {
+            let previous = primaryQuality
+            preservingFrame = true
+            streamTask?.cancel()
+            streamTask = nil
+            if let previous {
+                service.releaseStream(for: camera.id, quality: previous.apiValue)
+            }
+            // Force past the hasFrame shortcut: a quality change can race the
+            // first frame, and a plain startStream() would skip the reconnect.
+            startStream(force: true, keepLastFrame: true)
+            return
+        }
+
         let previous = primaryQuality
-        preservingFrame = true
+        let desired = desiredPrimaryQuality
         streamTask?.cancel()
         streamTask = nil
-        if let previous {
-            service.releaseStream(for: camera.id, quality: previous.apiValue)
+        streamTask = Task {
+            guard let stream = await service.createRtspStreamURL(for: camera, quality: desired.apiValue) else {
+                streamTask = nil
+                return
+            }
+            streamTask = nil
+            guard !Task.isCancelled else { return }
+
+            let newQuality = StreamQuality(rawValue: stream.quality) ?? desired
+            // Claim the new quality up front so reconcile treats the warm-up as
+            // settled instead of starting a second switch; reverted on failure.
+            primaryQuality = newQuality
+            rtspClient.switchStream(to: stream.url) { success in
+                if success {
+                    if let previous, previous != newQuality {
+                        service.releaseStream(for: camera.id, quality: previous.apiValue)
+                    }
+                } else {
+                    // Warm-up abandoned — the old stream is still live.
+                    primaryQuality = previous
+                    if newQuality != previous {
+                        service.releaseStream(for: camera.id, quality: newQuality.apiValue)
+                    }
+                }
+                // Apply any desire change that raced the handover.
+                reconcilePrimaryQuality()
+            }
         }
-        // Force past the hasFrame shortcut: hasFrame is still true from the feed
-        // we're replacing, so a plain startStream() would assume it's playing and
-        // skip the reconnect.
-        startStream(force: true, keepLastFrame: true)
     }
 
     // MARK: - Secondary lens (package camera) lifecycle

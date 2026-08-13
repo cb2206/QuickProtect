@@ -21,8 +21,10 @@ port (`dotnet/`).
   native child windows).
   `Video/VideoStreamCoordinator` shares one client per camera lens across
   grid/focus/pinned views: focus adopts the running grid stream instantly and
-  upgrades quality in place (last frame kept, no grey flash); panel open
-  connects in a 90 ms cascade. Native binaries per RID incl. **win-arm64**
+  upgrades quality seamlessly — the old session keeps painting while the new
+  one warms up, taking over at its first decoded frame (both sides: .NET
+  `VideoStreamClient` generations, macOS `RTSPClient.switchStream` handover
+  child); panel open connects in a 90 ms cascade. Native binaries per RID incl. **win-arm64**
   (`scripts/get-ffmpeg.ps1`); RTSPS rides `RtspTlsTunnel` (Core) — a 127.0.0.1
   listener piping bytes over TLS with the same TOFU pinning as the API (FFmpeg
   gets plain rtsp; keep the tunnel, it carries the certificate policy).
@@ -48,8 +50,8 @@ port (`dotnet/`).
   (DPAPI on Windows; libsecret via `secret-tool` on Linux, 0600-file fallback).
 - **Layout profiles** — create/rename/delete, per-camera show/hide, size,
   reorder (Settings list **and** in-grid drag-to-reorder with persistence).
-- **Focus view** — instant entry (adopts the grid stream, quality upgrades in
-  place), fit/fill, snapshot (S), fullscreen (F), click video to return,
+- **Focus view** — instant entry (adopts the grid stream, quality upgrades
+  seamlessly), fit/fill, snapshot (S), fullscreen (F), click video to return,
   double-click opens in Protect, overlay chrome/PTZ pad/hints/PiP like
   AuroraFocusOverlay.
 - **Digital zoom + pan** — 1–8× (`DigitalZoom` in Core, unit-tested):
