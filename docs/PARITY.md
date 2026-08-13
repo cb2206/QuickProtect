@@ -206,7 +206,21 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   (no change needed), and launch-at-login moves from the `Run` key — virtualised
   away in a package — to the manifest's `windows.startupTask`, which the
   Settings UI surfaces as a pointer to Windows' own switch.
-- **Linux** (deferred): frictionless-update channel wanted (Flathub preferred,
-  pending its AI-assisted-app policy; fallbacks AUR + AppImage/tarball). Bundle
-  the FFmpeg 7.1 natives (as the Windows installer does) or declare an FFmpeg
-  7.x runtime dependency.
+- **Linux** (decided 2026-08, ships with 1.3.1): GitHub-release tarball
+  (`scripts/package-linux.sh`, self-contained linux-x64 with the FFmpeg 7.1
+  natives bundled, plus a .desktop template + icon) with the in-app
+  notify-only update check, and an AUR package (`quickprotect-bin`,
+  `installer/aur/PKGBUILD`, consumes the tarball). Linux is free-only — there
+  is no viable paid Linux store, and unlike winget on Windows the frictionless
+  free channel cannibalizes nothing here. **Flathub is out**: its 2026-05-29
+  policy rejects new submissions with AI-generated/AI-assisted code (a
+  discretionary carve-out for "mature, well-maintained projects" exists — ask
+  Flathub first if this is ever revisited; a rejected submission risks a ban).
+  Snap and AppImage were skipped deliberately (confinement pain / no audience
+  gain over the tarball); revisit only if users ask.
+- **Release artifacts** are built by `.github/workflows/release.yml` on a
+  `v<version>` tag push: DMG (ad-hoc signed, macos-15) + Inno Setup exe
+  (windows-latest) + Linux tarball (ubuntu-latest), attached to a **draft**
+  release after checking the tag matches both version sources. Publishing the
+  draft is manual — that's the moment existing installs get update-notified.
+  Store submissions stay manual (fastlane on a Mac / Partner Center).
