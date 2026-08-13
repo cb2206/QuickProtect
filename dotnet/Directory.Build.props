@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Version>1.3</Version>
+    <Version>1.3.1</Version>
     <Company>Christian Bartels</Company>
     <Product>QuickProtect</Product>
     <Copyright>Copyright © 2026 Christian Bartels. All rights reserved.</Copyright>
