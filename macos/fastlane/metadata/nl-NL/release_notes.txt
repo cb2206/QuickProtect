@@ -1,3 +1,1 @@
-• Crash in het streamoverzicht verholpen wanneer meerdere camerastreams tegelijk wijzigden.
-• Het venster met camera's sluit nu wanneer je met Command-Tab of via het Dock naar een andere app gaat.
-• Updatecontroles melden een versie pas wanneer de Mac-versie ervan beschikbaar is.
+• Wisselen van streamkwaliteit gaat nu naadloos — een camera vergroten of naar volledig scherm gaan bevriest het beeld niet meer even.

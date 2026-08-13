@@ -1,3 +1,1 @@
-• Fixed a crash in the stream overview when several camera streams changed at once.
-• The camera panel now closes when you switch to another app with Command-Tab or the Dock.
-• Update checks no longer announce a release until its Mac build is available.
+• Switching stream quality is now seamless — focusing a camera or going fullscreen no longer freezes the video for a moment.

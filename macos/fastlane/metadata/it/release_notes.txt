@@ -1,3 +1,1 @@
-• Risolto un arresto anomalo nella panoramica dei flussi quando più flussi delle telecamere cambiavano contemporaneamente.
-• La finestra delle telecamere ora si chiude quando passi a un'altra app con Comando-Tab o dal Dock.
-• I controlli degli aggiornamenti non annunciano più una versione finché la relativa versione per Mac non è disponibile.
+• Il cambio di qualità del flusso ora è fluido: ingrandire una telecamera o passare a schermo intero non blocca più il video per un istante.
