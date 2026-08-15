@@ -4,9 +4,8 @@ import SwiftUI
 /// non-App-Store builds (see `AppDistribution`): once at launch, when a GitHub
 /// update is found, and as a section in Settings → Updates.
 ///
-/// The GitHub build is unsigned by design to steer users toward the App Store
-/// version, which updates automatically, installs without security warnings,
-/// and supports continued development.
+/// The App Store version updates automatically, installs without security
+/// warnings, and supports continued development.
 struct AppStorePromoView: View {
     /// When set, the newer GitHub version that triggered this prompt — the copy
     /// then leads with the update and offers a manual GitHub download alongside.

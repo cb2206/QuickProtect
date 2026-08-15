@@ -195,9 +195,9 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   a company account (the Store signs and auto-updates it) — the listing is live
   at <https://apps.microsoft.com/detail/9n7q858g3tk5>; free = the unsigned
   Inno Setup installer from `scripts/package-windows.ps1` on GitHub releases
-  (SmartScreen supplies the deliberate friction — intentionally unsigned, like
-  the macOS DMG). No winget listing (frictionless `winget upgrade` would defeat
-  that). One release tag per version carries all OS assets:
+  (not code-signed, like the macOS DMG, so SmartScreen warns on first run). No
+  winget listing — the Store is the auto-updating channel. One release tag per
+  version carries all OS assets:
   `QuickProtect-<ver>.dmg` / `QuickProtect-Setup-<ver>-win-x64.exe` /
   `QuickProtect-<ver>-linux-x64.tar.gz`.
   MSIX packaging: `scripts/package-msix.ps1` +
