@@ -6,12 +6,13 @@ A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Prote
 
 <p>
   <a href="https://apps.apple.com/app/id6776899427"><img alt="Download QuickProtect on the App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="52"></a>
+  <a href="https://apps.microsoft.com/detail/9n7q858g3tk5"><img alt="Get QuickProtect from the Microsoft Store" src="https://get.microsoft.com/images/en-us%20dark.svg" height="52"></a>
 </p>
 
 **Get QuickProtect**
 
 - **macOS** — [Mac App Store](https://apps.apple.com/app/id6776899427) (signed, sandboxed, auto-updating) or the free unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
-- **Windows** — Microsoft Store (signed, auto-updating) or the free unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
+- **Windows** — [Microsoft Store](https://apps.microsoft.com/detail/9n7q858g3tk5) (signed, auto-updating) or the free unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
 - **Linux** — free self-contained x64 tarball on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases) (AUR package `quickprotect-bin` coming)
 
 <details name="screenshot" open>

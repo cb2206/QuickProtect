@@ -9,8 +9,9 @@ runs on **Windows and Linux** (and macOS, if ever wanted).
 > shared with the Swift sources at the source level — only the behavior and the
 > UniFi Protect protocol logic are ported.
 
-The Windows build ships on the **Microsoft Store** (signed, auto-updating) and
-as a free unsigned installer on
+The Windows build ships on the
+[**Microsoft Store**](https://apps.microsoft.com/detail/9n7q858g3tk5) (signed,
+auto-updating) and as a free unsigned installer on
 [GitHub Releases](https://github.com/cb2206/QuickProtect/releases); the Linux
 build ships (since 1.3.1) as a self-contained x64 tarball on the same releases
 (see [`PARITY.md`](../docs/PARITY.md) → Distribution for the channel details).

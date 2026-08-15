@@ -432,6 +432,8 @@ O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiq
 
 # Microsoft Store — Windows
 
+Live listing: <https://apps.microsoft.com/detail/9n7q858g3tk5>
+
 Copy each field into **Partner Center → Apps and games → QuickProtect →
 Store listings → (language)**. The MSIX manifest declares all 7 languages,
 so Partner Center expects a listing for each.
