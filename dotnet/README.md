@@ -117,8 +117,8 @@ next to it.
 Two artifacts, matching the two distribution channels (see
 [`PARITY.md`](../docs/PARITY.md#distribution-future)).
 
-**Free build** — unsigned installer for GitHub releases. The SmartScreen
-warning it triggers is the intended friction; it is not signed on purpose.
+**Free build** — unsigned installer for GitHub releases. It is not code-signed,
+so Windows shows a SmartScreen warning on first run.
 
 ```powershell
 winget install JRSoftware.InnoSetup   # once

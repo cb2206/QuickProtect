@@ -632,7 +632,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var updateActions: some View {
         HStack(spacing: 10) {
-            // Notify-only: the GitHub build is unsigned by design, so there is no
+            // Notify-only: the GitHub build is unsigned, so there is no
             // in-app installer — point the user at the release page to update.
             if updateChecker.updateAvailable {
                 AuroraPrimaryButton(title: String(localized: "Get update")) {

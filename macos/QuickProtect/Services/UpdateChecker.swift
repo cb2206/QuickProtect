@@ -3,8 +3,7 @@ import AppKit
 
 /// Identifies how this build was distributed.
 ///
-/// The GitHub build is distributed **unsigned** (a deliberate hurdle that steers
-/// users toward the paid Mac App Store version). Because an unsigned build can't
+/// The GitHub build is distributed **unsigned**. Because an unsigned build can't
 /// be safely auto-installed — downloading and executing an unsigned DMG would be
 /// a supply-chain risk — the updater only *notifies* and links to the release
 /// page; it never installs. Mac App Store builds are updated by the App Store
@@ -41,7 +40,7 @@ enum AppStorePromo {
 
 /// Checks GitHub for a newer release and surfaces it in Settings. Notify-only:
 /// it does not download or install anything. The user opens the release page and
-/// updates manually (the GitHub build is intentionally unsigned, so auto-install
+/// updates manually (the GitHub build is unsigned, so auto-install
 /// is neither possible nor safe — see `AppDistribution`).
 final class UpdateChecker: NSObject, ObservableObject {
 
@@ -122,7 +121,7 @@ final class UpdateChecker: NSObject, ObservableObject {
     // MARK: - Open the release for manual download
 
     /// Opens the latest release page in the browser. The user downloads and
-    /// installs manually — this build is unsigned by design, so there is no
+    /// installs manually — this build is unsigned, so there is no
     /// in-app installer.
     func openReleasePage() {
         if let url = releaseURL ?? releasesPageURL {

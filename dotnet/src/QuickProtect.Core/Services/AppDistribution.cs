@@ -7,7 +7,7 @@ namespace QuickProtect.Core.Services;
 /// <c>AppDistribution</c> receipt check. Store/packaged builds (Microsoft
 /// Store MSIX, Flatpak, Snap) are updated by their store or package manager,
 /// so the notify-only updater stays idle for them; only the loose GitHub
-/// build (unsigned by design) keeps the version check.
+/// build (unsigned) keeps the version check.
 /// </summary>
 public static class AppDistribution
 {
