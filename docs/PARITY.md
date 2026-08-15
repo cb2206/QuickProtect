@@ -192,7 +192,8 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 ## Distribution
 
 - **Windows** (shipped with 1.3, 2026-08): paid = Microsoft Store as MSIX under
-  a company account (the Store signs and auto-updates it); free = the unsigned
+  a company account (the Store signs and auto-updates it) — the listing is live
+  at <https://apps.microsoft.com/detail/9n7q858g3tk5>; free = the unsigned
   Inno Setup installer from `scripts/package-windows.ps1` on GitHub releases
   (SmartScreen supplies the deliberate friction — intentionally unsigned, like
   the macOS DMG). No winget listing (frictionless `winget upgrade` would defeat
