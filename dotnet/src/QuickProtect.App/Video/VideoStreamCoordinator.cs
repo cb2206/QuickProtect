@@ -28,7 +28,7 @@ namespace QuickProtect.App.Video;
 /// </summary>
 public sealed class VideoStreamCoordinator : IDisposable
 {
-    private readonly ProtectService _service;
+    private readonly IStreamAllocator _service;
     private readonly object _lock = new();
     private readonly Dictionary<string, Entry> _entries = new();
 
@@ -36,7 +36,7 @@ public sealed class VideoStreamCoordinator : IDisposable
     private static readonly TimeSpan RetryInitial = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan RetryMax = TimeSpan.FromSeconds(30);
 
-    public VideoStreamCoordinator(ProtectService service) => _service = service;
+    public VideoStreamCoordinator(IStreamAllocator service) => _service = service;
 
     private sealed class Entry
     {
@@ -46,7 +46,8 @@ public sealed class VideoStreamCoordinator : IDisposable
         public bool Pinned;
         public VideoStreamClient Client { get; } = new();
         public Dictionary<object, string> Desires { get; } = new();
-        public string? ActiveQuality;      // allocated on the controller
+        public string? RequestedQuality;   // tier the coordinator asked for (desires compare to this)
+        public string? ActiveQuality;      // tier the controller granted (may be a fallback; released by this name)
         public int Generation;             // invalidates stale delayed switches and retries
         public bool Switching;
         public TimeSpan RetryDelay = RetryInitial;
@@ -164,7 +165,10 @@ public sealed class VideoStreamCoordinator : IDisposable
         lock (_lock)
         {
             want = Wanted(entry);
-            active = entry.ActiveQuality;
+            // Compare against what was asked for, not what the controller
+            // granted: a camera without the wanted substream answers with a
+            // fallback tier, and re-resolving on that would loop forever.
+            active = entry.RequestedQuality;
             gen = ++entry.Generation;
         }
 
@@ -239,6 +243,7 @@ public sealed class VideoStreamCoordinator : IDisposable
             lock (_lock)
             {
                 old = entry.ActiveQuality;
+                entry.RequestedQuality = quality;
                 entry.ActiveQuality = r.quality;
                 entry.RetryDelay = RetryInitial;
             }
@@ -269,19 +274,19 @@ public sealed class VideoStreamCoordinator : IDisposable
         }
         finally
         {
-            string? wantNow = null, activeNow = null;
+            string? wantNow = null, requestedNow = null;
             lock (_lock)
             {
                 entry.Switching = false;
                 if (settled)
                 {
                     wantNow = Wanted(entry);
-                    activeNow = entry.ActiveQuality;
+                    requestedNow = entry.RequestedQuality;
                 }
             }
             // A desire that arrived mid-switch was dropped at the top of
             // SwitchAsync (Switching was true) — pick it up now.
-            if (settled && wantNow != activeNow) Resolve(entry, immediate: true);
+            if (settled && wantNow != requestedNow) Resolve(entry, immediate: true);
         }
     }
 
@@ -310,6 +315,7 @@ public sealed class VideoStreamCoordinator : IDisposable
         {
             q = entry.ActiveQuality;
             entry.ActiveQuality = null;
+            entry.RequestedQuality = null;
         }
         if (q == null) return;
         if (entry.Pinned) _service.ReleasePinnedStream(entry.Camera.Id, q);

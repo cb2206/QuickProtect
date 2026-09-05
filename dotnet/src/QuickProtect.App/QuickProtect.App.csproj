@@ -61,4 +61,8 @@
     <ProjectReference Include="..\QuickProtect.Core\QuickProtect.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuickProtect.App.Tests" />
+  </ItemGroup>
+
 </Project>

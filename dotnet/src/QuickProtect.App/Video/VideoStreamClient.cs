@@ -105,7 +105,11 @@ public sealed class VideoStreamClient : IDisposable
     private volatile int _latestGen;
     private volatile int _paintGen;
     private long _switchDeadlineTicks;
-    private static readonly TimeSpan SwitchGrace = TimeSpan.FromSeconds(10);
+    /// <summary>
+    /// How long a superseded session keeps rendering while its successor has not
+    /// painted yet. Settable so tests can exercise a handover without decoding.
+    /// </summary>
+    internal static TimeSpan SwitchGrace { get; set; } = TimeSpan.FromSeconds(10);
 
     // Deferred actions for quality switches: each entry runs once every session
     // with Gen <= Ceiling has fully ended (the coordinator releases the old
@@ -382,8 +386,11 @@ public sealed class VideoStreamClient : IDisposable
                 // screen). Only the painting session flips the UI to Connecting —
                 // a warming-up switch target must not spinner over a live picture.
                 if (gen == _paintGen) SetState(VideoState.Connecting);
-                // Interruptible: Stop() sets _wake so the thread exits at once.
-                _wake.Wait(ok ? TimeSpan.FromMilliseconds(500) : backoff);
+                // Interruptible: Stop() sets _wake so the thread exits at once,
+                // and a session superseded by a quality switch leaves within a
+                // slice instead of sleeping out its backoff — the coordinator's
+                // release of the old allocation waits for that exit.
+                WaitUnlessSuperseded(ok ? TimeSpan.FromMilliseconds(500) : backoff, gen);
                 if (!ok) backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, TimeSpan.FromSeconds(5).Ticks));
             }
         }
@@ -392,6 +399,19 @@ public sealed class VideoStreamClient : IDisposable
             OnSessionThreadExit(gen);
         }
     }
+
+    private void WaitUnlessSuperseded(TimeSpan timeout, int gen)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!_stop && !Superseded(gen))
+        {
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero) return;
+            if (_wake.Wait(remaining < SupersedePoll ? remaining : SupersedePoll)) return;
+        }
+    }
+
+    private static readonly TimeSpan SupersedePoll = TimeSpan.FromMilliseconds(100);
 
     /// <summary>One demux/decode session. Returns true when it ended cleanly (EOF).</summary>
     private unsafe bool RunSession(string url, int gen)

@@ -22,7 +22,7 @@ namespace QuickProtect.Core.Services;
 ///
 /// Both share trust-on-first-use certificate pinning via <see cref="CertificateTrust"/>.
 /// </summary>
-public sealed class ProtectService : INotifyPropertyChanged, IDisposable
+public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStreamAllocator
 {
     private readonly AppSettings _settings;
     private readonly CertificateTrust _trust;
