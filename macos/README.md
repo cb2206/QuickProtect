@@ -150,6 +150,13 @@ The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conver
   `QUICKPROTECT_DEBUG_LOG=1 build/Debug/QuickProtect.app/Contents/MacOS/QuickProtect --open-panel 2> qp.log`
 - `--open-panel` opens the camera panel right after launch (scripted runs;
   parity with the .NET port's flag).
+- With the debug log on, the classic-API enrichment logs every camera's
+  channel table (codec, resolution, enabled/RTSP flags). Adding
+  `QUICKPROTECT_PROBE_CLASSIC=1` additionally logs each camera's full record
+  (credential-like fields stripped) and DESCRIBEs its classic RTSPS alias
+  stream for a few seconds, so a camera whose on-demand stream has no video
+  can be compared against the controller's other path. Aliases and stream
+  tokens are never written to the log.
 - A tile that shows "Stream unavailable" prints the client's own reason under
   the Reconnect button — e.g. the controller answering DESCRIBE with audio
   tracks only, which means the controller itself is not receiving video from

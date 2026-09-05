@@ -506,6 +506,34 @@ final class ProtectService: NSObject, ObservableObject {
     /// Fetches camera list from classic API and merges isPtz flags into existing cameras.
     /// Returns `true` only when flags were actually applied, so the caller can
     /// arm the enrichment throttle on success alone.
+    /// Debug-only (QUICKPROTECT_PROBE_CLASSIC=1): DESCRIBE each online camera's
+    /// classic RTSPS alias stream for a few seconds so the debug log shows
+    /// whether the controller serves video on that path (the alias itself is
+    /// never logged — RTSPClient redacts URLs).
+    private static var classicProbes: [RTSPClient] = []
+    private func probeClassicStreams(_ cameras: [Camera]) async {
+        guard let address = controllerAddress else { return }
+        let targets = cameras.compactMap { cam -> (String, URL)? in
+            guard cam.isOnline, let alias = cam.primaryRtspAlias,
+                  let url = URL(string: "rtsps://\(address.authority.contains(":") ? address.host : address.host):7441/\(alias)")
+            else { return nil }
+            return (cam.name, url)
+        }
+        await MainActor.run {
+            for (name, url) in targets {
+                RTSPClient.log("[Probe] \(name): DESCRIBE classic alias stream")
+                let client = RTSPClient()
+                Self.classicProbes.append(client)
+                client.connect(to: url)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                for client in Self.classicProbes { client.disconnect() }
+                Self.classicProbes.removeAll()
+                RTSPClient.log("[Probe] classic alias probes closed")
+            }
+        }
+    }
+
     /// Debug-log only: per-camera channel configuration from the classic API
     /// (codec, resolution, enabled/RTSP flags) — what the controller can hand
     /// out over RTSP for each camera. No aliases or tokens are logged.
@@ -528,6 +556,26 @@ final class ProtectService: NSObject, ObservableObject {
                 return "\(id):\(n) \(en) \(rtsp) \(w)x\(h)@\(fps) \(vid)"
             }
             RTSPClient.log("[Cameras] \(name) type=\(model) state=\(state) fw=\(fw) codec=\(codec) channels=[\(channels.joined(separator: "; "))]")
+            if ProcessInfo.processInfo.environment["QUICKPROTECT_PROBE_CLASSIC"] == "1" {
+                // Full record with anything credential-like stripped (aliases,
+                // tokens, keys, hosts, MACs), scalars only at the top level plus
+                // the channel objects — for comparing a failing camera with a
+                // working one.
+                let secretish = ["alias", "token", "password", "secret", "host", "mac", "uuid", "apikey", "wifi"]
+                let exact: Set<String> = ["id", "nvrMac", "ip", "connectionHost", "sshKey"]
+                func clean(_ dict: [String: Any]) -> [String: Any] {
+                    dict.filter { k, v in
+                        !exact.contains(k) && !secretish.contains { k.lowercased().contains($0) }
+                            && !(v is [Any]) && !(v is [String: Any])
+                    }
+                }
+                let top = clean(cam)
+                let chans = (cam["channels"] as? [[String: Any]] ?? []).map(clean)
+                RTSPClient.log("[Cameras:full] \(name) \(top.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))")
+                for ch in chans {
+                    RTSPClient.log("[Cameras:channel] \(name) \(ch.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))")
+                }
+            }
         }
     }
 
@@ -562,6 +610,9 @@ final class ProtectService: NSObject, ObservableObject {
         // Classic API returns a plain array (not wrapped in {data: [...]})
         let classicCameras = (try? JSONDecoder().decode([Camera].self, from: data)) ?? []
         if RTSPClient.debugLoggingEnabled { Self.logChannelSummary(data) }
+        if ProcessInfo.processInfo.environment["QUICKPROTECT_PROBE_CLASSIC"] == "1" {
+            await probeClassicStreams(classicCameras)
+        }
 
         // Only apply flags when we actually got a camera list back. A transient
         // empty/failed response must not wipe previously-known PTZ flags; but when
