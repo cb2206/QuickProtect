@@ -106,6 +106,12 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                TextAlignment="Center" TextWrapping="Wrap"
                                IsVisible="{Binding VideoUnavailable}" />
+                    <!-- The engine's own reason when a stream fails (e.g. the controller
+                         isn't receiving video from the camera), like the macOS failed tile. -->
+                    <TextBlock Text="{Binding StreamFailure}" Foreground="{DynamicResource QpTextTertiary}" FontSize="11"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12"
+                               TextAlignment="Center" TextWrapping="Wrap"
+                               IsVisible="{Binding StreamFailure, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     <!-- Name chip overlays the video bottom-left (macOS AuroraCameraCell) -->
                     <Border Background="{DynamicResource QpChip}" CornerRadius="6" Padding="8,4" Margin="8"
                             HorizontalAlignment="Left" VerticalAlignment="Bottom">

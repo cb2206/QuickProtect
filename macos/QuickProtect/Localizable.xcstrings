@@ -7381,43 +7381,43 @@
         }
       }
     },
-    "The controller isn't sending video for this camera right now.": {
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Controller liefert für diese Kamera gerade kein Video."
+            "value": "Der Controller empfängt kein Video von dieser Kamera. Ein Neustart der Kamera in UniFi Protect behebt das in der Regel."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le contrôleur n'envoie pas de vidéo pour cette caméra pour le moment."
+            "value": "Le contrôleur ne reçoit pas de vidéo de cette caméra. Redémarrer la caméra dans UniFi Protect règle généralement le problème."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "El controlador no está enviando vídeo de esta cámara en este momento."
+            "value": "El controlador no recibe vídeo de esta cámara. Reiniciar la cámara en UniFi Protect suele solucionarlo."
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "De controller stuurt op dit moment geen video voor deze camera."
+            "value": "De controller ontvangt geen video van deze camera. De camera opnieuw starten in UniFi Protect lost dit meestal op."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Il controller al momento non invia video per questa telecamera."
+            "value": "Il controller non riceve video da questa telecamera. Riavviare la telecamera in UniFi Protect di solito risolve il problema."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O controlador não está enviando vídeo desta câmera no momento."
+            "value": "O controlador não está recebendo vídeo desta câmera. Reiniciar a câmera no UniFi Protect geralmente resolve isso."
           }
         }
       }

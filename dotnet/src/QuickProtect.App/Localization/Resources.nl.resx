@@ -296,4 +296,5 @@ QuickProtect.</value></data>
   <data name="The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>De controller toont een nieuw certificaat. Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen – zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vergelijk de nieuwe sleutel met het certificaat dat je controller toont voordat je hem vertrouwt.</value></data>
   <data name="%lld minutes ago" xml:space="preserve"><value>%lld minuten geleden</value></data>
   <data name="%lld seconds ago" xml:space="preserve"><value>%lld seconden geleden</value></data>
+  <data name="The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this." xml:space="preserve"><value>De controller ontvangt geen video van deze camera. De camera opnieuw starten in UniFi Protect lost dit meestal op.</value></data>
 </root>

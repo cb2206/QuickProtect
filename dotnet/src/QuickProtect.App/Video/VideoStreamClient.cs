@@ -42,6 +42,20 @@ public sealed class VideoStreamClient : IDisposable
 
     public VideoState State { get; private set; } = VideoState.Idle;
 
+    /// <summary>
+    /// Why the session last went to <see cref="VideoState.Failed"/> (an English
+    /// key the UI localizes), or null. Cleared when a frame arrives.
+    /// </summary>
+    public string? LastError { get; private set; }
+
+    /// <summary>
+    /// The controller answered DESCRIBE with audio tracks only: it isn't
+    /// receiving video from the camera (seen after a camera's ingest pipeline
+    /// on the controller stalled; a camera restart fixed it).
+    /// </summary>
+    public const string NoVideoTrackMessage =
+        "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.";
+
     /// <summary>True while the current session carries a decodable audio track.</summary>
     public bool HasAudio { get; private set; }
 
@@ -419,7 +433,15 @@ public sealed class VideoStreamClient : IDisposable
 
             AVCodec* decoder = null;
             var vs = ffmpeg.av_find_best_stream(fmt, AVMediaType.AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
-            if (vs < 0 || decoder == null) return LogAv("find_best_stream", vs);
+            if (vs < 0 || decoder == null)
+            {
+                // Audio-only stream: keep retrying with backoff (the camera may
+                // be restarted meanwhile) but tell the tile why it's not playing
+                // instead of leaving the spinner up.
+                LastError = NoVideoTrackMessage;
+                SetState(VideoState.Failed);
+                return LogAv("find_best_stream (no video track)", vs);
+            }
 
             var par = fmt->streams[vs]->codecpar;
             if (par->width > MaxDimension || par->height > MaxDimension)
@@ -576,6 +598,7 @@ public sealed class VideoStreamClient : IDisposable
                     if (!published) return; // outpainted by a newer session: stop draining
 
                     // First frame → Playing immediately (macOS DisplayImmediately parity).
+                    LastError = null;
                     if (State != VideoState.Playing) SetState(VideoState.Playing);
                     FrameReady?.Invoke();
                 }

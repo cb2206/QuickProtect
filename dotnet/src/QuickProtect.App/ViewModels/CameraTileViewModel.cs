@@ -45,6 +45,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _tileHeight;
     /// <summary>True when the video engine couldn't initialize (tile shows a notice).</summary>
     [ObservableProperty] private bool _videoUnavailable;
+    /// <summary>Localized reason the stream is not playing (from the engine), or null.</summary>
+    [ObservableProperty] private string? _streamFailure;
     /// <summary>False when filtered out by the header search box.</summary>
     [ObservableProperty] private bool _matchesSearch = true;
 
@@ -169,6 +171,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         {
             IsPlaying = state == VideoState.Playing;
             if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
+            StreamFailure = state == VideoState.Failed && client.LastError is { } reason
+                ? Localization.Loc.Get(reason) : null;
         });
         // Learn the real frame size for aspect-dependent UI (pinned windows,
         // grid tile aspect) — macOS caches decoder dimensions the same way.

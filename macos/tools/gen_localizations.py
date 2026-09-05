@@ -5,7 +5,7 @@ import json, collections, sys, os
 # German (informal "du") — the existing, reviewed translation.
 # ---------------------------------------------------------------------------
 de = {
-    "The controller isn't sending video for this camera right now.": "Der Controller liefert für diese Kamera gerade kein Video.",
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "Der Controller empfängt kein Video von dieser Kamera. Ein Neustart der Kamera in UniFi Protect behebt das in der Regel.",
     # Keep-alive settings (were added to the catalog by hand; now sourced here).
     "Keep streams alive": "Streams aktiv halten",
     "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell.",
@@ -191,7 +191,7 @@ de = {
 # French (formal "vous" — macOS norm)
 # ---------------------------------------------------------------------------
 fr = {
-    "The controller isn't sending video for this camera right now.": "Le contrôleur n'envoie pas de vidéo pour cette caméra pour le moment.",
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "Le contrôleur ne reçoit pas de vidéo de cette caméra. Redémarrer la caméra dans UniFi Protect règle généralement le problème.",
     # Keep-alive settings (were added to the catalog by hand; now sourced here).
     "Keep streams alive": "Garder les flux actifs",
     "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture.",
@@ -377,7 +377,7 @@ fr = {
 # Spanish (informal "tú")
 # ---------------------------------------------------------------------------
 es = {
-    "The controller isn't sending video for this camera right now.": "El controlador no está enviando vídeo de esta cámara en este momento.",
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "El controlador no recibe vídeo de esta cámara. Reiniciar la cámara en UniFi Protect suele solucionarlo.",
     # Keep-alive settings (were added to the catalog by hand; now sourced here).
     "Keep streams alive": "Mantener streams activos",
     "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir.",
@@ -563,7 +563,7 @@ es = {
 # Dutch (informal "je")
 # ---------------------------------------------------------------------------
 nl = {
-    "The controller isn't sending video for this camera right now.": "De controller stuurt op dit moment geen video voor deze camera.",
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "De controller ontvangt geen video van deze camera. De camera opnieuw starten in UniFi Protect lost dit meestal op.",
     # Keep-alive settings (were added to the catalog by hand; now sourced here).
     "Keep streams alive": "Streams actief houden",
     "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen.",
@@ -749,7 +749,7 @@ nl = {
 # Italian (informal "tu")
 # ---------------------------------------------------------------------------
 it = {
-    "The controller isn't sending video for this camera right now.": "Il controller al momento non invia video per questa telecamera.",
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "Il controller non riceve video da questa telecamera. Riavviare la telecamera in UniFi Protect di solito risolve il problema.",
     # Keep-alive settings (were added to the catalog by hand; now sourced here).
     "Keep streams alive": "Mantieni attivi gli stream",
     "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura.",
@@ -935,7 +935,7 @@ it = {
 # Brazilian Portuguese ("você")
 # ---------------------------------------------------------------------------
 pt_br = {
-    "The controller isn't sending video for this camera right now.": "O controlador não está enviando vídeo desta câmera no momento.",
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "O controlador não está recebendo vídeo desta câmera. Reiniciar a câmera no UniFi Protect geralmente resolve isso.",
     # Keep-alive settings (were added to the catalog by hand; now sourced here).
     "Keep streams alive": "Manter streams ativos",
     "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir.",

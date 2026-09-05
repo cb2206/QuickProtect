@@ -825,7 +825,7 @@ final class RTSPClient: ObservableObject {
                     }
                     return
                 }
-                failConnection(String(localized: "The controller isn't sending video for this camera right now."))
+                failConnection(String(localized: "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this."))
                 return
             }
             sendSetupVideo()
