@@ -9,6 +9,7 @@ using QuickProtect.App.Platform;
 using QuickProtect.App.Services;
 using QuickProtect.App.ViewModels;
 using QuickProtect.App.Views;
+using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App;
@@ -52,10 +53,14 @@ public partial class App : Application
         // Custom FFmpeg video engine; rtsps rides the local TLS bridge with the
         // same TOFU trust as the API.
         Video.FfmpegEngine.Initialize();
-        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust);
+        // The tunnel pins under the configured controller identity, not under
+        // whatever host the stream URL names, so video and API share one pin.
+        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust,
+            connectHost => ControllerAddress.Parse(Settings.IpAddress)?.PinKey ?? connectHost);
         Streams = new Video.VideoStreamCoordinator(Service);
-        Service.CertificateChanged += (_, message) =>
-            Dispatcher.UIThread.Post(() => Service_ShowError(message));
+        // A rejection on the RTSPS tunnel has no API call to attach an error to;
+        // surface it on the panel so the user knows why every tile is dead.
+        Trust.Rejected += _ => Dispatcher.UIThread.Post(Service.ShowCertificateRejected);
         PinnedWindows = new PinnedWindowManager(Service, Settings);
         Updater = new UpdateChecker(CurrentVersion());
         Updater.StartPeriodicChecks();
@@ -263,10 +268,14 @@ public partial class App : Application
             _ => ThemeVariant.Default
         };
 
+    /// <summary>Raised after each hotkey (re)registration with whether the OS accepted it.</summary>
+    public event Action<bool>? HotkeyApplied;
+
     private void ApplyHotkey()
     {
         var hk = Settings.GlobalHotkey();
-        _hotkey?.Update(hk?.keyCode, hk?.modifiers);
+        var ok = _hotkey?.Update(hk?.keyCode, hk?.modifiers) ?? true;
+        HotkeyApplied?.Invoke(ok);
     }
 
     // MARK: - Stream keep-alive (the macOS scheduleStreamTeardown / teardownStreamsNow)
@@ -340,12 +349,6 @@ public partial class App : Application
         _streamTeardownTimer = null;
     }
 
-    private void Service_ShowError(string message)
-    {
-        // Lightweight surface for now; a styled alert is a follow-up.
-        Console.Error.WriteLine($"[QuickProtect] {message}");
-    }
-
     /// <summary>Quit the app (tray menu and the panel header's power button).</summary>
     public void RequestShutdown() => Shutdown();
 
@@ -365,8 +368,10 @@ public partial class App : Application
         Updater.Dispose();
         PinnedWindows.CloseAll();
         Streams.Dispose();
-        Service.CleanupStreams();
-        Service.CleanupPinnedStreams();
+        // Give the DELETEs a moment to reach the controller before the
+        // HttpClient goes away with them; bounded so quit never hangs.
+        var released = Task.WhenAll(Service.CleanupStreams(), Service.CleanupPinnedStreams());
+        try { released.Wait(TimeSpan.FromSeconds(2)); } catch { /* best effort on exit */ }
         Service.Dispose();
         Video.FfmpegEngine.Tunnel?.Dispose();
     }

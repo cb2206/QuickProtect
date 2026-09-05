@@ -122,6 +122,8 @@ targets:
       - path: QuickProtect/Services/ControllerRequestPolicy.swift
       - path: QuickProtect/Services/PausedGOPBuffer.swift
       - path: QuickProtect/Services/UpdateAssets.swift
+      - path: QuickProtect/Services/CertificateTrust.swift
+      - path: QuickProtect/Services/ControllerAddress.swift
       - path: QuickProtect/Services/HotkeyManager.swift
       - path: QuickProtect/Models/AppSettings.swift
       - path: QuickProtect/Models/Camera.swift

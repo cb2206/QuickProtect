@@ -6,30 +6,58 @@ using System.Security.Cryptography.X509Certificates;
 namespace QuickProtect.Core.Services;
 
 /// <summary>
-/// Loopback TLS tunnel that lets libVLC play UniFi <c>rtsps://</c> streams.
+/// Loopback TLS bridge that lets the FFmpeg engine play UniFi <c>rtsps://</c>
+/// streams while the certificate policy stays in managed code.
 ///
-/// VLC 3.x has no access module for the <c>rtsps</c> scheme at all (its live555
-/// plugin only registers <c>rtsp</c>), so handing it a controller URL fails with
-/// "unable to open the MRL". The macOS app solves this with a hand-written
-/// RTSP-over-TLS client; this port keeps libVLC for decode/render and instead
-/// bridges the transport: a listener on 127.0.0.1 accepts plain TCP from libVLC
-/// and pipes the bytes over TLS to the controller, validating the server
-/// certificate with the same TOFU <see cref="CertificateTrust"/> policy the
-/// HTTPS API uses. <see cref="MapUrl"/> rewrites
+/// FFmpeg would happily speak TLS itself, but then the controller's self-signed
+/// certificate would have to be trusted by hand-feeding OpenSSL options — and
+/// the trust-on-first-use pinning shared with the HTTPS API would be bypassed.
+/// Instead a listener on 127.0.0.1 accepts plain TCP from the in-process demuxer
+/// and pipes the bytes over an <see cref="SslStream"/> to the controller,
+/// validating the server certificate with the same <see cref="CertificateTrust"/>
+/// policy (system trust first, then TOFU pinning keyed by the configured
+/// controller identity). <see cref="MapUrl"/> rewrites
 /// <c>rtsps://host:7441/token</c> → <c>rtsp://127.0.0.1:{port}/token</c>.
 ///
 /// RTSP's interleaved-TCP mode (the app always forces <c>:rtsp-tcp</c>) keeps
 /// all control and media bytes on this single connection, so a dumb byte pump
 /// is sufficient — no RTSP awareness needed.
+///
+/// The listener is reachable by any local process, so it is deliberately
+/// limited: loopback only, an ephemeral port, and at most
+/// <see cref="MaxConnectionsPerTarget"/> concurrent connections per controller
+/// (the app itself needs one per active stream). A stray local client still
+/// needs a valid stream token to receive anything.
 /// </summary>
 public sealed class RtspTlsTunnel : IDisposable
 {
+    /// <summary>Concurrent tunneled connections allowed per controller endpoint.</summary>
+    public const int MaxConnectionsPerTarget = 16;
+
+    private sealed class Mapping
+    {
+        public required TcpListener Listener { get; init; }
+        public int Active;
+    }
+
     private readonly CertificateTrust _trust;
-    private readonly Dictionary<(string Host, int Port), TcpListener> _listeners = new();
+    private readonly Func<string, string> _pinKeyFor;
+    private readonly Dictionary<(string Host, int Port), Mapping> _mappings = new();
     private readonly object _lock = new();
     private readonly CancellationTokenSource _cts = new();
+    private volatile bool _disposed;
 
-    public RtspTlsTunnel(CertificateTrust trust) => _trust = trust;
+    /// <param name="trust">The shared certificate policy.</param>
+    /// <param name="pinKeyFor">
+    /// Maps the host a stream URL names to the identity the pin is stored under
+    /// (the configured controller, see <c>ControllerAddress.PinKey</c>), so the
+    /// video channel and the HTTPS API consult one pin. Defaults to the URL host.
+    /// </param>
+    public RtspTlsTunnel(CertificateTrust trust, Func<string, string>? pinKeyFor = null)
+    {
+        _trust = trust;
+        _pinKeyFor = pinKeyFor ?? (host => host);
+    }
 
     /// <summary>
     /// Rewrites an <c>rtsps://</c> URL to a plain <c>rtsp://</c> URL served by the
@@ -43,7 +71,8 @@ public sealed class RtspTlsTunnel : IDisposable
             return url;
 
         var targetPort = uri.IsDefaultPort ? 322 : uri.Port; // rtsps default per IANA
-        var localPort = EnsureListener(uri.Host, targetPort);
+        // IdnHost strips IPv6 brackets, which the socket connect needs gone.
+        var localPort = EnsureListener(uri.IdnHost, targetPort);
         return $"rtsp://127.0.0.1:{localPort}{uri.PathAndQuery}";
     }
 
@@ -51,25 +80,34 @@ public sealed class RtspTlsTunnel : IDisposable
     {
         lock (_lock)
         {
-            if (_listeners.TryGetValue((host, port), out var existing))
-                return ((IPEndPoint)existing.LocalEndpoint).Port;
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_mappings.TryGetValue((host, port), out var existing))
+                return ((IPEndPoint)existing.Listener.LocalEndpoint).Port;
 
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
-            _listeners[(host, port)] = listener;
-            _ = AcceptLoopAsync(listener, host, port, _cts.Token);
+            var mapping = new Mapping { Listener = listener };
+            _mappings[(host, port)] = mapping;
+            _ = AcceptLoopAsync(mapping, host, port, _cts.Token);
             return ((IPEndPoint)listener.LocalEndpoint).Port;
         }
     }
 
-    private async Task AcceptLoopAsync(TcpListener listener, string host, int port, CancellationToken ct)
+    private async Task AcceptLoopAsync(Mapping mapping, string host, int port, CancellationToken ct)
     {
         try
         {
             while (!ct.IsCancellationRequested)
             {
-                var client = await listener.AcceptTcpClientAsync(ct);
-                _ = Task.Run(() => ServeAsync(client, host, port, ct), ct);
+                var client = await mapping.Listener.AcceptTcpClientAsync(ct);
+                if (Interlocked.Increment(ref mapping.Active) > MaxConnectionsPerTarget)
+                {
+                    Interlocked.Decrement(ref mapping.Active);
+                    Log.Line($"[Tunnel] refusing connection for {host}:{port}: limit of {MaxConnectionsPerTarget} reached");
+                    client.Dispose();
+                    continue;
+                }
+                _ = Task.Run(() => ServeAsync(client, mapping, host, port, ct), ct);
             }
         }
         catch (OperationCanceledException) { /* shutting down */ }
@@ -92,11 +130,16 @@ public sealed class RtspTlsTunnel : IDisposable
     /// keep-alive CPU cost (measured ~30% of a core for 6 idle-but-connected
     /// streams), while a blocking read costs only the wakeup itself.
     /// </summary>
-    private async Task ServeAsync(TcpClient client, string host, int port, CancellationToken ct)
+    private async Task ServeAsync(TcpClient client, Mapping mapping, string host, int port, CancellationToken ct)
     {
         var local = client;
         var upstream = new TcpClient();
         SslStream? tls = null;
+        var released = 0;
+        void Release()
+        {
+            if (Interlocked.Exchange(ref released, 1) == 0) Interlocked.Decrement(ref mapping.Active);
+        }
         try
         {
             local.NoDelay = true;
@@ -107,16 +150,23 @@ public sealed class RtspTlsTunnel : IDisposable
             upstream.ReceiveBufferSize = PumpBufferSize;
             upstream.SendBufferSize = PumpBufferSize;
 
+            var pinKey = _pinKeyFor(host);
             tls = new SslStream(upstream.GetStream(), leaveInnerStreamOpen: false,
-                (_, cert, _, _) => cert != null && _trust.Evaluate(host, ToX509v2(cert)));
+                (_, cert, _, errors) => cert != null && _trust.Evaluate(pinKey, ToX509v2(cert), errors));
             await tls.AuthenticateAsClientAsync(
-                new SslClientAuthenticationOptions { TargetHost = host }, ct);
+                new SslClientAuthenticationOptions
+                {
+                    TargetHost = host,
+                    EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                                          | System.Security.Authentication.SslProtocols.Tls13
+                }, ct);
         }
         catch (OperationCanceledException)
         {
             tls?.Dispose();
             local.Dispose();
             upstream.Dispose();
+            Release();
             return;
         }
         catch (Exception ex)
@@ -125,6 +175,7 @@ public sealed class RtspTlsTunnel : IDisposable
             tls?.Dispose();
             local.Dispose();
             upstream.Dispose();
+            Release();
             return;
         }
 
@@ -142,8 +193,18 @@ public sealed class RtspTlsTunnel : IDisposable
             try { local.Dispose(); } catch { /* already torn down */ }
             try { upstream.Dispose(); } catch { /* already torn down */ }
             reg.Dispose();
+            Release();
         }
-        reg = ct.Register(Cleanup);
+        try
+        {
+            reg = ct.Register(Cleanup);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed between the handshake and here: nothing to serve.
+            Cleanup();
+            return;
+        }
         StartPump("QP-Tunnel-up", localStream, tls, Cleanup);
         StartPump("QP-Tunnel-down", tls, localStream, Cleanup);
     }
@@ -171,12 +232,15 @@ public sealed class RtspTlsTunnel : IDisposable
 
     public void Dispose()
     {
-        _cts.Cancel();
         lock (_lock)
         {
-            foreach (var l in _listeners.Values) l.Stop();
-            _listeners.Clear();
+            if (_disposed) return;
+            _disposed = true;
+            _cts.Cancel();
+            foreach (var m in _mappings.Values) m.Listener.Stop();
+            _mappings.Clear();
         }
-        _cts.Dispose();
+        // Not disposing the CTS: pumps still registering their cleanup must be
+        // able to observe the cancellation instead of an ObjectDisposedException.
     }
 }

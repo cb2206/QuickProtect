@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Security;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -36,14 +37,43 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private bool _isLoading;
     public bool IsLoading { get => _isLoading; private set { _isLoading = value; Raise(); } }
 
+    /// <summary>
+    /// Controller reachability / API errors. The panel replaces the grid with an
+    /// error card while this is set, so it must only carry problems that make
+    /// the camera list itself unusable.
+    /// </summary>
     private string? _errorMessage;
     public string? ErrorMessage { get => _errorMessage; private set { _errorMessage = value; Raise(); } }
+
+    /// <summary>
+    /// PTZ-only problems (classic-API login), surfaced as a toast — never in
+    /// <see cref="ErrorMessage"/>, which would blank the grid. Cleared by the
+    /// host once shown via <see cref="ClearPtzError"/>.
+    /// </summary>
+    private string? _ptzErrorMessage;
+    public string? PtzErrorMessage { get => _ptzErrorMessage; private set { _ptzErrorMessage = value; Raise(); } }
+    public void ClearPtzError() => _ptzErrorMessage = null;
 
     private bool _isClassicLoggedIn;
     public bool IsClassicLoggedIn { get => _isClassicLoggedIn; private set { _isClassicLoggedIn = value; Raise(); } }
 
-    /// <summary>Raised on the UI thread by the host when a cert mismatch is detected.</summary>
-    public event EventHandler<string>? CertificateChanged;
+    public const string CertificateChangedMessage =
+        "The controller's certificate changed. Open Settings to review and trust it.";
+
+    /// <summary>
+    /// Set by the TLS callback when it rejected the controller's certificate, so
+    /// the failure that follows reports the real cause instead of the generic
+    /// transport error. Read-and-cleared by <see cref="TakeCertificateRejected"/>.
+    /// </summary>
+    private int _certificateRejected;
+    private bool TakeCertificateRejected() => Interlocked.Exchange(ref _certificateRejected, 0) == 1;
+
+    /// <summary>
+    /// Surfaces a certificate rejection that happened outside an API call (the
+    /// RTSPS tunnel has no other route to the user). Streams are dead until the
+    /// user re-pins, so the error card is the right surface.
+    /// </summary>
+    public void ShowCertificateRejected() => ErrorMessage = CertificateChangedMessage;
 
     // Active server-side allocations "<cameraId>:<quality>". Popover-owned streams
     // are torn down on close; pinned streams live independently.
@@ -79,22 +109,30 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             UseCookies = false,
             AllowAutoRedirect = false
         };
-        // TOFU pinning — replaces system trust for the self-signed controller cert.
-        handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+        handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                               | System.Security.Authentication.SslProtocols.Tls13;
+        // System trust first, then trust-on-first-use pinning of the controller's
+        // key (see CertificateTrust). The pin is keyed by the configured
+        // controller identity so the RTSPS tunnel consults the same one.
+        handler.ServerCertificateCustomValidationCallback = (_, cert, _, errors) =>
         {
             if (cert == null) return false;
-            var host = _settings.IpAddress;
-            var ok = _trust.Evaluate(host, cert);
-            if (!ok)
-                CertificateChanged?.Invoke(this,
-                    "The controller's certificate changed. Open Settings to review and trust it.");
+            var pinKey = ControllerAddress?.PinKey ?? _settings.IpAddress;
+            var ok = _trust.Evaluate(pinKey, cert, errors);
+            if (!ok) Interlocked.Exchange(ref _certificateRejected, 1);
             return ok;
         };
         return handler;
     }
 
-    private string? BaseUrl => string.IsNullOrEmpty(_settings.IpAddress) ? null : $"https://{_settings.IpAddress}";
-    private Uri? MakeUrl(string path) => BaseUrl is { } b ? new Uri($"{b}/{path}") : null;
+    /// <summary>The configured controller, normalised (host, optional port, pin identity).</summary>
+    public ControllerAddress? ControllerAddress => ControllerAddress.Parse(_settings.IpAddress);
+
+    private Uri? MakeUrl(string path)
+        => ControllerAddress is { } address ? new Uri($"{address.HttpsBase}/{path}") : null;
+
+    /// <summary>Percent-encodes a controller-supplied identifier for use as one path segment.</summary>
+    private static string PathSegment(string value) => Uri.EscapeDataString(value);
 
     // MARK: - Fetch camera list
 
@@ -293,7 +331,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         Camera camera, string quality, bool pinned)
     {
         Log.Line($"[Stream] requestRtspStreamURL({quality}) for {camera.Name}");
-        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{camera.Id}/rtsps-stream");
+        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(camera.Id)}/rtsps-stream");
         if (url == null) { Log.Line("[Stream] makeURL failed"); return (StreamRequestOutcome.Failed, null); }
 
         try
@@ -320,7 +358,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             var key = StreamKey(camera.Id, quality);
             lock (_streamLock) { (pinned ? _pinnedStreams : _activeStreams).Add(key); }
             var playable = ToPlayableUrl(v.GetString()!);
-            Log.Line($"[Stream] Created {quality} for {camera.Name}: {playable}");
+            Log.Line($"[Stream] Created {quality} for {camera.Name}: {Log.RedactUrl(playable)}");
             return (StreamRequestOutcome.Success, playable);
         }
         catch (Exception ex)
@@ -334,11 +372,15 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
     // MARK: - RTSP stream cleanup
 
-    public void CleanupStreams()
+    /// <summary>
+    /// Releases every popover-owned allocation. The returned task completes when
+    /// the DELETEs have been sent (or failed); callers other than quit ignore it.
+    /// </summary>
+    public Task CleanupStreams()
     {
         string[] keys;
         lock (_streamLock) { keys = _activeStreams.ToArray(); _activeStreams.Clear(); }
-        foreach (var key in keys) DeleteByKey(key);
+        return Task.WhenAll(keys.Select(DeleteByKey));
     }
 
     public void ReleaseStream(string cameraId, string quality)
@@ -355,24 +397,29 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         DeleteRtspStream(cameraId, quality);
     }
 
-    public void CleanupPinnedStreams()
+    public Task CleanupPinnedStreams()
     {
         string[] keys;
         lock (_streamLock) { keys = _pinnedStreams.ToArray(); _pinnedStreams.Clear(); }
-        foreach (var key in keys) DeleteByKey(key);
+        return Task.WhenAll(keys.Select(DeleteByKey));
     }
 
-    private void DeleteByKey(string key)
+    private Task DeleteByKey(string key)
     {
         var parts = key.Split(':', 2);
-        if (parts.Length == 2) DeleteRtspStream(parts[0], parts[1]);
+        return parts.Length == 2 ? DeleteRtspStream(parts[0], parts[1]) : Task.CompletedTask;
     }
 
-    private void DeleteRtspStream(string cameraId, string quality)
+    /// <summary>
+    /// Releases a server-side allocation. Fire-and-forget for callers during
+    /// normal operation; quit awaits the returned task (bounded) so the
+    /// controller isn't left holding sessions until its own timeout.
+    /// </summary>
+    private Task DeleteRtspStream(string cameraId, string quality)
     {
-        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{cameraId}/rtsps-stream?qualities={quality}");
-        if (url == null) return;
-        _ = Task.Run(async () =>
+        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(cameraId)}/rtsps-stream?qualities={quality}");
+        if (url == null) return Task.CompletedTask;
+        return Task.Run(async () =>
         {
             try
             {
@@ -380,7 +427,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
                 req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
                 using var _ = await _integration.SendAsync(req).ConfigureAwait(false);
             }
-            catch { /* fire and forget */ }
+            catch (Exception ex) { Log.Line($"[Stream] release failed: {ex.Message}"); }
         });
     }
 
@@ -480,7 +527,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private async Task<(byte[]? bytes, bool unauthorized)> RequestPackageSnapshotAsync(Camera camera)
     {
         var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // cache-buster: always a fresh capture
-        var url = MakeUrl($"proxy/protect/api/cameras/{camera.Id}/package-snapshot?ts={ts}");
+        var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(camera.Id)}/package-snapshot?ts={ts}");
         if (url == null) return (null, false);
         try
         {
@@ -585,8 +632,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
                 if (delay > TimeSpan.Zero) await Task.Delay(delay).ConfigureAwait(false);
                 if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
                 {
-                    ApplyError(new InvalidOperationException(
-                        "PTZ unavailable — check the username and password in Settings."));
+                    Log.Line("[PTZ] login failed — PTZ unavailable");
+                    PtzErrorMessage = TakeCertificateRejected()
+                        ? CertificateChangedMessage
+                        : "PTZ unavailable — check the username and password in Settings.";
                     return;
                 }
                 (double x, double y, double z) next;
@@ -603,7 +652,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
     private async Task SendMoveAsync(string cameraId, (double x, double y, double z) v)
     {
-        var url = MakeUrl($"proxy/protect/api/cameras/{cameraId}/move");
+        var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(cameraId)}/move");
         if (url == null) return;
         try
         {
@@ -676,13 +725,13 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private void ApplyError(Exception ex)
     {
         Log.Line($"[API] applyError: {ex.Message}");
-        ErrorMessage = ex.Message;
+        ErrorMessage = TakeCertificateRejected() ? CertificateChangedMessage : ex.Message;
         IsLoading = false;
     }
 
     private bool Validate()
     {
-        if (string.IsNullOrEmpty(_settings.IpAddress)) { ErrorMessage = "No IP address configured. Open Settings."; return false; }
+        if (ControllerAddress is null) { ErrorMessage = "No IP address configured. Open Settings."; return false; }
         if (string.IsNullOrEmpty(_settings.ApiKey)) { ErrorMessage = "No API key configured. Open Settings."; return false; }
         return true;
     }

@@ -6,7 +6,13 @@ final class ProtectService: NSObject, ObservableObject {
 
     @Published var cameras: [Camera] = []
     @Published var isLoading = false
+    /// Controller reachability / API errors. The grid replaces itself with an
+    /// error card while this is set, so it must only carry problems that make
+    /// the camera list itself unusable.
     @Published var errorMessage: String?
+    /// PTZ-only problems (classic-API login), surfaced as a toast on the
+    /// focused camera — never in `errorMessage`, which would blank the grid.
+    @Published var ptzErrorMessage: String?
     /// Set by AppDelegate when the popover opens/closes so cells can pause players.
     @Published var isPopoverOpen = false
     /// Remembers which camera was focused so it can be restored when the panel reopens.
@@ -16,6 +22,35 @@ final class ProtectService: NSObject, ObservableObject {
     @Published var isFocusMode = false
 
     private let settings = AppSettings.shared
+
+    /// The configured controller, normalised (host, optional port, pin identity).
+    var controllerAddress: ControllerAddress? { ControllerAddress.parse(settings.ipAddress) }
+
+    /// Set by the URLSession delegate when it rejected the controller's
+    /// certificate, so the failure that follows reports the real cause instead
+    /// of the generic transport error. Read-and-cleared by `applyError`.
+    private let certificateLock = NSLock()
+    private var certificateRejected = false
+
+    private func noteCertificateRejected() {
+        certificateLock.lock(); defer { certificateLock.unlock() }
+        certificateRejected = true
+    }
+
+    private func takeCertificateRejected() -> Bool {
+        certificateLock.lock(); defer { certificateLock.unlock() }
+        let value = certificateRejected
+        certificateRejected = false
+        return value
+    }
+
+    static let certificateChangedMessage = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
+
+    /// Percent-encodes a controller-supplied identifier for use as one URL path segment.
+    static func pathSegment(_ value: String) -> String {
+        let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#"))
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    }
 
     /// Guards `activeStreams` and `pinnedStreams`. They're mutated from the
     /// continuations of concurrent stream-start `Task`s, which resume on
@@ -310,7 +345,7 @@ final class ProtectService: NSObject, ObservableObject {
                                       pinned: Bool = false) async -> StreamRequestOutcome {
         RTSPClient.log("[Stream] requestRtspStreamURL(\(quality)) for \(camera.name)")
         guard let url = makeURL(
-            path: "proxy/protect/integration/v1/cameras/\(camera.id)/rtsps-stream"
+            path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(camera.id))/rtsps-stream"
         ) else { RTSPClient.log("[Stream] makeURL failed"); return .failed }
 
         var request = URLRequest(url: url, timeoutInterval: 10)
@@ -346,7 +381,7 @@ final class ProtectService: NSObject, ObservableObject {
 
         trackStream(streamKey(camera.id, quality), pinned: pinned)
         let playable = toPlayableURL(rtspsString)
-        RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable?.absoluteString ?? "nil")")
+        RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable.map(RTSPClient.redactedDescription(of:)) ?? "nil")")
         guard let playable else { return .qualityUnavailable }
         return .success(playable)
     }
@@ -394,7 +429,7 @@ final class ProtectService: NSObject, ObservableObject {
     /// The API requires the `qualities` query parameter matching what was created.
     private func deleteRtspStream(for cameraId: String, quality: String) {
         guard let url = makeURL(
-            path: "proxy/protect/integration/v1/cameras/\(cameraId)/rtsps-stream?qualities=\(quality)"
+            path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(cameraId))/rtsps-stream?qualities=\(quality)"
         ) else { return }
 
         var request = URLRequest(url: url, timeoutInterval: 5)
@@ -528,7 +563,7 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func requestPackageSnapshot(for camera: Camera) async -> (image: CGImage?, unauthorized: Bool) {
         let ts = Int(Date().timeIntervalSince1970 * 1000)   // cache-buster: always a fresh capture
-        guard let url = makeURL(path: "proxy/protect/api/cameras/\(camera.id)/package-snapshot?ts=\(ts)") else {
+        guard let url = makeURL(path: "proxy/protect/api/cameras/\(Self.pathSegment(camera.id))/package-snapshot?ts=\(ts)") else {
             return (nil, false)
         }
         var request = URLRequest(url: url, timeoutInterval: 8)
@@ -631,9 +666,10 @@ final class ProtectService: NSObject, ObservableObject {
             }
             if !isClassicLoggedIn {
                 guard await classicLogin() else {
-                    await MainActor.run {
-                        self.errorMessage = String(localized: "PTZ unavailable — check the username and password in Settings.")
-                    }
+                    let message = takeCertificateRejected()
+                        ? Self.certificateChangedMessage
+                        : String(localized: "PTZ unavailable — check the username and password in Settings.")
+                    await MainActor.run { self.ptzErrorMessage = message }
                     return
                 }
             }
@@ -650,7 +686,7 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func sendMove(cameraId: String, body: [String: Any]) async {
         guard let url = makeURL(
-            path: "proxy/protect/api/cameras/\(cameraId)/move"
+            path: "proxy/protect/api/cameras/\(Self.pathSegment(cameraId))/move"
         ) else { return }
 
         var request = URLRequest(url: url, timeoutInterval: 5)
@@ -708,8 +744,9 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func applyError(_ error: Error) async {
         RTSPClient.log("[API] applyError: \(error.localizedDescription)")
+        let message = takeCertificateRejected() ? Self.certificateChangedMessage : error.localizedDescription
         await MainActor.run {
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = message
             self.isLoading = false
         }
     }
@@ -719,8 +756,8 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     func makeURL(path: String) -> URL? {
-        guard !settings.ipAddress.isEmpty else { return nil }
-        return URL(string: "https://\(settings.ipAddress)/\(path)")
+        guard let address = controllerAddress else { return nil }
+        return URL(string: "\(address.httpsBase)/\(path)")
     }
 
     private func validate() -> Bool {
@@ -741,9 +778,13 @@ final class ProtectService: NSObject, ObservableObject {
     }()
 
     /// Classic API session — separate cookie jar for session-based auth (PTZ).
+    /// No disk cache: package-snapshot JPEGs and camera JSON must not be
+    /// persisted to the Caches folder by the shared URLCache.
     private lazy var classicSession: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.ephemeral
         config.httpCookieStorage = HTTPCookieStorage()
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
 
@@ -773,15 +814,16 @@ extension ProtectService: URLSessionDelegate {
             completionHandler(.performDefaultHandling, nil)
             return
         }
-        // Pin the controller's public key on first use; reject if it later changes
-        // (possible MITM). Never writes to the system trust store.
-        let host = challenge.protectionSpace.host
-        if CertificateTrust.evaluate(host: host, trust: trust) {
+        // System trust first, then pin the controller's public key on first use
+        // and reject if it later changes (possible MITM) — see CertificateTrust.
+        // The pin is keyed by the configured controller identity so the RTSPS
+        // video channel consults the same one. Never writes to the system trust store.
+        let serverHost = challenge.protectionSpace.host
+        let pinKey = controllerAddress?.pinKey ?? serverHost
+        if CertificateTrust.evaluate(pinKey: pinKey, serverHost: serverHost, trust: trust) {
             completionHandler(.useCredential, URLCredential(trust: trust))
         } else {
-            Task { await MainActor.run {
-                self.errorMessage = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
-            } }
+            noteCertificateRejected()
             completionHandler(.cancelAuthenticationChallenge, nil)
         }
     }

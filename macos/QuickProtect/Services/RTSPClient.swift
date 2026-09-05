@@ -49,6 +49,10 @@ final class RTSPClient: ObservableObject {
     private let maxControlBuffer = 8 * 1024 * 1024   // hard ceiling on the receive buffer
     private let maxContentLength = 4 * 1024 * 1024   // reject larger Content-Length outright
     private let maxHeaderSize    = 64 * 1024         // give up scanning for \r\n\r\n past this
+    /// Ceiling on a single reassembled NAL (fragmentation units) and on the
+    /// NALs pending for one access unit. A stream whose fragment end or marker
+    /// bit never arrives must not grow memory without bound — drop and resync.
+    private let maxReassemblyBytes = 4 * 1024 * 1024
 
     // MARK: - State (queue-only)
 
@@ -76,6 +80,10 @@ final class RTSPClient: ObservableObject {
 
     private var codec            = "H264"
     private var fuBuffer:          [UInt8]?
+    /// Set on the queue when the TLS verify block rejected the controller's
+    /// certificate, so the generic connection-failed text that follows doesn't
+    /// overwrite the actionable "certificate changed" message.
+    private var certificateRejected = false
     private var formatDescription: CMVideoFormatDescription?
     private var sequenceNumber:    Int64 = 0
 
@@ -176,6 +184,13 @@ final class RTSPClient: ObservableObject {
     private static let maxLogBytes: UInt64 = 1_048_576  // 1 MB, truncated on rollover
 
     static func log(_ msg: String) { dbg(msg) }
+
+    /// Scheme, host and port only. The path of a stream URL is a bearer token
+    /// for live video and must never reach the log.
+    static func redactedDescription(of url: URL) -> String {
+        let port = url.port.map { ":\($0)" } ?? ""
+        return "\(url.scheme ?? "?")://\(url.host ?? "?")\(port)/…"
+    }
     private static func dbg(_ msg: String) {
         guard debugLoggingEnabled else { return }
         let line = "\(Date()) \(msg)\n"
@@ -204,7 +219,7 @@ final class RTSPClient: ObservableObject {
     /// DisplayImmediately, so the new stream replaces the held frame on its first
     /// enqueue regardless of timestamps.
     func connect(to url: URL, keepLastFrame: Bool = false) {
-        Self.dbg("[RTSP] connect called: \(url)")
+        Self.dbg("[RTSP] connect called: \(Self.redactedDescription(of: url))")
         DispatchQueue.main.async { self.hasFrame = false }
         queue.async { [self] in
             disconnectOnQueue(flushDisplay: !keepLastFrame)
@@ -233,25 +248,30 @@ final class RTSPClient: ObservableObject {
             renderPaused     = false
             pausedGOP        = PausedGOPBuffer()
             awaitingKeyframeAfterResume = false
+            certificateRejected = false
 
             guard let host = url.host,
                   let rawPort = url.port,
                   let port = NWEndpoint.Port(rawValue: UInt16(rawPort))
             else {
-                DispatchQueue.main.async { self.error = "Invalid RTSP URL: \(url)" }
+                DispatchQueue.main.async { self.error = "Invalid RTSP URL" }
                 return
             }
 
             let tlsOpts = NWProtocolTLS.Options()
-            // Trust-on-first-use pinning, same policy as the HTTPS path: accept the
-            // self-signed controller cert on first sight, reject if its key later
-            // changes (possible MITM). Never writes to the system trust store.
+            sec_protocol_options_set_min_tls_protocol_version(tlsOpts.securityProtocolOptions, .TLSv12)
+            // Same certificate policy as the HTTPS path (system trust, then
+            // trust-on-first-use pinning — see CertificateTrust). The pin is
+            // keyed by the configured controller identity, not by the host in
+            // the stream URL, so both channels share one pin.
+            let pinKey = ControllerAddress.parse(AppSettings.shared.ipAddress)?.pinKey ?? host
             sec_protocol_options_set_verify_block(
                 tlsOpts.securityProtocolOptions,
                 { [weak self] _, secTrust, complete in
                     let trust = sec_trust_copy_ref(secTrust).takeRetainedValue()
-                    let ok = CertificateTrust.evaluate(host: host, trust: trust)
+                    let ok = CertificateTrust.evaluate(pinKey: pinKey, serverHost: host, trust: trust)
                     if !ok {
+                        self?.certificateRejected = true
                         DispatchQueue.main.async {
                             self?.error = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
                         }
@@ -294,7 +314,10 @@ final class RTSPClient: ObservableObject {
                     self.sendOptions()
                 case .failed(let e):
                     Self.dbg("[RTSP] Connection FAILED: \(e.localizedDescription)")
-                    DispatchQueue.main.async { self.error = e.localizedDescription }
+                    // A certificate rejection already published its own message.
+                    if !self.certificateRejected {
+                        DispatchQueue.main.async { self.error = e.localizedDescription }
+                    }
                 case .cancelled:
                     DispatchQueue.main.async { self.isConnected = false }
                 default: break
@@ -379,7 +402,7 @@ final class RTSPClient: ObservableObject {
             isConnected = true
             error = nil
         }
-        Self.dbg("[RTSP] handover complete: \(currentURL?.absoluteString ?? "?")")
+        Self.dbg("[RTSP] handover complete: \(currentURL.map(Self.redactedDescription(of:)) ?? "?")")
         finishHandover(success: true)
     }
 
@@ -688,8 +711,10 @@ final class RTSPClient: ObservableObject {
     /// Tear down the connection with an error. Must be called on `queue`.
     private func failConnection(_ message: String) {
         Self.dbg("[RTSP] failConnection: \(message)")
-        DispatchQueue.main.async { self.error = message }
+        // Disconnect first: its main-queue hop clears `error`, and the message
+        // must land after that so the user actually sees why the stream ended.
         disconnectOnQueue()
+        DispatchQueue.main.async { self.error = message }
     }
 
     // MARK: - RTSP response parser
@@ -755,7 +780,10 @@ final class RTSPClient: ObservableObject {
                 if bufferCount > 0 { processRTSPResponses() }
                 return
             }
-            DispatchQueue.main.async { self.error = "RTSP \(statusCode)" }
+            // Anything else is fatal for this session: close the socket rather
+            // than leaving an established connection idling with no state to
+            // advance to.
+            failConnection("RTSP \(statusCode)")
             return
         }
 
@@ -998,6 +1026,7 @@ final class RTSPClient: ObservableObject {
             } else {
                 fuBuffer?.append(contentsOf: buffer[(off + 2) ..< (off + length)])
             }
+            dropFragmentIfOversized()
             if isEnd, let complete = fuBuffer { emitNAL(complete); fuBuffer = nil }
 
         default: break
@@ -1022,6 +1051,7 @@ final class RTSPClient: ObservableObject {
             } else {
                 fuBuffer?.append(contentsOf: buffer[(off + 3) ..< (off + length)])
             }
+            dropFragmentIfOversized()
             if isEnd, let complete = fuBuffer { emitNAL(complete); fuBuffer = nil }
 
         case 48:    // Aggregation Packet
@@ -1035,6 +1065,15 @@ final class RTSPClient: ObservableObject {
 
         default:
             emitNAL(Array(buffer[off ..< off + length]))
+        }
+    }
+
+    /// Queue-only. Discards a fragmented NAL whose end never came (the stream
+    /// resyncs at the next fragment start).
+    private func dropFragmentIfOversized() {
+        if let count = fuBuffer?.count, count > maxReassemblyBytes {
+            Self.dbg("[RTSP] dropping fragmented NAL over \(maxReassemblyBytes) bytes")
+            fuBuffer = nil
         }
     }
 
@@ -1084,6 +1123,12 @@ final class RTSPClient: ObservableObject {
 
         guard formatDescription != nil else { return }
         pendingNALs.append(nal)
+        // An access unit whose marker bit never arrives would otherwise pile up
+        // forever; a real AU is a handful of NALs and well under the cap.
+        if pendingNALs.count > 512 || pendingNALs.reduce(0, { $0 + $1.count }) > maxReassemblyBytes {
+            Self.dbg("[RTSP] dropping oversized access unit (\(pendingNALs.count) NALs)")
+            pendingNALs.removeAll(keepingCapacity: true)
+        }
     }
 
     // MARK: - AVCC/HVCC → CMSampleBuffer → display layer

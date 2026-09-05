@@ -16,7 +16,10 @@ final class HotkeyManager {
 
     // MARK: - Public
 
-    func register(keyCode: UInt32, carbonModifiers: UInt32) {
+    /// Returns false when the system refused the combination (typically because
+    /// another app already owns it), in which case nothing is registered.
+    @discardableResult
+    func register(keyCode: UInt32, carbonModifiers: UInt32) -> Bool {
         unregister()
 
         let hotKeyID = EventHotKeyID(
@@ -39,7 +42,14 @@ final class HotkeyManager {
 
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
         InstallEventHandler(GetApplicationEventTarget(), handler, 1, &eventType, selfPtr, &handlerRef)
-        RegisterEventHotKey(keyCode, carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotkeyRef)
+        let status = RegisterEventHotKey(keyCode, carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotkeyRef)
+        guard status == noErr else {
+            NSLog("[Hotkey] RegisterEventHotKey failed: %d", status)
+            hotkeyRef = nil
+            unregister()
+            return false
+        }
+        return true
     }
 
     func unregister() {

@@ -147,6 +147,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 case nameof(ProtectService.Cameras): RebuildTiles(); break;
                 case nameof(ProtectService.IsLoading): IsLoading = _service.IsLoading; break;
                 case nameof(ProtectService.ErrorMessage): ErrorMessage = _service.ErrorMessage; break;
+                case nameof(ProtectService.PtzErrorMessage):
+                    // PTZ problems are per-camera feedback, never the grid's error card.
+                    if (_service.PtzErrorMessage is { } ptzError)
+                    {
+                        ShowToast(Localization.Loc.Get(ptzError));
+                        _service.ClearPtzError();
+                    }
+                    break;
             }
         });
     }
@@ -281,9 +289,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Open the camera in the controller's web UI (macOS "Open in Protect").</summary>
     public void OpenInProtect(CameraTileViewModel tile)
     {
-        var ip = _settings.IpAddress;
-        if (string.IsNullOrEmpty(ip)) return;
-        Platform.UrlOpener.Open($"https://{ip}/protect/dashboard/all/sidepanel/device/{tile.Camera.Id}");
+        if (ControllerAddress.Parse(_settings.IpAddress) is not { } address) return;
+        Platform.UrlOpener.Open($"{address.HttpsBase}/protect/dashboard/all/sidepanel/device/{Uri.EscapeDataString(tile.Camera.Id)}");
     }
 
     /// <summary>"Save Current View as New Profile…" (header profile menu parity).</summary>

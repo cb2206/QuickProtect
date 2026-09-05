@@ -111,11 +111,19 @@ final class UpdateChecker: NSObject, ObservableObject {
 
                 let remote = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
                 self.latestVersion = remote
-                self.releaseURL = URL(string: htmlURL)
+                self.releaseURL = URL(string: htmlURL).flatMap(self.validatedReleaseURL)
                 self.updateAvailable = self.isNewer(remote: remote, local: self.currentVersion)
                     && UpdateAssets.containsMacAsset(assetNames)
             }
         }.resume()
+    }
+
+    /// Only ever hand the browser this project's own GitHub release pages,
+    /// whatever `html_url` the API response carried.
+    func validatedReleaseURL(_ url: URL) -> URL? {
+        guard url.scheme == "https", url.host == "github.com",
+              url.path.hasPrefix("/\(repoOwner)/\(repoName)/") else { return nil }
+        return url
     }
 
     // MARK: - Open the release for manual download

@@ -618,8 +618,11 @@ final class AppSettings: ObservableObject {
     private static func loadSecret(_ account: String) -> String {
         if let value = KeychainStore.get(account) { return value }
         if let legacy = UserDefaults.standard.string(forKey: account), !legacy.isEmpty {
-            KeychainStore.set(legacy, account: account)
-            UserDefaults.standard.removeObject(forKey: account)
+            // Only drop the plaintext copy once the Keychain write succeeded;
+            // otherwise the credential would be lost on this launch.
+            if KeychainStore.set(legacy, account: account) {
+                UserDefaults.standard.removeObject(forKey: account)
+            }
             return legacy
         }
         return ""
@@ -771,8 +774,10 @@ enum KeychainStore {
     }
 
     /// Stores `value` for `account`. An empty string removes the item entirely.
-    static func set(_ value: String, account: String) {
-        guard !value.isEmpty else { remove(account); return }
+    /// Returns false when the Keychain refused the write (the status is logged).
+    @discardableResult
+    static func set(_ value: String, account: String) -> Bool {
+        guard !value.isEmpty else { return remove(account) }
 
         let data = Data(value.utf8)
         let attributes: [String: Any] = [
@@ -782,15 +787,26 @@ enum KeychainStore {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
 
-        let status = SecItemUpdate(baseQuery(account) as CFDictionary, attributes as CFDictionary)
+        var status = SecItemUpdate(baseQuery(account) as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {
             var insert = baseQuery(account)
             insert.merge(attributes) { _, new in new }
-            SecItemAdd(insert as CFDictionary, nil)
+            status = SecItemAdd(insert as CFDictionary, nil)
         }
+        return check(status, "store", account)
     }
 
-    static func remove(_ account: String) {
-        SecItemDelete(baseQuery(account) as CFDictionary)
+    /// Removes the item. Returns true when it is gone (including "was never there").
+    @discardableResult
+    static func remove(_ account: String) -> Bool {
+        let status = SecItemDelete(baseQuery(account) as CFDictionary)
+        return status == errSecItemNotFound || check(status, "remove", account)
+    }
+
+    private static func check(_ status: OSStatus, _ op: String, _ account: String) -> Bool {
+        guard status != errSecSuccess else { return true }
+        let reason = SecCopyErrorMessageString(status, nil) as String? ?? "OSStatus \(status)"
+        NSLog("[Keychain] %@ %@ failed: %@", op, account, reason)
+        return false
     }
 }

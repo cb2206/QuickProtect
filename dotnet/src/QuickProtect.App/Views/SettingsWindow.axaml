@@ -268,15 +268,37 @@
 
             <StackPanel Spacing="6" IsVisible="{Binding HasPendingCert}">
               <TextBlock Text="{loc:Loc 'Certificate'}" Classes="cardCaption" />
-              <Border Background="{DynamicResource QpStatusOrangeSurface}" CornerRadius="8" Padding="14,10">
-                <StackPanel Spacing="8">
-                  <TextBlock Text="{loc:Loc 'The controller\'s certificate changed since you last connected.'}"
-                             Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
-                  <TextBlock Text="{loc:Loc 'This is expected if you reinstalled or replaced the controller — but if you didn\'t, it may indicate someone intercepting the connection. Trust it only if you recognize the change.'}"
-                             Classes="rowHint" TextWrapping="Wrap" />
-                  <Button Content="{loc:Loc 'Trust new certificate'}" Command="{Binding TrustNewCertificateCommand}" />
-                </StackPanel>
-              </Border>
+              <ItemsControl ItemsSource="{Binding PendingCertificates}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PendingCertificate">
+                    <Border Background="{DynamicResource QpStatusOrangeSurface}" CornerRadius="8" Padding="14,10">
+                      <StackPanel Spacing="8">
+                        <TextBlock Text="{loc:Loc 'The controller\'s certificate changed since you last connected.'}"
+                                   Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
+                        <TextBlock Text="{loc:Loc 'This is expected if you reinstalled or replaced the controller — but if you didn\'t, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.'}"
+                                   Classes="rowHint" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Host}" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
+                        <StackPanel Spacing="2" IsVisible="{Binding HasTrustedFingerprint}">
+                          <TextBlock Text="{loc:Loc 'Trusted key'}" Classes="rowHint" />
+                          <SelectableTextBlock Text="{Binding TrustedFingerprint}" FontFamily="Consolas,Menlo,monospace"
+                                               FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource QpTextPrimary}" />
+                        </StackPanel>
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="{loc:Loc 'New key'}" Classes="rowHint" />
+                          <SelectableTextBlock Text="{Binding NewFingerprint}" FontFamily="Consolas,Menlo,monospace"
+                                               FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource QpTextPrimary}" />
+                        </StackPanel>
+                        <Button Content="{loc:Loc 'Trust new certificate'}"
+                                Command="{Binding $parent[ItemsControl].((vm:SettingsViewModel)DataContext).TrustNewCertificateCommand}"
+                                CommandParameter="{Binding Host}" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </StackPanel>
 
           </StackPanel>
@@ -418,6 +440,9 @@
                       <Button Content="{loc:Loc 'Clear'}" Command="{Binding ClearHotkeyCommand}" />
                     </StackPanel>
                   </Grid>
+                  <TextBlock Text="{Binding HotkeyStatusMessage}" Classes="rowHint" TextWrapping="Wrap"
+                             Margin="14,0,14,10"
+                             IsVisible="{Binding HotkeyStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </StackPanel>
               </Border>
             </StackPanel>

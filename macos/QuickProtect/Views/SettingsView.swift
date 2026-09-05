@@ -70,6 +70,7 @@ struct SettingsView: View {
     @State private var showPassword = false
     /// Toggled to force `pendingCertFingerprint` to re-read after the user re-pins.
     @State private var certRefresh = false
+    @State private var hotkeyRegistrationFailed = false
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
@@ -254,21 +255,27 @@ struct SettingsView: View {
                 }
             }
 
-            if let candidate = pendingCertFingerprint {
+            let pending = pendingCertificates
+            if !pending.isEmpty {
                 AuroraSettingsSection(String(localized: "Certificate")) {
-                    AuroraSettingsRow(
-                        String(localized: "Certificate changed"),
-                        hint: String(localized: "The controller is presenting a new certificate (key \(String(candidate.prefix(16)))…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change."),
-                        isLast: true,
-                        labelExpands: true
-                    ) {
-                        AuroraPrimaryButton(
-                            title: String(localized: "Trust new certificate"),
-                            disabled: false
+                    ForEach(Array(pending.enumerated()), id: \.element.host) { index, entry in
+                        AuroraSettingsRow(
+                            String(localized: "Certificate changed"),
+                            hint: String(localized: "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it."),
+                            isLast: index == pending.count - 1,
+                            labelExpands: true
                         ) {
-                            CertificateTrust.Store().trustPending(host: settings.ipAddress)
-                            certRefresh.toggle()
-                            runTest()
+                            VStack(alignment: .trailing, spacing: 8) {
+                                certificateFingerprints(for: entry)
+                                AuroraPrimaryButton(
+                                    title: String(localized: "Trust new certificate"),
+                                    disabled: false
+                                ) {
+                                    CertificateTrust.Store().trustPending(host: entry.host)
+                                    certRefresh.toggle()
+                                    runTest()
+                                }
+                            }
                         }
                     }
                 }
@@ -276,12 +283,36 @@ struct SettingsView: View {
         }
     }
 
-    /// The fingerprint of a changed controller certificate awaiting the user's
-    /// approval, if any. Reads through `certRefresh` so re-pinning updates the UI.
-    private var pendingCertFingerprint: String? {
+    /// Full SHA-256 SubjectPublicKeyInfo fingerprints of the trusted and the
+    /// new key, so the change can be verified against the controller.
+    private func certificateFingerprints(for entry: (host: String, fingerprint: String)) -> some View {
+        let pinned = CertificateTrust.Store().pinned(host: entry.host)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(entry.host)
+                .font(.system(size: 11, weight: .semibold))
+            if let pinned {
+                Text(String(localized: "Trusted key"))
+                    .font(.system(size: 10)).foregroundColor(.secondary)
+                Text(CertificateTrust.displayFingerprint(pinned))
+                    .font(.system(size: 10, design: .monospaced))
+                    .textSelection(.enabled)
+            }
+            Text(String(localized: "New key"))
+                .font(.system(size: 10)).foregroundColor(.secondary)
+            Text(CertificateTrust.displayFingerprint(entry.fingerprint))
+                .font(.system(size: 10, design: .monospaced))
+                .textSelection(.enabled)
+        }
+        .frame(maxWidth: 360, alignment: .leading)
+    }
+
+    /// Every changed controller certificate awaiting the user's decision.
+    /// Listed for all hosts rather than one guessed key, so a pin left under an
+    /// older key format can still be reviewed. Reads through `certRefresh` so
+    /// re-pinning updates the UI.
+    private var pendingCertificates: [(host: String, fingerprint: String)] {
         _ = certRefresh
-        guard !settings.ipAddress.isEmpty else { return nil }
-        return CertificateTrust.Store().pending(host: settings.ipAddress)
+        return CertificateTrust.Store().allPending()
     }
 
     // MARK: General
@@ -545,9 +576,17 @@ struct SettingsView: View {
                             AuroraSecondaryButton(title: String(localized: "Clear")) {
                                 settings.clearGlobalHotkey()
                                 HotkeyManager.shared.unregister()
+                                hotkeyRegistrationFailed = false
                             }
                         }
                     }
+                }
+                if hotkeyRegistrationFailed {
+                    AuroraSettingsRow(
+                        String(localized: "Couldn't register this shortcut — it may be in use by another app."),
+                        isLast: true,
+                        labelExpands: true
+                    ) { EmptyView() }
                 }
             }
             AuroraSettingsSection(String(localized: "Within QuickProtect")) {
@@ -704,7 +743,7 @@ struct SettingsView: View {
             HotkeyRecorderView { keyCode, modifiers in
                 let carbonMods = HotkeyManager.carbonModifiers(from: modifiers)
                 settings.setGlobalHotkey(keyCode: UInt32(keyCode), carbonModifiers: carbonMods)
-                HotkeyManager.shared.register(keyCode: UInt32(keyCode), carbonModifiers: carbonMods)
+                hotkeyRegistrationFailed = !HotkeyManager.shared.register(keyCode: UInt32(keyCode), carbonModifiers: carbonMods)
                 isRecordingHotkey = false
             } onCancel: {
                 isRecordingHotkey = false
@@ -734,6 +773,11 @@ struct SettingsView: View {
     private func runTest() {
         isTesting = true
         testResult = nil
+        // Store the address in its canonical form (scheme, path and whitespace
+        // dropped) so what the user sees is exactly what gets pinned and dialled.
+        if let address = ControllerAddress.parse(settings.ipAddress), address.authority != settings.ipAddress {
+            settings.ipAddress = address.authority
+        }
         Task {
             await service.fetchCameras(forced: true)
             isTesting = false

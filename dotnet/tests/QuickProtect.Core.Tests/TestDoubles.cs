@@ -17,6 +17,7 @@ public sealed class InMemoryPreferences : IPreferences
     public T? GetJson<T>(string k) { if (Raw(k) is not { } e) return default; try { return e.Deserialize<T>(); } catch { return default; } }
     public bool Contains(string k) => _v.ContainsKey(k);
     public void Remove(string k) => _v.Remove(k);
+    public IReadOnlyCollection<string> Keys => _v.Keys.ToArray();
 
     public void SetString(string k, string? val) => Store(k, val);
     public void SetBool(string k, bool val) => Store(k, val);

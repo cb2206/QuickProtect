@@ -15,8 +15,12 @@ namespace QuickProtect.App.Platform;
 /// </summary>
 public interface IGlobalHotkey : IDisposable
 {
-    /// <summary>Register (or re-register) the hotkey; pass null to clear.</summary>
-    void Update(int? keyCode, int? modifiers);
+    /// <summary>
+    /// Register (or re-register) the hotkey; pass null to clear. Returns false
+    /// when the system refused the combination (typically because another app
+    /// owns it) — backends that can't know synchronously return true.
+    /// </summary>
+    bool Update(int? keyCode, int? modifiers);
 }
 
 public static class GlobalHotkeyFactory
@@ -29,10 +33,11 @@ public static class GlobalHotkeyFactory
 
 public sealed class NoopGlobalHotkey : IGlobalHotkey
 {
-    public void Update(int? keyCode, int? modifiers)
+    public bool Update(int? keyCode, int? modifiers)
     {
         if (keyCode != null && !OperatingSystem.IsWindows())
             Log.Line("[Hotkey] global hotkeys are not yet supported on this platform.");
+        return true;
     }
     public void Dispose() { }
 }
@@ -48,7 +53,8 @@ public sealed class WindowsGlobalHotkey : IGlobalHotkey
     private const int HotkeyId = 0xB001;
     private const uint WmHotkey = 0x0312;
     private const uint WmQuit = 0x0012;
-    private const uint WmApp = 0x8000; // custom "register" signal
+    /// <summary>MOD_NOREPEAT: a held key fires once instead of toggling the panel on every auto-repeat.</summary>
+    private const uint ModNoRepeat = 0x4000;
 
     private readonly Action _onTriggered;
     private Thread? _thread;
@@ -57,22 +63,27 @@ public sealed class WindowsGlobalHotkey : IGlobalHotkey
 
     public WindowsGlobalHotkey(Action onTriggered) => _onTriggered = onTriggered;
 
-    public void Update(int? keyCode, int? modifiers)
+    public bool Update(int? keyCode, int? modifiers)
     {
         Stop();
         _vk = keyCode;
         _mod = modifiers;
-        if (keyCode is null) return;
+        if (keyCode is null) return true;
 
         var ready = new ManualResetEventSlim(false);
+        var registered = false;
         _thread = new Thread(() =>
         {
             _threadId = GetCurrentThreadId();
-            RegisterHotKey(IntPtr.Zero, HotkeyId, (uint)(modifiers ?? 0), (uint)keyCode.Value);
+            registered = RegisterHotKey(IntPtr.Zero, HotkeyId,
+                (uint)(modifiers ?? 0) | ModNoRepeat, (uint)keyCode.Value);
+            if (!registered)
+                Log.Line($"[Hotkey] RegisterHotKey failed (error {Marshal.GetLastWin32Error()}) — combination probably in use");
             ready.Set();
+            if (!registered) return;
+            // GetMessage returns 0 on WM_QUIT, which ends the loop.
             while (GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
             {
-                if (msg.message == WmQuit) break;
                 if (msg.message == WmHotkey)
                     Dispatcher.UIThread.Post(_onTriggered);
             }
@@ -81,6 +92,7 @@ public sealed class WindowsGlobalHotkey : IGlobalHotkey
         { IsBackground = true, Name = "QP-GlobalHotkey" };
         _thread.Start();
         ready.Wait(1000);
+        return registered;
     }
 
     private void Stop()
@@ -109,7 +121,7 @@ public sealed class WindowsGlobalHotkey : IGlobalHotkey
         public int ptY;
     }
 
-    [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     [DllImport("user32.dll")] private static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint min, uint max);
     [DllImport("user32.dll")] private static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);

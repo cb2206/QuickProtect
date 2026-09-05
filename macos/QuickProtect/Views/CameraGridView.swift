@@ -257,7 +257,6 @@ struct CameraCell: View {
     @State private var panOffset: CGSize = .zero
     @State private var lastPanOffset: CGSize = .zero
     @State private var keyMonitor: Any?
-    @State private var globalKeyMonitor: Any?
     @State private var cellSize: CGSize = .zero       // for pan clamping
     @State private var focusFillMode: Bool = false    // fit/fill toggle; loaded per-camera on focus (default: fit)
     @State private var ptzActiveDirection: AuroraPtzDpad.Direction?  // lit arrow on the d-pad
@@ -450,6 +449,13 @@ struct CameraCell: View {
             if isFocused {
                 snapshotToastView
             }
+        }
+        // PTZ problems (a failed classic-API login) are per-camera feedback —
+        // shown as a toast on the focused camera, never as the grid's error card.
+        .onChange(of: service.ptzErrorMessage) { message in
+            guard let message, isFocused else { return }
+            showSnapshotToast(message, ok: false)
+            service.ptzErrorMessage = nil
         }
         // The parent always supplies an explicit width AND height (grid cells get
         // an aspect-shaped frame; focus gets the full geometry), so this view never
@@ -650,7 +656,10 @@ struct CameraCell: View {
     private func installKeyMonitor() {
         guard keyMonitor == nil else { return }
 
-        // Local monitor — fallback for when DisplayLayerHostView doesn't have focus
+        // Local monitor — fallback for when DisplayLayerHostView doesn't have
+        // focus. Deliberately no global monitor: focus activates the app, so
+        // the local one sees every key, and a global key monitor is a
+        // system-wide keystroke hook that needs Input Monitoring permission.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [self] event in
             guard focusedCameraId == camera.id else { return event }
             if event.type == .keyUp {
@@ -666,32 +675,12 @@ struct CameraCell: View {
             if handlePtzKeyDown(event.keyCode) { return nil }
             return event
         }
-
-        // Global monitor — captures events when app isn't active
-        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .keyUp]) { [self] event in
-            guard focusedCameraId == camera.id else { return }
-            if event.type == .keyUp {
-                _ = handlePtzKeyUp(event.keyCode)
-                return
-            }
-            // keyDown
-            if event.keyCode == 3 { DispatchQueue.main.async { toggleTrueFullscreen() } }    // F
-            if event.keyCode == 53 { DispatchQueue.main.async { handleEscape() } }
-            if event.keyCode == 46 { DispatchQueue.main.async { toggleMute() } }             // M
-            if event.keyCode == 8 { DispatchQueue.main.async { if showsPip { swapLenses() } } } // C
-            if event.keyCode == 1 { DispatchQueue.main.async { captureSnapshot() } }            // S
-            if !event.isARepeat { _ = handlePtzKeyDown(event.keyCode) }
-        }
     }
 
     private func removeKeyMonitor() {
         if let m = keyMonitor {
             NSEvent.removeMonitor(m)
             keyMonitor = nil
-        }
-        if let m = globalKeyMonitor {
-            NSEvent.removeMonitor(m)
-            globalKeyMonitor = nil
         }
     }
 

@@ -37,11 +37,14 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
 
     public PortalGlobalHotkey(Action onTriggered) => _onTriggered = onTriggered;
 
-    public void Update(int? keyCode, int? modifiers)
+    public bool Update(int? keyCode, int? modifiers)
     {
         var gen = Interlocked.Increment(ref _generation);
         _pending?.TrySetCanceled();
         _ = Task.Run(() => UpdateAsync(gen, keyCode, modifiers));
+        // The compositor owns the binding and answers asynchronously (possibly
+        // via a consent dialog); the granted trigger is logged when it arrives.
+        return true;
     }
 
     private async Task UpdateAsync(int gen, int? keyCode, int? modifiers)

@@ -75,7 +75,7 @@ public sealed class UpdateChecker : INotifyPropertyChanged, IDisposable
             var remote = tag.GetString()!.TrimStart('v', 'V');
             LatestVersion = remote;
             if (root.TryGetProperty("html_url", out var html) && html.ValueKind == JsonValueKind.String)
-                ReleaseUrl = html.GetString();
+                ReleaseUrl = IsProjectReleaseUrl(html.GetString()) ? html.GetString() : null;
 
             // Only announce when the release actually carries an asset for
             // this OS — releases ship all platforms under one tag, but a
@@ -95,6 +95,16 @@ public sealed class UpdateChecker : INotifyPropertyChanged, IDisposable
         }
         finally { IsChecking = false; }
     }
+
+    /// <summary>
+    /// Only ever hand the browser this project's own GitHub release pages,
+    /// whatever <c>html_url</c> the API response carried.
+    /// </summary>
+    public static bool IsProjectReleaseUrl(string? url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+           && uri.Scheme == Uri.UriSchemeHttps
+           && uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+           && uri.AbsolutePath.StartsWith($"/{RepoOwner}/{RepoName}/", StringComparison.Ordinal);
 
     /// <summary>
     /// True when any asset name matches the running OS. The naming convention

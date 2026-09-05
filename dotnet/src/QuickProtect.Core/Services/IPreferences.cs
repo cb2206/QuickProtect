@@ -29,6 +29,9 @@ public interface IPreferences
 
     bool Contains(string key);
     void Remove(string key);
+
+    /// <summary>Snapshot of every stored key (for prefix scans such as pending certificates).</summary>
+    IReadOnlyCollection<string> Keys { get; }
 }
 
 /// <summary>JSON-file implementation of <see cref="IPreferences"/>. Thread-safe and atomic on write.</summary>
@@ -98,6 +101,8 @@ public sealed class JsonFilePreferences : IPreferences
     }
 
     public bool Contains(string key) => _values.ContainsKey(key);
+
+    public IReadOnlyCollection<string> Keys => _values.Keys.ToArray();
 
     public void SetString(string key, string? value) { Store(key, value); }
     public void SetBool(string key, bool value) { Store(key, value); }
