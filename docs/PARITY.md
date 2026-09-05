@@ -153,8 +153,8 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 
 ## Platform notes (Linux)
 
-- Video needs the FFmpeg 7.1 natives (`scripts/get-ffmpeg.sh`, fetched into
-  gitignored `native/`) or a matching system FFmpeg (7.x / `libavcodec.so.61`).
+- Video needs the FFmpeg 9.0 natives (`scripts/get-ffmpeg.sh`, fetched into
+  gitignored `native/`) or a matching system FFmpeg (9.x / `libavcodec.so.63`).
 - The rtsps TLS tunnel works unchanged on Linux (pure .NET sockets).
 - Tray icons need StatusNotifierItem/appindicator support (GNOME may need an
   extension) — without a tray, add a `--open-panel` desktop entry as fallback.
@@ -208,7 +208,7 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   away in a package — to the manifest's `windows.startupTask`, which the
   Settings UI surfaces as a pointer to Windows' own switch.
 - **Linux** (decided 2026-08, ships with 1.3.1): GitHub-release tarball
-  (`scripts/package-linux.sh`, self-contained linux-x64 with the FFmpeg 7.1
+  (`scripts/package-linux.sh`, self-contained linux-x64 with the FFmpeg 9.0
   natives bundled, plus a .desktop template + icon) with the in-app
   notify-only update check, and an AUR package (`quickprotect-bin`,
   `installer/aur/PKGBUILD`, consumes the tarball). Linux is free-only — there

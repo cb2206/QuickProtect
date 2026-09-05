@@ -52,17 +52,17 @@
       },
       "FFmpeg.AutoGen.Abstractions": {
         "type": "Direct",
-        "requested": "[7.1.1, )",
-        "resolved": "7.1.1",
-        "contentHash": "Is7nZjzaqsl83iVB2DVE3p1QHu9zqvPHomCYK1EmUo1hdKBw72Bhh/4g8vt43ygnsd5wqfsZS7sdv5C37x7FcQ=="
+        "requested": "[9.0.1.1, )",
+        "resolved": "9.0.1.1",
+        "contentHash": "ZthcQtg0CyBJSM14AsQGzcj+qy5L3IDLpxm7i+tFNoO9K/780Czpb4cVxackBBXd3V3fh3thaQ9R47wJMYXuRg=="
       },
       "FFmpeg.AutoGen.Bindings.DynamicallyLoaded": {
         "type": "Direct",
-        "requested": "[7.1.1, )",
-        "resolved": "7.1.1",
-        "contentHash": "U9oOISElv5AMENv8pRLd50o9kGzjo1UuO9RHQwosTHWw3EmMJkrF2XJTEDaZa6si7OYGAfi4TsChTtJoJTG+nw==",
+        "requested": "[9.0.1.1, )",
+        "resolved": "9.0.1.1",
+        "contentHash": "C7YhCgZa3Lu5RhVgOtVGYiAhVn2eQUM5vT6SEJM0OjB+YbQ2zuFVZN8fWfeLeJkToqgc90fSP0XeC32EajF7sQ==",
         "dependencies": {
-          "FFmpeg.AutoGen.Abstractions": "7.1.1"
+          "FFmpeg.AutoGen.Abstractions": "9.0.1.1"
         }
       },
       "NAudio.Core": {

@@ -550,7 +550,7 @@ public sealed class VideoStreamClient : IDisposable
                     sws = ffmpeg.sws_getCachedContext(sws,
                         src->width, src->height, (AVPixelFormat)src->format,
                         src->width, src->height, AVPixelFormat.AV_PIX_FMT_BGRA,
-                        ffmpeg.SWS_BILINEAR, null, null, null);
+                        (int)SwsFlags.SWS_BILINEAR, null, null, null);
                     if (sws == null)
                     {
                         // No scaler for this pixel format: sws_scale on null is a

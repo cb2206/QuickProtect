@@ -83,7 +83,7 @@ dotnet/
 
 ## Build & run
 
-Prerequisites: **.NET 8 SDK**, plus the **FFmpeg 7.1 shared libraries** for
+Prerequisites: **.NET 8 SDK**, plus the **FFmpeg 9.0 shared libraries** for
 video. Fetch them once per checkout into `native/ffmpeg/<rid>/` (gitignored);
 the build bundles them next to the app automatically:
 
@@ -95,7 +95,7 @@ powershell -File scripts/get-ffmpeg.ps1            # Windows (win-x64 + win-arm6
 
 If the bundle is absent, the engine falls back to system-installed FFmpeg
 libraries — that only works when the system major version matches the
-`FFmpeg.AutoGen` binding (7.x, i.e. `libavcodec.so.61`); otherwise the app
+`FFmpeg.AutoGen` binding (9.x, i.e. `libavcodec.so.63`); otherwise the app
 still runs, just with video disabled.
 
 ```bash

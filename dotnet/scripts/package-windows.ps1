@@ -5,7 +5,7 @@
 # The paid Microsoft Store build is a different artifact — see package-msix.ps1.
 #
 # Notes:
-#  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 7.1 natives
+#  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 9.0 natives
 #    the custom video engine uses; fetched on demand by get-ffmpeg.ps1).
 #  - Requires Inno Setup 6 (winget install JRSoftware.InnoSetup).
 

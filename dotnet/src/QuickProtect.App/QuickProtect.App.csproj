@@ -21,8 +21,8 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <!-- FFmpeg bindings for the custom video engine (demux + decode). The
          DynamicallyLoaded variant lets us point at per-RID native libraries. -->
-    <PackageReference Include="FFmpeg.AutoGen.Abstractions" Version="7.1.1" />
-    <PackageReference Include="FFmpeg.AutoGen.Bindings.DynamicallyLoaded" Version="7.1.1" />
+    <PackageReference Include="FFmpeg.AutoGen.Abstractions" Version="9.0.1.1" />
+    <PackageReference Include="FFmpeg.AutoGen.Bindings.DynamicallyLoaded" Version="9.0.1.1" />
     <!-- WASAPI output for the engine's audio sink (Windows). Linux uses ALSA
          via P/Invoke (AudioSink.cs); these managed packages are inert there. -->
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
@@ -33,7 +33,7 @@
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
 
-  <!-- FFmpeg 7.1 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).
+  <!-- FFmpeg 9.0 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).
        Bundled per-RID from dotnet/native/ffmpeg/<rid>; a no-RID dev build picks
        the host architecture so `dotnet run` works (natively, incl. win-arm64).
        When the folder is absent (e.g. Linux without the script), the engine

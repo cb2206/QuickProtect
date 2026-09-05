@@ -24,6 +24,8 @@ public static class FfmpegEngine
     /// <summary>TLS bridge for rtsps:// URLs, sharing the API's TOFU pinning.</summary>
     public static RtspTlsTunnel? Tunnel { get; set; }
 
+    private const string HomebrewFfmpegLib = "/opt/homebrew/opt/ffmpeg/lib";
+
     private static StreamWriter? _logWriter;
     private static readonly object _logLock = new();
     private static av_log_set_callback_callback? _logCallback; // keep delegate alive
@@ -35,6 +37,11 @@ public static class FfmpegEngine
             var bundled = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
             if (Directory.Exists(bundled))
                 DynamicallyLoadedBindings.LibrariesPath = bundled;
+            else if (OperatingSystem.IsMacOS() && Directory.Exists(HomebrewFfmpegLib))
+                // Development only (macOS isn't a shipping target for this port):
+                // dlopen doesn't search Homebrew's prefix, so point at it when
+                // the natives aren't bundled.
+                DynamicallyLoadedBindings.LibrariesPath = HomebrewFfmpegLib;
             DynamicallyLoadedBindings.Initialize();
 
             ffmpeg.av_log_set_level(ffmpeg.AV_LOG_WARNING);

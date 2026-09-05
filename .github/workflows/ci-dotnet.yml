@@ -68,6 +68,15 @@ jobs:
       - name: Build tarball
         run: dotnet/scripts/package-linux.sh
 
+      # The engine smoke tests need an ffmpeg *binary* to serve a test stream;
+      # the libraries under test are the pinned natives get-ffmpeg.sh just
+      # fetched (copied into the test output next to the app). Decodes H.264
+      # and H.265 and checks the audio-only failure path.
+      - name: Engine smoke tests against the bundled natives
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+          cd dotnet && dotnet test tests/QuickProtect.App.Tests -- RunConfiguration.TestSessionTimeout=300000
+
       - name: Inspect tarball
         run: |
           set -euo pipefail

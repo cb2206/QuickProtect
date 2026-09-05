@@ -4,7 +4,7 @@
 # Output: dotnet/dist/QuickProtect-<version>-linux-x64.tar.gz
 #
 # Counterpart of package-windows.ps1: publishes self-contained linux-x64
-# (bundles .NET + the FFmpeg 7.1 natives via get-ffmpeg.sh — the csproj copies
+# (bundles .NET + the FFmpeg 9.0 natives via get-ffmpeg.sh — the csproj copies
 # native/ffmpeg/linux-x64 into the app's ffmpeg/ folder at publish time).
 # The tarball also carries a .desktop template and icon so manual installs and
 # the AUR package (installer/aur/PKGBUILD) share one artifact.
@@ -52,7 +52,7 @@ Optional install: copy the QuickProtect folder to /opt/quickprotect, then
 quickprotect.desktop to ~/.local/share/applications/ and quickprotect.png to
 ~/.local/share/icons/ (Arch users: quickprotect-bin on the AUR does this).
 
-FFmpeg 7.1 LGPL shared libraries (BtbN builds) are bundled in QuickProtect/ffmpeg/;
+FFmpeg 9.0 LGPL shared libraries (BtbN builds) are bundled in QuickProtect/ffmpeg/;
 their license and the other third-party notices are in QuickProtect/THIRD-PARTY-NOTICES.txt.
 Audio needs ALSA (libasound.so.2); the global hotkey needs the XDG Desktop
 Portal GlobalShortcuts interface. Updates are notify-only: Settings links to

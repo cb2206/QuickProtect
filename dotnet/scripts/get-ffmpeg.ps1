@@ -1,4 +1,4 @@
-# Downloads the FFmpeg 7.1 LGPL shared native libraries the video engine needs
+# Downloads the FFmpeg 9.0 LGPL shared native libraries the video engine needs
 # into dotnet/native/ffmpeg/<rid>/ (gitignored). Run once per checkout, or when
 # bumping the FFmpeg version (must match the FFmpeg.AutoGen package major.minor).
 #
@@ -10,8 +10,8 @@
 # PINNED. The download is a fixed release tag with a SHA-256 per asset, not the
 # rolling "latest" build: every installer and tarball must ship exactly the
 # bytes that were reviewed, and a build that can't verify them fails. BtbN
-# keeps its end-of-month snapshots long-term; the tag below is the last one
-# that carried the n7.1 branch (their nightlies moved on to 8.x/9.x). Bumping
+# keeps its end-of-month snapshots long-term; the tag below is the newest such
+# snapshot of the n9.0 branch (libavcodec 63, matching FFmpeg.AutoGen 9.0). Bumping
 # FFmpeg means updating the tag, the asset names, the checksums, the
 # FFmpeg.AutoGen package version, and THIRD-PARTY-NOTICES.txt together.
 # Keep in sync with get-ffmpeg.sh.
@@ -22,20 +22,20 @@ $ErrorActionPreference = "Stop"
 $dotnetRoot = Split-Path -Parent $PSScriptRoot
 $nativeRoot = Join-Path $dotnetRoot "native\ffmpeg"
 
-$releaseTag = "autobuild-2026-07-31-14-10"
-$buildId = "n7.1.5-12-g1fdbca85aa"
+$releaseTag = "autobuild-2026-08-31-13-27"
+$buildId = "n9.0.1-11-ge47273f4d9"
 
 $assets = @{
-    "win-x64"     = "ffmpeg-$buildId-win64-lgpl-shared-7.1.zip"
-    "win-arm64"   = "ffmpeg-$buildId-winarm64-lgpl-shared-7.1.zip"
-    "linux-x64"   = "ffmpeg-$buildId-linux64-lgpl-shared-7.1.tar.xz"
-    "linux-arm64" = "ffmpeg-$buildId-linuxarm64-lgpl-shared-7.1.tar.xz"
+    "win-x64"     = "ffmpeg-$buildId-win64-lgpl-shared-9.0.zip"
+    "win-arm64"   = "ffmpeg-$buildId-winarm64-lgpl-shared-9.0.zip"
+    "linux-x64"   = "ffmpeg-$buildId-linux64-lgpl-shared-9.0.tar.xz"
+    "linux-arm64" = "ffmpeg-$buildId-linuxarm64-lgpl-shared-9.0.tar.xz"
 }
 $sha256 = @{
-    "win-x64"     = "0f376f96fb38554ccefb1b2ae9c7c6a7b351f0e60a372b38262c320e8392c5d0"
-    "win-arm64"   = "d4c07a990ae4a0b185481cba63b2ff1b621fbec39c0c5c8d9b043f5efacfd09d"
-    "linux-x64"   = "f5f0ad52c6ee28a222eb10838c231469a10ad325f84063d3bc0aadf08164b3ec"
-    "linux-arm64" = "28d2c354ad6cc360db0e932598f1cf5845887a1adc46415ded91baf1ca82a53b"
+    "win-x64"     = "83a824f0729a69d143c9865125bb86988a11dd388325f0033711045522068aa0"
+    "win-arm64"   = "e6a65bd651db8817a7e76382a82db0fa28da45c6a0b512f1f65078d3d48cdfff"
+    "linux-x64"   = "ec8dc218c3495af574be2c894de74c5f3f1f1b86cc8a95739d220b88887024fa"
+    "linux-arm64" = "c663f93322183c99d2b954969d11a287582ff69e39bde50d018b18ece27589cf"
 }
 
 foreach ($rid in $Rids) {

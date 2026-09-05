@@ -4,7 +4,7 @@
 #         dotnet/dist/QuickProtect-<version>-win-x64-sideload.msix (-SelfSign)
 #
 # Notes:
-#  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 7.1 natives
+#  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 9.0 natives
 #    the custom video engine uses; fetched on demand by get-ffmpeg.ps1).
 #  - Needs makeappx.exe (and signtool.exe when -SelfSign is used). Uses an
 #    installed Windows 10/11 SDK if present — winget install

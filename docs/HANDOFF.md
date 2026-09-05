@@ -21,7 +21,7 @@ portal-owned global hotkeys) are in `PARITY.md`.
 
 ## Architecture: the video engine (don't regress these)
 
-Video is the macOS-style custom pipeline on top of FFmpeg 7.1:
+Video is the macOS-style custom pipeline on top of FFmpeg 9.0:
 
 - `App/Video/FfmpegEngine.cs` — loads the FFmpeg natives (bundled per RID by
   `scripts/get-ffmpeg.*`, pinned to a fixed BtbN build with SHA-256 checks;
@@ -98,9 +98,12 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
 
 ## Open follow-ups
 
-- The BtbN nightlies no longer build the n7.1 branch; the pin points at their
-  last end-of-month snapshot that has it. Moving to FFmpeg 8.x/9.x needs the
-  matching FFmpeg.AutoGen bindings and a pass over the P/Invoke code.
+- The FFmpeg pin is a BtbN end-of-month snapshot of the n9.0 branch
+  (`autobuild-2026-08-31-13-27`, libavcodec 63) with FFmpeg.AutoGen 9.0.1.1.
+  Bump both together every few months (tag + four checksums in
+  `scripts/get-ffmpeg.*`, the package versions, THIRD-PARTY-NOTICES.txt) and
+  run `dotnet test tests/QuickProtect.App.Tests` with an `ffmpeg` binary on
+  PATH — it decodes a live RTSP test pattern through the engine.
 - No App-level test project yet: `VideoStreamCoordinator` and the view models
   are only covered indirectly. `ProtectService`'s HTTP paths need a fake
   `HttpMessageHandler`.

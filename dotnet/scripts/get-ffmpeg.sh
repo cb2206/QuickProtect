@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Downloads the FFmpeg 7.1 LGPL shared native libraries the video engine needs
+# Downloads the FFmpeg 9.0 LGPL shared native libraries the video engine needs
 # into dotnet/native/ffmpeg/<rid>/ (gitignored). Run once per checkout, or when
 # bumping the FFmpeg version (must match the FFmpeg.AutoGen package major.minor).
 #
@@ -11,8 +11,8 @@
 # PINNED. The download is a fixed release tag with a SHA-256 per asset, not the
 # rolling "latest" build: every installer and tarball must ship exactly the
 # bytes that were reviewed, and a build that can't verify them fails. BtbN
-# keeps its end-of-month snapshots long-term; the tag below is the last one
-# that carried the n7.1 branch (their nightlies moved on to 8.x/9.x). Bumping
+# keeps its end-of-month snapshots long-term; the tag below is the newest such
+# snapshot of the n9.0 branch (libavcodec 63, matching FFmpeg.AutoGen 9.0). Bumping
 # FFmpeg means updating the tag, the asset names, the checksums, the
 # FFmpeg.AutoGen package version, and THIRD-PARTY-NOTICES.txt together.
 # Counterpart of get-ffmpeg.ps1, which defaults to the Windows RIDs.
@@ -22,25 +22,25 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 native_root="$root/native/ffmpeg"
 
-release_tag="autobuild-2026-07-31-14-10"
-build_id="n7.1.5-12-g1fdbca85aa"
+release_tag="autobuild-2026-08-31-13-27"
+build_id="n9.0.1-11-ge47273f4d9"
 
 asset_for() {
     case "$1" in
-        linux-x64)   echo "ffmpeg-$build_id-linux64-lgpl-shared-7.1.tar.xz" ;;
-        linux-arm64) echo "ffmpeg-$build_id-linuxarm64-lgpl-shared-7.1.tar.xz" ;;
-        win-x64)     echo "ffmpeg-$build_id-win64-lgpl-shared-7.1.zip" ;;
-        win-arm64)   echo "ffmpeg-$build_id-winarm64-lgpl-shared-7.1.zip" ;;
+        linux-x64)   echo "ffmpeg-$build_id-linux64-lgpl-shared-9.0.tar.xz" ;;
+        linux-arm64) echo "ffmpeg-$build_id-linuxarm64-lgpl-shared-9.0.tar.xz" ;;
+        win-x64)     echo "ffmpeg-$build_id-win64-lgpl-shared-9.0.zip" ;;
+        win-arm64)   echo "ffmpeg-$build_id-winarm64-lgpl-shared-9.0.zip" ;;
         *)           echo "" ;;
     esac
 }
 
 sha256_for() {
     case "$1" in
-        linux-x64)   echo "f5f0ad52c6ee28a222eb10838c231469a10ad325f84063d3bc0aadf08164b3ec" ;;
-        linux-arm64) echo "28d2c354ad6cc360db0e932598f1cf5845887a1adc46415ded91baf1ca82a53b" ;;
-        win-x64)     echo "0f376f96fb38554ccefb1b2ae9c7c6a7b351f0e60a372b38262c320e8392c5d0" ;;
-        win-arm64)   echo "d4c07a990ae4a0b185481cba63b2ff1b621fbec39c0c5c8d9b043f5efacfd09d" ;;
+        linux-x64)   echo "ec8dc218c3495af574be2c894de74c5f3f1f1b86cc8a95739d220b88887024fa" ;;
+        linux-arm64) echo "c663f93322183c99d2b954969d11a287582ff69e39bde50d018b18ece27589cf" ;;
+        win-x64)     echo "83a824f0729a69d143c9865125bb86988a11dd388325f0033711045522068aa0" ;;
+        win-arm64)   echo "e6a65bd651db8817a7e76382a82db0fa28da45c6a0b512f1f65078d3d48cdfff" ;;
         *)           echo "" ;;
     esac
 }
