@@ -7,7 +7,7 @@ namespace QuickProtect.Core.Services;
 
 /// <summary>
 /// Checks GitHub for a newer release and surfaces it in Settings. Notify-only:
-/// it never downloads or installs (the GitHub build is unsigned —
+/// it never downloads or installs (the GitHub build is not code-signed —
 /// see the macOS app's distribution notes). Port of the macOS <c>UpdateChecker</c>.
 /// </summary>
 public sealed class UpdateChecker : INotifyPropertyChanged, IDisposable

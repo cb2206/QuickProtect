@@ -1,4 +1,4 @@
-# Builds the free (unsigned) Windows installer for GitHub releases.
+# Builds the free Windows installer (not code-signed) for GitHub releases.
 #   powershell -File dotnet/scripts/package-windows.ps1 [-Version 1.3]
 # Output: dotnet/dist/QuickProtect-Setup-<version>-win-x64.exe
 #

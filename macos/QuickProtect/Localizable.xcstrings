@@ -1682,6 +1682,47 @@
         }
       }
     },
+    "Couldn't register this shortcut — it may be in use by another app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Kürzel konnte nicht registriert werden – möglicherweise wird es von einer anderen App verwendet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'enregistrer ce raccourci — il est peut-être déjà utilisé par une autre app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo registrar este atajo: puede que otra app ya lo esté usando."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deze sneltoets kon niet worden geregistreerd – mogelijk gebruikt een andere app hem al."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile registrare questa scorciatoia: potrebbe essere già usata da un'altra app."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível registrar este atalho — talvez outro app já o esteja usando."
+          }
+        }
+      }
+    },
     "Dark": {
       "extractionState": "manual",
       "localizations": {
@@ -3322,6 +3363,88 @@
         }
       }
     },
+    "Keep streams alive": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams aktiv halten"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garder les flux actifs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantener streams activos"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams actief houden"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantieni attivi gli stream"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manter streams ativos"
+          }
+        }
+      }
+    },
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir."
+          }
+        }
+      }
+    },
     "LIVE": {
       "extractionState": "manual",
       "localizations": {
@@ -4019,6 +4142,47 @@
         }
       }
     },
+    "New key": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Schlüssel"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvelle clé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave nueva"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nieuwe sleutel"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuova chiave"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nova chave"
+          }
+        }
+      }
+    },
     "No API key configured. Open Settings.": {
       "extractionState": "manual",
       "localizations": {
@@ -4384,6 +4548,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Não verificado"
+          }
+        }
+      }
+    },
+    "Off": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disattivato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desativado"
           }
         }
       }
@@ -4917,6 +5122,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Senha"
+          }
+        }
+      }
+    },
+    "Pause decoding while closed": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dekodierung bei geschlossenem Fenster pausieren"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suspendre le décodage quand le panneau est fermé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar la decodificación con el panel cerrado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decoderen pauzeren terwijl gesloten"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sospendi la decodifica a pannello chiuso"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar a decodificação enquanto fechado"
           }
         }
       }
@@ -6889,6 +7135,47 @@
         }
       }
     },
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams bleiben nach dem Schließen so lange verbunden – öffnest du schnell wieder, ist das Video sofort da"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les flux restent connectés pendant cette durée après la fermeture – la vidéo s'affiche instantanément à la réouverture"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los streams permanecen conectados durante este tiempo tras cerrar, así el vídeo aparece al instante al reabrir"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams blijven na het sluiten zo lang verbonden, zodat de video direct terug is bij opnieuw openen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gli stream restano connessi per questo tempo dopo la chiusura, così il video appare subito alla riapertura"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os streams permanecem conectados por esse tempo após fechar, para o vídeo aparecer na hora ao reabrir"
+          }
+        }
+      }
+    },
     "Swap with main view (C)": {
       "extractionState": "manual",
       "localizations": {
@@ -7049,6 +7336,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "O controlador está apresentando um novo certificado (chave %@…). Isso é esperado se você reinstalou ou substituiu o controlador — caso contrário, pode indicar que alguém está interceptando a conexão. Confie nele somente se reconhecer a alteração."
+          }
+        }
+      }
+    },
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller zeigt ein neues Zertifikat. Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vergleiche den neuen Schlüssel mit dem Zertifikat, das dein Controller anzeigt, bevor du ihm vertraust."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur présente un nouveau certificat. C'est normal si vous l'avez réinstallé ou remplacé — sinon, cela peut indiquer que quelqu'un intercepte la connexion. Comparez la nouvelle clé avec le certificat affiché par votre contrôleur avant de l'approuver."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador presenta un certificado nuevo. Es normal si lo reinstalaste o lo sustituiste; si no, podría indicar que alguien está interceptando la conexión. Compara la clave nueva con el certificado que muestra tu controlador antes de confiar en ella."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller toont een nieuw certificaat. Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen – zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vergelijk de nieuwe sleutel met het certificaat dat je controller toont voordat je hem vertrouwt."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller presenta un nuovo certificato. È normale se lo hai reinstallato o sostituito; in caso contrario potrebbe indicare che qualcuno sta intercettando la connessione. Confronta la nuova chiave con il certificato mostrato dal tuo controller prima di fidarti."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador está apresentando um novo certificado. Isso é esperado se você o reinstalou ou substituiu — caso contrário, pode indicar que alguém está interceptando a conexão. Compare a nova chave com o certificado exibido pelo seu controlador antes de confiar nela."
           }
         }
       }
@@ -7336,6 +7664,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confiar no novo certificado"
+          }
+        }
+      }
+    },
+    "Trusted key": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrauter Schlüssel"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé approuvée"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave de confianza"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrouwde sleutel"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiave attendibile"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave confiável"
           }
         }
       }
@@ -9229,211 +9598,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "Keep streams alive": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams aktiv halten"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Garder les flux actifs"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mantener streams activos"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams actief houden"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mantieni attivi gli stream"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manter streams ativos"
-          }
-        }
-      }
-    },
-    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams bleiben nach dem Schließen so lange verbunden – öffnest du schnell wieder, ist das Video sofort da"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les flux restent connectés pendant cette durée après la fermeture – la vidéo s'affiche instantanément à la réouverture"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Los streams permanecen conectados durante este tiempo tras cerrar, así el vídeo aparece al instante al reabrir"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams blijven na het sluiten zo lang verbonden, zodat de video direct terug is bij opnieuw openen"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gli stream restano connessi per questo tempo dopo la chiusura, così il video appare subito alla riapertura"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Os streams permanecem conectados por esse tempo após fechar, para o vídeo aparecer na hora ao reabrir"
-          }
-        }
-      }
-    },
-    "Off": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aus"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Désactivé"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Desactivado"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uit"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Disattivato"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Desativado"
-          }
-        }
-      }
-    },
-    "Pause decoding while closed": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dekodierung bei geschlossenem Fenster pausieren"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Suspendre le décodage quand le panneau est fermé"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pausar la decodificación con el panel cerrado"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Decoderen pauzeren terwijl gesloten"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sospendi la decodifica a pannello chiuso"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pausar a decodificação enquanto fechado"
-          }
-        }
-      }
-    },
-    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir."
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir."
           }
         }
       }

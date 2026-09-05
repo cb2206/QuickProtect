@@ -11,8 +11,8 @@ A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Prote
 
 **Get QuickProtect**
 
-- **macOS** — [Mac App Store](https://apps.apple.com/app/id6776899427) (signed, sandboxed, auto-updating) or the free unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
-- **Windows** — [Microsoft Store](https://apps.microsoft.com/detail/9n7q858g3tk5) (signed, auto-updating) or the free unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases)
+- **macOS** — [Mac App Store](https://apps.apple.com/app/id6776899427) (signed, sandboxed, auto-updating) or the free DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases) (not code-signed)
+- **Windows** — [Microsoft Store](https://apps.microsoft.com/detail/9n7q858g3tk5) (signed, auto-updating) or the free installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases) (not code-signed)
 - **Linux** — free self-contained x64 tarball on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases) (AUR package `quickprotect-bin` coming)
 
 <details name="screenshot" open>
@@ -50,8 +50,8 @@ This repo hosts two independent implementations that share behavior, not code:
 
 | Folder | What it is |
 |---|---|
-| [`macos/`](macos/) | The original macOS menu-bar app — Swift/SwiftUI/AppKit with a custom RTSP/RTP client. Ships on the [App Store](https://apps.apple.com/app/id6776899427) and as an unsigned DMG on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases). |
-| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. Ships on the Microsoft Store, as an unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), and (since 1.3.1) as a Linux x64 tarball on the same releases. |
+| [`macos/`](macos/) | The original macOS menu-bar app — Swift/SwiftUI/AppKit with a custom RTSP/RTP client. Ships on the [App Store](https://apps.apple.com/app/id6776899427) and as a DMG (not code-signed) on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases). |
+| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. Ships on the Microsoft Store, as an installer (not code-signed) on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), and (since 1.3.1) as a Linux x64 tarball on the same releases. |
 | [`docs/`](docs/) | Cross-platform docs: [feature parity](docs/PARITY.md) between the two implementations, [privacy policy](docs/PRIVACY.md), App Store listings, screenshots. |
 | [`scripts/`](scripts/) | Per-platform build & run entry points (see below). |
 

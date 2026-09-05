@@ -5,6 +5,16 @@ import json, collections, sys, os
 # German (informal "du") — the existing, reviewed translation.
 # ---------------------------------------------------------------------------
 de = {
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Streams aktiv halten",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell.",
+    "Off": "Aus",
+    "Pause decoding while closed": "Dekodierung bei geschlossenem Fenster pausieren",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Streams bleiben nach dem Schließen so lange verbunden – öffnest du schnell wieder, ist das Video sofort da",
+    "Couldn't register this shortcut — it may be in use by another app.": "Dieses Kürzel konnte nicht registriert werden – möglicherweise wird es von einer anderen App verwendet.",
+    "Trusted key": "Vertrauter Schlüssel",
+    "New key": "Neuer Schlüssel",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "Der Controller zeigt ein neues Zertifikat. Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vergleiche den neuen Schlüssel mit dem Zertifikat, das dein Controller anzeigt, bevor du ihm vertraust.",
     "Save Current View as New Profile…": "Aktuelle Ansicht als neues Profil sichern…",
     "Save Current View as New Profile": "Aktuelle Ansicht als neues Profil sichern",
     "Add Camera": "Kamera hinzufügen",
@@ -180,6 +190,16 @@ de = {
 # French (formal "vous" — macOS norm)
 # ---------------------------------------------------------------------------
 fr = {
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Garder les flux actifs",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture.",
+    "Off": "Désactivé",
+    "Pause decoding while closed": "Suspendre le décodage quand le panneau est fermé",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Les flux restent connectés pendant cette durée après la fermeture – la vidéo s'affiche instantanément à la réouverture",
+    "Couldn't register this shortcut — it may be in use by another app.": "Impossible d'enregistrer ce raccourci — il est peut-être déjà utilisé par une autre app.",
+    "Trusted key": "Clé approuvée",
+    "New key": "Nouvelle clé",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "Le contrôleur présente un nouveau certificat. C'est normal si vous l'avez réinstallé ou remplacé — sinon, cela peut indiquer que quelqu'un intercepte la connexion. Comparez la nouvelle clé avec le certificat affiché par votre contrôleur avant de l'approuver.",
     "Save Current View as New Profile…": "Enregistrer la vue actuelle comme nouveau profil…",
     "Save Current View as New Profile": "Enregistrer la vue actuelle comme nouveau profil",
     "Add Camera": "Ajouter une caméra",
@@ -355,6 +375,16 @@ fr = {
 # Spanish (informal "tú")
 # ---------------------------------------------------------------------------
 es = {
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Mantener streams activos",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir.",
+    "Off": "Desactivado",
+    "Pause decoding while closed": "Pausar la decodificación con el panel cerrado",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Los streams permanecen conectados durante este tiempo tras cerrar, así el vídeo aparece al instante al reabrir",
+    "Couldn't register this shortcut — it may be in use by another app.": "No se pudo registrar este atajo: puede que otra app ya lo esté usando.",
+    "Trusted key": "Clave de confianza",
+    "New key": "Clave nueva",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "El controlador presenta un certificado nuevo. Es normal si lo reinstalaste o lo sustituiste; si no, podría indicar que alguien está interceptando la conexión. Compara la clave nueva con el certificado que muestra tu controlador antes de confiar en ella.",
     "Save Current View as New Profile…": "Guardar vista actual como nuevo perfil…",
     "Save Current View as New Profile": "Guardar vista actual como nuevo perfil",
     "Add Camera": "Añadir cámara",
@@ -530,6 +560,16 @@ es = {
 # Dutch (informal "je")
 # ---------------------------------------------------------------------------
 nl = {
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Streams actief houden",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen.",
+    "Off": "Uit",
+    "Pause decoding while closed": "Decoderen pauzeren terwijl gesloten",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Streams blijven na het sluiten zo lang verbonden, zodat de video direct terug is bij opnieuw openen",
+    "Couldn't register this shortcut — it may be in use by another app.": "Deze sneltoets kon niet worden geregistreerd – mogelijk gebruikt een andere app hem al.",
+    "Trusted key": "Vertrouwde sleutel",
+    "New key": "Nieuwe sleutel",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "De controller toont een nieuw certificaat. Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen – zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vergelijk de nieuwe sleutel met het certificaat dat je controller toont voordat je hem vertrouwt.",
     "Save Current View as New Profile…": "Huidige weergave als nieuw profiel bewaren…",
     "Save Current View as New Profile": "Huidige weergave als nieuw profiel bewaren",
     "Add Camera": "Camera toevoegen",
@@ -705,6 +745,16 @@ nl = {
 # Italian (informal "tu")
 # ---------------------------------------------------------------------------
 it = {
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Mantieni attivi gli stream",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura.",
+    "Off": "Disattivato",
+    "Pause decoding while closed": "Sospendi la decodifica a pannello chiuso",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Gli stream restano connessi per questo tempo dopo la chiusura, così il video appare subito alla riapertura",
+    "Couldn't register this shortcut — it may be in use by another app.": "Impossibile registrare questa scorciatoia: potrebbe essere già usata da un'altra app.",
+    "Trusted key": "Chiave attendibile",
+    "New key": "Nuova chiave",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "Il controller presenta un nuovo certificato. È normale se lo hai reinstallato o sostituito; in caso contrario potrebbe indicare che qualcuno sta intercettando la connessione. Confronta la nuova chiave con il certificato mostrato dal tuo controller prima di fidarti.",
     "Save Current View as New Profile…": "Salva vista attuale come nuovo profilo…",
     "Save Current View as New Profile": "Salva vista attuale come nuovo profilo",
     "Add Camera": "Aggiungi telecamera",
@@ -880,6 +930,16 @@ it = {
 # Brazilian Portuguese ("você")
 # ---------------------------------------------------------------------------
 pt_br = {
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Manter streams ativos",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir.",
+    "Off": "Desativado",
+    "Pause decoding while closed": "Pausar a decodificação enquanto fechado",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Os streams permanecem conectados por esse tempo após fechar, para o vídeo aparecer na hora ao reabrir",
+    "Couldn't register this shortcut — it may be in use by another app.": "Não foi possível registrar este atalho — talvez outro app já o esteja usando.",
+    "Trusted key": "Chave confiável",
+    "New key": "Nova chave",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "O controlador está apresentando um novo certificado. Isso é esperado se você o reinstalou ou substituiu — caso contrário, pode indicar que alguém está interceptando a conexão. Compare a nova chave com o certificado exibido pelo seu controlador antes de confiar nela.",
     "Save Current View as New Profile…": "Salvar visualização atual como novo perfil…",
     "Save Current View as New Profile": "Salvar visualização atual como novo perfil",
     "Add Camera": "Adicionar câmera",

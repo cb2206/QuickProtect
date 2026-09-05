@@ -11,7 +11,7 @@ runs on **Windows and Linux** (and macOS, if ever wanted).
 
 The Windows build ships on the
 [**Microsoft Store**](https://apps.microsoft.com/detail/9n7q858g3tk5) (signed,
-auto-updating) and as a free unsigned installer on
+auto-updating) and as a free installer (not code-signed) on
 [GitHub Releases](https://github.com/cb2206/QuickProtect/releases); the Linux
 build ships (since 1.3.1) as a self-contained x64 tarball on the same releases
 (see [`PARITY.md`](../docs/PARITY.md) → Distribution for the channel details).
@@ -64,14 +64,20 @@ dotnet/
       ViewModels/  Main, CameraTile, Settings, Onboarding, Layout
       Views/       MainWindow (grid/focus), SettingsWindow, OnboardingWindow,
                    PinnedCameraWindow
-      Localization/                # 7 languages from the macOS String Catalog
+      Localization/                # 7 languages, same keys as the macOS String
+                                   # Catalog (kept in sync by hand; a parity test
+                                   # fails on drift between the .resx files)
   tests/QuickProtect.Core.Tests/   # unit tests for the Core layer
   installer/QuickProtect.iss       # Inno Setup script (free GitHub build)
   installer/msix/                  # MSIX manifest + tile assets (Store build)
-  scripts/get-ffmpeg.ps1           # fetch FFmpeg natives (Windows RIDs by default)
+  installer/aur/PKGBUILD           # AUR package consuming the Linux tarball
+  THIRD-PARTY-NOTICES.txt          # bundled component licenses (shipped in every build)
+  scripts/get-ffmpeg.ps1           # fetch pinned FFmpeg natives, SHA-256 verified (Windows RIDs by default)
   scripts/get-ffmpeg.sh            # same, for Linux (host-arch RID by default)
+  scripts/get-sdk-buildtools.ps1   # makeappx/signtool from NuGet for package-msix.ps1 (no full SDK)
   scripts/package-windows.ps1      # publish + build the Windows installer
   scripts/package-msix.ps1         # publish + build the Store (MSIX) package
+  scripts/package-linux.sh         # publish + build the Linux tarball
   scripts/generate-msix-assets.swift  # regenerate the MSIX tile PNGs (macOS)
 ```
 
@@ -115,9 +121,9 @@ next to it.
 ## Packaging (Windows)
 
 Two artifacts, matching the two distribution channels (see
-[`PARITY.md`](../docs/PARITY.md#distribution-future)).
+[`PARITY.md`](../docs/PARITY.md#distribution)).
 
-**Free build** — unsigned installer for GitHub releases. It is not code-signed,
+**Free build** — installer for GitHub releases. It is not code-signed,
 so Windows shows a SmartScreen warning on first run.
 
 ```powershell

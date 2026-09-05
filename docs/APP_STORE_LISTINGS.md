@@ -454,7 +454,7 @@ Notes:
 - **Partner Center is edited by hand; this file is the master copy.** Update
   here first, then paste into Partner Center with the next submission.
 - **This is the paid build.** Per `PARITY.md` → Distribution, the Store MSIX is
-  the paid channel; the free channel is the unsigned Inno Setup installer on
+  the paid channel; the free channel is the Inno Setup installer (not code-signed) on
   GitHub releases. The copy therefore never calls the app *free* — it says
   *open source (MIT)*, and the description names what buying here adds
   (supporting development, automatic updates through the Store).

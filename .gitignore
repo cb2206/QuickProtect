@@ -23,9 +23,16 @@ DerivedData/
 *.o
 *.swp
 
-# Fastlane secrets & generated output
-macos/fastlane/.env
+# Secrets — never commit any of these (fastlane/.env holds the ASC key config)
+.env
 *.p8
+*.pfx
+*.p12
+*.cer
+*.mobileprovision
+*.snk
+
+# Fastlane generated output
 macos/fastlane/report.xml
 macos/fastlane/Preview.html
 macos/fastlane/test_output/
@@ -33,7 +40,7 @@ macos/fastlane/test_output/
 # --- dotnet/ (.NET port) ---
 # Build/packaging artifacts
 dotnet/dist/
-dotnet/publish-x64-debug/
+TestResults/
 
 # FFmpeg native libraries (fetched by dotnet/scripts/get-ffmpeg.*)
 dotnet/native/

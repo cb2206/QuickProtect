@@ -219,7 +219,6 @@ QuickProtect.</value></data>
   <data name="%lld minutes ago" xml:space="preserve"><value>%lld minutes ago</value></data>
   <data name="%lld seconds ago" xml:space="preserve"><value>%lld seconds ago</value></data>
   <data name="%lld streams" xml:space="preserve"><value>%lld streams</value></data>
-  <data name="Connected · %lld cameras found" xml:space="preserve"><value>Connected · %lld cameras found</value></data>
   <data name="Connected — %lld cameras found" xml:space="preserve"><value>Connected — %lld cameras found</value></data>
   <data name="A new version ({0}) is available." xml:space="preserve"><value>A new version ({0}) is available.</value></data>
   <data name="Accent color" xml:space="preserve"><value>Accent color</value></data>
@@ -292,4 +291,9 @@ QuickProtect.</value></data>
   <data name="Signing in…" xml:space="preserve"><value>Signing in…</value></data>
   <data name="Swap secondary lens" xml:space="preserve"><value>Swap secondary lens</value></data>
   <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.</value></data>
+  <data name="Couldn't register this shortcut — it may be in use by another app." xml:space="preserve"><value>Couldn't register this shortcut — it may be in use by another app.</value></data>
+  <data name="Add a modifier key (Ctrl, Alt, Shift or Win) to the shortcut." xml:space="preserve"><value>Add a modifier key (Ctrl, Alt, Shift or Win) to the shortcut.</value></data>
+  <data name="Trusted key" xml:space="preserve"><value>Trusted key</value></data>
+  <data name="New key" xml:space="preserve"><value>New key</value></data>
+  <data name="The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.</value></data>
 </root>

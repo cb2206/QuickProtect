@@ -8,9 +8,9 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
   <a href="https://apps.apple.com/app/id6776899427"><img alt="Download QuickProtect on the App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="52"></a>
 </p>
 
-**Looking for a signed binary?** [Download QuickProtect from the App Store](https://apps.apple.com/app/id6776899427) — sandboxed, auto-updating, and notarized by Apple. The [GitHub release](https://github.com/cb2206/QuickProtect/releases) DMG is not code-signed (see [Installing an Unsigned App](#installing-an-unsigned-app)).
+**Looking for a signed binary?** [Download QuickProtect from the App Store](https://apps.apple.com/app/id6776899427) — sandboxed, auto-updating, and notarized by Apple. The [GitHub release](https://github.com/cb2206/QuickProtect/releases) DMG is not code-signed (see [Installing the GitHub build](#installing-the-github-build)).
 
-**On Windows or Linux?** QuickProtect ships there too — Windows via the [Microsoft Store](https://apps.microsoft.com/detail/9n7q858g3tk5) or the unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), Linux as a tarball on the same releases. See the [.NET/Avalonia port](../dotnet/README.md).
+**On Windows or Linux?** QuickProtect ships there too — Windows via the [Microsoft Store](https://apps.microsoft.com/detail/9n7q858g3tk5) or the installer (not code-signed) on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), Linux as a tarball on the same releases. See the [.NET/Avalonia port](../dotnet/README.md).
 
 ![QuickProtect](../docs/screenshots/appstore-1.png)
 
@@ -43,7 +43,7 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 
 ## Requirements
 
-- macOS 13.0 or later (Apple Silicon)
+- macOS 13.0 or later (universal: Apple Silicon and Intel)
 - A UniFi Protect controller with the [Integration API](https://developers.ui.com/protect-api/) enabled
 - An API key generated from the controller's settings
 - *(Optional, for PTZ)* A local admin account on the controller
@@ -139,9 +139,9 @@ swiftlint lint --strict
 
 The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), certificate pinning (policy state machine, SPKI fingerprints against openssl vectors, legacy-pin migration), controller address normalisation, version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings.
 
-## Installing an Unsigned App
+## Installing the GitHub build
 
-QuickProtect is not signed with an Apple Developer certificate. When you first open it, macOS will block it with a message like *"QuickProtect can't be opened because Apple cannot check it for malicious software."*
+The GitHub build is not code-signed with an Apple Developer certificate (the App Store build is). When you first open it, macOS will block it with a message like *"QuickProtect can't be opened because Apple cannot check it for malicious software."* The release page carries a `SHA256SUMS` file to verify the download against.
 
 To allow it:
 

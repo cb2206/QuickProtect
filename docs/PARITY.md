@@ -83,8 +83,8 @@ port (`dotnet/`).
   seconds out) — shown until the first decoded frame, like macOS.
 - **Audio playback** — the engine decodes the stream's audio track (Opus/AAC)
   and renders it through a platform sink: WASAPI shared mode via NAudio on
-  Windows, ALSA via libasound P/Invoke on Linux (best-effort, untested until
-  the Linux phase). macOS parity: only the focused stream and pinned windows
+  Windows, ALSA via libasound P/Invoke on Linux (video-only with a logged
+  notice when `libasound.so.2` is missing). macOS parity: only the focused stream and pinned windows
   are audio-active (the grid never plays), output is muted by default behind
   the global speaker preference, pinned windows start muted with a
   window-local toggle, and the Mute (M) control appears only when the stream
@@ -151,7 +151,7 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
 
-## Platform notes (for the Linux phase)
+## Platform notes (Linux)
 
 - Video needs the FFmpeg 7.1 natives (`scripts/get-ffmpeg.sh`, fetched into
   gitignored `native/`) or a matching system FFmpeg (7.x / `libavcodec.so.61`).
@@ -193,8 +193,8 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 
 - **Windows** (shipped with 1.3, 2026-08): paid = Microsoft Store as MSIX under
   a company account (the Store signs and auto-updates it) — the listing is live
-  at <https://apps.microsoft.com/detail/9n7q858g3tk5>; free = the unsigned
-  Inno Setup installer from `scripts/package-windows.ps1` on GitHub releases
+  at <https://apps.microsoft.com/detail/9n7q858g3tk5>; free = the Inno Setup
+  installer from `scripts/package-windows.ps1` on GitHub releases
   (not code-signed, like the macOS DMG, so SmartScreen warns on first run). No
   winget listing — the Store is the auto-updating channel. One release tag per
   version carries all OS assets:
@@ -220,8 +220,13 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   Snap and AppImage were skipped deliberately (confinement pain / no audience
   gain over the tarball); revisit only if users ask.
 - **Release artifacts** are built by `.github/workflows/release.yml` on a
-  `v<version>` tag push: DMG (ad-hoc signed, macos-15) + Inno Setup exe
-  (windows-latest) + Linux tarball (ubuntu-latest), attached to a **draft**
-  release after checking the tag matches both version sources. Publishing the
-  draft is manual — that's the moment existing installs get update-notified.
-  Store submissions stay manual (fastlane on a Mac / Partner Center).
+  `v<version>` tag push: after both test suites pass, DMG (ad-hoc signed,
+  universal, macos-15 with Xcode 16.4) + Inno Setup exe (windows-latest) +
+  Linux tarball (ubuntu-latest) plus a `SHA256SUMS` file, attached to a
+  **draft** release after checking the tag matches both version sources.
+  Publishing the draft is manual — that's the moment existing installs get
+  update-notified. `workflow_dispatch` builds the same artifacts from any
+  branch without releasing. The FFmpeg natives come from a pinned BtbN build
+  with SHA-256 checks (`dotnet/scripts/get-ffmpeg.*`); every build ships
+  `THIRD-PARTY-NOTICES.txt`. Store submissions stay manual (fastlane on a
+  Mac / Partner Center).

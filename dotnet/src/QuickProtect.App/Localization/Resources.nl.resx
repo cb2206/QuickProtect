@@ -289,4 +289,11 @@ QuickProtect.</value></data>
   <data name="Signing in…" xml:space="preserve"><value>Aanmelden…</value></data>
   <data name="Swap secondary lens" xml:space="preserve"><value>Tweede lens wisselen</value></data>
   <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>Dit is normaal als je de controller opnieuw hebt geïnstalleerd of vervangen — zo niet, dan kan het erop wijzen dat iemand de verbinding onderschept. Vertrouw het certificaat alleen als je de wijziging herkent.</value></data>
+  <data name="Couldn't register this shortcut — it may be in use by another app." xml:space="preserve"><value>Deze sneltoets kon niet worden geregistreerd – mogelijk gebruikt een andere app hem al.</value></data>
+  <data name="Add a modifier key (Ctrl, Alt, Shift or Win) to the shortcut." xml:space="preserve"><value>Voeg een modificatietoets (Ctrl, Alt, Shift of Win) toe aan de sneltoets.</value></data>
+  <data name="Trusted key" xml:space="preserve"><value>Vertrouwde sleutel</value></data>
+  <data name="New key" xml:space="preserve"><value>Nieuwe sleutel</value></data>
+  <data name="The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>De controller toont een nieuw certificaat. Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen – zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vergelijk de nieuwe sleutel met het certificaat dat je controller toont voordat je hem vertrouwt.</value></data>
+  <data name="%lld minutes ago" xml:space="preserve"><value>%lld minuten geleden</value></data>
+  <data name="%lld seconds ago" xml:space="preserve"><value>%lld seconden geleden</value></data>
 </root>

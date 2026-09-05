@@ -289,4 +289,11 @@ QuickProtect.</value></data>
   <data name="Signing in…" xml:space="preserve"><value>Anmeldung läuft…</value></data>
   <data name="Swap secondary lens" xml:space="preserve"><value>Zweites Objektiv wechseln</value></data>
   <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast — falls nicht, könnte jemand die Verbindung abfangen. Vertraue dem Zertifikat nur, wenn du die Änderung zuordnen kannst.</value></data>
+  <data name="Couldn't register this shortcut — it may be in use by another app." xml:space="preserve"><value>Dieses Kürzel konnte nicht registriert werden – möglicherweise wird es von einer anderen App verwendet.</value></data>
+  <data name="Add a modifier key (Ctrl, Alt, Shift or Win) to the shortcut." xml:space="preserve"><value>Füge dem Kürzel eine Zusatztaste hinzu (Strg, Alt, Umschalt oder Win).</value></data>
+  <data name="Trusted key" xml:space="preserve"><value>Vertrauter Schlüssel</value></data>
+  <data name="New key" xml:space="preserve"><value>Neuer Schlüssel</value></data>
+  <data name="The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>Der Controller zeigt ein neues Zertifikat. Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vergleiche den neuen Schlüssel mit dem Zertifikat, das dein Controller anzeigt, bevor du ihm vertraust.</value></data>
+  <data name="%lld minutes ago" xml:space="preserve"><value>vor %lld Minuten</value></data>
+  <data name="%lld seconds ago" xml:space="preserve"><value>vor %lld Sekunden</value></data>
 </root>

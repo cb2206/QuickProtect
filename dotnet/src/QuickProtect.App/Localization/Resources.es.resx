@@ -289,4 +289,11 @@ QuickProtect.</value></data>
   <data name="Signing in…" xml:space="preserve"><value>Iniciando sesión…</value></data>
   <data name="Swap secondary lens" xml:space="preserve"><value>Cambiar la lente secundaria</value></data>
   <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>Es normal si reinstalaste o reemplazaste el controlador; de lo contrario, podría indicar que alguien está interceptando la conexión. Confía en el certificado solo si reconoces el cambio.</value></data>
+  <data name="Couldn't register this shortcut — it may be in use by another app." xml:space="preserve"><value>No se pudo registrar este atajo: puede que otra app ya lo esté usando.</value></data>
+  <data name="Add a modifier key (Ctrl, Alt, Shift or Win) to the shortcut." xml:space="preserve"><value>Añade una tecla modificadora (Ctrl, Alt, Mayús o Win) al atajo.</value></data>
+  <data name="Trusted key" xml:space="preserve"><value>Clave de confianza</value></data>
+  <data name="New key" xml:space="preserve"><value>Clave nueva</value></data>
+  <data name="The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>El controlador presenta un certificado nuevo. Es normal si lo reinstalaste o lo sustituiste; si no, podría indicar que alguien está interceptando la conexión. Compara la clave nueva con el certificado que muestra tu controlador antes de confiar en ella.</value></data>
+  <data name="%lld minutes ago" xml:space="preserve"><value>hace %lld minutos</value></data>
+  <data name="%lld seconds ago" xml:space="preserve"><value>hace %lld segundos</value></data>
 </root>
