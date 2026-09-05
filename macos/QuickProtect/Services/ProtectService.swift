@@ -506,6 +506,31 @@ final class ProtectService: NSObject, ObservableObject {
     /// Fetches camera list from classic API and merges isPtz flags into existing cameras.
     /// Returns `true` only when flags were actually applied, so the caller can
     /// arm the enrichment throttle on success alone.
+    /// Debug-log only: per-camera channel configuration from the classic API
+    /// (codec, resolution, enabled/RTSP flags) — what the controller can hand
+    /// out over RTSP for each camera. No aliases or tokens are logged.
+    private static func logChannelSummary(_ data: Data) {
+        guard let cams = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return }
+        for cam in cams {
+            let name = cam["name"] as? String ?? "?"
+            let model = cam["type"] as? String ?? "?"
+            let state = cam["state"] as? String ?? "?"
+            let fw = cam["firmwareVersion"] as? String ?? "?"
+            let codec = cam["videoCodec"] as? String ?? (cam["videoMode"] as? String ?? "-")
+            let channels = (cam["channels"] as? [[String: Any]] ?? []).map { ch -> String in
+                let id = ch["id"].map { "\($0)" } ?? "?"
+                let n = ch["name"] as? String ?? "?"
+                let en = (ch["enabled"] as? Bool).map { $0 ? "on" : "off" } ?? "?"
+                let rtsp = (ch["isRtspEnabled"] as? Bool).map { $0 ? "rtsp" : "no-rtsp" } ?? "?"
+                let w = ch["width"] as? Int ?? 0, h = ch["height"] as? Int ?? 0
+                let fps = ch["fps"] as? Int ?? 0
+                let vid = ch["videoId"] as? String ?? "-"
+                return "\(id):\(n) \(en) \(rtsp) \(w)x\(h)@\(fps) \(vid)"
+            }
+            RTSPClient.log("[Cameras] \(name) type=\(model) state=\(state) fw=\(fw) codec=\(codec) channels=[\(channels.joined(separator: "; "))]")
+        }
+    }
+
     private func enrichPtzFlags() async -> Bool {
         guard await classicLogin() else {
             RTSPClient.log("[PTZ] enrich failed: classic login failed")
@@ -536,6 +561,7 @@ final class ProtectService: NSObject, ObservableObject {
 
         // Classic API returns a plain array (not wrapped in {data: [...]})
         let classicCameras = (try? JSONDecoder().decode([Camera].self, from: data)) ?? []
+        if RTSPClient.debugLoggingEnabled { Self.logChannelSummary(data) }
 
         // Only apply flags when we actually got a camera list back. A transient
         // empty/failed response must not wipe previously-known PTZ flags; but when

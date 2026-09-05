@@ -70,6 +70,13 @@ final class RTSPClient: ObservableObject {
     /// setup handshake instead of matching on the bare CSeq counter.
     private enum RTSPRequest { case options, describe, setupVideo, setupAudio, play }
     private var awaiting: RTSPRequest = .options
+    /// DESCRIBE answers seen without a video track on this session. The
+    /// controller can publish a freshly allocated stream before the camera's
+    /// video channel is flowing, so a few re-DESCRIBEs are tried before the
+    /// session is failed.
+    private var describesWithoutVideo = 0
+    private static let maxDescribesWithoutVideo = 3
+    private static let describeRetryDelay: TimeInterval = 1.0
     private var audioInfo: RTPParser.SDPAudioInfo?
 
     /// Interleaved RTP channels actually assigned by the server's SETUP response
@@ -240,6 +247,7 @@ final class RTSPClient: ObservableObject {
             sessionId        = ""
             trackControl     = ""
             awaiting         = .options
+            describesWithoutVideo = 0
             audioInfo        = nil
             videoRTPChannel  = 0
             audioRTPChannel  = 2
@@ -807,6 +815,16 @@ final class RTSPClient: ObservableObject {
             // never be answered and the tile would spin forever — fail now, so
             // the user sees why and the retry path applies.
             guard hasVideo else {
+                describesWithoutVideo += 1
+                if describesWithoutVideo < Self.maxDescribesWithoutVideo {
+                    Self.dbg("[RTSP] no video track (attempt \(describesWithoutVideo)) — re-DESCRIBE in \(Self.describeRetryDelay)s")
+                    let conn = connection
+                    queue.asyncAfter(deadline: .now() + Self.describeRetryDelay) { [weak self] in
+                        guard let self, conn === self.connection else { return }
+                        self.sendDescribe()
+                    }
+                    return
+                }
                 failConnection(String(localized: "The controller isn't sending video for this camera right now."))
                 return
             }
