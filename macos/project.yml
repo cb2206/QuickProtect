@@ -130,6 +130,9 @@ targets:
       - path: QuickProtect/Services/RTSPClient.swift
       - path: QuickProtect/Services/AudioRenderer.swift
       - path: QuickProtect/Models/AppSettings.swift
+      # The controller client, driven by ProtectServiceTests through a stub
+      # URLProtocol (no network, no Keychain).
+      - path: QuickProtect/Services/ProtectService.swift
       - path: QuickProtect/Models/Camera.swift
       - path: QuickProtect/Views/AuroraDesign.swift
 

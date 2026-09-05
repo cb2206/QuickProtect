@@ -21,7 +21,18 @@ final class ProtectService: NSObject, ObservableObject {
     /// header swap so the camera's own top bar replaces the grid header.
     @Published var isFocusMode = false
 
-    private let settings = AppSettings.shared
+    private let settings: ProtectCredentialSource
+    /// Extra `URLProtocol` classes registered on both sessions — tests install
+    /// a stub controller here; the app passes none.
+    private let urlProtocolClasses: [AnyClass]
+
+    /// `settings` defaults to the app's shared store; tests pass their own so
+    /// the service never reads UserDefaults or the Keychain.
+    init(settings: ProtectCredentialSource = AppSettings.shared, urlProtocolClasses: [AnyClass] = []) {
+        self.settings = settings
+        self.urlProtocolClasses = urlProtocolClasses
+        super.init()
+    }
 
     /// The configured controller, normalised (host, optional port, pin identity).
     var controllerAddress: ControllerAddress? { ControllerAddress.parse(settings.ipAddress) }
@@ -184,7 +195,7 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func performFetch(forced: Bool) async {
         RTSPClient.log("[API] fetchCameras called")
-        guard validate() else { RTSPClient.log("[API] validate failed"); return }
+        guard await validate() else { RTSPClient.log("[API] validate failed"); return }
         await setLoading(true)
 
         do {
@@ -854,21 +865,27 @@ final class ProtectService: NSObject, ObservableObject {
         return URL(string: "\(address.httpsBase)/\(path)")
     }
 
-    private func validate() -> Bool {
+    /// Checks the configuration and publishes the reason it's unusable before
+    /// returning, so a caller that awaits `fetchCameras` sees the error.
+    private func validate() async -> Bool {
+        let problem: String?
         if settings.ipAddress.isEmpty {
-            Task { await MainActor.run { self.errorMessage = String(localized: "No IP address configured. Open Settings.") } }
-            return false
+            problem = String(localized: "No IP address configured. Open Settings.")
+        } else if settings.apiKey.isEmpty {
+            problem = String(localized: "No API key configured. Open Settings.")
+        } else {
+            problem = nil
         }
-        if settings.apiKey.isEmpty {
-            Task { await MainActor.run { self.errorMessage = String(localized: "No API key configured. Open Settings.") } }
-            return false
-        }
-        return true
+        guard let problem else { return true }
+        await MainActor.run { self.errorMessage = problem }
+        return false
     }
 
     /// Integration API session — ephemeral config to avoid cookie pollution from classic API.
     private lazy var tlsSession: URLSession = {
-        URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
+        let config = URLSessionConfiguration.ephemeral
+        installURLProtocols(on: config)
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
 
     /// Classic API session — separate cookie jar for session-based auth (PTZ).
@@ -879,8 +896,14 @@ final class ProtectService: NSObject, ObservableObject {
         config.httpCookieStorage = HTTPCookieStorage()
         config.urlCache = nil
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        installURLProtocols(on: config)
         return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
+
+    private func installURLProtocols(on config: URLSessionConfiguration) {
+        guard !urlProtocolClasses.isEmpty else { return }
+        config.protocolClasses = urlProtocolClasses + (config.protocolClasses ?? [])
+    }
 
     enum APIError: LocalizedError {
         case invalidURL
@@ -922,3 +945,14 @@ extension ProtectService: URLSessionDelegate {
         }
     }
 }
+
+/// The credentials `ProtectService` needs — the subset of `AppSettings` it
+/// reads, so tests can hand it plain values.
+protocol ProtectCredentialSource: AnyObject {
+    var ipAddress: String { get }
+    var apiKey: String { get }
+    var username: String { get }
+    var password: String { get }
+}
+
+extension AppSettings: ProtectCredentialSource {}
