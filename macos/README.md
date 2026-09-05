@@ -117,6 +117,8 @@ swiftc \
 
 > The `swiftc` path compiles code only and won't process the String Catalog, so a `swiftc` build runs in English. Use the Xcode/XcodeGen build for a localized app.
 
+**Keychain prompts during development.** The Debug configuration signs ad-hoc, and every ad-hoc build has a new code hash, so macOS asks for access to the stored API key and credentials on each launch. `scripts/macos/build.sh` (and `run.sh`) avoid this by signing with an Apple Development certificate when the login keychain has one; click *Always Allow* once after switching and the prompts stop. Xcode does the same if you set the Debug signing identity to your development certificate locally (don't commit that).
+
 ## Localization
 
 QuickProtect ships in English, German, French, Spanish, Dutch, Italian, and Brazilian Portuguese, and follows the system language automatically (set a per-app language in **System Settings → General → Language & Region**).

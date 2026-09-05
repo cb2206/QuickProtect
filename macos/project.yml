@@ -21,7 +21,9 @@ settings:
     # (the app ships unsigned outside the App Store; releases are cloud-signed
     # via fastlane's ASC key, Release config only), so Debug signs ad-hoc and
     # drops the hardened runtime. Without this, `xcodebuild test` fails at the
-    # signing step.
+    # signing step. Ad-hoc builds re-trigger the Keychain consent prompt on
+    # every rebuild (new code hash = new app); scripts/macos/build.sh overrides
+    # these with an Apple Development identity when the keychain has one.
     Debug:
       CODE_SIGN_STYLE: Manual
       CODE_SIGN_IDENTITY: "-"
