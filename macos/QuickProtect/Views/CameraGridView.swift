@@ -920,9 +920,14 @@ struct CameraCell: View {
                 .foregroundColor(.white)
             Button("Reconnect") { startStream() }
                 .buttonStyle(AuroraStatePillButtonStyle(primary: true))
-            Text("RTSP · no media")
+            // The client's own reason when it has one (certificate change,
+            // controller not sending video, RTSP status), else the generic tag.
+            Text(rtspClient.error ?? "RTSP · no media")
                 .font(.system(size: 9.5, design: .monospaced))
                 .foregroundColor(.white.opacity(0.55))
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .padding(.horizontal, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.45))

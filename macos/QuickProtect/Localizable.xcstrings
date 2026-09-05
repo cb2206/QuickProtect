@@ -7381,6 +7381,47 @@
         }
       }
     },
+    "The controller isn't sending video for this camera right now.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller liefert für diese Kamera gerade kein Video."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur n'envoie pas de vidéo pour cette caméra pour le moment."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador no está enviando vídeo de esta cámara en este momento."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller stuurt op dit moment geen video voor deze camera."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller al momento non invia video per questa telecamera."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador não está enviando vídeo desta câmera no momento."
+          }
+        }
+      }
+    },
     "The controller's certificate changed. Open Settings to review and trust it.": {
       "extractionState": "manual",
       "localizations": {

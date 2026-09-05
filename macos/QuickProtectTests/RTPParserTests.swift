@@ -322,3 +322,41 @@ final class AACDepacketizerTests: XCTestCase {
         XCTAssertEqual(aus, [[0xEE, 0xFF]])
     }
 }
+
+final class AccessUnitKeyframeTests: XCTestCase {
+
+    // NAL header bytes: H.264 type is the low 5 bits; HEVC type is bits 1–6.
+    private let h264SEI: [UInt8] = [0x06, 0x05, 0x00]
+    private let h264AUD: [UInt8] = [0x09, 0xF0]
+    private let h264IDR: [UInt8] = [0x65, 0x88, 0x84]
+    private let h264P: [UInt8]   = [0x41, 0x9A, 0x00]
+    private let hevcSEI: [UInt8] = [0x4E, 0x01, 0x05]   // type 39 (prefix SEI)
+    private let hevcIDR: [UInt8] = [0x26, 0x01, 0xAF]   // type 19 (IDR_W_RADL)
+    private let hevcP: [UInt8]   = [0x02, 0x01, 0xD0]   // type 1 (TRAIL_R)
+
+    func testH264IdrFirst() {
+        XCTAssertTrue(RTPParser.accessUnitContainsKeyframe([h264IDR, h264P], hevc: false))
+    }
+
+    func testH264SeiBeforeIdrStillCountsAsKeyframe() {
+        XCTAssertTrue(RTPParser.accessUnitContainsKeyframe([h264SEI, h264IDR], hevc: false))
+        XCTAssertTrue(RTPParser.accessUnitContainsKeyframe([h264AUD, h264SEI, h264IDR], hevc: false))
+    }
+
+    func testH264PFrameOnlyIsNotKeyframe() {
+        XCTAssertFalse(RTPParser.accessUnitContainsKeyframe([h264SEI, h264P], hevc: false))
+        XCTAssertFalse(RTPParser.accessUnitContainsKeyframe([], hevc: false))
+        XCTAssertFalse(RTPParser.accessUnitContainsKeyframe([[]], hevc: false))
+    }
+
+    func testHevcIrapAnywhere() {
+        XCTAssertTrue(RTPParser.accessUnitContainsKeyframe([hevcIDR], hevc: true))
+        XCTAssertTrue(RTPParser.accessUnitContainsKeyframe([hevcSEI, hevcIDR], hevc: true))
+        XCTAssertFalse(RTPParser.accessUnitContainsKeyframe([hevcSEI, hevcP], hevc: true))
+    }
+
+    func testCodecFlagMatters() {
+        // An H.264 IDR byte (0x65) parsed as HEVC is type 50, not an IRAP.
+        XCTAssertFalse(RTPParser.accessUnitContainsKeyframe([h264IDR], hevc: true))
+    }
+}

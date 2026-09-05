@@ -174,6 +174,23 @@ enum RTPParser {
         }
     }
 
+    /// Whether an access unit contains a keyframe (H.264 IDR / HEVC IRAP)
+    /// anywhere in it — not just as its first NAL. Encoders routinely put an
+    /// SEI (recovery point, user data) or an AUD ahead of the IDR, and a
+    /// classifier that only looks at the first NAL then never sees a keyframe:
+    /// every wait-for-keyframe gate (resume after pause, display back-pressure,
+    /// snapshot capture) would stall for good on such a stream.
+    static func accessUnitContainsKeyframe(_ nals: [[UInt8]], hevc: Bool) -> Bool {
+        for nal in nals where !nal.isEmpty {
+            if hevc {
+                if case .keyframe = classifyH265NAL(nal[0]) { return true }
+            } else if classifyH264NAL(nal[0]) == .idr {
+                return true
+            }
+        }
+        return false
+    }
+
     enum H265NALType: Equatable {
         case vps, sps, pps
         case keyframe(type: UInt8)

@@ -139,6 +139,22 @@ swiftlint lint --strict
 
 The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), certificate pinning (policy state machine, SPKI fingerprints against openssl vectors, legacy-pin migration), controller address normalisation, version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings.
 
+## Diagnostics
+
+- `defaults write com.cb.quickprotect QPDebugLogging -bool YES` turns on the
+  RTSP/API debug log (`quickprotect_debug.log` in the app's temp directory;
+  stream URLs are redacted to host:port). For a sandboxed build, whose
+  container preferences and temp directory a shell can't reach, launch the
+  binary with `QUICKPROTECT_DEBUG_LOG=1` instead — every line is then also
+  written to stderr:
+  `QUICKPROTECT_DEBUG_LOG=1 build/Debug/QuickProtect.app/Contents/MacOS/QuickProtect --open-panel 2> qp.log`
+- `--open-panel` opens the camera panel right after launch (scripted runs;
+  parity with the .NET port's flag).
+- A tile that shows "Stream unavailable" prints the client's own reason under
+  the Reconnect button — e.g. the controller answering DESCRIBE with audio
+  tracks only, which means the controller itself is not receiving video from
+  that camera.
+
 ## Installing the GitHub build
 
 The GitHub build is not code-signed with an Apple Developer certificate (the App Store build is). When you first open it, macOS will block it with a message like *"QuickProtect can't be opened because Apple cannot check it for malicious software."* The release page carries a `SHA256SUMS` file to verify the download against.

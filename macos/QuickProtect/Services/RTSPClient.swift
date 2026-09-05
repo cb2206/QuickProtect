@@ -179,8 +179,16 @@ final class RTSPClient: ObservableObject {
 
     /// Opt-in file logging. Off by default; enable with
     ///   defaults write com.cb.quickprotect QPDebugLogging -bool YES
+    /// or, for a sandboxed build whose container preferences the shell can't
+    /// reach, launch with QUICKPROTECT_DEBUG_LOG=1 in the environment.
     /// Callers must not pass credential material (tokens, passwords) here.
     static let debugLoggingEnabled = UserDefaults.standard.bool(forKey: "QPDebugLogging")
+        || debugLoggingViaEnvironment
+    /// The environment switch also mirrors every line to NSLog (stderr / the
+    /// unified log), since the sandbox container's temp dir is not readable from
+    /// a shell — `QUICKPROTECT_DEBUG_LOG=1 QuickProtect.app/Contents/MacOS/QuickProtect 2>log`.
+    private static let debugLoggingViaEnvironment =
+        ProcessInfo.processInfo.environment["QUICKPROTECT_DEBUG_LOG"] == "1"
     private static let maxLogBytes: UInt64 = 1_048_576  // 1 MB, truncated on rollover
 
     static func log(_ msg: String) { dbg(msg) }
@@ -193,6 +201,7 @@ final class RTSPClient: ObservableObject {
     }
     private static func dbg(_ msg: String) {
         guard debugLoggingEnabled else { return }
+        if debugLoggingViaEnvironment { NSLog("%@", msg) }
         let line = "\(Date()) \(msg)\n"
         // NSTemporaryDirectory() resolves to the app's sandbox container temp
         // dir under the App Sandbox, and /private/tmp otherwise — writable in
@@ -769,6 +778,7 @@ final class RTSPClient: ObservableObject {
 
         let statusLine = lines.first ?? ""
         let statusCode = Int(statusLine.components(separatedBy: " ").dropFirst().first ?? "0") ?? 0
+        Self.dbg("[RTSP] \(awaiting) reply \(statusCode) (body \(contentLength) bytes)")
 
         guard (200...299).contains(statusCode) else {
             // Audio is best-effort: if the server rejects the second SETUP, drop
@@ -791,7 +801,15 @@ final class RTSPClient: ObservableObject {
         case .options:
             sendDescribe()
         case .describe:
-            if let sdp = body { parseSDP(sdp) }
+            let hasVideo = body.map(parseSDP) ?? false
+            // A controller that isn't getting video from the camera answers
+            // DESCRIBE with audio tracks only. SETUP against the bare URL would
+            // never be answered and the tile would spin forever — fail now, so
+            // the user sees why and the retry path applies.
+            guard hasVideo else {
+                failConnection(String(localized: "The controller isn't sending video for this camera right now."))
+                return
+            }
             sendSetupVideo()
         case .setupVideo:
             // Negotiate the audio track too when the SDP advertised one, so
@@ -844,11 +862,28 @@ final class RTSPClient: ObservableObject {
         send("DESCRIBE \(currentURL!.absoluteString) RTSP/1.0\r\nCSeq: \(seq)\r\nAccept: application/sdp\r\n\r\n")
     }
 
-    private func parseSDP(_ sdp: String) {
+    /// Reads codec, control and parameter sets from the DESCRIBE body. Returns
+    /// whether the SDP advertised a video track at all.
+    @discardableResult
+    private func parseSDP(_ sdp: String) -> Bool {
+        if Self.debugLoggingEnabled {
+            // Media lines only, with any URL reduced to scheme://host (a track
+            // control can carry the stream token).
+            let media = sdp.components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { $0.hasPrefix("m=") || $0.hasPrefix("a=rtpmap") || $0.hasPrefix("a=control") || $0.hasPrefix("a=fmtp") }
+                .map { $0.replacingOccurrences(of: #"rtsps?://[^/\s]+/\S*"#, with: "<url>", options: .regularExpression) }
+                .map { $0.count > 120 ? String($0.prefix(120)) + "…" : $0 }
+            Self.dbg("[RTSP] SDP media: " + media.joined(separator: " | "))
+        }
         var inVideoSection = false
+        var sawVideoTrack = false
         for rawLine in sdp.components(separatedBy: "\n") {
             let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            if line.hasPrefix("m=") { inVideoSection = line.hasPrefix("m=video") }
+            if line.hasPrefix("m=") {
+                inVideoSection = line.hasPrefix("m=video")
+                if inVideoSection { sawVideoTrack = true }
+            }
             guard inVideoSection else { continue }
             if line.hasPrefix("a=rtpmap:") {
                 let codecStr = line.components(separatedBy: " ").dropFirst().first?
@@ -870,6 +905,8 @@ final class RTSPClient: ObservableObject {
         if let a = audioInfo {
             Self.dbg("[RTSP] audio track: AAC \(a.sampleRate)Hz/\(a.channels)ch control=\(a.trackControl)")
         }
+        if !sawVideoTrack { Self.dbg("[RTSP] SDP has no video track") }
+        return sawVideoTrack
     }
 
     private func parseSpropParameterSets(_ fmtpLine: String) {
@@ -897,6 +934,7 @@ final class RTSPClient: ObservableObject {
     private func sendSetupVideo() {
         awaiting = .setupVideo
         let seq = nextCSeq()
+        Self.dbg("[RTSP] SETUP video control=\(trackControl.isEmpty ? "<none>" : trackControl) codec=\(codec)")
         // Video RTP/RTCP on interleaved channels 0/1.
         send("SETUP \(trackURL(for: trackControl)) RTSP/1.0\r\nCSeq: \(seq)\r\n" +
              "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n\r\n")
@@ -1154,15 +1192,10 @@ final class RTSPClient: ObservableObject {
 
     // MARK: - AVCC/HVCC → CMSampleBuffer → display layer
 
-    /// Whether an access unit starts with a keyframe NAL (H.264 IDR / HEVC
-    /// IRAP). Queue-only — reads `codec`.
+    /// Whether an access unit carries a keyframe NAL (H.264 IDR / HEVC IRAP)
+    /// anywhere — SEI/AUD NALs may precede it. Queue-only — reads `codec`.
     private func isKeyframeAccessUnit(_ nals: [[UInt8]]) -> Bool {
-        guard let firstNAL = nals.first, !firstNAL.isEmpty else { return false }
-        if codec == "H265", firstNAL.count >= 2 {
-            if case .keyframe = RTPParser.classifyH265NAL(firstNAL[0]) { return true }
-            return false
-        }
-        return RTPParser.classifyH264NAL(firstNAL[0]) == .idr
+        RTPParser.accessUnitContainsKeyframe(nals, hevc: codec == "H265")
     }
 
     private func enqueueAccessUnit(_ nals: [[UInt8]], formatDescription: CMVideoFormatDescription) {
@@ -1224,17 +1257,27 @@ final class RTSPClient: ObservableObject {
             }
             if displayLayer.status == .failed { displayLayer.flush() }
             // Back-pressure: a layer that stopped draining (display asleep,
-            // window occluded) must not accumulate samples without bound. Drop
-            // this access unit and re-anchor on the next keyframe — feeding
-            // later P-frames after a gap would only decode garbage.
-            guard displayLayer.isReadyForMoreMediaData else {
-                awaitingKeyframeAfterResume = true
-                return
+            // window occluded) must not accumulate samples without bound. A
+            // keyframe re-anchors it — flush what's queued and enqueue; a
+            // P-frame is dropped and the stream waits for the next keyframe,
+            // since feeding P-frames after a gap only decodes garbage. Never
+            // applied before the first frame is up: a layer that hasn't been
+            // shown yet reports not-ready too, and the first picture must land.
+            if hasFrameSignalled, !displayLayer.isReadyForMoreMediaData {
+                if isKeyframe {
+                    Self.dbg("[RTSP] display layer not draining — flushed at keyframe")
+                    displayLayer.flush()
+                } else {
+                    if !awaitingKeyframeAfterResume { Self.dbg("[RTSP] display layer not draining — waiting for keyframe") }
+                    awaitingKeyframeAfterResume = true
+                    return
+                }
             }
             displayLayer.enqueue(sb)
             if captureActive { decodeForCapture(sb, format: formatDescription, isKeyframe: isKeyframe) }
             if !hasFrameSignalled {
                 hasFrameSignalled = true
+                Self.dbg("[RTSP] first frame on screen (\(codec), keyframe=\(isKeyframe), \(nals.count) NALs)")
                 if handoverOwner != nil {
                     // Warm-up child: its first frame just replaced the picture —
                     // flag for adoption at the receive-completion tail.

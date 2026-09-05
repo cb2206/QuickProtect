@@ -78,6 +78,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         updateChecker.startPeriodicChecks()
         observeUpdatesForAppStorePromo()
+        // Debug/testing affordance (parity with the .NET port's --open-panel):
+        // open the camera panel right after launch so a scripted run streams
+        // without anyone clicking the menu bar item.
+        if CommandLine.arguments.contains("--open-panel") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.showPanel() }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
