@@ -132,17 +132,12 @@ To add or edit a translation, update the relevant dictionary in that script and 
 ## Running Tests
 
 ```bash
-# Via Xcode (requires Xcode.app)
-xcodebuild test -project QuickProtect.xcodeproj -scheme QuickProtect -destination 'platform=macOS'
-
-# Standalone (no Xcode needed)
-swiftc -sdk $(xcrun --show-sdk-path) -target arm64-apple-macos13.0 -parse-as-library \
-  -o /tmp/QuickProtectTests QuickProtect/Services/RTPParser.swift \
-  QuickProtect/Models/Camera.swift QuickProtectTests/TestRunner.swift \
-  && /tmp/QuickProtectTests
+xcodegen generate   # once per checkout (the .xcodeproj is not committed)
+xcodebuild test -scheme QuickProtect -destination 'platform=macOS'
+swiftlint lint --strict
 ```
 
-120+ tests cover RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings.
+The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), certificate pinning (policy state machine, SPKI fingerprints against openssl vectors, legacy-pin migration), controller address normalisation, version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings.
 
 ## Installing an Unsigned App
 

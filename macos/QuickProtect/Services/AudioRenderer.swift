@@ -71,6 +71,9 @@ final class AudioRenderer {
     /// Decode-and-play one AAC access unit. Starts the synchronizer on first call.
     func enqueue(_ accessUnit: [UInt8]) {
         guard renderer.status != .failed else { return }
+        // Back-pressure: if output stopped draining, drop rather than queue
+        // without bound (a glitch on resume beats unbounded growth).
+        guard renderer.isReadyForMoreMediaData else { return }
         guard let sample = makeSampleBuffer(accessUnit) else { return }
         renderer.enqueue(sample)
         if !started {

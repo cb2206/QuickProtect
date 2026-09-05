@@ -949,12 +949,15 @@ final class RTSPClient: ObservableObject {
 
     private func handleRTP(_ offset: Int, length: Int) {
         guard length > 12 else { return }
+        let flags     = buffer[offset]
         let marker    = (buffer[offset + 1] & 0x80) != 0
-        let csrcCount = Int(buffer[offset] & 0x0F)
+        let csrcCount = Int(flags & 0x0F)
         let headerLen = 12 + csrcCount * 4
         guard length > headerLen else { return }
-        let payloadStart = offset + headerLen
-        let payloadLen   = length - headerLen
+        guard let (payloadStart, end) = rtpPayloadBounds(flags: flags,
+                                                         payloadStart: offset + headerLen,
+                                                         end: offset + length) else { return }
+        let payloadLen = end - payloadStart
         if codec == "H265" {
             handleH265RTP(payloadStart, length: payloadLen)
         } else {
@@ -978,14 +981,9 @@ final class RTSPClient: ObservableObject {
         let flags     = buffer[offset]
         let marker    = (buffer[offset + 1] & 0x80) != 0
         let csrcCount = Int(flags & 0x0F)
-        var payloadStart = offset + 12 + csrcCount * 4
-        let end = offset + length
-        // Skip an RTP header extension if the X bit is set.
-        if (flags & 0x10) != 0, payloadStart + 4 <= end {
-            let extWords = Int(buffer[payloadStart + 2]) << 8 | Int(buffer[payloadStart + 3])
-            payloadStart += 4 + extWords * 4
-        }
-        guard payloadStart < end else { return }
+        guard let (payloadStart, end) = rtpPayloadBounds(flags: flags,
+                                                         payloadStart: offset + 12 + csrcCount * 4,
+                                                         end: offset + length) else { return }
 
         let payload = Array(buffer[payloadStart ..< end])
         let aus = aacDepacketizer?.receive(payload, marker: marker) ?? []
@@ -994,6 +992,29 @@ final class RTSPClient: ObservableObject {
             Self.dbg("[RTSP] first audio AU enqueued (\(aus[0].count) bytes)")
         }
         for au in aus { renderer.enqueue(au) }
+    }
+
+    /// Applies the RTP header's X (extension) and P (padding) bits to a packet's
+    /// payload bounds (RFC 3550 §5.1). Returns nil when nothing is left. Shared
+    /// by the video and audio paths so both handle the same packets.
+    private func rtpPayloadBounds(flags: UInt8, payloadStart: Int, end: Int) -> (Int, Int)? {
+        var start = payloadStart
+        var end = end
+        // Padding: the last byte counts the trailing padding bytes, itself included.
+        if (flags & 0x20) != 0 {
+            guard end > start else { return nil }
+            let padding = Int(buffer[end - 1])
+            guard padding > 0, end - padding >= start else { return nil }
+            end -= padding
+        }
+        // Header extension: 16-bit profile, 16-bit length in 32-bit words.
+        if (flags & 0x10) != 0 {
+            guard start + 4 <= end else { return nil }
+            let extWords = Int(buffer[start + 2]) << 8 | Int(buffer[start + 3])
+            start += 4 + extWords * 4
+        }
+        guard start < end else { return nil }
+        return (start, end)
     }
 
     // MARK: - H.264 RTP → NAL units (RFC 6184)
@@ -1202,6 +1223,14 @@ final class RTSPClient: ObservableObject {
                 }
             }
             if displayLayer.status == .failed { displayLayer.flush() }
+            // Back-pressure: a layer that stopped draining (display asleep,
+            // window occluded) must not accumulate samples without bound. Drop
+            // this access unit and re-anchor on the next keyframe — feeding
+            // later P-frames after a gap would only decode garbage.
+            guard displayLayer.isReadyForMoreMediaData else {
+                awaitingKeyframeAfterResume = true
+                return
+            }
             displayLayer.enqueue(sb)
             if captureActive { decodeForCapture(sb, format: formatDescription, isKeyframe: isKeyframe) }
             if !hasFrameSignalled {

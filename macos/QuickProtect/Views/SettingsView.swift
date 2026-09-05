@@ -261,7 +261,7 @@ struct SettingsView: View {
                     ForEach(Array(pending.enumerated()), id: \.element.host) { index, entry in
                         AuroraSettingsRow(
                             String(localized: "Certificate changed"),
-                            hint: String(localized: "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it."),
+                            hint: Self.certificateChangedHint,
                             isLast: index == pending.count - 1,
                             labelExpands: true
                         ) {
@@ -282,6 +282,11 @@ struct SettingsView: View {
             }
         }
     }
+
+    // One localizable literal (String(localized:) needs a literal key); kept out
+    // of the view builder so the type-checker isn't asked to fold it.
+    // swiftlint:disable:next line_length
+    private static let certificateChangedHint = String(localized: "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.")
 
     /// Full SHA-256 SubjectPublicKeyInfo fingerprints of the trusted and the
     /// new key, so the change can be verified against the controller.

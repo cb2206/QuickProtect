@@ -139,9 +139,7 @@ final class UpdateChecker: NSObject, ObservableObject {
 
     // MARK: - Version comparison
 
-    /// Delegates to the single, unit-tested implementation in RTPParser so the
-    /// shipping comparison and the tested one can't drift apart.
     private func isNewer(remote: String, local: String) -> Bool {
-        RTPParser.isNewer(remote: remote, local: local)
+        VersionCompare.isNewer(remote: remote, local: local)
     }
 }

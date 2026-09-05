@@ -89,9 +89,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Pinned windows hold their own streams — tear them down too. Their
         // persistence is kept so they reopen on next launch.
         pinnedWindows.closeAll()
-        // Those requests are dispatched asynchronously; give them a brief
-        // window to reach the controller before the process exits.
-        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        // The DELETEs run asynchronously; wait a bounded moment for them to
+        // reach the controller before the process exits (returns early once
+        // they're all done).
+        service.waitForStreamReleases(timeout: 1.0)
     }
 
     private func promptAutoStartIfNeeded() {

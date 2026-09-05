@@ -182,6 +182,7 @@ struct OnboardingView: View {
                 .font(.system(size: 20, weight: .semibold))
                 .tracking(-0.3)
                 .foregroundColor(palette.text)
+            // swiftlint:disable:next line_length
             Text("To pan and tilt PTZ cameras, QuickProtect needs a local admin account. The Integration API key only exposes preset and patrol endpoints, not free-form movement. You can skip this and add it later in Settings.")
                 .font(.system(size: 12.5))
                 .foregroundColor(palette.subtext)

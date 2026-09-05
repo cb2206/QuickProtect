@@ -212,9 +212,10 @@ struct CameraGridView: View {
         if let userSize = AppSettings.shared.cameraSize(for: camera.id) {
             return userSize.rawValue
         }
-        // No user override — auto-detect from stream dimensions
-        // (This only works after the stream has connected once; defaults to medium)
-        return 2   // default: medium (2 columns)
+        // No override: every camera starts at medium (2 columns). Sizing from
+        // the stream's native dimensions was considered and not implemented —
+        // the span is a layout preference, not a property of the video.
+        return AppSettings.CameraSize.medium.rawValue
     }
 }
 

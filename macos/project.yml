@@ -61,8 +61,8 @@ targets:
         CFBundleVersion: "7"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
-        # Advertise the languages the app ships (English + German) so the system
-        # offers German when the user's preferred language is German.
+        # Advertise the languages the app ships so the system offers the user's
+        # preferred one when it's among them.
         CFBundleLocalizations:
           - en
           - de
@@ -116,7 +116,6 @@ targets:
       - path: QuickProtectTests
         excludes:
           - "**/*.md"
-          - TestRunner.swift
       # Include testable source files directly (no BUNDLE_LOADER needed)
       - path: QuickProtect/Services/RTPParser.swift
       - path: QuickProtect/Services/ControllerRequestPolicy.swift
@@ -124,6 +123,7 @@ targets:
       - path: QuickProtect/Services/UpdateAssets.swift
       - path: QuickProtect/Services/CertificateTrust.swift
       - path: QuickProtect/Services/ControllerAddress.swift
+      - path: QuickProtect/Services/VersionCompare.swift
       - path: QuickProtect/Services/HotkeyManager.swift
       - path: QuickProtect/Models/AppSettings.swift
       - path: QuickProtect/Models/Camera.swift

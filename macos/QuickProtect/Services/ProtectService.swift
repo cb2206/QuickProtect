@@ -425,6 +425,17 @@ final class ProtectService: NSObject, ObservableObject {
         }
     }
 
+    /// In-flight allocation releases, so quit can wait (briefly) for them to
+    /// reach the controller instead of spinning the run loop and hoping.
+    private let releaseGroup = DispatchGroup()
+
+    /// Blocks the caller for up to `timeout` while pending stream releases
+    /// complete. Quit-time only: the releases run detached from any actor, so
+    /// waiting on the main thread cannot deadlock them.
+    func waitForStreamReleases(timeout: TimeInterval) {
+        _ = releaseGroup.wait(timeout: .now() + timeout)
+    }
+
     /// Fire-and-forget DELETE to release a server-side RTSP stream allocation.
     /// The API requires the `qualities` query parameter matching what was created.
     private func deleteRtspStream(for cameraId: String, quality: String) {
@@ -436,7 +447,13 @@ final class ProtectService: NSObject, ObservableObject {
         request.httpMethod = "DELETE"
         request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
 
-        Task { _ = try? await tlsSession.data(for: request) }
+        releaseGroup.enter()
+        // Detached: an inherited main-actor context would make the quit-time
+        // wait above deadlock on itself.
+        Task.detached { [self] in
+            defer { releaseGroup.leave() }
+            _ = try? await tlsSession.data(for: request)
+        }
     }
 
     // MARK: - Classic API (cookie auth — required for PTZ control)
