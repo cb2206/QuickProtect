@@ -27,6 +27,20 @@ $tmp = Join-Path $env:TEMP "$pkg.$Version.zip"
 Write-Host "Downloading $url"
 Invoke-WebRequest -Uri $url -OutFile $tmp
 
+# Integrity: the package is pinned by version AND content. Bumping $Version
+# means recording the new package's SHA-256 here (Get-FileHash on the .nupkg).
+$expectedSha256 = @{
+    "10.0.26100.8249" = "1628c77d21ed187c4db998b37b18e267a7f092ae755589e21110c14260b14960"
+}
+$expected = $expectedSha256[$Version]
+if (-not $expected) { throw "No SHA-256 recorded for $pkg $Version — add it to get-sdk-buildtools.ps1" }
+$actual = (Get-FileHash $tmp -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) {
+    Remove-Item $tmp -Force
+    throw "Checksum mismatch for $pkg $Version`n  expected $expected`n  actual   $actual"
+}
+Write-Host "SHA-256 verified"
+
 # A .nupkg is a zip; we only want bin/<sdkver>/<arch>/ with the tools.
 if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
 New-Item -ItemType Directory -Force $dest | Out-Null

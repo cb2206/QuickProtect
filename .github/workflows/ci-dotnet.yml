@@ -2,7 +2,7 @@ name: dotnet
 
 on:
   push:
-    branches: [main, dev, "feat/**"]
+    branches: [main, dev, "feat/**", "fix/**"]
     paths:
       - "dotnet/**"
       - ".github/workflows/ci-dotnet.yml"
@@ -12,6 +12,15 @@ on:
       - ".github/workflows/ci-dotnet.yml"
   workflow_dispatch:
 
+# Actions are pinned to commit SHAs (Dependabot keeps them current); the
+# version comment is for humans.
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
 jobs:
   test:
     strategy:
@@ -19,15 +28,53 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 8.0.x
 
-      # Builds the whole solution (App included — the FFmpeg natives are only
-      # needed at runtime, so nothing to fetch here) and runs the Core tests.
+      # Locked mode: the committed packages.lock.json files are the only
+      # versions allowed — a drifted or tampered feed fails here.
+      - name: Restore (locked)
+        working-directory: dotnet
+        run: dotnet restore QuickProtect.sln --locked-mode
+
+      - name: Format check
+        working-directory: dotnet
+        run: dotnet format QuickProtect.sln --no-restore --verify-no-changes
+
+      # Builds the whole solution (warnings are errors, analyzers on) and
+      # runs the Core tests. The FFmpeg natives are only needed at runtime.
       - name: Build and test
         working-directory: dotnet
-        run: dotnet test QuickProtect.sln
+        run: dotnet test QuickProtect.sln --no-restore
+
+  # The release packaging path, exercised on every change instead of only
+  # when a tag is pushed: fetches the pinned FFmpeg natives (checksum-verified),
+  # publishes self-contained, builds the tarball and checks what's inside.
+  package-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build tarball
+        run: dotnet/scripts/package-linux.sh
+
+      - name: Inspect tarball
+        run: |
+          set -euo pipefail
+          tarball="$(ls dotnet/dist/QuickProtect-*-linux-x64.tar.gz)"
+          listing="$(tar -tzf "$tarball")"
+          for required in QuickProtect/QuickProtect QuickProtect/ffmpeg/libavcodec.so QuickProtect/ffmpeg/LICENSE.txt \
+                          QuickProtect/THIRD-PARTY-NOTICES.txt QuickProtect/LICENSE quickprotect.desktop; do
+            grep -q "$required" <<<"$listing" || { echo "::error::$required missing from $tarball"; exit 1; }
+          done
+          echo "ok: $(basename "$tarball") ($(wc -l <<<"$listing") entries)"

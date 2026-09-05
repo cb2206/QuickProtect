@@ -14,7 +14,10 @@ pkgrel=1
 pkgdesc="Live viewer for UniFi Protect cameras — grid, focus view, PTZ, snapshots, tray app"
 arch=('x86_64')
 url="https://github.com/cb2206/QuickProtect"
-license=('MIT')
+# MIT for QuickProtect itself; the bundled FFmpeg libraries are LGPL-2.1+,
+# the FFmpeg.AutoGen bindings LGPL-3.0+, the Inter font OFL-1.1 (see the
+# THIRD-PARTY-NOTICES.txt installed alongside).
+license=('MIT' 'LGPL-2.1-or-later' 'LGPL-3.0-or-later' 'OFL-1.1')
 provides=('quickprotect')
 conflicts=('quickprotect')
 optdepends=('alsa-lib: audio playback'
@@ -37,4 +40,9 @@ package() {
         "$pkgdir/usr/share/applications/quickprotect.desktop"
     install -Dm644 quickprotect.png \
         "$pkgdir/usr/share/pixmaps/quickprotect.png"
+
+    install -Dm644 QuickProtect/LICENSE \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 QuickProtect/THIRD-PARTY-NOTICES.txt \
+        "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY-NOTICES.txt"
 }

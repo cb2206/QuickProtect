@@ -52,7 +52,8 @@ Optional install: copy the QuickProtect folder to /opt/quickprotect, then
 quickprotect.desktop to ~/.local/share/applications/ and quickprotect.png to
 ~/.local/share/icons/ (Arch users: quickprotect-bin on the AUR does this).
 
-FFmpeg 7.1 LGPL shared libraries (BtbN builds) are bundled in QuickProtect/ffmpeg/.
+FFmpeg 7.1 LGPL shared libraries (BtbN builds) are bundled in QuickProtect/ffmpeg/;
+their license and the other third-party notices are in QuickProtect/THIRD-PARTY-NOTICES.txt.
 Audio needs ALSA (libasound.so.2); the global hotkey needs the XDG Desktop
 Portal GlobalShortcuts interface. Updates are notify-only: Settings links to
 the GitHub release page.

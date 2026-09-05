@@ -32,6 +32,13 @@ fail() { # $1 = gate name, $2 = output
 }
 
 if [ -f "$SWIFT_MARK" ]; then
+  # The .xcodeproj is generated and gitignored: on a fresh clone it has to be
+  # produced first, or the gate would fail five times and then wave the stop
+  # through — exactly when it matters most.
+  if [ ! -d macos/QuickProtect.xcodeproj ]; then
+    command -v xcodegen >/dev/null 2>&1 || fail "xcodegen" "xcodegen is not installed (brew install xcodegen); cannot generate macos/QuickProtect.xcodeproj"
+    OUT=$(cd macos && xcodegen generate 2>&1 | tail -20) || fail "xcodegen generate" "$OUT"
+  fi
   OUT=$(cd macos && xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet 2>&1 | tail -40) \
     || fail "tests" "$OUT"
   SL=$(command -v swiftlint || echo /opt/homebrew/bin/swiftlint)

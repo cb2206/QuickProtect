@@ -6,23 +6,39 @@ name: release
 # the version via releases/latest; both only announce once the running
 # platform's asset is present, so the asset names below are a de facto API.
 #
+# Nothing is built until both test suites pass, and only the draft-release job
+# can write to the repository. `workflow_dispatch` builds the same artifacts
+# from any branch without creating a release, so changes to this workflow (or
+# to the packaging scripts) can be exercised before tagging.
+#
 # Store builds are separate: Mac App Store via fastlane (macos/fastlane/),
 # Microsoft Store via dotnet/scripts/package-msix.ps1 + Partner Center.
+#
+# Actions are pinned to commit SHAs (Dependabot keeps them current); the
+# version comment is for humans.
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
 
 jobs:
   # The tag is the release version; fail fast if the sources disagree with it.
+  # (Skipped for manual dry runs, which build whatever the branch says.)
   check-version:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Tag matches project.yml and Directory.Build.props
+        if: github.ref_type == 'tag'
         run: |
           ver="${GITHUB_REF_NAME#v}"
           mac="$(sed -n 's/.*CFBundleShortVersionString: "\([^"]*\)".*/\1/p' macos/project.yml)"
@@ -33,13 +49,48 @@ jobs:
             exit 1
           }
 
-  macos-dmg:
+  test-macos:
     needs: check-version
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/macos-tools
+      - name: Test and lint
+        working-directory: macos
+        run: |
+          xcodegen generate
+          git diff --exit-code -- QuickProtect/Info.plist
+          xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet
+          swiftlint lint --strict
+
+  test-dotnet:
+    needs: check-version
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore (locked), format check, test
+        working-directory: dotnet
+        run: |
+          dotnet restore QuickProtect.sln --locked-mode
+          dotnet format QuickProtect.sln --no-restore --verify-no-changes
+          dotnet test QuickProtect.sln --no-restore
+
+  macos-dmg:
+    needs: test-macos
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/macos-tools
       # The GitHub build is not code-signed (see UpdateChecker.swift's
       # AppDistribution note) — ad-hoc signing, same overrides as Debug in
       # project.yml. Release config keeps ONLY_ACTIVE_ARCH=NO → universal.
@@ -51,62 +102,75 @@ jobs:
             -configuration Release -destination 'platform=macOS' SYMROOT=build \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
             ENABLE_HARDENED_RUNTIME=NO build -quiet
+          lipo -info build/Release/QuickProtect.app/Contents/MacOS/QuickProtect
       - name: Package DMG
         working-directory: macos
         run: |
-          ver="${GITHUB_REF_NAME#v}"
+          # Version from the source of truth, so dry runs from a branch work too.
+          ver="$(sed -n 's/.*CFBundleShortVersionString: "\([^"]*\)".*/\1/p' project.yml)"
           staging=$(mktemp -d)
           cp -R build/Release/QuickProtect.app "$staging/"
           ln -s /Applications "$staging/Applications"
           hdiutil create -volname QuickProtect -srcfolder "$staging" \
             -ov -format UDZO "QuickProtect-$ver.dmg"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: macos-dmg
           path: macos/QuickProtect-*.dmg
           if-no-files-found: error
 
   windows-installer:
-    needs: check-version
+    needs: test-dotnet
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 8.0.x
-      - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
+      # Pinned: the installer compiler version is part of what a release is.
+      - name: Install Inno Setup 6.7.1
+        run: choco install innosetup --version=6.7.1 --no-progress -y
       - name: Build installer
         run: powershell -File dotnet/scripts/package-windows.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: windows-installer
           path: dotnet/dist/QuickProtect-Setup-*-win-x64.exe
           if-no-files-found: error
 
   linux-tarball:
-    needs: check-version
+    needs: test-dotnet
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 8.0.x
       - name: Build tarball
         run: dotnet/scripts/package-linux.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: linux-tarball
           path: dotnet/dist/QuickProtect-*-linux-x64.tar.gz
           if-no-files-found: error
 
+  # The only job that writes to the repository, and only for a tag push.
   draft-release:
+    if: github.ref_type == 'tag'
     needs: [macos-dmg, windows-installer, linux-tarball]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           merge-multiple: true
+      - name: Checksums
+        run: |
+          sha256sum QuickProtect-*.dmg QuickProtect-Setup-*.exe QuickProtect-*.tar.gz | tee SHA256SUMS
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -115,4 +179,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --draft --generate-notes \
             --title "QuickProtect ${GITHUB_REF_NAME#v}" \
-            QuickProtect-*.dmg QuickProtect-Setup-*.exe QuickProtect-*.tar.gz
+            QuickProtect-*.dmg QuickProtect-Setup-*.exe QuickProtect-*.tar.gz SHA256SUMS
