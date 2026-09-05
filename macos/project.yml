@@ -116,24 +116,14 @@ targets:
       - path: QuickProtectTests
         excludes:
           - "**/*.md"
-      # Include testable source files directly (no BUNDLE_LOADER needed)
-      - path: QuickProtect/Services/RTPParser.swift
-      - path: QuickProtect/Services/ControllerRequestPolicy.swift
-      - path: QuickProtect/Services/PausedGOPBuffer.swift
-      - path: QuickProtect/Services/UpdateAssets.swift
-      - path: QuickProtect/Services/CertificateTrust.swift
-      - path: QuickProtect/Services/ControllerAddress.swift
-      - path: QuickProtect/Services/VersionCompare.swift
-      - path: QuickProtect/Services/HotkeyManager.swift
-      # The streaming core, so RTSPClientIntegrationTests can drive it against
-      # a local RTSPS server (mediamtx + ffmpeg, skipped when absent).
-      - path: QuickProtect/Services/RTSPClient.swift
-      - path: QuickProtect/Services/AudioRenderer.swift
-      - path: QuickProtect/Models/AppSettings.swift
-      # The controller client, driven by ProtectServiceTests through a stub
-      # URLProtocol (no network, no Keychain).
-      - path: QuickProtect/Services/ProtectService.swift
-      - path: QuickProtect/Models/Camera.swift
+      # The test bundle compiles the app's non-UI layers directly instead of
+      # loading the app as a test host: the app is a sandboxed menu-bar agent
+      # whose launch reads the Keychain (a consent prompt on a fresh ad-hoc
+      # build) and whose sandbox would block the local RTSPS server the
+      # integration tests spawn. Every file under Services/ and Models/ is
+      # therefore testable without being listed here.
+      - path: QuickProtect/Services
+      - path: QuickProtect/Models
       - path: QuickProtect/Views/AuroraDesign.swift
 
     settings:

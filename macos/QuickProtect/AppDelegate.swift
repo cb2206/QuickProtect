@@ -22,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var appSwitchObserver: NSObjectProtocol?
     private var savedPanelFrame: NSRect?
     private var savedPanelLevel: NSWindow.Level?
-    private(set) var isInTrueFullscreen = false
+    /// State shared with the SwiftUI views (fullscreen flag, pinned windows).
+    let appState = AppState()
+    var isInTrueFullscreen: Bool { appState.isInTrueFullscreen }
 
     let service = ProtectService()
     let updateChecker = UpdateChecker()
@@ -65,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         // Instantiate before the first fetch so the manager's camera-list
         // subscription is in place to restore persisted pins when cameras load.
-        _ = pinnedWindows
+        appState.pinnedWindows = pinnedWindows
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
@@ -254,7 +256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let content = PopoverContentView(service: service, clientManager: clientManager) { [weak self] in
                 self?.openSettings()
             }
-            let hostingController = NSHostingController(rootView: content)
+            let hostingController = NSHostingController(rootView: content.environment(\.appState, appState))
 
             let p = NSPanel(
                 contentRect: NSRect(origin: .zero, size: size),
@@ -461,7 +463,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         savedPanelFrame = panel.frame
         savedPanelLevel = panel.level
-        isInTrueFullscreen = true
+        appState.isInTrueFullscreen = true
 
         // Remove title bar and go borderless fullscreen
         panel.styleMask = [.borderless, .nonactivatingPanel]
@@ -484,7 +486,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func exitPanelFullscreen() {
         guard let panel = panel, isInTrueFullscreen else { return }
-        isInTrueFullscreen = false
+        appState.isInTrueFullscreen = false
 
         // Restore original panel style
         panel.styleMask = [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView]

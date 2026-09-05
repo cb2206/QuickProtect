@@ -228,6 +228,7 @@ struct CameraCell: View {
     let loadOrder: Int
     @Binding var focusedCameraId: String?
 
+    @Environment(\.appState) private var appState
     @ObservedObject private var rtspClient: RTSPClient
     /// Second lens stream (e.g. doorbell package camera). For single-lens
     /// cameras this is an unused throwaway client that never connects.
@@ -686,9 +687,7 @@ struct CameraCell: View {
     }
 
     private func toggleTrueFullscreen() {
-        // Access AppDelegate to check current state
-        let appDelegate = NSApp.delegate as? AppDelegate
-        if appDelegate?.isInTrueFullscreen == true {
+        if appState.isInTrueFullscreen {
             NotificationCenter.default.post(name: .exitTrueFullscreen, object: nil)
         } else {
             NotificationCenter.default.post(name: .enterTrueFullscreen, object: nil)
@@ -696,8 +695,7 @@ struct CameraCell: View {
     }
 
     private func handleEscape() {
-        let appDelegate = NSApp.delegate as? AppDelegate
-        if appDelegate?.isInTrueFullscreen == true {
+        if appState.isInTrueFullscreen {
             // Exit true fullscreen first, stay in popover focus
             NotificationCenter.default.post(name: .exitTrueFullscreen, object: nil)
         } else {
@@ -776,7 +774,7 @@ struct CameraCell: View {
         }
         .keyboardShortcut(.return, modifiers: .command)
 
-        if let pinned = (NSApp.delegate as? AppDelegate)?.pinnedWindows {
+        if let pinned = appState.pinnedWindows {
             let isPinned = pinned.isPinned(camera.id)
             Button {
                 // Use the live (enriched) camera so the pinned window picks up
