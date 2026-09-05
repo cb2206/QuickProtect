@@ -360,3 +360,107 @@ final class AccessUnitKeyframeTests: XCTestCase {
         XCTAssertFalse(RTPParser.accessUnitContainsKeyframe([h264IDR], hevc: true))
     }
 }
+
+final class RTPPayloadRangeTests: XCTestCase {
+
+    /// 12-byte fixed header with the given flags byte and marker, followed by payload.
+    private func packet(flags: UInt8, marker: Bool = false, payload: [UInt8]) -> [UInt8] {
+        var p = [UInt8](repeating: 0, count: 12)
+        p[0] = flags
+        p[1] = marker ? 0x80 | 96 : 96
+        return p + payload
+    }
+
+    func testPlainPacket() {
+        let p = packet(flags: 0x80, marker: true, payload: [1, 2, 3])
+        let r = RTPParser.rtpPayloadRange(p, offset: 0, length: p.count)
+        XCTAssertEqual(r?.marker, true)
+        XCTAssertEqual(r?.start, 12)
+        XCTAssertEqual(r?.end, 15)
+    }
+
+    func testCsrcListSkipped() {
+        // CC = 2 → two 4-byte CSRC entries after the fixed header.
+        let p = packet(flags: 0x82, payload: [0, 0, 0, 0, 0, 0, 0, 0, 9, 9])
+        let r = RTPParser.rtpPayloadRange(p, offset: 0, length: p.count)
+        XCTAssertEqual(r?.start, 20)
+        XCTAssertEqual(r?.end, 22)
+    }
+
+    func testPaddingStripped() {
+        // P bit set; payload [7, 7, pad, pad, pad=3] → last byte says 3 padding bytes.
+        let p = packet(flags: 0xA0, payload: [7, 7, 0, 0, 3])
+        let r = RTPParser.rtpPayloadRange(p, offset: 0, length: p.count)
+        XCTAssertEqual(r?.start, 12)
+        XCTAssertEqual(r?.end, 14)
+    }
+
+    func testExtensionSkipped() {
+        // X bit set; extension header: profile (2 bytes) + length=1 word → 4 more bytes.
+        let p = packet(flags: 0x90, payload: [0xBE, 0xDE, 0x00, 0x01, 0xAA, 0xAA, 0xAA, 0xAA, 5, 6])
+        let r = RTPParser.rtpPayloadRange(p, offset: 0, length: p.count)
+        XCTAssertEqual(r?.start, 20)
+        XCTAssertEqual(r?.end, 22)
+    }
+
+    func testMalformedReturnsNil() {
+        XCTAssertNil(RTPParser.rtpPayloadRange([UInt8](repeating: 0, count: 12), offset: 0, length: 12))
+        // Padding count larger than the payload.
+        let p = packet(flags: 0xA0, payload: [1, 2, 9])
+        XCTAssertNil(RTPParser.rtpPayloadRange(p, offset: 0, length: p.count))
+        // Extension claims more words than present.
+        let e = packet(flags: 0x90, payload: [0, 0, 0x10, 0x00, 1])
+        XCTAssertNil(RTPParser.rtpPayloadRange(e, offset: 0, length: e.count))
+    }
+
+    func testOffsetInsideLargerBuffer() {
+        let p = [0xFF, 0xFF] + packet(flags: 0x80, payload: [4, 4])
+        let r = RTPParser.rtpPayloadRange(p, offset: 2, length: p.count - 2)
+        XCTAssertEqual(r?.start, 14)
+        XCTAssertEqual(r?.end, 16)
+    }
+}
+
+final class RTSPResponseHeaderTests: XCTestCase {
+
+    func testHeaderParsedBeforeBodyArrives() {
+        let text = "RTSP/1.0 200 OK\r\nCSeq: 2\r\nContent-Length: 10\r\nSession: 12345;timeout=60\r\n\r\nabc"
+        let buf = Array(text.utf8)
+        let head = RTPParser.parseResponseHeader(buf, from: 0)
+        XCTAssertEqual(head?.statusCode, 200)
+        XCTAssertEqual(head?.contentLength, 10)
+        XCTAssertEqual(head?.headers["session"], "12345;timeout=60")
+        // Body incomplete → the full parse still waits.
+        XCTAssertNil(RTPParser.parseResponse(buf, from: 0))
+    }
+
+    func testNegativeContentLengthReadsAsZero() {
+        let text = "RTSP/1.0 200 OK\r\nCSeq: 1\r\nContent-Length: -5\r\n\r\n"
+        let buf = Array(text.utf8)
+        XCTAssertEqual(RTPParser.parseResponseHeader(buf, from: 0)?.contentLength, 0)
+        let r = RTPParser.parseResponse(buf, from: 0)
+        XCTAssertEqual(r?.totalLength, buf.count)
+        XCTAssertNil(r?.body)
+    }
+
+    func testNoTerminatorYet() {
+        XCTAssertNil(RTPParser.parseResponseHeader(Array("RTSP/1.0 200 OK\r\nCSeq: 1\r\n".utf8), from: 0))
+    }
+}
+
+final class InterleavedConsumptionTests: XCTestCase {
+
+    func testStrayBytesWithoutDollarConsumeWholeBuffer() {
+        let (frames, consumed) = RTPParser.extractInterleavedFrames(from: [1, 2, 3, 4, 5], offset: 0)
+        XCTAssertTrue(frames.isEmpty)
+        XCTAssertEqual(consumed, 5)
+    }
+
+    func testResyncsAtNextDollar() {
+        let buf: [UInt8] = [0xAA, 0xBB, 0x24, 0x00, 0x00, 0x02, 0x11, 0x22]
+        let (frames, consumed) = RTPParser.extractInterleavedFrames(from: buf, offset: 0)
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(frames[0].payloadOffset, 6)
+        XCTAssertEqual(consumed, 8)
+    }
+}

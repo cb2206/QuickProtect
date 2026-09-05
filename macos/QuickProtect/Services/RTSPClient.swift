@@ -200,6 +200,13 @@ final class RTSPClient: ObservableObject {
 
     static func log(_ msg: String) { dbg(msg) }
 
+    /// Maps the host a stream URL names to the identity its certificate pin is
+    /// stored under. The app installs the configured controller's pin key here
+    /// (see `AppDelegate`), so video and API share one pin; the default keeps
+    /// the URL host, which is what tests against a local server want. Also
+    /// keeps this class free of the settings singleton (and its Keychain reads).
+    static var pinKeyProvider: (String) -> String = { $0 }
+
     /// Scheme, host and port only. The path of a stream URL is a bearer token
     /// for live video and must never reach the log.
     static func redactedDescription(of url: URL) -> String {
@@ -281,7 +288,7 @@ final class RTSPClient: ObservableObject {
             // trust-on-first-use pinning — see CertificateTrust). The pin is
             // keyed by the configured controller identity, not by the host in
             // the stream URL, so both channels share one pin.
-            let pinKey = ControllerAddress.parse(AppSettings.shared.ipAddress)?.pinKey ?? host
+            let pinKey = Self.pinKeyProvider(host)
             sec_protocol_options_set_verify_block(
                 tlsOpts.securityProtocolOptions,
                 { [weak self] _, secTrust, complete in
@@ -737,55 +744,38 @@ final class RTSPClient: ObservableObject {
     // MARK: - RTSP response parser
 
     private func processRTSPResponses() {
-        guard let headerEnd = findHeaderEnd() else {
+        // Headers first (RTPParser.parseResponseHeader), so a bogus
+        // Content-Length is rejected before any body is awaited or buffered.
+        guard let head = RTPParser.parseResponseHeader(buffer, from: bufferOffset) else {
             // No header terminator yet. If we've buffered more than a sane header
             // could ever be, the endpoint is misbehaving — give up.
             if bufferCount > maxHeaderSize { failConnection("RTSP header exceeded \(maxHeaderSize) bytes") }
             return
         }
 
-        let headerText = String(bytes: buffer[bufferOffset..<headerEnd], encoding: .utf8) ?? ""
-        let lines = headerText.components(separatedBy: "\r\n")
-
-        var contentLength = 0
-        var newSession    = ""
-        var transport     = ""
-        for line in lines.dropFirst() {
-            let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
-            guard parts.count == 2 else { continue }
-            switch parts[0].lowercased() {
-            case "content-length": contentLength = Int(parts[1]) ?? 0
-            case "session":        newSession = parts[1].components(separatedBy: ";").first ?? parts[1]
-            case "transport":      transport = parts[1]
-            default: break
-            }
+        if let session = head.headers["session"] {
+            sessionId = session.components(separatedBy: ";").first ?? session
         }
-        if !newSession.isEmpty { sessionId = newSession }
-
         // Record the RTP channel the server actually bound for whichever SETUP
         // this response answers, so the interleaved demux matches reality.
-        if let ch = RTPParser.interleavedRTPChannel(transport) {
+        if let transport = head.headers["transport"], let ch = RTPParser.interleavedRTPChannel(transport) {
             if awaiting == .setupVideo { videoRTPChannel = ch }
             if awaiting == .setupAudio { audioRTPChannel = ch }
             Self.dbg("[RTSP] \(awaiting) transport channel=\(ch)")
         }
 
-        guard contentLength >= 0, contentLength <= maxContentLength else {
+        let contentLength = head.contentLength
+        guard contentLength <= maxContentLength else {
             failConnection("RTSP Content-Length out of range: \(contentLength)")
             return
         }
 
-        let total = headerEnd + contentLength
-        guard buffer.count >= total else { return }
+        // Body still in flight: wait for more bytes.
+        guard let response = RTPParser.parseResponse(buffer, from: bufferOffset) else { return }
+        consumeBytes(response.totalLength)
 
-        let body: String? = contentLength > 0
-            ? String(bytes: buffer[headerEnd..<total], encoding: .utf8)
-            : nil
-
-        consumeBytes(total - bufferOffset)
-
-        let statusLine = lines.first ?? ""
-        let statusCode = Int(statusLine.components(separatedBy: " ").dropFirst().first ?? "0") ?? 0
+        let statusCode = response.statusCode
+        let body = response.body
         Self.dbg("[RTSP] \(awaiting) reply \(statusCode) (body \(contentLength) bytes)")
 
         guard (200...299).contains(statusCode) else {
@@ -809,7 +799,8 @@ final class RTSPClient: ObservableObject {
         case .options:
             sendDescribe()
         case .describe:
-            let hasVideo = body.map(parseSDP) ?? false
+            let video = body.flatMap(readSDP)
+            let hasVideo = video != nil
             // A controller that isn't getting video from the camera answers
             // DESCRIBE with audio tracks only. SETUP against the bare URL would
             // never be answered and the tile would spin forever — fail now, so
@@ -849,15 +840,6 @@ final class RTSPClient: ObservableObject {
         if !inRTPMode && bufferCount > 0 { processRTSPResponses() }
     }
 
-    private func findHeaderEnd() -> Int? {
-        guard bufferCount >= 4 else { return nil }
-        for i in bufferOffset...(buffer.count - 4) where
-            buffer[i] == 0x0D && buffer[i+1] == 0x0A && buffer[i+2] == 0x0D && buffer[i+3] == 0x0A {
-            return i + 4
-        }
-        return nil
-    }
-
     // MARK: - RTSP commands
 
     @discardableResult
@@ -883,7 +865,10 @@ final class RTSPClient: ObservableObject {
     /// Reads codec, control and parameter sets from the DESCRIBE body. Returns
     /// whether the SDP advertised a video track at all.
     @discardableResult
-    private func parseSDP(_ sdp: String) -> Bool {
+    /// Reads the DESCRIBE body through RTPParser: audio track info is kept,
+    /// the video track (codec, control, in-SDP H.264 parameter sets) is applied
+    /// to this session. Returns nil when the SDP advertises no decodable video.
+    private func readSDP(_ sdp: String) -> RTPParser.SDPVideoInfo? {
         if Self.debugLoggingEnabled {
             // Media lines only, with any URL reduced to scheme://host (a track
             // control can carry the stream token).
@@ -894,52 +879,23 @@ final class RTSPClient: ObservableObject {
                 .map { $0.count > 120 ? String($0.prefix(120)) + "…" : $0 }
             Self.dbg("[RTSP] SDP media: " + media.joined(separator: " | "))
         }
-        var inVideoSection = false
-        var sawVideoTrack = false
-        for rawLine in sdp.components(separatedBy: "\n") {
-            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            if line.hasPrefix("m=") {
-                inVideoSection = line.hasPrefix("m=video")
-                if inVideoSection { sawVideoTrack = true }
-            }
-            guard inVideoSection else { continue }
-            if line.hasPrefix("a=rtpmap:") {
-                let codecStr = line.components(separatedBy: " ").dropFirst().first?
-                    .components(separatedBy: "/").first?.uppercased() ?? ""
-                if codecStr == "H264" || codecStr == "H265" || codecStr == "HEVC" {
-                    codec = (codecStr == "H264") ? "H264" : "H265"
-                }
-            }
-            if line.hasPrefix("a=control:") {
-                let ctrl = String(line.dropFirst("a=control:".count))
-                if ctrl != "*" && !ctrl.isEmpty { trackControl = ctrl }
-            }
-            if line.hasPrefix("a=fmtp:") && line.contains("sprop-parameter-sets=") {
-                parseSpropParameterSets(line)
-            }
-        }
 
         audioInfo = RTPParser.parseAudioTrack(sdp: sdp)
         if let a = audioInfo {
             Self.dbg("[RTSP] audio track: AAC \(a.sampleRate)Hz/\(a.channels)ch control=\(a.trackControl)")
         }
-        if !sawVideoTrack { Self.dbg("[RTSP] SDP has no video track") }
-        return sawVideoTrack
-    }
 
-    private func parseSpropParameterSets(_ fmtpLine: String) {
-        guard let r = fmtpLine.range(of: "sprop-parameter-sets=") else { return }
-        let val  = String(fmtpLine[r.upperBound...]).split(separator: ";").first.map(String.init)?
-                       .trimmingCharacters(in: .whitespaces) ?? ""
-        let parts = val.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        guard parts.count >= 2,
-              let spsData = Data(base64Encoded: parts[0]),
-              let ppsData = Data(base64Encoded: parts[1]) else { return }
-        let sps = [UInt8](spsData), pps = [UInt8](ppsData)
-        h264SPS = sps; h264PPS = pps
-        if let d = makeH264FormatDescription(sps: sps, pps: pps) {
-            formatDescription = d
+        guard let video = RTPParser.parseVideoTrack(sdp: sdp) else {
+            Self.dbg("[RTSP] SDP has no video track")
+            return nil
         }
+        codec = video.codec
+        trackControl = video.trackControl
+        if let sps = video.spropSPS, let pps = video.spropPPS {
+            h264SPS = sps; h264PPS = pps
+            adoptFormatDescription(makeH264FormatDescription(sps: sps, pps: pps))
+        }
+        return video
     }
 
     /// Resolve a track-control string (absolute URL or relative path) to a full URL.
@@ -977,42 +933,31 @@ final class RTSPClient: ObservableObject {
     // MARK: - RTP interleaved framing  (RFC 2326 §10.12)
 
     private func processRTP() {
-        while bufferCount >= 4 {
-            let pos = bufferOffset
-            guard buffer[pos] == 0x24 else {
-                // Skip stray bytes until next '$'
-                var found = false
-                for i in (pos + 1) ..< buffer.count where buffer[i] == 0x24 {
-                    bufferOffset = i; found = true; break
-                }
-                if !found { buffer.removeAll(keepingCapacity: true); bufferOffset = 0; return }
-                continue
+        // RTPParser walks the `$`-framed interleaved stream (offsets only — no
+        // copies) and reports how far it got: a partial frame at the tail stays
+        // in the buffer for the next receive.
+        let (frames, consumed) = RTPParser.extractInterleavedFrames(from: buffer, offset: bufferOffset)
+        for frame in frames {
+            if frame.channel == videoRTPChannel {
+                handleRTP(frame.payloadOffset, length: frame.payloadLength)
+            } else if audioInfo != nil && frame.channel == audioRTPChannel {
+                handleAudioRTP(frame.payloadOffset, length: frame.payloadLength)
             }
-            let channel = buffer[pos + 1]
-            let length  = Int(buffer[pos + 2]) << 8 | Int(buffer[pos + 3])
-            guard pos + 4 + length <= buffer.count else { break }
-            if channel == videoRTPChannel {
-                handleRTP(pos + 4, length: length)
-            } else if audioInfo != nil && channel == audioRTPChannel {
-                handleAudioRTP(pos + 4, length: length)
-            }
-            bufferOffset = pos + 4 + length
         }
-        compactBuffer()
+        bufferOffset = consumed
+        if bufferOffset >= buffer.count {
+            buffer.removeAll(keepingCapacity: true)
+            bufferOffset = 0
+        } else {
+            compactBuffer()
+        }
     }
 
     // MARK: - RTP packet dispatcher (zero-copy from buffer)
 
     private func handleRTP(_ offset: Int, length: Int) {
-        guard length > 12 else { return }
-        let flags     = buffer[offset]
-        let marker    = (buffer[offset + 1] & 0x80) != 0
-        let csrcCount = Int(flags & 0x0F)
-        let headerLen = 12 + csrcCount * 4
-        guard length > headerLen else { return }
-        guard let (payloadStart, end) = rtpPayloadBounds(flags: flags,
-                                                         payloadStart: offset + headerLen,
-                                                         end: offset + length) else { return }
+        guard let (marker, payloadStart, end) = RTPParser.rtpPayloadRange(buffer, offset: offset, length: length)
+        else { return }
         let payloadLen = end - payloadStart
         if codec == "H265" {
             handleH265RTP(payloadStart, length: payloadLen)
@@ -1033,13 +978,9 @@ final class RTSPClient: ObservableObject {
     /// renderer. No-ops unless this client is the focused stream (renderer == nil).
     /// Cross-packet fragmented AUs are reassembled by the stateful depacketizer.
     private func handleAudioRTP(_ offset: Int, length: Int) {
-        guard let renderer = audioRenderer, length > 12 else { return }
-        let flags     = buffer[offset]
-        let marker    = (buffer[offset + 1] & 0x80) != 0
-        let csrcCount = Int(flags & 0x0F)
-        guard let (payloadStart, end) = rtpPayloadBounds(flags: flags,
-                                                         payloadStart: offset + 12 + csrcCount * 4,
-                                                         end: offset + length) else { return }
+        guard let renderer = audioRenderer,
+              let (marker, payloadStart, end) = RTPParser.rtpPayloadRange(buffer, offset: offset, length: length)
+        else { return }
 
         let payload = Array(buffer[payloadStart ..< end])
         let aus = aacDepacketizer?.receive(payload, marker: marker) ?? []
@@ -1050,29 +991,6 @@ final class RTSPClient: ObservableObject {
         for au in aus { renderer.enqueue(au) }
     }
 
-    /// Applies the RTP header's X (extension) and P (padding) bits to a packet's
-    /// payload bounds (RFC 3550 §5.1). Returns nil when nothing is left. Shared
-    /// by the video and audio paths so both handle the same packets.
-    private func rtpPayloadBounds(flags: UInt8, payloadStart: Int, end: Int) -> (Int, Int)? {
-        var start = payloadStart
-        var end = end
-        // Padding: the last byte counts the trailing padding bytes, itself included.
-        if (flags & 0x20) != 0 {
-            guard end > start else { return nil }
-            let padding = Int(buffer[end - 1])
-            guard padding > 0, end - padding >= start else { return nil }
-            end -= padding
-        }
-        // Header extension: 16-bit profile, 16-bit length in 32-bit words.
-        if (flags & 0x10) != 0 {
-            guard start + 4 <= end else { return nil }
-            let extWords = Int(buffer[start + 2]) << 8 | Int(buffer[start + 3])
-            start += 4 + extWords * 4
-        }
-        guard start < end else { return nil }
-        return (start, end)
-    }
-
     // MARK: - H.264 RTP → NAL units (RFC 6184)
 
     private func handleH264RTP(_ off: Int, length: Int) {
@@ -1080,18 +998,6 @@ final class RTSPClient: ObservableObject {
         let nalType = buffer[off] & 0x1F
 
         switch nalType {
-        case 1...23:
-            emitNAL(Array(buffer[off ..< off + length]))
-
-        case 24:    // STAP-A
-            var i = off + 1
-            let end = off + length
-            while i + 2 <= end {
-                let len = Int(buffer[i]) << 8 | Int(buffer[i + 1]); i += 2
-                guard i + len <= end else { break }
-                emitNAL(Array(buffer[i ..< i + len])); i += len
-            }
-
         case 28:    // FU-A
             guard length > 2 else { return }
             let fuInd  = buffer[off]
@@ -1106,7 +1012,10 @@ final class RTSPClient: ObservableObject {
             dropFragmentIfOversized()
             if isEnd, let complete = fuBuffer { emitNAL(complete); fuBuffer = nil }
 
-        default: break
+        default:
+            // Single NAL and STAP-A aggregation — the stateless cases live in
+            // RTPParser (and its tests); anything it doesn't know is skipped.
+            for nal in RTPParser.parseH264Payload(Array(buffer[off ..< off + length])) { emitNAL(nal) }
         }
     }
 
@@ -1131,17 +1040,9 @@ final class RTSPClient: ObservableObject {
             dropFragmentIfOversized()
             if isEnd, let complete = fuBuffer { emitNAL(complete); fuBuffer = nil }
 
-        case 48:    // Aggregation Packet
-            var i = off + 2
-            let end = off + length
-            while i + 2 <= end {
-                let len = Int(buffer[i]) << 8 | Int(buffer[i + 1]); i += 2
-                guard i + len <= end else { break }
-                emitNAL(Array(buffer[i ..< i + len])); i += len
-            }
-
         default:
-            emitNAL(Array(buffer[off ..< off + length]))
+            // Single NAL and AP aggregation — stateless, handled by RTPParser.
+            for nal in RTPParser.parseH265Payload(Array(buffer[off ..< off + length])) { emitNAL(nal) }
         }
     }
 
@@ -1165,12 +1066,7 @@ final class RTSPClient: ObservableObject {
             default: break
             }
             if formatDescription == nil, let vps = hevcVPS, let sps = hevcSPS, let pps = hevcPPS {
-                formatDescription = makeHEVCFormatDescription(vps: vps, sps: sps, pps: pps)
-                if let fd = formatDescription {
-                    let dims = CMVideoFormatDescriptionGetDimensions(fd)
-                    let size = CGSize(width: CGFloat(dims.width), height: CGFloat(dims.height))
-                    DispatchQueue.main.async { self.videoDimensions = size }
-                }
+                adoptFormatDescription(makeHEVCFormatDescription(vps: vps, sps: sps, pps: pps))
             }
             // Don't enqueue parameter sets as picture data.
             switch RTPParser.classifyH265NAL(nal[0]) {
@@ -1184,12 +1080,7 @@ final class RTSPClient: ObservableObject {
             default: break
             }
             if formatDescription == nil, let sps = h264SPS, let pps = h264PPS {
-                formatDescription = makeH264FormatDescription(sps: sps, pps: pps)
-                if let fd = formatDescription {
-                    let dims = CMVideoFormatDescriptionGetDimensions(fd)
-                    let size = CGSize(width: CGFloat(dims.width), height: CGFloat(dims.height))
-                    DispatchQueue.main.async { self.videoDimensions = size }
-                }
+                adoptFormatDescription(makeH264FormatDescription(sps: sps, pps: pps))
             }
             // Don't enqueue parameter sets or access-unit delimiters as picture data.
             switch RTPParser.classifyH264NAL(nal[0]) {
@@ -1231,19 +1122,12 @@ final class RTSPClient: ObservableObject {
             awaitingKeyframeAfterResume = false
         }
 
-        let totalSize = nals.reduce(0) { $0 + 4 + $1.count }
+        // Length-prefixed (AVCC/HVCC) access unit, packed by RTPParser; the
+        // block buffer owns a malloc'd copy that CoreMedia frees.
+        let avcc = RTPParser.nalsToAVCC(nals)
+        let totalSize = avcc.count
         guard totalSize > 0, let mem = malloc(totalSize) else { return }
-        let ptr = mem.bindMemory(to: UInt8.self, capacity: totalSize)
-        var offset = 0
-        for nal in nals {
-            let len = nal.count
-            ptr[offset]     = UInt8((len >> 24) & 0xFF)
-            ptr[offset + 1] = UInt8((len >> 16) & 0xFF)
-            ptr[offset + 2] = UInt8((len >>  8) & 0xFF)
-            ptr[offset + 3] = UInt8( len        & 0xFF)
-            memcpy(ptr + offset + 4, nal, len)
-            offset += 4 + len
-        }
+        avcc.withUnsafeBytes { src in _ = memcpy(mem, src.baseAddress, totalSize) }
 
         var blockBuffer: CMBlockBuffer?
         guard CMBlockBufferCreateWithMemoryBlock(
@@ -1305,6 +1189,16 @@ final class RTSPClient: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Installs a freshly built format description and publishes its picture
+    /// size — whether the parameter sets came from the SDP or arrived in-band.
+    private func adoptFormatDescription(_ description: CMVideoFormatDescription?) {
+        guard let description else { return }
+        formatDescription = description
+        let dims = CMVideoFormatDescriptionGetDimensions(description)
+        let size = CGSize(width: CGFloat(dims.width), height: CGFloat(dims.height))
+        DispatchQueue.main.async { self.videoDimensions = size }
     }
 
     private func makeH264FormatDescription(sps: [UInt8], pps: [UInt8]) -> CMVideoFormatDescription? {

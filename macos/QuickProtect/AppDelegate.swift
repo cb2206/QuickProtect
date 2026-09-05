@@ -44,6 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // password/one-time-code autofill, so disable the heuristic wholesale.
         // Undocumented but established key (used by Ghostty among others).
         UserDefaults.standard.register(defaults: ["NSAutoFillHeuristicControllerEnabled": false])
+        // Video streams pin under the configured controller identity — the
+        // same key the HTTPS API uses (see CertificateTrust).
+        RTSPClient.pinKeyProvider = { host in
+            ControllerAddress.parse(AppSettings.shared.ipAddress)?.pinKey ?? host
+        }
         setupStatusBar()
         setupGlobalHotkey()
         NotificationCenter.default.addObserver(forName: .closeCameraPanel, object: nil, queue: .main) { [weak self] _ in
@@ -64,6 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
+        } else {
+            RTSPClient.log("[API] no initial fetch: address \(s.ipAddress.isEmpty ? "missing" : "set"), API key \(s.apiKey.isEmpty ? "missing" : "set")")
         }
         // A controller/API-key change invalidates live streams and any pending
         // keep-alive grace — stale clients would keep talking to the old host.

@@ -45,7 +45,9 @@ enum RTPParser {
 
     // MARK: - RTP header parsing
 
-    /// Parse RTP header: returns (markerBit, headerLength) or nil if invalid.
+    /// Parse the fixed RTP header: returns (markerBit, headerLength) or nil if
+    /// invalid. The header length covers the 12 fixed bytes plus the CSRC list;
+    /// use `rtpPayloadRange` to also honour the extension and padding bits.
     static func parseRTPHeader(_ buffer: [UInt8], offset: Int, length: Int) -> (marker: Bool, headerLength: Int)? {
         guard length > 12 else { return nil }
         let marker = (buffer[offset + 1] & 0x80) != 0
@@ -53,6 +55,32 @@ enum RTPParser {
         let headerLen = 12 + csrcCount * 4
         guard length > headerLen else { return nil }
         return (marker, headerLen)
+    }
+
+    /// Bounds of an RTP packet's payload inside `buffer` (RFC 3550 §5.1): after
+    /// the fixed header and CSRC list, past a header extension when the X bit
+    /// is set, and before trailing padding when the P bit is set. Returns nil
+    /// for a malformed packet or one with nothing left after the header.
+    static func rtpPayloadRange(_ buffer: [UInt8], offset: Int, length: Int)
+        -> (marker: Bool, start: Int, end: Int)? {
+        guard let header = parseRTPHeader(buffer, offset: offset, length: length) else { return nil }
+        let flags = buffer[offset]
+        var start = offset + header.headerLength
+        var end = offset + length
+        // Padding: the last byte counts the trailing padding bytes, itself included.
+        if (flags & 0x20) != 0 {
+            let padding = Int(buffer[end - 1])
+            guard padding > 0, end - padding >= start else { return nil }
+            end -= padding
+        }
+        // Header extension: 16-bit profile, 16-bit length in 32-bit words.
+        if (flags & 0x10) != 0 {
+            guard start + 4 <= end else { return nil }
+            let extWords = Int(buffer[start + 2]) << 8 | Int(buffer[start + 3])
+            start += 4 + extWords * 4
+        }
+        guard start < end else { return nil }
+        return (header.marker, start, end)
     }
 
     // MARK: - H.264 NAL parsing (RFC 6184)
@@ -235,10 +263,21 @@ enum RTPParser {
         return nil
     }
 
-    /// Parse an RTSP response from buffer bytes.
-    static func parseResponse(_ buffer: [UInt8], from offset: Int) -> RTSPResponse? {
-        guard let headerEnd = findHeaderEnd(in: buffer, from: offset) else { return nil }
+    struct RTSPResponseHeader {
+        let statusCode: Int
+        /// Header names lower-cased; values trimmed.
+        let headers: [String: String]
+        /// Offset just past the `\r\n\r\n` terminator (where the body starts).
+        let headerEnd: Int
+        /// Declared body length; a missing, unparsable or negative value reads as 0.
+        var contentLength: Int { max(0, Int(headers["content-length"] ?? "0") ?? 0) }
+    }
 
+    /// Parse the status line and headers of an RTSP response, or nil while the
+    /// header terminator hasn't arrived. Lets a caller validate Content-Length
+    /// before waiting for (or allocating) the body.
+    static func parseResponseHeader(_ buffer: [UInt8], from offset: Int) -> RTSPResponseHeader? {
+        guard let headerEnd = findHeaderEnd(in: buffer, from: offset) else { return nil }
         let headerText = String(bytes: buffer[offset..<headerEnd], encoding: .utf8) ?? ""
         let lines = headerText.components(separatedBy: "\r\n")
 
@@ -248,18 +287,23 @@ enum RTPParser {
             guard parts.count == 2 else { continue }
             headers[parts[0].lowercased()] = parts[1]
         }
+        let statusLine = lines.first ?? ""
+        let statusCode = Int(statusLine.components(separatedBy: " ").dropFirst().first ?? "0") ?? 0
+        return RTSPResponseHeader(statusCode: statusCode, headers: headers, headerEnd: headerEnd)
+    }
 
-        let contentLength = Int(headers["content-length"] ?? "0") ?? 0
-        let total = headerEnd + contentLength
+    /// Parse a complete RTSP response (headers + body) from buffer bytes, or nil
+    /// while it is still incomplete.
+    static func parseResponse(_ buffer: [UInt8], from offset: Int) -> RTSPResponse? {
+        guard let head = parseResponseHeader(buffer, from: offset) else { return nil }
+        let contentLength = head.contentLength
+        let total = head.headerEnd + contentLength
         guard buffer.count >= total else { return nil }
 
         let body: String? = contentLength > 0
-            ? String(bytes: buffer[headerEnd..<total], encoding: .utf8) : nil
+            ? String(bytes: buffer[head.headerEnd..<total], encoding: .utf8) : nil
 
-        let statusLine = lines.first ?? ""
-        let statusCode = Int(statusLine.components(separatedBy: " ").dropFirst().first ?? "0") ?? 0
-
-        return RTSPResponse(statusCode: statusCode, headers: headers, body: body, totalLength: total - offset)
+        return RTSPResponse(statusCode: head.statusCode, headers: head.headers, body: body, totalLength: total - offset)
     }
 
     // MARK: - SDP parsing

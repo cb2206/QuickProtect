@@ -798,9 +798,15 @@ enum KeychainStore {
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
         var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data,
-              let string = String(data: data, encoding: .utf8) else { return nil }
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess else {
+            // "Not found" is the normal first-run answer; anything else (access
+            // denied for a re-signed build, locked keychain) must be visible in
+            // the log rather than look like an unconfigured app.
+            if status != errSecItemNotFound { _ = check(status, "read", account) }
+            return nil
+        }
+        guard let data = result as? Data, let string = String(data: data, encoding: .utf8) else { return nil }
         return string
     }
 
