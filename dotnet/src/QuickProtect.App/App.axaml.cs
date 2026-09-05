@@ -32,7 +32,6 @@ public partial class App : Application
     /// runs (see <see cref="PanelClosed"/>). Cancelled when the panel reopens in time.</summary>
     private DispatcherTimer? _streamTeardownTimer;
     private SettingsWindow? _settingsWindow;
-    private OnboardingWindow? _onboardingWindow;
     private IGlobalHotkey? _hotkey;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
@@ -206,10 +205,8 @@ public partial class App : Application
         vm.Finished += (_, _) =>
         {
             window.Close();
-            _onboardingWindow = null;
             ToggleMainWindow(); // open the grid right after setup
         };
-        _onboardingWindow = window;
         window.Show();
         window.Activate();
     }

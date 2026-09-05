@@ -20,10 +20,22 @@ public sealed class PinnedWindowManager
     private readonly AppSettings _settings;
     private readonly Dictionary<string, (PinnedCameraWindow window, CameraTileViewModel tile)> _open = new();
 
+    // Frame persistence is debounced: a drag fires PositionChanged per pixel,
+    // and each write rewrites the whole preferences file on the UI thread.
+    private readonly HashSet<PinnedCameraWindow> _dirtyFrames = new();
+    private readonly DispatcherTimer _persistTimer;
+
     public PinnedWindowManager(ProtectService service, AppSettings settings)
     {
         _service = service;
         _settings = settings;
+        _persistTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _persistTimer.Tick += (_, _) =>
+        {
+            _persistTimer.Stop();
+            foreach (var window in _dirtyFrames) PersistFrameNow(window);
+            _dirtyFrames.Clear();
+        };
         // Restore persisted pins once the camera list is available.
         _service.PropertyChanged += (_, e) =>
         {
@@ -45,7 +57,7 @@ public sealed class PinnedWindowManager
     public void Unpin(string cameraId)
     {
         _settings.RemovePinned(cameraId);
-        CloseWindow(cameraId, keepPersistence: false);
+        CloseWindow(cameraId);
     }
 
     /// <summary>Reconcile open windows against persisted pins and the live camera list.</summary>
@@ -84,13 +96,12 @@ public sealed class PinnedWindowManager
         window.FrameChanged += PersistFrame;
         window.Closed += (_, _) =>
         {
-            if (_open.ContainsKey(camera.Id)) CloseWindow(camera.Id, keepPersistence: true);
+            if (_open.ContainsKey(camera.Id)) CloseWindow(camera.Id);
         };
 
         _open[camera.Id] = (window, tile);
-        // Start streaming only after the window (and its video surface) exists —
-        // playing before the surface is attached makes libVLC open its own
-        // top-level video window, which then crashes on teardown.
+        // Start streaming only after the window (and its video surface) exists,
+        // so the surface is subscribed before the first frame lands.
         window.Opened += (_, _) => Dispatcher.UIThread.Post(() => _ = tile.StartAsync(),
             DispatcherPriority.Background);
         window.Show();
@@ -98,27 +109,40 @@ public sealed class PinnedWindowManager
 
     private void PersistFrame(PinnedCameraWindow window)
     {
+        _dirtyFrames.Add(window);
+        _persistTimer.Stop();
+        _persistTimer.Start();
+    }
+
+    private void PersistFrameNow(PinnedCameraWindow window)
+    {
         if (!_settings.IsPinned(window.CameraId)) return; // don't resurrect an unpinned entry
         _settings.SetPinned(window.CameraId,
             (window.Position.X, window.Position.Y, window.Width, window.Height));
     }
 
-    private void CloseWindow(string cameraId, bool keepPersistence)
+    /// <summary>
+    /// Tears the window down. Persistence is untouched here — callers that mean
+    /// "unpin" remove the entry themselves; every other close (app exit, the
+    /// user closing the window) keeps the pin so it reopens next launch.
+    /// </summary>
+    private void CloseWindow(string cameraId)
     {
         if (!_open.Remove(cameraId, out var entry)) return;
         entry.tile.Stop();          // releases the pinned server allocation
         entry.window.Unpinned -= Unpin;
         entry.window.FrameChanged -= PersistFrame;
-        // Close (detaching the VideoView from a live player) before disposing —
-        // VideoView.Detach on a disposed MediaPlayer is a native AccessViolation.
+        // Flush a pending frame write so the last position survives the close.
+        if (_dirtyFrames.Remove(entry.window)) PersistFrameNow(entry.window);
+        // Close before disposing the tile so the surface unsubscribes from a
+        // still-live client.
         entry.window.Close();
         entry.tile.Dispose();
-        // keepPersistence: pins survive so the window reopens next launch.
     }
 
     /// <summary>Tear down all pinned windows (app exit). Persistence is kept.</summary>
     public void CloseAll()
     {
-        foreach (var id in _open.Keys.ToList()) CloseWindow(id, keepPersistence: true);
+        foreach (var id in _open.Keys.ToList()) CloseWindow(id);
     }
 }

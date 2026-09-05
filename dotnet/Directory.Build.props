@@ -5,7 +5,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- The build is warning-free; keep it that way. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Reproducible restores: packages.lock.json is committed and CI restores
+         with locked-mode. Scoped to project files — the solution's restore
+         metaproject has no target framework and NuGet rejects the property there. -->
+    <RestorePackagesWithLockFile Condition="'$(MSBuildProjectExtension)' == '.csproj'">true</RestorePackagesWithLockFile>
     <Version>1.3.1</Version>
     <Company>Christian Bartels</Company>
     <Product>QuickProtect</Product>

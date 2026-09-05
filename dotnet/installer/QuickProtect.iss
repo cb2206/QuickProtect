@@ -7,7 +7,7 @@
 ; package-windows.ps1 always passes the version from Directory.Build.props.
 
 #ifndef AppVersion
-  #define AppVersion "1.3"
+  #define AppVersion "1.3.1"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\dist\win-x64"
@@ -52,8 +52,7 @@ Name: "dutch"; MessagesFile: "compiler:Languages\Dutch.isl"
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Files]
-; win-x86 libVLC comes along in the publish but is dead weight in an x64 app.
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Excludes: "libvlc\win-x86\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\QuickProtect"; Filename: "{app}\QuickProtect.exe"

@@ -87,12 +87,23 @@ public sealed class LinuxLaunchAtLogin : ILaunchAtLogin
                 "[Desktop Entry]\n" +
                 "Type=Application\n" +
                 "Name=QuickProtect\n" +
-                $"Exec={exe}\n" +
+                $"Exec={QuoteExec(exe)}\n" +
                 "X-GNOME-Autostart-enabled=true\n");
         }
         else if (File.Exists(file))
         {
             File.Delete(file);
         }
+    }
+
+    /// <summary>
+    /// Quotes a path for a desktop-entry <c>Exec=</c> line (spaces in the
+    /// install path would otherwise split the command). Per the spec, the
+    /// reserved characters inside double quotes are escaped with a backslash.
+    /// </summary>
+    internal static string QuoteExec(string path)
+    {
+        var escaped = path.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("`", "\\`").Replace("$", "\\$");
+        return "\"" + escaped + "\"";
     }
 }

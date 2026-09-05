@@ -177,11 +177,12 @@ public class PtzBurstTimerTests
 public class DigitalZoomTests
 {
     [Fact]
-    public void Starts_at_one_x_with_no_crop()
+    public void Starts_at_one_x_centered()
     {
         var z = new DigitalZoom();
         Assert.False(z.IsZoomed);
-        Assert.Null(z.CropGeometry(1920, 1080));
+        Assert.Equal(0.5, z.CenterX);
+        Assert.Equal(0.5, z.CenterY);
     }
 
     [Fact]
@@ -195,11 +196,13 @@ public class DigitalZoomTests
     }
 
     [Fact]
-    public void Two_x_centered_crop_is_the_middle_quarter()
+    public void Two_x_keeps_the_centre_in_the_middle()
     {
         var z = new DigitalZoom();
         z.SetZoom(2);
-        Assert.Equal("960x540+480+270", z.CropGeometry(1920, 1080));
+        Assert.True(z.IsZoomed);
+        Assert.Equal(0.5, z.CenterX);
+        Assert.Equal(0.5, z.CenterY);
     }
 
     [Fact]
@@ -207,10 +210,12 @@ public class DigitalZoomTests
     {
         var z = new DigitalZoom();
         z.SetZoom(2);
-        z.Pan(-10, -10); // way past the top-left corner
-        Assert.Equal("960x540+0+0", z.CropGeometry(1920, 1080));
+        z.Pan(-10, -10); // way past the top-left corner: the 2× window's centre can't go past 0.25
+        Assert.Equal(0.25, z.CenterX, 6);
+        Assert.Equal(0.25, z.CenterY, 6);
         z.Pan(20, 20); // way past the bottom-right corner
-        Assert.Equal("960x540+960+540", z.CropGeometry(1920, 1080));
+        Assert.Equal(0.75, z.CenterX, 6);
+        Assert.Equal(0.75, z.CenterY, 6);
     }
 
     [Fact]
@@ -334,7 +339,7 @@ public class AppSettingsTests
     {
         var prefs = new InMemoryPreferences();
         var secrets = new InMemorySecretStore();
-        var s = new AppSettings(prefs, secrets) { ApiKey = "supersecret" };
+        _ = new AppSettings(prefs, secrets) { ApiKey = "supersecret" };
         Assert.Equal("supersecret", secrets.Get("unifi.apiKey"));
         Assert.Null(prefs.GetString("unifi.apiKey"));
     }

@@ -59,15 +59,12 @@ public sealed class WindowsGlobalHotkey : IGlobalHotkey
     private readonly Action _onTriggered;
     private Thread? _thread;
     private uint _threadId;
-    private int? _vk, _mod;
 
     public WindowsGlobalHotkey(Action onTriggered) => _onTriggered = onTriggered;
 
     public bool Update(int? keyCode, int? modifiers)
     {
         Stop();
-        _vk = keyCode;
-        _mod = modifiers;
         if (keyCode is null) return true;
 
         var ready = new ManualResetEventSlim(false);

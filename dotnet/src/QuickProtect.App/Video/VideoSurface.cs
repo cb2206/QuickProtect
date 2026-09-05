@@ -86,6 +86,7 @@ public sealed class VideoSurface : Control
             old.PlaceholderChanged -= OnPlaceholderChanged;
         }
         _seq = -1;
+        _bitmap?.Dispose();   // unmanaged Skia memory — don't wait for the finalizer
         _bitmap = null;
         if (e.NewValue is VideoStreamClient client)
         {
@@ -148,8 +149,11 @@ public sealed class VideoSurface : Control
             if (w <= 0 || h <= 0) return;
 
             if (_bitmap == null || _bitmap.PixelSize.Width != w || _bitmap.PixelSize.Height != h)
+            {
+                _bitmap?.Dispose();
                 _bitmap = new WriteableBitmap(new PixelSize(w, h), new Vector(96, 96),
                     PixelFormat.Bgra8888, AlphaFormat.Opaque);
+            }
 
             bool copied;
             using (var fb = _bitmap.Lock())
@@ -178,6 +182,7 @@ public sealed class VideoSurface : Control
         if (!ReferenceEquals(bytes, _placeholderBytes))
         {
             _placeholderBytes = bytes;
+            _placeholder?.Dispose();
             try
             {
                 using var ms = new MemoryStream(bytes);

@@ -92,7 +92,8 @@ public static class AudioSink
         private const int AccessRwInterleaved = 3; // SND_PCM_ACCESS_RW_INTERLEAVED
 
         [DllImport(Lib)] private static extern int snd_pcm_open(out IntPtr pcm, string name, int stream, int mode);
-        [DllImport(Lib)] private static extern int snd_pcm_set_params(IntPtr pcm, int format, int access,
+        [DllImport(Lib)]
+        private static extern int snd_pcm_set_params(IntPtr pcm, int format, int access,
             uint channels, uint rate, int softResample, uint latencyUs);
         [DllImport(Lib)] private static extern unsafe long snd_pcm_writei(IntPtr pcm, byte* buffer, long frames);
         [DllImport(Lib)] private static extern int snd_pcm_recover(IntPtr pcm, int err, int silent);

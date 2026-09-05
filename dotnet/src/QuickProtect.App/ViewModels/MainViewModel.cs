@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Avalonia.Threading;
 using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
@@ -44,8 +44,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// The camera shown enlarged in focus mode, or null for the grid. Focus uses
-    /// a dedicated tile (its own high-quality stream + player) so it never shares
-    /// a <c>MediaPlayer</c> with a grid tile.
+    /// a dedicated tile view model; its stream handle adopts the grid tile's
+    /// client through the coordinator, so entry is instant and the quality
+    /// upgrade happens in place.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFocusMode))]
@@ -166,6 +167,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(AppSettings.ShowFocusOverlayControls))
+        {
+            // Settings toggle must reach an already-open focus view.
+            Dispatcher.UIThread.Post(() =>
+            {
+                OnPropertyChanged(nameof(ShowFocusControls));
+                OnPropertyChanged(nameof(ControlsVisible));
+            });
+            return;
+        }
         if (e.PropertyName is nameof(AppSettings.ShowsSecondaryLensPip)
             or nameof(AppSettings.ShowsSecondaryLensPipInGrid))
         {
@@ -211,7 +222,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var byId = Tiles.ToDictionary(t => t.Camera.Id);
 
         // Stop+drop tiles whose camera disappeared. Remove from the collection
-        // first so the VideoView detaches from a still-live player.
+        // first so the surface unsubscribes from a still-live client.
         foreach (var tile in Tiles.ToList())
             if (!visible.Any(c => c.Id == tile.Camera.Id))
             {
@@ -418,7 +429,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var pip = SecondaryTile;
         var ft = FocusTile;
         var tiles = Tiles.ToList();
-        // Unbind everything first, then dispose (VideoView detach touches players).
+        // Unbind everything first, then dispose (surfaces unsubscribe on detach).
         SecondaryTile = null;
         FocusTile = null;
         Tiles.Clear();

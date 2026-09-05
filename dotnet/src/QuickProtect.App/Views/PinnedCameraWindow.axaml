@@ -17,7 +17,7 @@
   <!-- The whole pinned window is a video surface: pinned to the Dark variant like macOS. -->
   <ThemeVariantScope RequestedThemeVariant="Dark">
     <DockPanel>
-      <!-- Drag handle + controls. Docked so the native VideoView never covers it. -->
+      <!-- Drag handle + controls, docked above the video surface. -->
       <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Header_Drag" Name="Header">
         <Grid ColumnDefinitions="*,Auto,Auto" Margin="8,4">
           <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">

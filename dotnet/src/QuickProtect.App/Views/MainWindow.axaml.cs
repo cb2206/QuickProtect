@@ -18,7 +18,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Icon = ApertureIcon.Create(64);
         // Tile drag-reorder needs tunnel handlers: the footer Button swallows
-        // bubbled pointer events, and the native VideoView swallows everything.
+        // bubbled pointer events before they reach the tile.
         AddHandler(PointerPressedEvent, Tile_DragPressed, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, Tile_DragMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, Tile_DragReleased, RoutingStrategies.Tunnel);
@@ -336,6 +336,7 @@ public partial class MainWindow : Window
         // Single click on the video goes back to the grid (macOS tap behavior),
         // deferred briefly so a double-click can cancel it.
         _pendingExit?.Cancel();
+        _pendingExit?.Dispose();
         var cts = new CancellationTokenSource();
         _pendingExit = cts;
         _ = Task.Delay(280, cts.Token).ContinueWith(t =>
@@ -430,9 +431,9 @@ public partial class MainWindow : Window
 
     // MARK: - Fullscreen HUD (auto-hides the focus chrome after a few idle seconds)
     //
-    // Pointer wake-up needs a global cursor poll: mouse moves over the native
-    // libVLC child window never reach Avalonia, so OnPointerMoved alone can't
-    // resurface the chrome. Windows polls GetCursorPos; elsewhere keys still work.
+    // Pointer wake-up uses a global cursor poll on Windows (GetCursorPos) so the
+    // chrome resurfaces on any mouse movement, including over children that
+    // handle the pointer themselves; elsewhere keys wake it.
 
     private Avalonia.Threading.DispatcherTimer? _hudTimer;
     private Avalonia.Threading.DispatcherTimer? _cursorPoll;

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -5,7 +6,6 @@ using QuickProtect.App.Platform;
 using QuickProtect.App.ViewModels;
 using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
-using System.Runtime.InteropServices;
 
 namespace QuickProtect.App.Services;
 

@@ -60,6 +60,8 @@ public class AppDistributionTests
             Assert.True(AppDistribution.IsExternallyManaged);
         });
 
+    // Process-wide environment mutation: xunit runs test classes in parallel,
+    // so this must not overlap with anything else reading AppDistribution.
     [Fact]
     public void Force_store_override_only_forces_on()
     {

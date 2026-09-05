@@ -55,7 +55,7 @@ public static class FfmpegEngine
 
     /// <summary>
     /// Mirrors FFmpeg warnings/errors to <c>%APPDATA%\QuickProtect\video.log</c>
-    /// (truncated per session), like the old vlc.log.
+    /// (truncated per session).
     /// </summary>
     private static unsafe void SetupFileLog()
     {

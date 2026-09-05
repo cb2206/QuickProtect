@@ -78,8 +78,11 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
             _activatedMatch = await conn.AddMatchAsync(
                 new MatchRule
                 {
-                    Type = MessageType.Signal, Sender = Service, Path = DesktopPath,
-                    Interface = ShortcutsIface, Member = "Activated",
+                    Type = MessageType.Signal,
+                    Sender = Service,
+                    Path = DesktopPath,
+                    Interface = ShortcutsIface,
+                    Member = "Activated",
                 },
                 static (m, _) =>
                 {
@@ -180,8 +183,11 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         using var match = await conn.AddMatchAsync(
             new MatchRule
             {
-                Type = MessageType.Signal, Sender = Service, Path = requestPath,
-                Interface = "org.freedesktop.portal.Request", Member = "Response",
+                Type = MessageType.Signal,
+                Sender = Service,
+                Path = requestPath,
+                Interface = "org.freedesktop.portal.Request",
+                Member = "Response",
             },
             static (m, _) =>
             {

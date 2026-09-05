@@ -2,10 +2,10 @@ namespace QuickProtect.Core.Models;
 
 /// <summary>
 /// Digital zoom + pan state for the focus view, mirroring the macOS gesture
-/// zoom (1–8× with drag-to-pan, <c>CameraGridView.swift</c>). The port renders
-/// through libVLC, so the visible window is expressed as a crop rectangle
-/// (<c>WxH+X+Y</c>) over the source frame — libVLC scales the crop to the view.
-/// Pure math, unit-tested; the view layer feeds it key/wheel input.
+/// zoom (1–8× with drag-to-pan, <c>CameraGridView.swift</c>). The visible
+/// window is a normalised centre plus a zoom factor; <c>VideoSurface</c> turns
+/// it into a source rectangle at draw time. Pure math, unit-tested; the view
+/// layer feeds it key/wheel input.
 /// </summary>
 public sealed class DigitalZoom
 {
@@ -58,21 +58,5 @@ public sealed class DigitalZoom
         var half = 0.5 / Zoom;
         CenterX = Math.Clamp(CenterX, half, 1 - half);
         CenterY = Math.Clamp(CenterY, half, 1 - half);
-    }
-
-    /// <summary>
-    /// libVLC crop geometry (<c>WxH+X+Y</c>) for a source frame of the given
-    /// pixel size, or null at 1× (no crop).
-    /// </summary>
-    public string? CropGeometry(uint sourceWidth, uint sourceHeight)
-    {
-        if (!IsZoomed || sourceWidth == 0 || sourceHeight == 0) return null;
-        var w = (int)Math.Round(sourceWidth / Zoom);
-        var h = (int)Math.Round(sourceHeight / Zoom);
-        var x = (int)Math.Round(CenterX * sourceWidth - w / 2.0);
-        var y = (int)Math.Round(CenterY * sourceHeight - h / 2.0);
-        x = Math.Clamp(x, 0, (int)sourceWidth - w);
-        y = Math.Clamp(y, 0, (int)sourceHeight - h);
-        return $"{w}x{h}+{x}+{y}";
     }
 }
