@@ -23,8 +23,10 @@ final class AppSettingsTests: XCTestCase {
     private var defaults: UserDefaults!
     private var secrets: InMemorySecretStore!
 
+    // No super calls: XCTest's async setUp/tearDown defaults are empty, and
+    // Swift 6.1 (CI's Xcode 16.4) rejects sending the non-Sendable test case
+    // to them from a main-actor class.
     override func setUp() async throws {
-        try await super.setUp()
         try await MainActor.run {
             suiteName = "com.cb.quickprotect.tests.\(UUID().uuidString)"
             defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -34,7 +36,6 @@ final class AppSettingsTests: XCTestCase {
 
     override func tearDown() async throws {
         await MainActor.run { defaults.removePersistentDomain(forName: suiteName) }
-        try await super.tearDown()
     }
 
     private func makeSettings() -> AppSettings {

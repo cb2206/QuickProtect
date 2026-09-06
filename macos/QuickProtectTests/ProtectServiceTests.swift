@@ -17,8 +17,10 @@ final class ProtectServiceTests: XCTestCase {
     private var credentials: Credentials!
     private var service: ProtectService!
 
+    // No super calls: XCTest's async setUp/tearDown defaults are empty, and
+    // Swift 6.1 (CI's Xcode 16.4) rejects sending the non-Sendable test case
+    // to them from a main-actor class.
     override func setUp() async throws {
-        try await super.setUp()
         StubController.reset()
         await MainActor.run {
             credentials = Credentials()
@@ -29,7 +31,6 @@ final class ProtectServiceTests: XCTestCase {
     override func tearDown() async throws {
         StubController.reset()
         await MainActor.run { service = nil }
-        try await super.tearDown()
     }
 
     // MARK: - Camera list
