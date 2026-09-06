@@ -6,6 +6,11 @@ import VideoToolbox
 
 /// RTSP/RTP client using NWConnection.
 /// All data processing runs on a dedicated serial queue to keep the main thread free.
+/// Concurrency: `@unchecked Sendable` because the compiler cannot see the
+/// discipline — every stored property below is touched only on `queue`
+/// ("queue-only"), the `@Published` ones only on the main thread, and the
+/// handful of cross-thread values are locked. Keep it that way when adding
+/// state.
 /// The class is split across files by stage — handshake (`+RTSP`), RTP
 /// depacketising (`+RTP`), decode/display (`+Decode`), seamless switching
 /// (`+Handover`) and snapshots (`+Snapshot`) — so its members are module-
@@ -18,7 +23,7 @@ import VideoToolbox
 /// display layer — connects and decodes the new stream's first frame; that
 /// frame replaces the picture in place and the child's session is adopted
 /// wholesale. Mirrors the .NET `VideoStreamClient` double-buffered switching.
-final class RTSPClient: ObservableObject {
+final class RTSPClient: ObservableObject, @unchecked Sendable {
 
     // MARK: - Published (main-thread only)
 
@@ -62,6 +67,7 @@ final class RTSPClient: ObservableObject {
 
     var connection:  NWConnection?
     var currentURL:  URL?
+    var pinKey:      String?             // certificate-pin identity for currentURL
     var buffer       = [UInt8]()
     var bufferOffset = 0          // read cursor; compact when > 64 KB
     var inRTPMode    = false
@@ -143,7 +149,7 @@ final class RTSPClient: ObservableObject {
     weak var handoverOwner: RTSPClient?    // set only on warm-up children
     weak var adoptedBy: RTSPClient?        // routes the in-flight receive after adoption
     var handoverChild: RTSPClient?         // set only on owners
-    var handoverCompletion: ((Bool) -> Void)?
+    var handoverCompletion: (@MainActor @Sendable (Bool) -> Void)?
     var handoverGen = 0                    // guards the grace timeout
     var readyToAdopt = false               // child: first frame enqueued
     /// How long a warm-up may take before the switch is abandoned and the
@@ -204,13 +210,6 @@ final class RTSPClient: ObservableObject {
 
     static func log(_ msg: String) { dbg(msg) }
 
-    /// Maps the host a stream URL names to the identity its certificate pin is
-    /// stored under. The app installs the configured controller's pin key here
-    /// (see `AppDelegate`), so video and API share one pin; the default keeps
-    /// the URL host, which is what tests against a local server want. Also
-    /// keeps this class free of the settings singleton (and its Keychain reads).
-    static var pinKeyProvider: (String) -> String = { $0 }
-
     /// Scheme, host and port only. The path of a stream URL is a bearer token
     /// for live video and must never reach the log.
     static func redactedDescription(of url: URL) -> String {
@@ -245,12 +244,17 @@ final class RTSPClient: ObservableObject {
     /// feed instead of flashing the layer's clear colour. Frames carry
     /// DisplayImmediately, so the new stream replaces the held frame on its first
     /// enqueue regardless of timestamps.
-    func connect(to url: URL, keepLastFrame: Bool = false) {
+    /// `pinKey` is the identity the server's certificate pin is stored under —
+    /// the configured controller's, so video and API share one pin (see
+    /// `ControllerAddress.pinKey`). Nil pins by the URL's host, which is what
+    /// tests against a local server want.
+    func connect(to url: URL, pinKey: String? = nil, keepLastFrame: Bool = false) {
         Self.dbg("[RTSP] connect called: \(Self.redactedDescription(of: url))")
         DispatchQueue.main.async { self.hasFrame = false }
         queue.async { [self] in
             disconnectOnQueue(flushDisplay: !keepLastFrame)
             currentURL       = url
+            self.pinKey      = pinKey
             inRTPMode        = false
             buffer           = []
             bufferOffset     = 0
@@ -292,16 +296,16 @@ final class RTSPClient: ObservableObject {
             // trust-on-first-use pinning — see CertificateTrust). The pin is
             // keyed by the configured controller identity, not by the host in
             // the stream URL, so both channels share one pin.
-            let pinKey = Self.pinKeyProvider(host)
+            let pinKey = self.pinKey ?? host
             sec_protocol_options_set_verify_block(
                 tlsOpts.securityProtocolOptions,
                 { [weak self] _, secTrust, complete in
                     let trust = sec_trust_copy_ref(secTrust).takeRetainedValue()
                     let ok = CertificateTrust.evaluate(pinKey: pinKey, serverHost: host, trust: trust)
-                    if !ok {
-                        self?.certificateRejected = true
+                    if !ok, let self {
+                        self.certificateRejected = true
                         DispatchQueue.main.async {
-                            self?.error = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
+                            self.error = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
                         }
                     }
                     complete(ok)

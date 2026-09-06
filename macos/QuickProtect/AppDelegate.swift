@@ -6,6 +6,7 @@ extension Notification.Name {
     static let closeCameraPanel = Notification.Name("closeCameraPanel")
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var statusItem: NSStatusItem?
@@ -48,22 +49,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         UserDefaults.standard.register(defaults: ["NSAutoFillHeuristicControllerEnabled": false])
         // Video streams pin under the configured controller identity — the
         // same key the HTTPS API uses (see CertificateTrust).
-        RTSPClient.pinKeyProvider = { host in
-            ControllerAddress.parse(AppSettings.shared.ipAddress)?.pinKey ?? host
-        }
         setupStatusBar()
         setupGlobalHotkey()
+        // Observers are delivered on the main queue (`queue: .main`), which the
+        // compiler cannot see — hence assumeIsolated in each body.
         NotificationCenter.default.addObserver(forName: .closeCameraPanel, object: nil, queue: .main) { [weak self] _ in
-            self?.closePanel()
+            MainActor.assumeIsolated { self?.closePanel() }
         }
         NotificationCenter.default.addObserver(forName: .enterTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
-            self?.enterPanelFullscreen()
+            MainActor.assumeIsolated { self?.enterPanelFullscreen() }
         }
         NotificationCenter.default.addObserver(forName: .exitTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
-            self?.exitPanelFullscreen()
+            MainActor.assumeIsolated { self?.exitPanelFullscreen() }
         }
         NotificationCenter.default.addObserver(forName: .layoutProfileChanged, object: nil, queue: .main) { [weak self] _ in
-            self?.applyProfilePanelSize()
+            MainActor.assumeIsolated { self?.applyProfilePanelSize() }
         }
         // Instantiate before the first fetch so the manager's camera-list
         // subscription is in place to restore persisted pins when cameras load.
@@ -313,7 +313,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             ) { [weak self] note in
                 guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                       app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
-                self?.closePanel()
+                MainActor.assumeIsolated { self?.closePanel() }
             }
         }
 
@@ -521,8 +521,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             object: win,
             queue: .main
         ) { [weak self] _ in
-            self?.onboardingWindow = nil
-            NSApp.setActivationPolicy(.accessory)
+            MainActor.assumeIsolated {
+                self?.onboardingWindow = nil
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
         NSApp.setActivationPolicy(.regular)
         win.makeKeyAndOrderFront(nil)
@@ -584,8 +586,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             object: win,
             queue: .main
         ) { [weak self] _ in
-            self?.promoWindow = nil
-            NSApp.setActivationPolicy(.accessory)
+            MainActor.assumeIsolated {
+                self?.promoWindow = nil
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
         NSApp.setActivationPolicy(.regular)
         // Activating mid-launch is racy for an agent app and can leave the window
@@ -613,12 +617,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 forName: NSWindow.willCloseNotification,
                 object: win,
                 queue: .main
-            ) { [weak self] note in
-                // Same stale-ViewBridge-observer concern as closePanel(): end
-                // editing before the window goes away.
-                (note.object as? NSWindow)?.makeFirstResponder(nil)
-                self?.settingsWindow = nil
-                NSApp.setActivationPolicy(.accessory)
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    // Same stale-ViewBridge-observer concern as closePanel(): end
+                    // editing before the window goes away. The observer is
+                    // registered for this window only, so it is settingsWindow.
+                    self?.settingsWindow?.makeFirstResponder(nil)
+                    self?.settingsWindow = nil
+                    NSApp.setActivationPolicy(.accessory)
+                }
             }
         }
         NSApp.setActivationPolicy(.regular)

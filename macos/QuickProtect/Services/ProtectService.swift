@@ -2,6 +2,11 @@ import Foundation
 import AppKit
 
 /// Handles all communication with the UniFi Protect Integration API.
+/// Main-actor isolated: its published state feeds SwiftUI, and the network
+/// calls are `async` so awaiting URLSession never blocks the actor. Anything
+/// that must run off the actor (the TLS challenge, fire-and-forget releases)
+/// receives value snapshots.
+@MainActor
 final class ProtectService: NSObject, ObservableObject {
 
     @Published var cameras: [Camera] = []
@@ -25,6 +30,8 @@ final class ProtectService: NSObject, ObservableObject {
     /// Extra `URLProtocol` classes registered on both sessions — tests install
     /// a stub controller here; the app passes none.
     private let urlProtocolClasses: [AnyClass]
+    /// Answers the TLS server-trust challenge on URLSession's delegate queue.
+    private let pinning = PinningSessionDelegate()
 
     /// `settings` defaults to the app's shared store; tests pass their own so
     /// the service never reads UserDefaults or the Keychain.
@@ -37,23 +44,10 @@ final class ProtectService: NSObject, ObservableObject {
     /// The configured controller, normalised (host, optional port, pin identity).
     var controllerAddress: ControllerAddress? { ControllerAddress.parse(settings.ipAddress) }
 
-    /// Set by the URLSession delegate when it rejected the controller's
-    /// certificate, so the failure that follows reports the real cause instead
-    /// of the generic transport error. Read-and-cleared by `applyError`.
-    private let certificateLock = NSLock()
-    private var certificateRejected = false
-
-    private func noteCertificateRejected() {
-        certificateLock.lock(); defer { certificateLock.unlock() }
-        certificateRejected = true
-    }
-
-    private func takeCertificateRejected() -> Bool {
-        certificateLock.lock(); defer { certificateLock.unlock() }
-        let value = certificateRejected
-        certificateRejected = false
-        return value
-    }
+    /// Whether the delegate rejected the controller's certificate since the
+    /// last call, so the failure that follows reports the real cause instead
+    /// of the generic transport error.
+    private func takeCertificateRejected() -> Bool { pinning.takeRejected() }
 
     static let certificateChangedMessage = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
 
@@ -460,10 +454,12 @@ final class ProtectService: NSObject, ObservableObject {
 
         releaseGroup.enter()
         // Detached: an inherited main-actor context would make the quit-time
-        // wait above deadlock on itself.
-        Task.detached { [self] in
-            defer { releaseGroup.leave() }
-            _ = try? await tlsSession.data(for: request)
+        // wait above deadlock on itself. Only Sendable values cross over.
+        let session = tlsSession
+        let group = releaseGroup
+        Task.detached {
+            defer { group.leave() }
+            _ = try? await session.data(for: request)
         }
     }
 
@@ -535,7 +531,7 @@ final class ProtectService: NSObject, ObservableObject {
                 RTSPClient.log("[Probe] \(name): DESCRIBE classic alias stream")
                 let client = RTSPClient()
                 Self.classicProbes.append(client)
-                client.connect(to: url)
+                client.connect(to: url, pinKey: address.pinKey)
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
                 for client in Self.classicProbes { client.disconnect() }
@@ -862,6 +858,9 @@ final class ProtectService: NSObject, ObservableObject {
 
     func makeURL(path: String) -> URL? {
         guard let address = controllerAddress else { return nil }
+        // Every request passes through here, so the delegate always pins
+        // against the currently configured controller identity.
+        pinning.pinKey = address.pinKey
         return URL(string: "\(address.httpsBase)/\(path)")
     }
 
@@ -885,7 +884,7 @@ final class ProtectService: NSObject, ObservableObject {
     private lazy var tlsSession: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         installURLProtocols(on: config)
-        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        return URLSession(configuration: config, delegate: pinning, delegateQueue: nil)
     }()
 
     /// Classic API session — separate cookie jar for session-based auth (PTZ).
@@ -897,7 +896,7 @@ final class ProtectService: NSObject, ObservableObject {
         config.urlCache = nil
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         installURLProtocols(on: config)
-        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        return URLSession(configuration: config, delegate: pinning, delegateQueue: nil)
     }()
 
     private func installURLProtocols(on config: URLSessionConfiguration) {
@@ -920,7 +919,31 @@ final class ProtectService: NSObject, ObservableObject {
 
 // MARK: - URLSessionDelegate (trust-on-first-use pinning for the self-signed controller cert)
 
-extension ProtectService: URLSessionDelegate {
+/// Answers server-trust challenges: system trust first, then pin the
+/// controller's public key on first use and reject if it later changes
+/// (possible MITM) — see CertificateTrust. Runs on URLSession's delegate
+/// queue, so it is a small Sendable object with lock-guarded state rather
+/// than the main-actor service. Never writes to the system trust store.
+final class PinningSessionDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _pinKey: String?
+    private var _rejected = false
+
+    /// The configured controller identity the pin is keyed by (so the RTSPS
+    /// video channel consults the same one). Nil falls back to the server host.
+    var pinKey: String? {
+        get { lock.lock(); defer { lock.unlock() }; return _pinKey }
+        set { lock.lock(); _pinKey = newValue; lock.unlock() }
+    }
+
+    /// True once since the last call if a challenge was rejected.
+    func takeRejected() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        let was = _rejected
+        _rejected = false
+        return was
+    }
+
     func urlSession(
         _ session: URLSession,
         didReceive challenge: URLAuthenticationChallenge,
@@ -931,16 +954,12 @@ extension ProtectService: URLSessionDelegate {
             completionHandler(.performDefaultHandling, nil)
             return
         }
-        // System trust first, then pin the controller's public key on first use
-        // and reject if it later changes (possible MITM) — see CertificateTrust.
-        // The pin is keyed by the configured controller identity so the RTSPS
-        // video channel consults the same one. Never writes to the system trust store.
         let serverHost = challenge.protectionSpace.host
-        let pinKey = controllerAddress?.pinKey ?? serverHost
-        if CertificateTrust.evaluate(pinKey: pinKey, serverHost: serverHost, trust: trust) {
+        let key = pinKey ?? serverHost
+        if CertificateTrust.evaluate(pinKey: key, serverHost: serverHost, trust: trust) {
             completionHandler(.useCredential, URLCredential(trust: trust))
         } else {
-            noteCertificateRejected()
+            lock.lock(); _rejected = true; lock.unlock()
             completionHandler(.cancelAuthenticationChallenge, nil)
         }
     }
@@ -948,6 +967,7 @@ extension ProtectService: URLSessionDelegate {
 
 /// The credentials `ProtectService` needs — the subset of `AppSettings` it
 /// reads, so tests can hand it plain values.
+@MainActor
 protocol ProtectCredentialSource: AnyObject {
     var ipAddress: String { get }
     var apiKey: String { get }

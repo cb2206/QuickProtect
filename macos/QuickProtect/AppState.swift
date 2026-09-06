@@ -4,6 +4,7 @@ import SwiftUI
 /// the panel is in true fullscreen, and the pinned floating-window manager.
 /// Injected into the SwiftUI environment (`\.appState`) so views never reach
 /// for `NSApp.delegate`.
+@MainActor
 final class AppState: ObservableObject {
     @Published var isInTrueFullscreen = false
     /// Set by AppDelegate once the manager exists; nil in previews and tests.
@@ -12,8 +13,9 @@ final class AppState: ObservableObject {
 
 private struct AppStateKey: EnvironmentKey {
     /// Inert instance for views hosted without an injection: never
-    /// fullscreen, no pinning available.
-    static let defaultValue = AppState()
+    /// fullscreen, no pinning available. SwiftUI materialises environment
+    /// defaults on the main thread.
+    static let defaultValue = MainActor.assumeIsolated { AppState() }
 }
 
 extension EnvironmentValues {

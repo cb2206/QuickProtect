@@ -10,6 +10,10 @@ extension Notification.Name {
     static let layoutProfileChanged = Notification.Name("layoutProfileChanged")
 }
 
+/// Main-actor isolated: SwiftUI reads and writes it there, and the few
+/// off-main consumers (RTSP TLS pinning, stream teardown) take value
+/// snapshots on the main actor instead of reaching in.
+@MainActor
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
@@ -50,12 +54,12 @@ final class AppSettings: ObservableObject {
     }
 
     /// Bounds and default (seconds) for `streamKeepAliveSeconds`.
-    static let streamKeepAliveRange = 0...60
-    static let streamKeepAliveDefault = 10
+    nonisolated static let streamKeepAliveRange = 0...60
+    nonisolated static let streamKeepAliveDefault = 10
 
     /// Clamps a stored keep-alive value into the supported range. Pure, so the
     /// bounds are unit-testable without touching UserDefaults.
-    static func clampStreamKeepAlive(_ value: Int) -> Int {
+    nonisolated static func clampStreamKeepAlive(_ value: Int) -> Int {
         min(max(value, streamKeepAliveRange.lowerBound), streamKeepAliveRange.upperBound)
     }
 

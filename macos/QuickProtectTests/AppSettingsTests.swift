@@ -4,6 +4,7 @@ import AppKit
 /// `AppSettings` against a private UserDefaults suite and an in-memory secret
 /// store: persistence, the layout-profile model, per-camera preferences, and
 /// the one-time migrations, without touching the real preferences or Keychain.
+@MainActor
 final class AppSettingsTests: XCTestCase {
 
     private final class InMemorySecretStore: SecretStoring {
@@ -22,16 +23,18 @@ final class AppSettingsTests: XCTestCase {
     private var defaults: UserDefaults!
     private var secrets: InMemorySecretStore!
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
-        suiteName = "com.cb.quickprotect.tests.\(UUID().uuidString)"
-        defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        secrets = InMemorySecretStore()
+    override func setUp() async throws {
+        try await super.setUp()
+        try await MainActor.run {
+            suiteName = "com.cb.quickprotect.tests.\(UUID().uuidString)"
+            defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+            secrets = InMemorySecretStore()
+        }
     }
 
-    override func tearDownWithError() throws {
-        defaults.removePersistentDomain(forName: suiteName)
-        try super.tearDownWithError()
+    override func tearDown() async throws {
+        await MainActor.run { defaults.removePersistentDomain(forName: suiteName) }
+        try await super.tearDown()
     }
 
     private func makeSettings() -> AppSettings {

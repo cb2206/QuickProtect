@@ -9,6 +9,7 @@ import Combine
 /// AppDelegate so a pinned window's stream survives the popover opening and
 /// closing. When nothing is pinned no controllers — and therefore no streams —
 /// exist, preserving the app's "0% CPU when the popover is closed" behaviour.
+@MainActor
 final class PinnedWindowManager {
     private var controllers: [String: PinnedCameraController] = [:]
     private weak var service: ProtectService?
@@ -87,6 +88,7 @@ final class PinnedWindowManager {
 /// Owns one borderless, always-on-top floating window plus its own RTSPClient,
 /// independent of the popover's client manager. Handles stream lifecycle,
 /// aspect-ratio locking, and frame persistence.
+@MainActor
 final class PinnedCameraController: NSObject, NSWindowDelegate {
     let cameraId: String
     private var camera: Camera
@@ -215,7 +217,7 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             guard let self, !Task.isCancelled else { return }
             self.connectedQuality = stream.quality
             self.streamTask = nil
-            self.client.connect(to: stream.url)
+            self.client.connect(to: stream.url, pinKey: self.service?.controllerAddress?.pinKey)
             // Negotiate audio (muted by default) and decode capture frames so the
             // window's mute and snapshot controls work without a reconnect.
             self.client.setMuted(true)
@@ -495,6 +497,7 @@ private final class ResizeHandleNSView: NSView {
 /// Writes the pinned stream's current frame to the configured destination
 /// (clipboard or folder) and returns a localized confirmation for the toast.
 /// Mirrors the focus-view snapshot, scoped to the single pinned client.
+@MainActor
 enum PinnedSnapshot {
     private static let timestamp: DateFormatter = {
         let f = DateFormatter()

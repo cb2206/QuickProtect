@@ -4,6 +4,7 @@ import XCTest
 /// answers every request in-process, so the tests cover URL construction,
 /// headers, JSON handling, the 429 retry, the quality-fallback ladder and
 /// stream release without a network, a Keychain or `AppSettings`.
+@MainActor
 final class ProtectServiceTests: XCTestCase {
 
     private final class Credentials: ProtectCredentialSource {
@@ -16,17 +17,19 @@ final class ProtectServiceTests: XCTestCase {
     private var credentials: Credentials!
     private var service: ProtectService!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         StubController.reset()
-        credentials = Credentials()
-        service = ProtectService(settings: credentials, urlProtocolClasses: [StubController.self])
+        await MainActor.run {
+            credentials = Credentials()
+            service = ProtectService(settings: credentials, urlProtocolClasses: [StubController.self])
+        }
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         StubController.reset()
-        service = nil
-        super.tearDown()
+        await MainActor.run { service = nil }
+        try await super.tearDown()
     }
 
     // MARK: - Camera list
@@ -207,8 +210,8 @@ private class StubController: URLProtocol {
     typealias Handler = (URLRequest) -> (status: Int, body: Data)
 
     private static let lock = NSLock()
-    private static var _handler: Handler?
-    private static var _requests: [URLRequest] = []
+    nonisolated(unsafe) private static var _handler: Handler?   // guarded by `lock`
+    nonisolated(unsafe) private static var _requests: [URLRequest] = []
 
     static var requests: [URLRequest] {
         lock.lock(); defer { lock.unlock() }

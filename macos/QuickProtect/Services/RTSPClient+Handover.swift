@@ -21,7 +21,7 @@ extension RTSPClient {
     /// `completion` (main thread): `true` — the new stream is live, release the
     /// replaced server-side allocation; `false` — the switch was abandoned,
     /// release the *new* allocation instead.
-    func switchStream(to url: URL, completion: @escaping (Bool) -> Void) {
+    func switchStream(to url: URL, completion: @escaping @MainActor @Sendable (Bool) -> Void) {
         queue.async { [self] in
             // A newer switch abandons any warm-up still in flight.
             cancelHandoverOnQueue()
@@ -29,8 +29,8 @@ extension RTSPClient {
             // Nothing on screen to preserve (initial connect, failed stream):
             // plain reconnect, which is exactly the pre-handover behavior.
             guard connection != nil, hasFrameSignalled else {
-                DispatchQueue.main.async { completion(true) }
-                connect(to: url, keepLastFrame: true)
+                DispatchQueue.main.async { MainActor.assumeIsolated { completion(true) } }
+                connect(to: url, pinKey: pinKey, keepLastFrame: true)
                 return
             }
 
@@ -39,7 +39,7 @@ extension RTSPClient {
             handoverChild = child
             handoverGen &+= 1
             let gen = handoverGen
-            child.connect(to: url, keepLastFrame: true)
+            child.connect(to: url, pinKey: pinKey, keepLastFrame: true)
             queue.asyncAfter(deadline: .now() + Self.handoverGrace) { [weak self] in
                 guard let self, self.handoverGen == gen, self.handoverChild != nil else { return }
                 Self.dbg("[RTSP] handover timed out — keeping the current stream")
@@ -131,6 +131,6 @@ extension RTSPClient {
         handoverGen &+= 1
         guard let completion = handoverCompletion else { return }
         handoverCompletion = nil
-        DispatchQueue.main.async { completion(success) }
+        DispatchQueue.main.async { MainActor.assumeIsolated { completion(success) } }
     }
 }

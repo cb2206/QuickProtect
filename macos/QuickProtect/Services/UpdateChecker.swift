@@ -42,6 +42,7 @@ enum AppStorePromo {
 /// it does not download or install anything. The user opens the release page and
 /// updates manually (the GitHub build is not code-signed, so auto-install
 /// is neither possible nor safe — see `AppDistribution`).
+@MainActor
 final class UpdateChecker: NSObject, ObservableObject {
 
     // MARK: - Published state
@@ -75,7 +76,8 @@ final class UpdateChecker: NSObject, ObservableObject {
             self?.checkForUpdate()
         }
         timer = Timer.scheduledTimer(withTimeInterval: 86_400, repeats: true) { [weak self] _ in
-            self?.checkForUpdate()
+            // The timer fires on the main run loop; tell the compiler so.
+            MainActor.assumeIsolated { self?.checkForUpdate() }
         }
     }
 
@@ -93,7 +95,7 @@ final class UpdateChecker: NSObject, ObservableObject {
         request.cachePolicy = .reloadIgnoringLocalCacheData
 
         URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self else { return }
                 self.isChecking = false
 

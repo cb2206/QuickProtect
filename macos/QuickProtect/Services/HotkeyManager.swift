@@ -3,6 +3,9 @@ import AppKit
 
 /// Registers a system-wide keyboard shortcut using Carbon's RegisterEventHotKey.
 /// Works without Accessibility permissions (unlike NSEvent global monitors for keys).
+/// Main-actor isolated: Carbon delivers the hot-key event on the main thread
+/// and the registration calls belong there too.
+@MainActor
 final class HotkeyManager {
 
     static let shared = HotkeyManager()
@@ -36,7 +39,7 @@ final class HotkeyManager {
         let handler: EventHandlerUPP = { _, event, userData -> OSStatus in
             guard let userData else { return OSStatus(eventNotHandledErr) }
             let mgr = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
-            DispatchQueue.main.async { mgr.onHotkey?() }
+            DispatchQueue.main.async { MainActor.assumeIsolated { mgr.onHotkey?() } }
             return noErr
         }
 
@@ -69,7 +72,7 @@ final class HotkeyManager {
     // MARK: - Modifier conversion
 
     /// Convert NSEvent.ModifierFlags to Carbon modifier mask.
-    static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {
+    nonisolated static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {
         var carbon: UInt32 = 0
         if flags.contains(.command) { carbon |= UInt32(cmdKey) }
         if flags.contains(.shift)   { carbon |= UInt32(shiftKey) }
@@ -79,7 +82,7 @@ final class HotkeyManager {
     }
 
     /// Human-readable string for a hotkey combo.
-    static func displayString(keyCode: UInt32, carbonModifiers: UInt32) -> String {
+    nonisolated static func displayString(keyCode: UInt32, carbonModifiers: UInt32) -> String {
         var parts = [String]()
         if carbonModifiers & UInt32(controlKey) != 0 { parts.append("⌃") }
         if carbonModifiers & UInt32(optionKey) != 0  { parts.append("⌥") }
@@ -89,7 +92,7 @@ final class HotkeyManager {
         return parts.joined()
     }
 
-    static func keyName(for keyCode: UInt32) -> String {
+    nonisolated static func keyName(for keyCode: UInt32) -> String {
         let names: [UInt32: String] = [
             0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X",
             8: "C", 9: "V", 11: "B", 12: "Q", 13: "W", 14: "E", 15: "R",

@@ -8,7 +8,7 @@ extension AppSettings {
     // MARK: - Display identification
 
     /// Stable display key derived from CGDirectDisplayID.
-    static func displayKey(for screen: NSScreen? = NSScreen.main) -> String {
+    nonisolated static func displayKey(for screen: NSScreen? = NSScreen.main) -> String {
         guard let screen else { return "default" }
         let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
         return String(id)
@@ -31,7 +31,7 @@ extension AppSettings {
     }
 
     /// Stable id of the built-in profile that pre-profiles layouts migrate into.
-    static let defaultProfileID = "default"
+    nonisolated static let defaultProfileID = "default"
 
     var defaultProfileName: String { String(localized: "Default") }
 

@@ -47,7 +47,7 @@ extension CameraCell {
             // from what we asked for) so the next switch releases the right key.
             primaryQuality = StreamQuality(rawValue: stream.quality) ?? quality
             streamTask = nil
-            rtspClient.connect(to: stream.url, keepLastFrame: keepLastFrame)
+            rtspClient.connect(to: stream.url, pinKey: service.controllerAddress?.pinKey, keepLastFrame: keepLastFrame)
         }
     }
 
@@ -171,7 +171,7 @@ extension CameraCell {
             }
             guard !Task.isCancelled else { secondaryStreamTask = nil; return }
             secondaryStreamTask = nil
-            secondaryClient.connect(to: stream.url)
+            secondaryClient.connect(to: stream.url, pinKey: service.controllerAddress?.pinKey)
         }
     }
 
