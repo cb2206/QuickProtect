@@ -174,7 +174,8 @@ extension CameraCell {
         stopClockTimer()
         clockTick = Date()
         clockTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            clockTick = Date()
+            // Fires on the main run loop; Swift 6.1 needs that spelled out.
+            MainActor.assumeIsolated { clockTick = Date() }
         }
     }
 
