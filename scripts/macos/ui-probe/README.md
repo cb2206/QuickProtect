@@ -12,6 +12,12 @@ swiftc -O -o /tmp/key   scripts/macos/ui-probe/key.swift
 /tmp/key 1                    # press virtual key code (1 = S, 53 = Esc, 3 = F)
 ```
 
+**Both tools refuse to post events unless the Claude desktop app is
+frontmost** (override with `UIPROBE_EXPECT_FRONT=<app name>`). The panel is a
+non-activating window, so during a check the frontmost app stays whatever it
+was when the check started; if it changes, the user has taken over the Mac
+and every further event would land in their app.
+
 Recipe used on 2026-09-05: launch with
 `QUICKPROTECT_DEBUG_LOG=1 macos/build/Debug/QuickProtect.app/Contents/MacOS/QuickProtect --open-panel 2> log`,
 read the panel frame with

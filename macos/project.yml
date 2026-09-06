@@ -11,10 +11,11 @@ settings:
   base:
     PRODUCT_NAME: QuickProtect
     PRODUCT_BUNDLE_IDENTIFIER: com.cb.quickprotect
-    SWIFT_VERSION: "5.9"
-    # Swift 6 readiness: surface actor-isolation and Sendable problems now
-    # (warnings), so the language-mode switch later is a flip, not a rewrite.
-    SWIFT_STRICT_CONCURRENCY: complete
+    # Swift 6 language mode: data-race safety is checked at compile time.
+    # Every type states its isolation (@MainActor for settings, services,
+    # windows and views; RTSPClient is @unchecked Sendable with a documented
+    # queue discipline), so a new cross-thread access fails the build.
+    SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic

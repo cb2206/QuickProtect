@@ -1,5 +1,14 @@
 import Foundation
 import CoreGraphics
+import AppKit
+// Safety: only drive the screen while the app that was frontmost when the
+// check started is still frontmost (default: the Claude desktop app). If the
+// user has switched to something else, they are using the Mac — abort.
+let expectedFront = ProcessInfo.processInfo.environment["UIPROBE_EXPECT_FRONT"] ?? "Claude"
+if let front = NSWorkspace.shared.frontmostApplication?.localizedName, front != expectedFront {
+    FileHandle.standardError.write("ui-probe: refusing to post events — frontmost app is \(front), expected \(expectedFront)\n".data(using: .utf8)!)
+    exit(3)
+}
 let a = CommandLine.arguments
 let p = CGPoint(x: Double(a[1])!, y: Double(a[2])!)
 let count = a.count > 3 ? Int(a[3])! : 1
