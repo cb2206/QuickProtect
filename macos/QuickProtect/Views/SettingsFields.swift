@@ -6,6 +6,7 @@ import Carbon
 /// Routes the standard editing key equivalents (⌘X/⌘C/⌘V/⌘A/⌘Z) to the field
 /// editor. A menu-bar (`.accessory`) app has no Edit menu, so these shortcuts
 /// would otherwise be dropped and only the context-menu items would work.
+@MainActor
 private func handleEditingKeyEquivalent(_ event: NSEvent, from sender: NSControl) -> Bool {
     guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
           let key = event.charactersIgnoringModifiers?.lowercased() else { return false }
