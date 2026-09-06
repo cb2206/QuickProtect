@@ -1,6 +1,47 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "A new version is available": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine neue Version ist verfügbar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une nouvelle version est disponible"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hay una nueva versión disponible"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er is een nieuwe versie beschikbaar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "È disponibile una nuova versione"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma nova versão está disponível"
+          }
+        }
+      }
+    },
     "API Key": {
       "extractionState": "manual",
       "localizations": {
@@ -407,6 +448,88 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auto transmite em baixa qualidade na grade e em alta qualidade quando uma câmera é ampliada — economizando CPU e largura de banda. Substitua por câmera clicando com o botão direito no bloco."
+          }
+        }
+      }
+    },
+    "Automatic updates — always on the latest version, no manual downloads.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Updates – immer auf der neuesten Version, ohne manuelle Downloads."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mises à jour automatiques — toujours la dernière version, sans téléchargement manuel."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizaciones automáticas: siempre la última versión, sin descargas manuales."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische updates – altijd de nieuwste versie, zonder handmatige downloads."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiornamenti automatici: sempre l'ultima versione, senza download manuali."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualizações automáticas — sempre na versão mais recente, sem downloads manuais."
+          }
+        }
+      }
+    },
+    "Automatic updates, an Apple-signed install with no security warnings, and it supports development.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Updates, eine von Apple signierte Installation ohne Sicherheitswarnungen – und du unterstützt die Entwicklung."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mises à jour automatiques, installation signée par Apple sans avertissement de sécurité, et un soutien au développement."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizaciones automáticas, una instalación firmada por Apple sin avisos de seguridad, y apoyas el desarrollo."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische updates, een door Apple ondertekende installatie zonder beveiligingswaarschuwingen, en je ondersteunt de ontwikkeling."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiornamenti automatici, un'installazione firmata da Apple senza avvisi di sicurezza, e sostieni lo sviluppo."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualizações automáticas, uma instalação assinada pela Apple sem avisos de segurança, e você apoia o desenvolvimento."
           }
         }
       }
@@ -2215,6 +2338,47 @@
         }
       }
     },
+    "Download from GitHub": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von GitHub laden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Télécharger depuis GitHub"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descargar de GitHub"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaden van GitHub"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scarica da GitHub"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baixar do GitHub"
+          }
+        }
+      }
+    },
     "Drag to resize": {
       "extractionState": "manual",
       "localizations": {
@@ -2912,6 +3076,47 @@
         }
       }
     },
+    "Get the App Store edition": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hol dir die App-Store-Version"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtenir la version App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consigue la versión del App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haal de App Store-versie"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ottieni la versione App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtenha a versão da App Store"
+          }
+        }
+      }
+    },
     "Get update": {
       "extractionState": "manual",
       "localizations": {
@@ -2949,6 +3154,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Obter atualização"
+          }
+        }
+      }
+    },
+    "GitHub": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
           }
         }
       }
@@ -3568,6 +3814,47 @@
         }
       }
     },
+    "Later": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Später"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus tard"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más tarde"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Later"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Più tardi"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mais tarde"
+          }
+        }
+      }
+    },
     "Launch at login": {
       "extractionState": "manual",
       "localizations": {
@@ -3974,6 +4261,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Baixa"
+          }
+        }
+      }
+    },
+    "Mac App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
           }
         }
       }
@@ -4511,6 +4839,47 @@
         }
       }
     },
+    "Not now": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt nicht"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas maintenant"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ahora no"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niet nu"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non ora"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agora não"
+          }
+        }
+      }
+    },
     "Not verified": {
       "extractionState": "manual",
       "localizations": {
@@ -4921,6 +5290,47 @@
         }
       }
     },
+    "Package Camera": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paketkamera"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caméra colis"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cámara de paquetes"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pakketcamera"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotocamera pacchi"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Câmera de encomendas"
+          }
+        }
+      }
+    },
     "Pan & tilt (PTZ)": {
       "extractionState": "manual",
       "localizations": {
@@ -5249,6 +5659,47 @@
         }
       }
     },
+    "Prefer automatic updates and an Apple-signed, hassle-free install? Get QuickProtect from the Mac App Store.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lieber automatische Updates und eine von Apple signierte, unkomplizierte Installation? Hol dir QuickProtect aus dem Mac App Store."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous préférez les mises à jour automatiques et une installation signée par Apple, sans tracas ? Obtenez QuickProtect sur le Mac App Store."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Prefieres actualizaciones automáticas y una instalación firmada por Apple sin complicaciones? Consigue QuickProtect en la Mac App Store."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liever automatische updates en een door Apple ondertekende installatie zonder gedoe? Haal QuickProtect uit de Mac App Store."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferisci aggiornamenti automatici e un'installazione firmata da Apple, senza problemi? Scarica QuickProtect dal Mac App Store."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefere atualizações automáticas e uma instalação assinada pela Apple, sem complicações? Baixe o QuickProtect na Mac App Store."
+          }
+        }
+      }
+    },
     "Press S on a focused camera to capture a snapshot.": {
       "extractionState": "manual",
       "localizations": {
@@ -5372,6 +5823,47 @@
         }
       }
     },
+    "QuickProtect %@ is out. The easiest way to stay up to date — and get a signed, hassle-free install — is the Mac App Store.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ ist da. Am einfachsten bleibst du aktuell – mit einer signierten, unkomplizierten Installation – über den Mac App Store."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ est disponible. Le moyen le plus simple de rester à jour — avec une installation signée et sans tracas — est le Mac App Store."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ ya está disponible. La forma más fácil de estar al día, con una instalación firmada y sin complicaciones, es la Mac App Store."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ is uit. De makkelijkste manier om up-to-date te blijven – met een ondertekende installatie zonder gedoe – is de Mac App Store."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ è disponibile. Il modo più semplice per restare aggiornato, con un'installazione firmata e senza problemi, è il Mac App Store."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O QuickProtect %@ foi lançado. A maneira mais fácil de se manter atualizado — com uma instalação assinada e sem complicações — é a Mac App Store."
+          }
+        }
+      }
+    },
     "QuickProtect can start automatically when you log in so your cameras are always one click away.": {
       "extractionState": "manual",
       "localizations": {
@@ -5409,6 +5901,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "O QuickProtect pode iniciar automaticamente ao fazer login para que suas câmeras estejam sempre a um clique."
+          }
+        }
+      }
+    },
+    "QuickProtect is on the App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect gibt es im App Store"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect est sur l'App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect está en el App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect staat in de App Store"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect è sull'App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O QuickProtect está na App Store"
           }
         }
       }
@@ -5864,6 +6397,47 @@
         }
       }
     },
+    "Sandboxed for extra security.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft in der Sandbox – für zusätzliche Sicherheit."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exécutée en bac à sable pour plus de sécurité."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aislada en un sandbox para mayor seguridad."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Draait in een sandbox voor extra beveiliging."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eseguita in sandbox per maggiore sicurezza."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Executado em sandbox para mais segurança."
+          }
+        }
+      }
+    },
     "Save": {
       "extractionState": "manual",
       "localizations": {
@@ -6311,6 +6885,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mostrar controles sobrepostos"
+          }
+        }
+      }
+    },
+    "Signed and notarized by Apple — installs cleanly, with no security warnings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von Apple signiert und beglaubigt – installiert sich sauber, ohne Sicherheitswarnungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signée et notarisée par Apple — s'installe proprement, sans avertissement de sécurité."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Firmada y notarizada por Apple: se instala sin problemas ni avisos de seguridad."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ondertekend en genotariseerd door Apple – installeert netjes, zonder beveiligingswaarschuwingen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Firmata e autenticata da Apple: si installa senza problemi né avvisi di sicurezza."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assinado e autenticado pela Apple — instala sem problemas nem avisos de segurança."
           }
         }
       }
@@ -7172,6 +7787,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Os streams permanecem conectados por esse tempo após fechar, para o vídeo aparecer na hora ao reabrir"
+          }
+        }
+      }
+    },
+    "Supports development and helps keep QuickProtect improving.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterstützt die Entwicklung und hilft, QuickProtect weiter zu verbessern."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soutient le développement et aide QuickProtect à s'améliorer."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apoya el desarrollo y ayuda a que QuickProtect siga mejorando."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ondersteunt de ontwikkeling en helpt QuickProtect beter te maken."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sostiene lo sviluppo e aiuta QuickProtect a migliorare."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apoia o desenvolvimento e ajuda o QuickProtect a continuar melhorando."
           }
         }
       }
@@ -8115,6 +8771,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ver no GitHub"
+          }
+        }
+      }
+    },
+    "View on the App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im App Store ansehen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir sur l'App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver en el App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bekijk in de App Store"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vedi sull'App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver na App Store"
           }
         }
       }

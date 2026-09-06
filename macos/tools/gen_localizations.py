@@ -1218,6 +1218,76 @@ _pinned = {
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _pinned.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
+# ---------------------------------------------------------------------------
+# App Store promotion (non-App-Store builds only: launch nudge, update prompt,
+# Settings → Updates section) and the doorbell's secondary lens. "Mac App
+# Store" and "GitHub" are proper nouns and stay as they are. German keeps the
+# informal du ("Hol dir …"), French stays formal. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_appstore = {
+    "Automatic updates — always on the latest version, no manual downloads.": (
+        "Automatische Updates – immer auf der neuesten Version, ohne manuelle Downloads.",
+        "Mises à jour automatiques — toujours la dernière version, sans téléchargement manuel.",
+        "Actualizaciones automáticas: siempre la última versión, sin descargas manuales.",
+        "Automatische updates – altijd de nieuwste versie, zonder handmatige downloads.",
+        "Aggiornamenti automatici: sempre l'ultima versione, senza download manuali.",
+        "Atualizações automáticas — sempre na versão mais recente, sem downloads manuais."),
+    "Signed and notarized by Apple — installs cleanly, with no security warnings.": (
+        "Von Apple signiert und beglaubigt – installiert sich sauber, ohne Sicherheitswarnungen.",
+        "Signée et notarisée par Apple — s'installe proprement, sans avertissement de sécurité.",
+        "Firmada y notarizada por Apple: se instala sin problemas ni avisos de seguridad.",
+        "Ondertekend en genotariseerd door Apple – installeert netjes, zonder beveiligingswaarschuwingen.",
+        "Firmata e autenticata da Apple: si installa senza problemi né avvisi di sicurezza.",
+        "Assinado e autenticado pela Apple — instala sem problemas nem avisos de segurança."),
+    "Sandboxed for extra security.": (
+        "Läuft in der Sandbox – für zusätzliche Sicherheit.",
+        "Exécutée en bac à sable pour plus de sécurité.",
+        "Aislada en un sandbox para mayor seguridad.",
+        "Draait in een sandbox voor extra beveiliging.",
+        "Eseguita in sandbox per maggiore sicurezza.",
+        "Executado em sandbox para mais segurança."),
+    "Supports development and helps keep QuickProtect improving.": (
+        "Unterstützt die Entwicklung und hilft, QuickProtect weiter zu verbessern.",
+        "Soutient le développement et aide QuickProtect à s'améliorer.",
+        "Apoya el desarrollo y ayuda a que QuickProtect siga mejorando.",
+        "Ondersteunt de ontwikkeling en helpt QuickProtect beter te maken.",
+        "Sostiene lo sviluppo e aiuta QuickProtect a migliorare.",
+        "Apoia o desenvolvimento e ajuda o QuickProtect a continuar melhorando."),
+    "View on the App Store": ("Im App Store ansehen", "Voir sur l'App Store", "Ver en el App Store", "Bekijk in de App Store", "Vedi sull'App Store", "Ver na App Store"),
+    "Download from GitHub": ("Von GitHub laden", "Télécharger depuis GitHub", "Descargar de GitHub", "Downloaden van GitHub", "Scarica da GitHub", "Baixar do GitHub"),
+    "Not now": ("Jetzt nicht", "Pas maintenant", "Ahora no", "Niet nu", "Non ora", "Agora não"),
+    "Later": ("Später", "Plus tard", "Más tarde", "Later", "Più tardi", "Mais tarde"),
+    "QuickProtect is on the App Store": ("QuickProtect gibt es im App Store", "QuickProtect est sur l'App Store", "QuickProtect está en el App Store", "QuickProtect staat in de App Store", "QuickProtect è sull'App Store", "O QuickProtect está na App Store"),
+    "A new version is available": ("Eine neue Version ist verfügbar", "Une nouvelle version est disponible", "Hay una nueva versión disponible", "Er is een nieuwe versie beschikbaar", "È disponibile una nuova versione", "Uma nova versão está disponível"),
+    "QuickProtect %@ is out. The easiest way to stay up to date — and get a signed, hassle-free install — is the Mac App Store.": (
+        "QuickProtect %@ ist da. Am einfachsten bleibst du aktuell – mit einer signierten, unkomplizierten Installation – über den Mac App Store.",
+        "QuickProtect %@ est disponible. Le moyen le plus simple de rester à jour — avec une installation signée et sans tracas — est le Mac App Store.",
+        "QuickProtect %@ ya está disponible. La forma más fácil de estar al día, con una instalación firmada y sin complicaciones, es la Mac App Store.",
+        "QuickProtect %@ is uit. De makkelijkste manier om up-to-date te blijven – met een ondertekende installatie zonder gedoe – is de Mac App Store.",
+        "QuickProtect %@ è disponibile. Il modo più semplice per restare aggiornato, con un'installazione firmata e senza problemi, è il Mac App Store.",
+        "O QuickProtect %@ foi lançado. A maneira mais fácil de se manter atualizado — com uma instalação assinada e sem complicações — é a Mac App Store."),
+    "Prefer automatic updates and an Apple-signed, hassle-free install? Get QuickProtect from the Mac App Store.": (
+        "Lieber automatische Updates und eine von Apple signierte, unkomplizierte Installation? Hol dir QuickProtect aus dem Mac App Store.",
+        "Vous préférez les mises à jour automatiques et une installation signée par Apple, sans tracas ? Obtenez QuickProtect sur le Mac App Store.",
+        "¿Prefieres actualizaciones automáticas y una instalación firmada por Apple sin complicaciones? Consigue QuickProtect en la Mac App Store.",
+        "Liever automatische updates en een door Apple ondertekende installatie zonder gedoe? Haal QuickProtect uit de Mac App Store.",
+        "Preferisci aggiornamenti automatici e un'installazione firmata da Apple, senza problemi? Scarica QuickProtect dal Mac App Store.",
+        "Prefere atualizações automáticas e uma instalação assinada pela Apple, sem complicações? Baixe o QuickProtect na Mac App Store."),
+    "Mac App Store": ("Mac App Store",) * 6,
+    "GitHub": ("GitHub",) * 6,
+    "Get the App Store edition": ("Hol dir die App-Store-Version", "Obtenir la version App Store", "Consigue la versión del App Store", "Haal de App Store-versie", "Ottieni la versione App Store", "Obtenha a versão da App Store"),
+    "Automatic updates, an Apple-signed install with no security warnings, and it supports development.": (
+        "Automatische Updates, eine von Apple signierte Installation ohne Sicherheitswarnungen – und du unterstützt die Entwicklung.",
+        "Mises à jour automatiques, installation signée par Apple sans avertissement de sécurité, et un soutien au développement.",
+        "Actualizaciones automáticas, una instalación firmada por Apple sin avisos de seguridad, y apoyas el desarrollo.",
+        "Automatische updates, een door Apple ondertekende installatie zonder beveiligingswaarschuwingen, en je ondersteunt de ontwikkeling.",
+        "Aggiornamenti automatici, un'installazione firmata da Apple senza avvisi di sicurezza, e sostieni lo sviluppo.",
+        "Atualizações automáticas, uma instalação assinada pela Apple sem avisos de segurança, e você apoia o desenvolvimento."),
+    "Package Camera": ("Paketkamera", "Caméra colis", "Cámara de paquetes", "Pakketcamera", "Fotocamera pacchi", "Câmera de encomendas"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _appstore.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 
 # ---------------------------------------------------------------------------
