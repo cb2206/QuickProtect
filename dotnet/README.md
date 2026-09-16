@@ -1,7 +1,7 @@
 # QuickProtect for Windows & Linux (.NET / Avalonia port)
 
 A cross-platform port of the macOS **QuickProtect** menu-bar app — a UniFi Protect
-camera viewer — built on **.NET 8 + Avalonia + FFmpeg** so a single codebase
+camera viewer — built on **.NET 10 + Avalonia + FFmpeg** so a single codebase
 runs on **Windows and Linux** (and macOS, if ever wanted).
 
 > The original macOS app is a Swift/SwiftUI/AppKit project in `macos/`. This
@@ -20,7 +20,7 @@ build ships (since 1.3.1) as a self-contained x64 tarball on the same releases
 
 | Concern | macOS (Swift) | This port |
 |---|---|---|
-| Language / runtime | Swift | C# / .NET 8 (cross-platform, supersedes Mono) |
+| Language / runtime | Swift | C# / .NET 10 (cross-platform, supersedes Mono) |
 | UI | SwiftUI + AppKit | Avalonia 11 (Windows + Linux + macOS) |
 | Tray / menu-bar | `NSStatusItem` | Avalonia `TrayIcon` |
 | Video (RTSP→decode→render) | hand-written RTSP/RTP + VideoToolbox + `AVSampleBufferDisplayLayer` | **FFmpeg** (via FFmpeg.AutoGen) demux + decode, frames composited by Avalonia `VideoSurface` |
@@ -83,9 +83,7 @@ dotnet/
 
 ## Build & run
 
-Prerequisites: the **.NET 10 SDK** (Avalonia 12's analyzers need Roslyn 4.14;
-the app still targets and ships on **net8.0**), plus the **FFmpeg 9.0 shared
-libraries** for
+Prerequisites: the **.NET 10 SDK**, plus the **FFmpeg 9.0 shared libraries** for
 video. Fetch them once per checkout into `native/ffmpeg/<rid>/` (gitignored);
 the build bundles them next to the app automatically:
 

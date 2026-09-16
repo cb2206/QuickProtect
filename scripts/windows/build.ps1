@@ -1,4 +1,4 @@
-# Build the .NET app for Windows. Requires the .NET 10 SDK (projects target net8.0).
+# Build the .NET app for Windows. Requires the .NET 10 SDK.
 $ErrorActionPreference = "Stop"
 $repo = Split-Path (Split-Path $PSScriptRoot)
 

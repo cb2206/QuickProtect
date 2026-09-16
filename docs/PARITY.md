@@ -155,11 +155,12 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 
 - Video needs the FFmpeg 9.0 natives (`scripts/get-ffmpeg.sh`, fetched into
   gitignored `native/`) or a matching system FFmpeg (9.x / `libavcodec.so.63`).
-- **glibc 2.27+** (Ubuntu 18.04 / Debian 10 / RHEL 8 and newer). Avalonia 12
-  brought SkiaSharp 3, whose `libSkiaSharp.so` raised its floor from 2.17; the
-  only distros that drops are already EOL, and the FFmpeg 9 requirement above
-  is the stricter constraint in practice. `libfontconfig.so.1` is still the
-  only linked system dependency beyond libc.
+- **glibc 2.27+** (Ubuntu 18.04 / Debian 10 / RHEL 8 and newer), measured on
+  the published payload. Two things land on exactly 2.27: SkiaSharp 3's
+  `libSkiaSharp.so` (Avalonia 12 raised it from 2.17) and .NET 10's
+  `libcoreclr.so`. Everything that drops off is already EOL, and the FFmpeg 9
+  requirement above is the stricter constraint in practice.
+  `libfontconfig.so.1` is still the only linked system dependency beyond libc.
 - The rtsps TLS tunnel works unchanged on Linux (pure .NET sockets).
 - Tray icons need StatusNotifierItem/appindicator support (GNOME may need an
   extension) — without a tray, add a `--open-panel` desktop entry as fallback.

@@ -34,11 +34,7 @@ jobs:
 
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
-          # SDK 10 builds (Avalonia 12's analyzers need Roslyn 4.14); the
-          # 8.0 runtime is what the net8.0 projects actually run on.
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: 10.0.x
 
       # Locked mode: the committed packages.lock.json files are the only
       # versions allowed — a drifted or tampered feed fails here.
@@ -71,11 +67,7 @@ jobs:
 
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
-          # SDK 10 builds (Avalonia 12's analyzers need Roslyn 4.14); the
-          # 8.0 runtime is what the net8.0 projects actually run on.
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: 10.0.x
 
       - name: Build tarball
         run: dotnet/scripts/package-linux.sh --rid ${{ matrix.rid }}

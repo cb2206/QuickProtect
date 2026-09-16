@@ -13,7 +13,7 @@ Rules:
 ## Repo layout
 
 - `macos/` — the Swift/AppKit menu-bar app (XcodeGen project, fastlane, SwiftLint, asset tools).
-- `dotnet/` — the .NET 8 + Avalonia reimplementation for Windows and Linux (one codebase for both).
+- `dotnet/` — the .NET 10 + Avalonia reimplementation for Windows and Linux (one codebase for both).
 - `docs/` — cross-platform docs: PARITY.md (feature parity tracking), PRIVACY.md, APP_STORE_LISTINGS.md, screenshots.
 - `scripts/macos|windows|linux/` — per-platform `build` and `run` entry points.
 

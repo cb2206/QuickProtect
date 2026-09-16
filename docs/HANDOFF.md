@@ -1,6 +1,6 @@
 # Windows/Linux port — current state
 
-Cross-platform .NET 8 + Avalonia reimplementation of the macOS QuickProtect
+Cross-platform .NET 10 + Avalonia reimplementation of the macOS QuickProtect
 app, living in `dotnet/`. Work happens directly on `dev`; releases are tagged
 from `main` (see the repo README for the branch flow).
 

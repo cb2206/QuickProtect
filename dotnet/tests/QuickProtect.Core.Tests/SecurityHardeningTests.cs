@@ -197,6 +197,6 @@ public class RtspTlsTunnelLimitTests
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=127.0.0.1", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-        return new X509Certificate2(cert.Export(X509ContentType.Pfx));
+        return X509CertificateLoader.LoadPkcs12(cert.Export(X509ContentType.Pfx), null);
     }
 }

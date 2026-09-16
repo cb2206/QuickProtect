@@ -51,7 +51,7 @@ This repo hosts two independent implementations that share behavior, not code:
 | Folder | What it is |
 |---|---|
 | [`macos/`](macos/) | The original macOS menu-bar app — Swift/SwiftUI/AppKit with a custom RTSP/RTP client. Ships on the [App Store](https://apps.apple.com/app/id6776899427) and as a DMG (not code-signed) on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases). |
-| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 8 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. Ships on the Microsoft Store, as an installer (not code-signed) on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), and (since 1.3.1) as Linux tarballs — x64, plus arm64 since 1.3.2 — on the same releases. |
+| [`dotnet/`](dotnet/) | The Windows & Linux port — one .NET 10 + Avalonia codebase for both platforms, with a custom FFmpeg video engine. Ships on the Microsoft Store, as an installer (not code-signed) on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), and (since 1.3.1) as Linux tarballs — x64, plus arm64 since 1.3.2 — on the same releases. |
 | [`docs/`](docs/) | Cross-platform docs: [feature parity](docs/PARITY.md) between the two implementations, [privacy policy](docs/PRIVACY.md), App Store listings, screenshots. |
 | [`scripts/`](scripts/) | Per-platform build & run entry points (see below). |
 
@@ -66,13 +66,13 @@ Each platform has a `build` script (compile only) and a `run` script (compile, r
 scripts/macos/build.sh
 scripts/macos/run.sh
 
-# Linux (requires .NET 10 SDK to build, targets net8.0; FFmpeg natives via dotnet/scripts/get-ffmpeg.sh)
+# Linux (requires .NET 10 SDK; FFmpeg natives via dotnet/scripts/get-ffmpeg.sh)
 scripts/linux/build.sh
 scripts/linux/run.sh
 ```
 
 ```powershell
-# Windows (requires .NET 10 SDK to build, targets net8.0)
+# Windows (requires .NET 10 SDK)
 scripts\windows\build.ps1
 scripts\windows\run.ps1
 ```

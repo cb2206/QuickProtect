@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build the .NET app for Linux. Requires the .NET 10 SDK (the projects target
-# net8.0; see dotnet/global.json). For video, fetch the
+# Build the .NET app for Linux. Requires the .NET 10 SDK (see
+# dotnet/global.json). For video, fetch the
 # FFmpeg 9.0 natives once per checkout: dotnet/scripts/get-ffmpeg.sh
 # (falls back to system FFmpeg 7.x, else the app runs without video).
 set -euo pipefail
