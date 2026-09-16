@@ -89,10 +89,12 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
                     var r = m.GetBodyReader();
                     return (Session: r.ReadObjectPath().ToString(), Id: r.ReadString());
                 },
+                // Handlers must not throw: Tmds disconnects the whole connection if
+                // one does. Notification.Exception throws unless IsCompletion, so
+                // branch on HasValue/IsCompletion and never touch Exception first.
                 n =>
                 {
-                    if (n.Exception is null && n.HasValue &&
-                        n.Value.Session == _sessionHandle && n.Value.Id == ShortcutId)
+                    if (n.HasValue && n.Value.Session == _sessionHandle && n.Value.Id == ShortcutId)
                         Dispatcher.UIThread.Post(_onTriggered);
                 },
                 flags: ObserverFlags.None);
@@ -197,8 +199,8 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
             },
             n =>
             {
-                if (n.Exception is { } ex) tcs.TrySetException(ex);
-                else if (n.HasValue) tcs.TrySetResult(n.Value);
+                if (n.IsCompletion) tcs.TrySetException(n.Exception);
+                else tcs.TrySetResult(n.Value);
             },
             flags: ObserverFlags.None);
         var returned = await conn.CallMethodAsync(call,
