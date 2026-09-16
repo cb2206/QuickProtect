@@ -22,6 +22,12 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
     private const string DesktopPath = "/org/freedesktop/portal/desktop";
     private const string ShortcutsIface = "org.freedesktop.portal.GlobalShortcuts";
     private const string ShortcutId = "toggle-panel";
+    /// <summary>
+    /// Our desktop-entry id (quickprotect.desktop, shipped in the Linux tarball).
+    /// Declared to the portal so the shortcut is always "quickprotect:toggle-panel",
+    /// however the app was launched — see <see cref="RegisterAppIdAsync"/>.
+    /// </summary>
+    internal const string AppId = "quickprotect";
 
     private readonly Action _onTriggered;
     // Serializes UpdateAsync runs; _generation lets a newer Update supersede a
@@ -60,6 +66,8 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
             {
                 _conn = new DBusConnection(DBusAddress.Session!);
                 await _conn.ConnectAsync();
+                // Must precede every other portal call on this connection.
+                await RegisterAppIdAsync(_conn);
             }
             var conn = _conn;
 
@@ -126,6 +134,43 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// Tells the portal which app this unsandboxed connection belongs to. Without
+    /// it the portal infers the id from the launching process's scope, so the
+    /// shortcut id changes with how QuickProtect was started — launched from a
+    /// terminal it belongs to the terminal — and a compositor bind written against
+    /// one id (Hyprland needs one: it registers portal shortcuts but never assigns
+    /// keys) silently stops matching after the next launch.
+    ///
+    /// The portal only accepts an id it can resolve to an installed desktop entry,
+    /// so a checkout run without quickprotect.desktop installed gets refused. That
+    /// is not fatal: the portal falls back to its own inference, as before.
+    /// </summary>
+    private static async Task RegisterAppIdAsync(DBusConnection conn)
+    {
+        try
+        {
+            await conn.CallMethodAsync(RegisterAppIdMessage(conn));
+            Log.Line($"[Hotkey] registered with the portal as \"{AppId}\" — shortcut id \"{AppId}:{ShortcutId}\"");
+        }
+        catch (DBusErrorReplyException e)
+        {
+            Log.Line($"[Hotkey] portal did not accept app id \"{AppId}\" ({e.ErrorMessage}); the shortcut id will " +
+                     $"depend on how QuickProtect was launched. Installing {AppId}.desktop into " +
+                     "~/.local/share/applications makes it stable.");
+        }
+    }
+
+    private static MessageBuffer RegisterAppIdMessage(DBusConnection conn)
+    {
+        using var w = conn.GetMessageWriter();
+        w.WriteMethodCallHeader(destination: Service, path: DesktopPath,
+            @interface: "org.freedesktop.host.portal.Registry", member: "Register", signature: "sa{sv}");
+        w.WriteString(AppId);
+        w.WriteDictionary(new Dictionary<string, VariantValue>());
+        return w.CreateMessage();
     }
 
     private static MessageBuffer CreateSessionMessage(DBusConnection conn, string handleToken)
