@@ -40,6 +40,10 @@ internal static class Program
 
         try
         {
+            // Before any Avalonia code runs: the X11 backend reads its scaling
+            // variables once, while the platform initializes.
+            if (OperatingSystem.IsLinux()) Platform.LinuxDisplayScaling.Apply();
+
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
