@@ -13,10 +13,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.19" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.19" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.19" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.19" />
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
     <!-- MVVM helpers (ObservableObject, RelayCommand) -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <!-- FFmpeg bindings for the custom video engine (demux + decode). The
@@ -30,7 +30,7 @@
     <!-- Used directly by PortalGlobalHotkey (XDG portal over D-Bus). Referenced
          explicitly rather than relied on as Avalonia's transitive dependency,
          so an Avalonia bump can't silently remove it. -->
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.1" />
   </ItemGroup>
 
   <!-- FFmpeg 9.0 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).

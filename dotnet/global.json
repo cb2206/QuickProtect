@@ -1,0 +1,7 @@
+{
+  "// sdk": "Avalonia 12's analyzers require Roslyn 4.14, which ships with the .NET 10 SDK; the projects still target net8.0, so the .NET 8 runtime is what actually ships.",
+  "sdk": {
+    "version": "10.0.100",
+    "rollForward": "latestMinor"
+  }
+}

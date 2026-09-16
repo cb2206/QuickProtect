@@ -66,13 +66,13 @@ Each platform has a `build` script (compile only) and a `run` script (compile, r
 scripts/macos/build.sh
 scripts/macos/run.sh
 
-# Linux (requires .NET 8 SDK; FFmpeg natives via dotnet/scripts/get-ffmpeg.sh)
+# Linux (requires .NET 10 SDK to build, targets net8.0; FFmpeg natives via dotnet/scripts/get-ffmpeg.sh)
 scripts/linux/build.sh
 scripts/linux/run.sh
 ```
 
 ```powershell
-# Windows (requires .NET 8 SDK)
+# Windows (requires .NET 10 SDK to build, targets net8.0)
 scripts\windows\build.ps1
 scripts\windows\run.ps1
 ```

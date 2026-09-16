@@ -83,7 +83,9 @@ dotnet/
 
 ## Build & run
 
-Prerequisites: **.NET 8 SDK**, plus the **FFmpeg 9.0 shared libraries** for
+Prerequisites: the **.NET 10 SDK** (Avalonia 12's analyzers need Roslyn 4.14;
+the app still targets and ships on **net8.0**), plus the **FFmpeg 9.0 shared
+libraries** for
 video. Fetch them once per checkout into `native/ffmpeg/<rid>/` (gitignored);
 the build bundles them next to the app automatically:
 

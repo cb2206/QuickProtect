@@ -153,10 +153,6 @@ public partial class App : Application
         };
         // Left-click opens the camera panel (right-click shows the menu natively).
         _tray.Clicked += (_, _) => ToggleMainWindow();
-
-        // Avalonia publishes an invalid StatusNotifierItem status, which makes
-        // spec-compliant hosts hide the icon entirely.
-        if (OperatingSystem.IsLinux()) LinuxTrayStatus.KeepActive(_tray);
     }
 
     /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>

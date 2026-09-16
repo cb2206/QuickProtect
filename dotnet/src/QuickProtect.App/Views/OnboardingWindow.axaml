@@ -25,7 +25,7 @@
         <TextBlock Text="{loc:Loc 'Enter your UniFi Protect controller\'s local IP and an API key from its settings.'}"
                    Foreground="{DynamicResource QpTextTertiary}" TextWrapping="Wrap" FontSize="12" />
         <TextBlock Text="{loc:Loc 'IP address or hostname'}" Foreground="{DynamicResource QpTextSecondary}" />
-        <TextBox Text="{Binding IpAddress}" Watermark="192.168.1.1" />
+        <TextBox Text="{Binding IpAddress}" PlaceholderText="192.168.1.1" />
         <TextBlock Text="{loc:Loc 'Integration API key'}" Foreground="{DynamicResource QpTextSecondary}" />
         <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
         <Button Content="{loc:Loc 'Test Connection'}" Command="{Binding TestConnectionCommand}" />

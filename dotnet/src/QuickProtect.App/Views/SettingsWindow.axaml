@@ -224,7 +224,7 @@
                       <TextBlock Text="{loc:Loc 'Local IP of your UniFi Protect controller'}" Classes="rowHint" />
                     </StackPanel>
                     <TextBox Grid.Column="1" Text="{Binding IpAddress, UpdateSourceTrigger=LostFocus}"
-                             Watermark="192.168.1.1" Width="240" VerticalAlignment="Center" />
+                             PlaceholderText="192.168.1.1" Width="240" VerticalAlignment="Center" />
                   </Grid>
                   <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
@@ -359,7 +359,7 @@
                   <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="*,Auto,Auto">
                     <TextBox Grid.Column="0" Text="{Binding Layout.NewProfileName}"
-                             Watermark="{loc:Loc 'New profile name'}" MaxWidth="240" HorizontalAlignment="Left" />
+                             PlaceholderText="{loc:Loc 'New profile name'}" MaxWidth="240" HorizontalAlignment="Left" />
                     <Button Grid.Column="1" Content="{loc:Loc 'Create'}" Command="{Binding Layout.CreateProfileCommand}"
                             Margin="0,0,8,0" />
                     <Button Grid.Column="2" Content="{loc:Loc 'Rename'}" Command="{Binding Layout.RenameProfileCommand}" />

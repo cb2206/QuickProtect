@@ -26,7 +26,7 @@ Every **code change** runs as a loop, not a line. Sessions with no code changes
 2. Run the checks. For Swift changes (run from `macos/`):
    `xcodebuild test -scheme QuickProtect -destination 'platform=macOS' -quiet`,
    then `swiftlint --strict`. For C# changes: `dotnet test dotnet/QuickProtect.sln`
-   (on this Mac the .NET 8 SDK is user-local at `~/.dotnet`, not on PATH:
+   (on this Mac the .NET SDK is user-local at `~/.dotnet`, not on PATH:
    `export DOTNET_ROOT=$HOME/.dotnet PATH=$HOME/.dotnet:$PATH`). No silencing
    errors with try?, try!, force-unwraps, or empty catch blocks.
 3. If anything fails, read the error, fix the cause, go back to step 2.

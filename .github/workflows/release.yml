@@ -79,7 +79,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
-          dotnet-version: 8.0.x
+          # SDK 10 builds (Avalonia 12's analyzers need Roslyn 4.14); the
+          # 8.0 runtime is what the net8.0 projects actually run on.
+          dotnet-version: |
+            8.0.x
+            10.0.x
       - name: Restore (locked), format check, test
         working-directory: dotnet
         run: |
@@ -218,7 +222,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
-          dotnet-version: 8.0.x
+          # SDK 10 builds (Avalonia 12's analyzers need Roslyn 4.14); the
+          # 8.0 runtime is what the net8.0 projects actually run on.
+          dotnet-version: |
+            8.0.x
+            10.0.x
       # Pinned: the installer compiler version is part of what a release is.
       - name: Install Inno Setup 6.7.1
         run: choco install innosetup --version=6.7.1 --no-progress -y
@@ -238,7 +246,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
-          dotnet-version: 8.0.x
+          # SDK 10 builds (Avalonia 12's analyzers need Roslyn 4.14); the
+          # 8.0 runtime is what the net8.0 projects actually run on.
+          dotnet-version: |
+            8.0.x
+            10.0.x
       - name: Build tarball
         run: dotnet/scripts/package-linux.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

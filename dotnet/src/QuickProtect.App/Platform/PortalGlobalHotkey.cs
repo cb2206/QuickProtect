@@ -27,9 +27,9 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
     // Serializes UpdateAsync runs; _generation lets a newer Update supersede a
     // stalled one (e.g. the user re-records while a bind dialog sits unanswered).
     private readonly SemaphoreSlim _gate = new(1, 1);
-    // Our own bus connection (the shared Connection.Session forbids explicit
-    // ConnectAsync); the portal reaps the session when this connection drops.
-    private Connection? _conn;
+    // Our own bus connection: we need an explicit ConnectAsync, and
+    // the portal reaps the session when this connection drops.
+    private DBusConnection? _conn;
     private int _generation;
     private string? _sessionHandle;
     private IDisposable? _activatedMatch;
@@ -58,7 +58,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
 
             if (_conn is null)
             {
-                _conn = new Connection(Address.Session!);
+                _conn = new DBusConnection(DBusAddress.Session!);
                 await _conn.ConnectAsync();
             }
             var conn = _conn;
@@ -89,12 +89,13 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
                     var r = m.GetBodyReader();
                     return (Session: r.ReadObjectPath().ToString(), Id: r.ReadString());
                 },
-                (ex, a, _, _) =>
+                n =>
                 {
-                    if (ex is null && a.Session == _sessionHandle && a.Id == ShortcutId)
+                    if (n.Exception is null && n.HasValue &&
+                        n.Value.Session == _sessionHandle && n.Value.Id == ShortcutId)
                         Dispatcher.UIThread.Post(_onTriggered);
                 },
-                ObserverFlags.None);
+                flags: ObserverFlags.None);
 
             // 3. BindShortcuts — the compositor may show a one-time consent
             // dialog; the response reports the trigger it actually granted.
@@ -125,7 +126,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         }
     }
 
-    private static MessageBuffer CreateSessionMessage(Connection conn, string handleToken)
+    private static MessageBuffer CreateSessionMessage(DBusConnection conn, string handleToken)
     {
         using var w = conn.GetMessageWriter();
         w.WriteMethodCallHeader(destination: Service, path: DesktopPath,
@@ -139,7 +140,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
     }
 
     private static MessageBuffer BindShortcutsMessage(
-        Connection conn, string session, string trigger, string handleToken)
+        DBusConnection conn, string session, string trigger, string handleToken)
     {
         using var w = conn.GetMessageWriter();
         w.WriteMethodCallHeader(destination: Service, path: DesktopPath,
@@ -159,7 +160,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         return w.CreateMessage();
     }
 
-    private static MessageBuffer CloseSessionMessage(Connection conn, string session)
+    private static MessageBuffer CloseSessionMessage(DBusConnection conn, string session)
     {
         using var w = conn.GetMessageWriter();
         w.WriteMethodCallHeader(destination: Service, path: session,
@@ -173,7 +174,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
     /// before sending (the portal-documented way to avoid the reply race).
     /// </summary>
     private async Task<(uint Code, Dictionary<string, VariantValue> Results)> PortalRequestAsync(
-        Connection conn, MessageBuffer call, string handleToken)
+        DBusConnection conn, MessageBuffer call, string handleToken)
     {
         var sender = conn.UniqueName![1..].Replace('.', '_');
         var requestPath = $"{DesktopPath}/request/{sender}/{handleToken}";
@@ -194,12 +195,12 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
                 var r = m.GetBodyReader();
                 return (r.ReadUInt32(), r.ReadDictionaryOfStringToVariantValue());
             },
-            (ex, arg, _, _) =>
+            n =>
             {
-                if (ex is null) tcs.TrySetResult(arg);
-                else tcs.TrySetException(ex);
+                if (n.Exception is { } ex) tcs.TrySetException(ex);
+                else if (n.HasValue) tcs.TrySetResult(n.Value);
             },
-            ObserverFlags.None);
+            flags: ObserverFlags.None);
         var returned = await conn.CallMethodAsync(call,
             static (m, _) => m.GetBodyReader().ReadObjectPath().ToString(), null);
         if (returned != requestPath)

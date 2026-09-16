@@ -11,9 +11,7 @@
         MinWidth="400" MinHeight="300"
         Background="{DynamicResource QpPopoverBg}"
         ShowInTaskbar="False"
-        ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome"
-        ExtendClientAreaTitleBarHeightHint="-1">
+        WindowDecorations="None">
 
   <Grid>
 
@@ -49,7 +47,7 @@
           <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <ProgressBar IsIndeterminate="True" Width="60" Height="4"
                          IsVisible="{Binding IsLoading}" VerticalAlignment="Center" />
-            <TextBox Text="{Binding SearchQuery}" Watermark="{loc:Loc 'Search'}" Width="130"
+            <TextBox Text="{Binding SearchQuery}" PlaceholderText="{loc:Loc 'Search'}" Width="130"
                      Classes="clearButton"
                      Background="{DynamicResource QpSubtleSurface}" CornerRadius="6"
                      BorderBrush="{DynamicResource QpChipBorder}" />
