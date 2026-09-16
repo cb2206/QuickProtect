@@ -1,19 +1,33 @@
 #!/usr/bin/env bash
-# Builds the Linux tarball for GitHub releases.
-#   dotnet/scripts/package-linux.sh [version]
-# Output: dotnet/dist/QuickProtect-<version>-linux-x64.tar.gz
+# Builds a Linux tarball for GitHub releases.
+#   dotnet/scripts/package-linux.sh [--rid linux-x64|linux-arm64] [version]
+# Output: dotnet/dist/QuickProtect-<version>-<rid>.tar.gz
 #
-# Counterpart of package-windows.ps1: publishes self-contained linux-x64
+# Counterpart of package-windows.ps1: publishes self-contained for one RID
 # (bundles .NET + the FFmpeg 9.0 natives via get-ffmpeg.sh — the csproj copies
-# native/ffmpeg/linux-x64 into the app's ffmpeg/ folder at publish time).
+# native/ffmpeg/<rid> into the app's ffmpeg/ folder at publish time).
 # The tarball also carries a .desktop template and icon so manual installs and
 # the AUR package (installer/aur/PKGBUILD) share one artifact.
+#
+# arm64 cross-publishes fine from an x64 runner: the publish is plain
+# self-contained (no ReadyToRun/AOT), so nothing is compiled for the target
+# architecture — the RID only selects which prebuilt natives get copied.
 
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dist="$root/dist"
+
 rid="linux-x64"
+if [ "${1:-}" = "--rid" ]; then
+    [ -n "${2:-}" ] || { echo "--rid needs a value (linux-x64 or linux-arm64)" >&2; exit 1; }
+    rid="$2"
+    shift 2
+fi
+case "$rid" in
+    linux-x64|linux-arm64) ;;
+    *) echo "unsupported rid '$rid' (expected linux-x64 or linux-arm64)" >&2; exit 1 ;;
+esac
 
 # Version defaults to the single source of truth so the tarball can't drift
 # from the assembly version the updater compares against (same as the Windows
@@ -45,7 +59,7 @@ EOF
 cp "$root/installer/msix/Assets/Square310x310Logo.png" "$stage/quickprotect.png"
 
 cat > "$stage/README" <<EOF
-QuickProtect $version (linux-x64)
+QuickProtect $version ($rid)
 
 Run: ./QuickProtect/QuickProtect
 Optional install: copy the QuickProtect folder to /opt/quickprotect, then

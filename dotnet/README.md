@@ -77,7 +77,7 @@ dotnet/
   scripts/get-sdk-buildtools.ps1   # makeappx/signtool from NuGet for package-msix.ps1 (no full SDK)
   scripts/package-windows.ps1      # publish + build the Windows installer
   scripts/package-msix.ps1         # publish + build the Store (MSIX) package
-  scripts/package-linux.sh         # publish + build the Linux tarball
+  scripts/package-linux.sh         # publish + build the Linux tarball (--rid linux-arm64 for arm64)
   scripts/generate-msix-assets.swift  # regenerate the MSIX tile PNGs (macOS)
 ```
 

@@ -88,7 +88,7 @@ dotnet restore QuickProtect.sln --locked-mode  # what CI runs
 dotnet format QuickProtect.sln --verify-no-changes
 dotnet test QuickProtect.sln                   # warnings are errors, analyzers on
 powershell -File scripts/package-windows.ps1   # → dist/QuickProtect-Setup-<v>-win-x64.exe
-scripts/package-linux.sh                       # → dist/QuickProtect-<v>-linux-x64.tar.gz
+scripts/package-linux.sh [--rid <rid>]         # → dist/QuickProtect-<v>-<linux-x64|linux-arm64>.tar.gz
 ```
 
 Every published build carries `LICENSE` and `THIRD-PARTY-NOTICES.txt` (FFmpeg

@@ -60,6 +60,10 @@ jobs:
   # when a tag is pushed: fetches the pinned FFmpeg natives (checksum-verified),
   # publishes self-contained, builds the tarball and checks what's inside.
   package-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -74,13 +78,15 @@ jobs:
             10.0.x
 
       - name: Build tarball
-        run: dotnet/scripts/package-linux.sh
+        run: dotnet/scripts/package-linux.sh --rid ${{ matrix.rid }}
 
       # The engine smoke tests need an ffmpeg *binary* to serve a test stream;
       # the libraries under test are the pinned natives get-ffmpeg.sh just
       # fetched (copied into the test output next to the app). Decodes H.264
-      # and H.265 and checks the audio-only failure path.
+      # and H.265 and checks the audio-only failure path. x64 only: the runner
+      # cannot execute the arm64 natives the arm64 leg just downloaded.
       - name: Engine smoke tests against the bundled natives
+        if: matrix.rid == 'linux-x64'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
           cd dotnet && dotnet test tests/QuickProtect.App.Tests -- RunConfiguration.TestSessionTimeout=300000
@@ -88,7 +94,7 @@ jobs:
       - name: Inspect tarball
         run: |
           set -euo pipefail
-          tarball="$(ls dotnet/dist/QuickProtect-*-linux-x64.tar.gz)"
+          tarball="$(ls dotnet/dist/QuickProtect-*-${{ matrix.rid }}.tar.gz)"
           listing="$(tar -tzf "$tarball")"
           for required in QuickProtect/QuickProtect QuickProtect/ffmpeg/libavcodec.so QuickProtect/ffmpeg/LICENSE.txt \
                           QuickProtect/THIRD-PARTY-NOTICES.txt QuickProtect/LICENSE quickprotect.desktop; do

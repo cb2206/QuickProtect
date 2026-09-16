@@ -240,6 +240,10 @@ jobs:
 
   linux-tarball:
     needs: test-dotnet
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -252,11 +256,11 @@ jobs:
             8.0.x
             10.0.x
       - name: Build tarball
-        run: dotnet/scripts/package-linux.sh
+        run: dotnet/scripts/package-linux.sh --rid ${{ matrix.rid }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: linux-tarball
-          path: dotnet/dist/QuickProtect-*-linux-x64.tar.gz
+          name: linux-tarball-${{ matrix.rid }}
+          path: dotnet/dist/QuickProtect-*-${{ matrix.rid }}.tar.gz
           if-no-files-found: error
 
   # The only job that writes to the repository, and only for a tag push.

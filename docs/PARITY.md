@@ -204,7 +204,7 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   winget listing — the Store is the auto-updating channel. One release tag per
   version carries all OS assets:
   `QuickProtect-<ver>.dmg` / `QuickProtect-Setup-<ver>-win-x64.exe` /
-  `QuickProtect-<ver>-linux-x64.tar.gz`.
+  `QuickProtect-<ver>-linux-x64.tar.gz` / `QuickProtect-<ver>-linux-arm64.tar.gz`.
   MSIX packaging: `scripts/package-msix.ps1` +
   `installer/msix/AppxManifest.xml` (committed tile assets); the Partner Center
   identity/publisher values are supplied at package time. Two container
@@ -212,9 +212,9 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   (no change needed), and launch-at-login moves from the `Run` key — virtualised
   away in a package — to the manifest's `windows.startupTask`, which the
   Settings UI surfaces as a pointer to Windows' own switch.
-- **Linux** (decided 2026-08, ships with 1.3.1): GitHub-release tarball
-  (`scripts/package-linux.sh`, self-contained linux-x64 with the FFmpeg 9.0
-  natives bundled, plus a .desktop template + icon) with the in-app
+- **Linux** (decided 2026-08, ships with 1.3.1): GitHub-release tarballs
+  (`scripts/package-linux.sh --rid linux-x64|linux-arm64`, self-contained with
+  the FFmpeg 9.0 natives bundled, plus a .desktop template + icon) with the in-app
   notify-only update check, and an AUR package (`quickprotect-bin`,
   `installer/aur/PKGBUILD`, consumes the tarball). Linux is free-only — there
   is no viable paid Linux store, and unlike winget on Windows the frictionless
