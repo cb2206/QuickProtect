@@ -104,8 +104,8 @@ public partial class App : Application
         if (!string.IsNullOrEmpty(Settings.IpAddress) && !string.IsNullOrEmpty(Settings.ApiKey))
             _ = Service.FetchCamerasAsync();
 
-        // A second app launch signals this event instead of starting (see Program).
-        if (OperatingSystem.IsWindows()) StartShowPanelListener();
+        // A second app launch signals this instead of starting (see Program).
+        StartShowPanelListener();
 
         if (!Settings.HasCompletedOnboarding)
             ShowOnboarding();
@@ -145,20 +145,15 @@ public partial class App : Application
         };
         // Left-click opens the camera panel (right-click shows the menu natively).
         _tray.Clicked += (_, _) => ToggleMainWindow();
+
+        // Avalonia publishes an invalid StatusNotifierItem status, which makes
+        // spec-compliant hosts hide the icon entirely.
+        if (OperatingSystem.IsLinux()) LinuxTrayStatus.KeepActive(_tray);
     }
 
     /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>
-    private void StartShowPanelListener()
-    {
-        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ShowPanelEventName);
-        var thread = new Thread(() =>
-        {
-            while (signal.WaitOne())
-                Dispatcher.UIThread.Post(ShowMainWindow);
-        })
-        { IsBackground = true, Name = "QP-ShowPanel" };
-        thread.Start();
-    }
+    private void StartShowPanelListener() =>
+        Program.SingleInstance?.OnRaiseRequested(() => Dispatcher.UIThread.Post(ShowMainWindow));
 
     /// <summary>Show (never hide) the camera panel — used by external activation.</summary>
     private void ShowMainWindow()
