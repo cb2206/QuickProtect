@@ -30,13 +30,15 @@
                   Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
                   Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Toggle audio'}">
             <Panel>
-              <TextBlock Text="🔊" IsVisible="{Binding !IsMuted}" />
-              <TextBlock Text="🔇" IsVisible="{Binding IsMuted}" />
+              <PathIcon Data="{StaticResource Icon.Speaker}" Width="12" Height="12" IsVisible="{Binding !IsMuted}" />
+              <PathIcon Data="{StaticResource Icon.SpeakerMuted}" Width="12" Height="12" IsVisible="{Binding IsMuted}" />
             </Panel>
           </Button>
-          <Button Grid.Column="2" Content="✕" Click="Unpin_Click"
+          <Button Grid.Column="2" Click="Unpin_Click"
                   Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
-                  Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Unpin'}" />
+                  Padding="6,0" ToolTip.Tip="{loc:Loc 'Unpin'}">
+            <PathIcon Data="{StaticResource Icon.Close}" Width="10" Height="10" />
+          </Button>
         </Grid>
       </Border>
 
