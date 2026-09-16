@@ -10,14 +10,18 @@ namespace QuickProtect.App.Platform;
 /// Forces the freedesktop tray item's <c>Status</c> property to the
 /// spec-mandated <c>"Active"</c>.
 ///
-/// Avalonia never writes a valid status: what reaches the bus is the tray
+/// Avalonia 11.3.x never writes a valid status: what reaches the bus is the tray
 /// icon's title/tooltip string (QuickProtect publishes <c>Status="QuickProtect"</c>).
 /// StatusNotifierItem hosts that follow the spec — quickshell, waybar, KDE —
 /// treat anything other than "Active" or "NeedsAttention" as "Passive" and
-/// hide the item, so the icon silently never appears. Verified against
-/// Avalonia 11.3.19, 11.3.22 and 12.1.2: the strings "Passive" and
-/// "NeedsAttention" occur nowhere in Avalonia.FreeDesktop, so no version
-/// currently ships a fix to upgrade to.
+/// hide the item, so the icon silently never appears.
+///
+/// Upstream is AvaloniaUI/Avalonia#22218, closed as not-planned: the bug was
+/// fixed incidentally on main by PR #21472 (a Tmds.DBus refactor) and ships
+/// from 12.1.0, but the maintainers have declined to backport DBus changes to
+/// the 11.3.x line — which includes the 11.3.19 this app pins and the latest
+/// 11.3.22. So the escape from this workaround is the 12.x upgrade, not a
+/// patch release.
 ///
 /// The property lives on a private D-Bus object Avalonia owns and exposes no
 /// public setter, so reflection is the only correction available from outside
