@@ -33,6 +33,8 @@ public partial class App : Application
     private DispatcherTimer? _streamTeardownTimer;
     private SettingsWindow? _settingsWindow;
     private IGlobalHotkey? _hotkey;
+    /// <summary>Termination-signal handlers (Linux); see <see cref="LinuxTerminationSignal"/>.</summary>
+    private IDisposable? _termination;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -70,6 +72,12 @@ public partial class App : Application
             // when all windows close (mirrors LSUIElement on macOS).
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             desktop.Exit += (_, _) => OnExit();
+            // A termination signal (logout, systemctl --user stop, the dev
+            // scripts' pkill) has to leave through that same Exit, not through
+            // the runtime's exit() — see LinuxTerminationSignal. Held for the
+            // process's lifetime: the app answers signals until it is gone.
+            if (OperatingSystem.IsLinux())
+                _termination = LinuxTerminationSignal.Install(() => Dispatcher.UIThread.Post(RequestShutdown));
         }
 
         SetupTray();
@@ -366,5 +374,9 @@ public partial class App : Application
         try { released.Wait(TimeSpan.FromSeconds(2)); } catch { /* best effort on exit */ }
         Service.Dispose();
         Video.FfmpegEngine.Tunnel?.Dispose();
+        // Last: the quit these handlers exist to run is this one. From here the
+        // renderer is already stopped, so a further signal has nothing left to
+        // race with and the runtime's own exit() is safe again.
+        _termination?.Dispose();
     }
 }

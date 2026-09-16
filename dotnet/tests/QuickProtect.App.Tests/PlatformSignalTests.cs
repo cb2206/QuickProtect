@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using QuickProtect.App.Platform;
 using Xunit;
@@ -119,6 +120,86 @@ public class PlatformSignalTests
             Assert.False(duplicate.IsPrimary);
         });
     }
+
+    /// <summary>
+    /// The one that matters: a real SIGTERM must reach the app's quit path
+    /// instead of the runtime's exit(), which tears down Skia and the GL driver
+    /// under the still-running render thread.
+    ///
+    /// This signals the test process for real. If the handler ever stops
+    /// cancelling the default action, this run dies where it stands — which is
+    /// the regression, stated as loudly as it deserves.
+    /// </summary>
+    [Fact]
+    public void TerminationSignalAsksTheAppToQuitInsteadOfExiting()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+
+        using var asked = new ManualResetEventSlim(false);
+        var hardExits = 0;
+        using (LinuxTerminationSignal.Install(asked.Set, TimeSpan.FromMinutes(5), _ => Interlocked.Increment(ref hardExits)))
+        {
+            Assert.Equal(0, kill(Environment.ProcessId, SIGTERM));
+
+            Assert.True(asked.Wait(TimeSpan.FromSeconds(5)), "SIGTERM never reached the quit path");
+        }
+
+        Assert.Equal(0, hardExits);
+    }
+
+    /// <summary>
+    /// A second signal means whoever is asking has stopped waiting: stop
+    /// gracefully once, then take the process down.
+    /// </summary>
+    [Fact]
+    public void SecondSignalTakesTheProcessDown()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+
+        using var asked = new ManualResetEventSlim(false);
+        using var exited = new ManualResetEventSlim(false);
+        var quitRequests = 0;
+        using (LinuxTerminationSignal.Install(
+                   () => { Interlocked.Increment(ref quitRequests); asked.Set(); },
+                   TimeSpan.FromMinutes(5),
+                   _ => exited.Set()))
+        {
+            Assert.Equal(0, kill(Environment.ProcessId, SIGTERM));
+            Assert.True(asked.Wait(TimeSpan.FromSeconds(5)), "the first signal never reached the quit path");
+
+            Assert.Equal(0, kill(Environment.ProcessId, SIGTERM));
+
+            Assert.True(exited.Wait(TimeSpan.FromSeconds(5)), "the second signal was absorbed");
+        }
+
+        // The second signal must not have started another graceful attempt.
+        Assert.Equal(1, quitRequests);
+    }
+
+    /// <summary>
+    /// A quit that never finishes (a wedged UI thread) must not leave the app
+    /// answerable to nothing short of SIGKILL: the grace period expires and the
+    /// process goes down anyway.
+    /// </summary>
+    [Fact]
+    public void QuitThatNeverFinishesStillEndsTheProcess()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+
+        using var exited = new ManualResetEventSlim(false);
+        using (LinuxTerminationSignal.Install(() => { /* the wedge: nothing ever quits */ },
+                   TimeSpan.FromMilliseconds(200), _ => exited.Set()))
+        {
+            Assert.Equal(0, kill(Environment.ProcessId, SIGTERM));
+
+            Assert.True(exited.Wait(TimeSpan.FromSeconds(5)), "a quit that never finished left the app running");
+        }
+    }
+
+    private const int SIGTERM = 15;
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int kill(int pid, int sig);
 
     /// <summary>
     /// Points the socket at a scratch directory: the real path is shared with
