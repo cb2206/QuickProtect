@@ -69,10 +69,18 @@ for rid in "${rids[@]}"; do
         exit 1
     fi
     dest="$native_root/$rid"
+    # The marker records which pinned build the folder holds, so bumping the
+    # tag above replaces an older download instead of silently keeping it
+    # (a leftover FFmpeg 7.1 folder would otherwise satisfy any *avcodec* check).
+    marker="$native_root/.$rid.build-id"
     if compgen -G "$dest/*avcodec*" > /dev/null; then
-        echo "$rid already present, skipping"
-        continue
+        if [ "$(cat "$marker" 2>/dev/null || true)" = "$release_tag $build_id" ]; then
+            echo "$rid already present, skipping"
+            continue
+        fi
+        echo "$rid holds a different FFmpeg build; replacing it"
     fi
+    rm -rf "$dest" "$marker"
     mkdir -p "$dest"
     url="https://github.com/BtbN/FFmpeg-Builds/releases/download/$release_tag/$asset"
     tmp="$(mktemp -d)"
@@ -96,7 +104,15 @@ for rid in "${rids[@]}"; do
             ;;
         *)
             tar -xJf "$tmp/$asset" -C "$tmp/x"
-            find "$tmp/x" -type d -name lib -exec sh -c 'cp -P "$1"/*.so.* "$2"' _ {} "$dest" \;
+            # Only the soname files (libavcodec.so.63): that is what FFmpeg.AutoGen
+            # and the libraries' own NEEDED entries load. Resolved to regular files —
+            # MSBuild and the tarball would each turn the version symlinks into full
+            # copies, doubling every library.
+            find "$tmp/x" -type d -name lib -exec sh -c '
+                for f in "$1"/lib*.so.*; do
+                    n="${f##*/}"
+                    case "${n#*.so.}" in ""|*[!0-9]*) ;; *) cp -L "$f" "$2/$n" ;; esac
+                done' _ {} "$dest" \;
             ;;
     esac
     # The build's own license file ships next to the libraries (LGPL requires it).
@@ -104,6 +120,7 @@ for rid in "${rids[@]}"; do
     if [ -n "$license" ]; then cp "$license" "$dest/LICENSE.txt"; else echo "warning: no LICENSE file in $asset" >&2; fi
     rm -rf "$tmp"
     trap - EXIT
+    echo "$release_tag $build_id" > "$marker"
     echo "-> $dest"
     ls "$dest"
 done

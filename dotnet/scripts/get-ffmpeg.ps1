@@ -43,10 +43,19 @@ foreach ($rid in $Rids) {
     $expected = $sha256[$rid]
     if (-not $asset -or -not $expected) { throw "Unknown RID $rid" }
     $dest = Join-Path $nativeRoot $rid
+    # The marker records which pinned build the folder holds, so bumping the
+    # tag above replaces an older download instead of silently keeping it.
+    $marker = Join-Path $nativeRoot ".$rid.build-id"
+    $stamp = "$releaseTag $buildId"
     if ((Test-Path $dest) -and (Get-ChildItem $dest -Filter "*avcodec*" -ErrorAction SilentlyContinue)) {
-        Write-Host "$rid already present, skipping"
-        continue
+        if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $stamp)) {
+            Write-Host "$rid already present, skipping"
+            continue
+        }
+        Write-Host "$rid holds a different FFmpeg build; replacing it"
     }
+    if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+    if (Test-Path $marker) { Remove-Item -Force $marker }
     New-Item -ItemType Directory -Force $dest | Out-Null
     $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$releaseTag/$asset"
     $tmp = Join-Path $env:TEMP $asset
@@ -68,13 +77,19 @@ foreach ($rid in $Rids) {
     } else {
         tar -xJf $tmp -C $extract 2>$null; if ($LASTEXITCODE -ne 0) { New-Item -ItemType Directory -Force $extract | Out-Null; tar -xJf $tmp -C $extract }
         $lib = Get-ChildItem $extract -Recurse -Directory -Filter lib | Select-Object -First 1
-        Copy-Item (Join-Path $lib.FullName "*.so.*") $dest
+        # Only the soname files (libavcodec.so.63) — what FFmpeg.AutoGen and the
+        # libraries' NEEDED entries load; copying the version symlinks as well
+        # would ship every library twice.
+        Get-ChildItem $lib.FullName -Filter "lib*.so.*" |
+            Where-Object { $_.Name -match '\.so\.\d+$' } |
+            ForEach-Object { Copy-Item $_.FullName (Join-Path $dest $_.Name) }
     }
     # The build's own license file ships next to the libraries (LGPL requires it).
     $license = Get-ChildItem $extract -Recurse -Depth 1 -File -Filter "LICENSE*" | Select-Object -First 1
     if ($license) { Copy-Item $license.FullName (Join-Path $dest "LICENSE.txt") } else { Write-Warning "no LICENSE file in $asset" }
     Remove-Item $tmp -Force
     Remove-Item $extract -Recurse -Force
+    Set-Content -Path $marker -Value $stamp
     Write-Host "-> $dest"
     Get-ChildItem $dest | Select-Object -ExpandProperty Name | Write-Host
 }
