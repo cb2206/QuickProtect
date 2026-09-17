@@ -80,6 +80,11 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     // holds (or is creating) the allocation — the controller shares it.
     private readonly StreamAllocationLedger _allocations = new();
 
+    // DELETEs still on the wire, so quit can wait for them before the
+    // HttpClient is disposed (which would cancel them).
+    private readonly object _releaseLock = new();
+    private readonly HashSet<Task> _releasesInFlight = new();
+
     // Classic-API credentials captured at login.
     private readonly object _credLock = new();
     private string? _csrfToken;
@@ -399,6 +404,16 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     public Task CleanupPinnedStreams() => Task.WhenAll(_allocations.ReleaseAll(StreamOwner.Pinned).Select(DeleteByKey));
 
+    /// <summary>
+    /// Completes when every DELETE sent so far has reached the controller (or
+    /// failed). Quit waits on it: releases fired by closing windows and stopping
+    /// streams are fire-and-forget, and disposing the HttpClient under them
+    /// would cancel them.
+    /// </summary>
+    public Task ReleasesSettled()
+    {
+        lock (_releaseLock) return Task.WhenAll(_releasesInFlight.ToArray());
+    }
 
     private Task DeleteByKey(string key)
     {
@@ -415,7 +430,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     {
         var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(cameraId)}/rtsps-stream?qualities={quality}");
         if (url == null) return Task.CompletedTask;
-        return Task.Run(async () =>
+        var release = Task.Run(async () =>
         {
             try
             {
@@ -425,6 +440,9 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             }
             catch (Exception ex) { Log.Line($"[Stream] release failed: {ex.Message}"); }
         });
+        lock (_releaseLock) _releasesInFlight.Add(release);
+        _ = release.ContinueWith(t => { lock (_releaseLock) _releasesInFlight.Remove(t); }, TaskScheduler.Default);
+        return release;
     }
 
     // MARK: - Classic API (cookie auth — required for PTZ)

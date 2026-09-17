@@ -365,8 +365,13 @@ public partial class App : Application
         PinnedWindows.CloseAll();
         Streams.Dispose();
         // Give the DELETEs a moment to reach the controller before the
-        // HttpClient goes away with them; bounded so quit never hangs.
-        var released = Task.WhenAll(Service.CleanupStreams(), Service.CleanupPinnedStreams());
+        // HttpClient goes away with them; bounded so quit never hangs. Closing
+        // the pinned windows and disposing the coordinator above already sent
+        // most of them fire-and-forget, so wait on everything in flight, not
+        // just what the cleanup calls still found.
+        Service.CleanupStreams();
+        Service.CleanupPinnedStreams();
+        var released = Service.ReleasesSettled();
         try { released.Wait(TimeSpan.FromSeconds(2)); } catch { /* best effort on exit */ }
         Service.Dispose();
         Video.FfmpegEngine.Tunnel?.Dispose();
