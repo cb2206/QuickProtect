@@ -329,11 +329,14 @@ struct PinnedCameraView: View {
         ZStack {
             Color.black
             ProtectStreamView(displayLayer: client.displayLayer, videoGravity: .resizeAspect)
+            // Drag anywhere outside the controls to move the window.
+            WindowDragArea()
 
             if !client.hasFrame {
                 ProgressView()
                     .controlSize(.small)
                     .tint(.white)
+                    .allowsHitTesting(false)
             }
 
             chrome
@@ -426,6 +429,28 @@ struct PinnedCameraView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
             if gen == toastGen { withAnimation(.easeInOut(duration: 0.3)) { toast = nil } }
         }
+    }
+}
+
+// MARK: - Window drag
+
+/// Moves the borderless pinned window when dragged. `isMovableByWindowBackground`
+/// alone isn't enough: the SwiftUI hosting view doesn't let background drags
+/// through to it on macOS 27, so the window stayed put while the resize grip
+/// (which handles its own drag) still worked.
+private struct WindowDragArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { WindowDragNSView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class WindowDragNSView: NSView {
+    // The drag is started explicitly below; don't let AppKit start a second one.
+    override var mouseDownCanMoveWindow: Bool { false }
+    // The pinned panel is non-activating; accept the first click without focus.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.performDrag(with: event)
     }
 }
 
