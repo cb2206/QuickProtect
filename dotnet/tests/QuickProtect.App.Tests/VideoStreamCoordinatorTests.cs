@@ -263,4 +263,53 @@ public class VideoStreamCoordinatorTests
         Assert.Equal(VideoState.Idle, a.Client.State);
         Assert.Equal(VideoState.Idle, b.Client.State);
     }
+
+    [Fact]
+    public async Task Lost_allocation_is_allocated_again_without_a_release()
+    {
+        var svc = new FakeAllocator();
+        using var coord = new VideoStreamCoordinator(svc);
+        using var pin = coord.Acquire(Cam("a"), "high", pinned: true);
+        Assert.True(await svc.WaitFor(c => c.Contains("create-pinned a high")));
+
+        pin.Client.RaiseAllocationLostForTest();
+
+        Assert.True(await svc.WaitFor(c => c.Count(x => x == "create-pinned a high") == 2));
+        // Releasing would delete the URL for every other consumer of it.
+        Assert.DoesNotContain("release-pinned a high", svc.Snapshot());
+    }
+
+    [Fact]
+    public async Task Repeated_allocation_loss_is_rate_limited()
+    {
+        var svc = new FakeAllocator();
+        using var coord = new VideoStreamCoordinator(svc);
+        using var handle = coord.Acquire(Cam("a"), "medium");
+        Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
+
+        handle.Client.RaiseAllocationLostForTest();
+        Assert.True(await svc.WaitFor(c => c.Count(x => x == "create a medium") == 2));
+        handle.Client.RaiseAllocationLostForTest();
+        handle.Client.RaiseAllocationLostForTest();
+
+        await Task.Delay(300);
+        Assert.Equal(2, svc.Snapshot().Count(x => x == "create a medium"));
+    }
+
+    [Fact]
+    public async Task Allocation_loss_after_the_last_consumer_left_allocates_nothing()
+    {
+        var svc = new FakeAllocator();
+        using var coord = new VideoStreamCoordinator(svc);
+        var handle = coord.Acquire(Cam("a"), "medium");
+        Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
+        var client = handle.Client;
+        handle.Dispose();
+        Assert.True(await svc.WaitFor(c => c.Contains("release a medium")));
+
+        client.RaiseAllocationLostForTest();
+
+        await Task.Delay(300);
+        Assert.Single(svc.Snapshot(), x => x == "create a medium");
+    }
 }

@@ -40,6 +40,26 @@ public sealed class VideoStreamClient : IDisposable
     /// <summary>An audio track was found (or lost) for the current session.</summary>
     public event Action<bool>? HasAudioChanged;
 
+    /// <summary>
+    /// The newest session failed to even open its URL
+    /// <see cref="OpenFailuresBeforeAllocationLost"/> times in a row (raised on
+    /// the decode thread, again after every further run of that many). The
+    /// controller keeps one URL per camera and quality and a DELETE from any
+    /// client — another QuickProtect included — removes it; reconnecting to the
+    /// same URL then never succeeds, so the owner should allocate a fresh one.
+    /// </summary>
+    public event Action? AllocationLost;
+
+    /// <summary>Test hook: behave as if the URL stopped opening.</summary>
+    internal void RaiseAllocationLostForTest() => AllocationLost?.Invoke();
+
+    /// <summary>Consecutive open failures that raise <see cref="AllocationLost"/>.</summary>
+    internal const int OpenFailuresBeforeAllocationLost = 3;
+
+    // Set by RunSession when avformat_open_input fails. Each session runs on its
+    // own thread, so a thread-static needs no generation bookkeeping.
+    [ThreadStatic] private static bool t_openFailed;
+
     public VideoState State { get; private set; } = VideoState.Idle;
 
     /// <summary>
@@ -374,14 +394,22 @@ public sealed class VideoStreamClient : IDisposable
         try
         {
             var backoff = TimeSpan.FromMilliseconds(500);
+            var openFailures = 0;
             while (!_stop && !Superseded(gen))
             {
                 SetState(HasFrame ? State : VideoState.Connecting);
                 var ok = false;
+                t_openFailed = false;
                 try { ok = RunSession(url, gen); }
                 catch (Exception ex) { Log.Line($"[Video] session error: {ex.Message}"); }
 
                 if (_stop || Superseded(gen)) break;
+                // Only a URL the controller no longer answers counts — a session
+                // that opened and later broke is a network hiccup, not a lost
+                // allocation. A switch target that never opened counts too.
+                openFailures = t_openFailed ? openFailures + 1 : 0;
+                if (openFailures > 0 && openFailures % OpenFailuresBeforeAllocationLost == 0 && gen == _latestGen)
+                    AllocationLost?.Invoke();
                 // Broken stream: retry with backoff (keeping the last frame on
                 // screen). Only the painting session flips the UI to Connecting —
                 // a warming-up switch target must not spinner over a live picture.
@@ -446,7 +474,11 @@ public sealed class VideoStreamClient : IDisposable
 
             var rc = ffmpeg.avformat_open_input(&fmt, url, null, &opts);
             ffmpeg.av_dict_free(&opts);
-            if (rc < 0) return LogAv("open_input", rc);
+            if (rc < 0)
+            {
+                t_openFailed = !_stop && !Superseded(gen); // an interrupted open isn't the URL's fault
+                return LogAv("open_input", rc);
+            }
 
             rc = ffmpeg.avformat_find_stream_info(fmt, null);
             if (rc < 0) return LogAv("find_stream_info", rc);
