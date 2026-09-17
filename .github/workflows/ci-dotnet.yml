@@ -46,6 +46,12 @@ jobs:
         working-directory: dotnet
         run: dotnet format QuickProtect.sln --no-restore --verify-no-changes
 
+      # PortalGlobalHotkeyTests start a private dbus-daemon and skip without one;
+      # make sure the Linux leg has it, so they run instead of quietly no-oping.
+      - name: Ensure dbus-daemon
+        if: runner.os == 'Linux'
+        run: command -v dbus-daemon || { sudo apt-get update -qq && sudo apt-get install -y -qq dbus-daemon; }
+
       # Builds the whole solution (warnings are errors, analyzers on) and
       # runs the Core tests. The FFmpeg natives are only needed at runtime.
       - name: Build and test
