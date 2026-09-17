@@ -10,6 +10,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Avalonia previewer / XAML compilation -->
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Every RID the release scripts publish. Declared up front so restore
+         writes their sections into packages.lock.json; otherwise each
+         `dotnet publish -r` adds them and dirties the committed lock file. -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64;win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

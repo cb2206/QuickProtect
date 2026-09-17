@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds a Linux tarball for GitHub releases.
-#   dotnet/scripts/package-linux.sh [--rid linux-x64|linux-arm64] [version]
+#   dotnet/scripts/package-linux.sh [--rid linux-x64|linux-arm64] [version]   # default: host arch
 # Output: dotnet/dist/QuickProtect-<version>-<rid>.tar.gz
 #
 # Counterpart of package-windows.ps1: publishes self-contained for one RID
@@ -18,7 +18,12 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dist="$root/dist"
 
-rid="linux-x64"
+# Default to the host's architecture (like get-ffmpeg.sh): an x64 tarball
+# built on an arm64 machine can't be smoke-tested there.
+case "$(uname -m)" in
+    aarch64|arm64) rid="linux-arm64" ;;
+    *)             rid="linux-x64" ;;
+esac
 if [ "${1:-}" = "--rid" ]; then
     [ -n "${2:-}" ] || { echo "--rid needs a value (linux-x64 or linux-arm64)" >&2; exit 1; }
     rid="$2"
