@@ -82,6 +82,11 @@ public partial class App : Application
 
         SetupTray();
 
+        // Before the hotkey registers with the portal, which only accepts the
+        // app id once a quickprotect.desktop is installed.
+        if (OperatingSystem.IsLinux())
+            LinuxDesktopEntries.EnsureUsable();
+
         // Global hotkey toggles the panel; re-applied whenever the binding changes.
         _hotkey = GlobalHotkeyFactory.Create(ToggleMainWindow);
         ApplyHotkey();
