@@ -326,6 +326,9 @@
         </Border>
       </Grid>
     </ThemeVariantScope>
+
+    <!-- Edge/corner resize handles: the borderless panel has no window-manager frame. -->
+    <views:ResizeGrips />
   </Grid>
 
   <Window.Styles>
