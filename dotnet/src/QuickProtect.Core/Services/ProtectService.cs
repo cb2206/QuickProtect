@@ -75,11 +75,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     /// </summary>
     public void ShowCertificateRejected() => ErrorMessage = CertificateChangedMessage;
 
-    // Active server-side allocations "<cameraId>:<quality>". Popover-owned streams
-    // are torn down on close; pinned streams live independently.
-    private readonly HashSet<string> _activeStreams = new();
-    private readonly HashSet<string> _pinnedStreams = new();
-    private readonly object _streamLock = new();
+    // Server-side allocations "<cameraId>:<quality>" held by the panel and by
+    // pinned windows. The ledger only lets a DELETE through once neither side
+    // holds (or is creating) the allocation — the controller shares it.
+    private readonly StreamAllocationLedger _allocations = new();
 
     // Classic-API credentials captured at login.
     private readonly object _credLock = new();
@@ -334,6 +333,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(camera.Id)}/rtsps-stream");
         if (url == null) { Log.Line("[Stream] makeURL failed"); return (StreamRequestOutcome.Failed, null); }
 
+        var key = StreamAllocationLedger.Key(camera.Id, quality);
+        var owner = pinned ? StreamOwner.Pinned : StreamOwner.Panel;
+        var succeeded = false;
+        _allocations.BeginCreate(key);
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
@@ -355,8 +358,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             if (!doc.RootElement.TryGetProperty(quality, out var v) || v.ValueKind != JsonValueKind.String)
                 return (StreamRequestOutcome.QualityUnavailable, null);
 
-            var key = StreamKey(camera.Id, quality);
-            lock (_streamLock) { (pinned ? _pinnedStreams : _activeStreams).Add(key); }
+            succeeded = true;
             var playable = ToPlayableUrl(v.GetString()!);
             Log.Line($"[Stream] Created {quality} for {camera.Name}: {Log.RedactUrl(playable)}");
             return (StreamRequestOutcome.Success, playable);
@@ -366,9 +368,14 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             Log.Line($"[Stream] request failed: {ex.Message}");
             return (StreamRequestOutcome.Failed, null);
         }
+        finally
+        {
+            // A release that arrived while this POST was in flight was held back;
+            // it is due now if the POST failed and nobody else holds the stream.
+            if (_allocations.EndCreate(key, owner, succeeded))
+                _ = DeleteRtspStream(camera.Id, quality);
+        }
     }
-
-    private static string StreamKey(string cameraId, string quality) => $"{cameraId}:{quality}";
 
     // MARK: - RTSP stream cleanup
 
@@ -376,33 +383,22 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     /// Releases every popover-owned allocation. The returned task completes when
     /// the DELETEs have been sent (or failed); callers other than quit ignore it.
     /// </summary>
-    public Task CleanupStreams()
-    {
-        string[] keys;
-        lock (_streamLock) { keys = _activeStreams.ToArray(); _activeStreams.Clear(); }
-        return Task.WhenAll(keys.Select(DeleteByKey));
-    }
+    public Task CleanupStreams() => Task.WhenAll(_allocations.ReleaseAll(StreamOwner.Panel).Select(DeleteByKey));
 
     public void ReleaseStream(string cameraId, string quality)
     {
-        var key = StreamKey(cameraId, quality);
-        lock (_streamLock) { if (!_activeStreams.Remove(key)) return; }
-        DeleteRtspStream(cameraId, quality);
+        if (_allocations.Release(StreamAllocationLedger.Key(cameraId, quality), StreamOwner.Panel))
+            _ = DeleteRtspStream(cameraId, quality);
     }
 
     public void ReleasePinnedStream(string cameraId, string quality)
     {
-        var key = StreamKey(cameraId, quality);
-        lock (_streamLock) { if (!_pinnedStreams.Remove(key)) return; }
-        DeleteRtspStream(cameraId, quality);
+        if (_allocations.Release(StreamAllocationLedger.Key(cameraId, quality), StreamOwner.Pinned))
+            _ = DeleteRtspStream(cameraId, quality);
     }
 
-    public Task CleanupPinnedStreams()
-    {
-        string[] keys;
-        lock (_streamLock) { keys = _pinnedStreams.ToArray(); _pinnedStreams.Clear(); }
-        return Task.WhenAll(keys.Select(DeleteByKey));
-    }
+    public Task CleanupPinnedStreams() => Task.WhenAll(_allocations.ReleaseAll(StreamOwner.Pinned).Select(DeleteByKey));
+
 
     private Task DeleteByKey(string key)
     {
