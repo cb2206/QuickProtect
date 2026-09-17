@@ -441,6 +441,46 @@ public sealed class VideoStreamClient : IDisposable
 
     private static readonly TimeSpan SupersedePoll = TimeSpan.FromMilliseconds(100);
 
+    /// <summary>
+    /// The format and range to hand swscale for a decoded frame. Full-range H.264
+    /// (what UniFi cameras send) decodes as a deprecated YUVJ format; swscale swaps
+    /// that for the plain YUV format internally, so a YUVJ format never matches the
+    /// cached context and <c>sws_getCachedContext</c> rebuilds it every frame (with a
+    /// "deprecated pixel format" warning each time). Pass the plain format and carry
+    /// the range separately instead.
+    /// </summary>
+    internal static (AVPixelFormat Format, bool FullRange) ScalerInput(AVPixelFormat format, AVColorRange range)
+        => format switch
+        {
+            AVPixelFormat.AV_PIX_FMT_YUVJ420P => (AVPixelFormat.AV_PIX_FMT_YUV420P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ422P => (AVPixelFormat.AV_PIX_FMT_YUV422P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ444P => (AVPixelFormat.AV_PIX_FMT_YUV444P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ440P => (AVPixelFormat.AV_PIX_FMT_YUV440P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ411P => (AVPixelFormat.AV_PIX_FMT_YUV411P, true),
+            _ => (format, range == AVColorRange.AVCOL_RANGE_JPEG)
+        };
+
+    /// <summary>Sets the source range on a scaler, keeping its coefficients and output range.</summary>
+    private static unsafe void SetSourceRange(SwsContext* sws, bool fullRange)
+    {
+        int* invTable, table;
+        int srcRange, dstRange, brightness, contrast, saturation;
+        if (ffmpeg.sws_getColorspaceDetails(sws, &invTable, &srcRange, &table, &dstRange,
+                &brightness, &contrast, &saturation) < 0)
+            return; // not a YUV→RGB conversion: range doesn't apply
+        var fullSrc = fullRange ? 1 : 0;
+        if (srcRange == fullSrc) return;
+        var inv = new int4();
+        var fwd = new int4();
+        for (uint i = 0; i < 4; i++)
+        {
+            inv[i] = invTable[i];
+            fwd[i] = table[i];
+        }
+        if (ffmpeg.sws_setColorspaceDetails(sws, inv, fullSrc, fwd, dstRange, brightness, contrast, saturation) < 0)
+            Log.Line($"[Video] could not set {(fullRange ? "full" : "limited")} source range on the scaler");
+    }
+
     /// <summary>One demux/decode session. Returns true when it ended cleanly (EOF).</summary>
     private unsafe bool RunSession(string url, int gen)
     {
@@ -455,6 +495,7 @@ public sealed class VideoStreamClient : IDisposable
         AVCodecContext* codec = null;
         AVBufferRef* hwDevice = null;
         SwsContext* sws = null;
+        (int Width, int Height, AVPixelFormat Format, bool FullRange) swsConfigured = default;
         AVFrame* frame = null;
         AVFrame* hwTransfer = null;
         AVPacket* packet = null;
@@ -599,8 +640,9 @@ public sealed class VideoStreamClient : IDisposable
                         refused = true;
                         return;
                     }
+                    var (srcFormat, fullRange) = ScalerInput((AVPixelFormat)src->format, src->color_range);
                     sws = ffmpeg.sws_getCachedContext(sws,
-                        src->width, src->height, (AVPixelFormat)src->format,
+                        src->width, src->height, srcFormat,
                         src->width, src->height, AVPixelFormat.AV_PIX_FMT_BGRA,
                         (int)SwsFlags.SWS_BILINEAR, null, null, null);
                     if (sws == null)
@@ -612,6 +654,15 @@ public sealed class VideoStreamClient : IDisposable
                         ffmpeg.av_frame_unref(frm);
                         refused = true;
                         return;
+                    }
+
+                    // A rebuilt context starts at limited range, so reapply whenever
+                    // the scaler's inputs change (not per frame: it rebuilds tables).
+                    var swsKey = (src->width, src->height, srcFormat, fullRange);
+                    if (swsKey != swsConfigured)
+                    {
+                        SetSourceRange(sws, fullRange);
+                        swsConfigured = swsKey;
                     }
 
                     var stride = src->width * 4;

@@ -30,6 +30,9 @@ public static class FfmpegEngine
     private static readonly object _logLock = new();
     private static av_log_set_callback_callback? _logCallback; // keep delegate alive
 
+    /// <summary>Every FFmpeg log line mirrored to video.log (tests observe decoder warnings).</summary>
+    internal static event Action<string>? LogLine;
+
     public static void Initialize()
     {
         try
@@ -88,6 +91,7 @@ public static class FfmpegEngine
             var line = Marshal.PtrToStringAnsi((IntPtr)buffer)?.TrimEnd();
             if (string.IsNullOrEmpty(line)) return;
             lock (_logLock) { _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss}] {line}"); }
+            LogLine?.Invoke(line);
         };
         ffmpeg.av_log_set_callback(_logCallback);
     }
