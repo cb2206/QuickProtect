@@ -70,6 +70,11 @@ port (`dotnet/`).
   `PtzBurstTimer` in Core, unit-tested).
 - **Pinned always-on-top windows** — borderless, top-most, draggable, aspect-locked
   resize, frame persistence, restore-on-launch, independent pinned allocation.
+  The controller shares one allocation per camera + quality between the panel
+  and a pin, so both apps release through a ledger (`StreamAllocationLedger`,
+  unit-tested on both sides): no DELETE while the other owner holds the key or
+  a creation for it is in flight; a release racing a creation is sent only if
+  that creation fails.
 - **Snapshots** — clipboard (Win32 CF_DIB+PNG / wl-copy / xclip / osascript) or
   folder, honoring the destination setting; captures the latest decoded frame
   straight from the video engine.
@@ -149,6 +154,7 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 | About tab | separate sidebar tab | About card on the Updates section | six sections fit the window; split it out if it grows |
 | Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
+| Lost stream URL (allocation deleted by another client) | no automatic reconnect: a tile shows the failure, a pinned window keeps its spinner until re-pinned; every restart (Reconnect, panel reopen, quality switch, pin) POSTs a fresh URL | after 3 consecutive open failures the coordinator re-POSTs the same quality (5 s doubling to 60 s, reset once playing) | the FFmpeg client retries its URL on its own, so it needs the re-POST to escape a deleted URL; macOS `RTSPClient` never retries a URL |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
 
 ## Platform notes (Linux)

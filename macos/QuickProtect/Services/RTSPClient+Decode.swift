@@ -85,8 +85,11 @@ extension RTSPClient {
                     return
                 }
             }
-            displayLayer.enqueue(sb)
+            // Capture first: the macOS 27 SDK's `enqueue` takes the buffer as
+            // `sending`, so it must be the last use. The capture decoder
+            // retains the buffer itself, so the order is otherwise immaterial.
             if captureActive { decodeForCapture(sb, format: formatDescription, isKeyframe: isKeyframe) }
+            displayLayer.enqueue(sb)
             if !hasFrameSignalled {
                 hasFrameSignalled = true
                 Self.dbg("[RTSP] first frame on screen (\(codec), keyframe=\(isKeyframe), \(nals.count) NALs)")
