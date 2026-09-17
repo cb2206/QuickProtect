@@ -422,6 +422,7 @@ final class ProtectService: NSObject, ObservableObject {
         request.httpMethod = "DELETE"
         request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
 
+        RTSPClient.log("[Stream] DELETE \(quality) for camera \(cameraId)")
         releaseGroup.enter()
         // Detached: an inherited main-actor context would make the quit-time
         // wait above deadlock on itself. Only Sendable values cross over.
