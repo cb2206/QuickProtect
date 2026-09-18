@@ -51,15 +51,55 @@ public partial class MainWindow : Window
         // (dropdowns, Settings) doesn't count as "outside". --no-dismiss keeps
         // the panel up for automated UI testing.
         if (!Program.LaunchArgs.Contains("--no-dismiss"))
+        {
             Deactivated += (_, _) =>
             {
-                if (WindowState != WindowState.FullScreen && !ForegroundBelongsToThisProcess())
-                {
-                    LastAutoHide = DateTime.UtcNow;
-                    Hide();
-                }
+                if (!ForegroundBelongsToThisProcess()) AutoHide();
             };
+            // Deactivated alone misses every click outside made while the panel
+            // isn't the active window: after Settings or a pinned window took
+            // focus, or when Windows refused to activate the panel at all. So on
+            // Windows, any foreground change to another process dismisses it.
+            if (OperatingSystem.IsWindows()) WatchForeground();
+        }
     }
+
+    private void AutoHide()
+    {
+        if (!IsVisible || WindowState == WindowState.FullScreen) return;
+        LastAutoHide = DateTime.UtcNow;
+        Hide();
+    }
+
+    // Kept in a field: the native hook calls it for the app's lifetime.
+    private WinEventDelegate? _foregroundChanged;
+
+    private void WatchForeground()
+    {
+        _foregroundChanged = (_, _, hwnd, _, _, _, _) =>
+        {
+            _ = GetWindowThreadProcessId(hwnd, out var pid);
+            if (pid != Environment.ProcessId) AutoHide();
+        };
+        // Out-of-context: delivered through this (UI) thread's message loop.
+        var hook = SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero,
+            _foregroundChanged, 0, 0, WineventOutOfContext | WineventSkipOwnProcess);
+        if (hook != IntPtr.Zero) Closed += (_, _) => UnhookWinEvent(hook);
+    }
+
+    private const uint EventSystemForeground = 0x0003;
+    private const uint WineventOutOfContext = 0x0000;
+    private const uint WineventSkipOwnProcess = 0x0002;
+
+    private delegate void WinEventDelegate(IntPtr hook, uint eventType, IntPtr hwnd,
+        int idObject, int idChild, uint eventThread, uint eventTime);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module,
+        WinEventDelegate callback, uint processId, uint threadId, uint flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool UnhookWinEvent(IntPtr hook);
 
     /// <summary>
     /// When the outside-click that dismissed the panel was the tray icon itself,
