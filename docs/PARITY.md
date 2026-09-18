@@ -33,7 +33,11 @@ port (`dotnet/`).
   (login, PTZ continuous moves, PTZ/zoom capability enrichment).
 - **TOFU certificate pinning** (`CertificateTrust`) end-to-end: HTTPS via
   `HttpClientHandler`, video via the tunnel's `SslStream` callback, with the
-  "trust new certificate" Settings flow.
+  "trust new certificate" Settings flow. A changed certificate is a state
+  derived from the pin store (`ProtectService.CertificateChange`), shown as a
+  "Controller certificate changed" card in the panel and an overlay on pinned
+  windows, each opening the review dialog (both keys, Cancel is the default);
+  trusting restarts failed streams at once.
 - **Settings window** — sidebar-sectioned like the macOS `SettingsView`
   (General / Connection / PTZ / Cameras / Shortcuts / Updates) with the Aurora
   card look (caption + label/control rows + hairlines) and a live

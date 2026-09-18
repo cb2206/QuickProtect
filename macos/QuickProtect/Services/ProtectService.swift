@@ -18,6 +18,11 @@ final class ProtectService: NSObject, ObservableObject {
     /// PTZ-only problems (classic-API login), surfaced as a toast on the
     /// focused camera — never in `errorMessage`, which would blank the grid.
     @Published var ptzErrorMessage: String?
+    /// The configured controller's certificate changed and awaits the user's
+    /// decision. Derived from the pin store (not from whichever request failed
+    /// first), so it survives restarts and can't be lost to a race; the grid
+    /// shows a dedicated card while it is set.
+    @Published private(set) var certificateChange: CertificateTrust.Change?
     /// Set by AppDelegate when the popover opens/closes so cells can pause players.
     @Published var isPopoverOpen = false
     /// Remembers which camera was focused so it can be restored when the panel reopens.
@@ -32,22 +37,48 @@ final class ProtectService: NSObject, ObservableObject {
     private let urlProtocolClasses: [AnyClass]
     /// Answers the TLS server-trust challenge on URLSession's delegate queue.
     private let pinning = PinningSessionDelegate()
+    /// Where `certificateChange` is read from. Tests pass a scratch store.
+    private let certificateStore: CertificateTrust.Store
 
     /// `settings` defaults to the app's shared store; tests pass their own so
     /// the service never reads UserDefaults or the Keychain.
-    init(settings: ProtectCredentialSource = AppSettings.shared, urlProtocolClasses: [AnyClass] = []) {
+    init(settings: ProtectCredentialSource = AppSettings.shared, urlProtocolClasses: [AnyClass] = [],
+         certificateStore: CertificateTrust.Store = CertificateTrust.Store()) {
         self.settings = settings
         self.urlProtocolClasses = urlProtocolClasses
+        self.certificateStore = certificateStore
         super.init()
+        // Selector-based, so the registration ends with the object.
+        NotificationCenter.default.addObserver(self, selector: #selector(certificateTrustDidChange),
+                                               name: CertificateTrust.didChangeNotification, object: nil)
+        refreshCertificateChange()
+    }
+
+    /// Evaluations run on URLSession's and the RTSP clients' queues; hop to the
+    /// main actor before touching published state.
+    @objc nonisolated private func certificateTrustDidChange(_ note: Notification) {
+        Task { @MainActor [weak self] in self?.refreshCertificateChange() }
+    }
+
+    /// Re-reads the pending certificate for the configured controller. Also
+    /// called when the controller address changes, since the pin key does.
+    func refreshCertificateChange() {
+        let change = controllerAddress.flatMap { certificateStore.change(host: $0.pinKey) }
+        if change != certificateChange { certificateChange = change }
+    }
+
+    /// Promotes the pending certificate for `host` to the trusted pin, then
+    /// reconnects: the camera list is fetched again and observers of
+    /// `certificateChange` (pinned windows) restart their streams.
+    func trustPendingCertificate(host: String) {
+        certificateStore.trustPending(host: host)
+        refreshCertificateChange()
+        errorMessage = nil
+        Task { await fetchCameras(forced: true) }
     }
 
     /// The configured controller, normalised (host, optional port, pin identity).
     var controllerAddress: ControllerAddress? { ControllerAddress.parse(settings.ipAddress) }
-
-    /// Whether the delegate rejected the controller's certificate since the
-    /// last call, so the failure that follows reports the real cause instead
-    /// of the generic transport error.
-    private func takeCertificateRejected() -> Bool { pinning.takeRejected() }
 
     static let certificateChangedMessage = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
 
@@ -156,12 +187,18 @@ final class ProtectService: NSObject, ObservableObject {
             }
         } catch {
             // A fetch cancelled by the deferred teardown isn't a failure the
-            // user should see — leave the camera list and error state alone.
-            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+            // user should see; a rejected certificate looks the same to
+            // URLSession, so the pin store decides (see classifyFetchFailure).
+            await MainActor.run { self.refreshCertificateChange() }
+            switch Self.classifyFetchFailure(error, taskCancelled: Task.isCancelled,
+                                             certificateChanged: certificateChange != nil) {
+            case .ignore:
                 await setLoading(false)
-                return
+            case .certificateChanged:
+                await applyErrorMessage(Self.certificateChangedMessage, logging: error)
+            case .failed:
+                await applyErrorMessage(error.localizedDescription, logging: error)
             }
-            await applyError(error)
         }
     }
 
@@ -738,7 +775,8 @@ final class ProtectService: NSObject, ObservableObject {
             }
             if !isClassicLoggedIn {
                 guard await classicLogin() else {
-                    let message = takeCertificateRejected()
+                    await MainActor.run { self.refreshCertificateChange() }
+                    let message = certificateChange != nil
                         ? Self.certificateChangedMessage
                         : String(localized: "PTZ unavailable — check the username and password in Settings.")
                     await MainActor.run { self.ptzErrorMessage = message }
@@ -814,9 +852,30 @@ final class ProtectService: NSObject, ObservableObject {
         }
     }
 
-    private func applyError(_ error: Error) async {
+    /// How a failed camera fetch is reported.
+    enum FetchFailure: Equatable {
+        /// Torn down on purpose (panel closed) — leave the UI alone.
+        case ignore
+        /// The pin check rejected the controller's key.
+        case certificateChanged
+        /// Anything else: show the error's own description.
+        case failed
+    }
+
+    /// A rejected certificate surfaces from URLSession as `URLError.cancelled`
+    /// (the delegate cancels the challenge) — the same code a deliberate
+    /// teardown produces. A pending certificate change therefore wins over the
+    /// cancellation, unless the fetch task itself was cancelled.
+    nonisolated static func classifyFetchFailure(_ error: Error, taskCancelled: Bool,
+                                                 certificateChanged: Bool) -> FetchFailure {
+        if taskCancelled || error is CancellationError { return .ignore }
+        if certificateChanged { return .certificateChanged }
+        if (error as? URLError)?.code == .cancelled { return .ignore }
+        return .failed
+    }
+
+    private func applyErrorMessage(_ message: String, logging error: Error) async {
         RTSPClient.log("[API] applyError: \(error.localizedDescription)")
-        let message = takeCertificateRejected() ? Self.certificateChangedMessage : error.localizedDescription
         await MainActor.run {
             self.errorMessage = message
             self.isLoading = false
@@ -898,21 +957,12 @@ final class ProtectService: NSObject, ObservableObject {
 final class PinningSessionDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
     private let lock = NSLock()
     private var _pinKey: String?
-    private var _rejected = false
 
     /// The configured controller identity the pin is keyed by (so the RTSPS
     /// video channel consults the same one). Nil falls back to the server host.
     var pinKey: String? {
         get { lock.lock(); defer { lock.unlock() }; return _pinKey }
         set { lock.lock(); _pinKey = newValue; lock.unlock() }
-    }
-
-    /// True once since the last call if a challenge was rejected.
-    func takeRejected() -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        let was = _rejected
-        _rejected = false
-        return was
     }
 
     func urlSession(
@@ -927,10 +977,11 @@ final class PinningSessionDelegate: NSObject, URLSessionDelegate, @unchecked Sen
         }
         let serverHost = challenge.protectionSpace.host
         let key = pinKey ?? serverHost
+        // A rejection records the new key as pending, which is what the
+        // service reports (see `ProtectService.certificateChange`).
         if CertificateTrust.evaluate(pinKey: key, serverHost: serverHost, trust: trust) {
             completionHandler(.useCredential, URLCredential(trust: trust))
         } else {
-            lock.lock(); _rejected = true; lock.unlock()
             completionHandler(.cancelAuthenticationChallenge, nil)
         }
     }

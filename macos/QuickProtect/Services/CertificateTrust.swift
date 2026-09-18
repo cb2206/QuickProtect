@@ -31,6 +31,19 @@ import CryptoKit
 /// documented in the privacy policy.
 enum CertificateTrust {
 
+    /// Posted (on whatever queue evaluated the certificate) whenever a stored
+    /// pin or pending fingerprint changes, so UI state derived from the store
+    /// — the main window's "certificate changed" card — follows it.
+    static let didChangeNotification = Notification.Name("qp.certificateTrustDidChange")
+
+    /// A changed controller certificate awaiting the user's decision: the key
+    /// currently trusted (nil if the pin is gone) and the one now presented.
+    struct Change: Equatable, Sendable {
+        let host: String
+        let trustedFingerprint: String?
+        let newFingerprint: String
+    }
+
     // MARK: - Evaluation
 
     /// Evaluate a server trust for the controller identified by `pinKey`,
@@ -120,6 +133,15 @@ enum CertificateTrust {
         }.joined(separator: ":")
     }
 
+    /// The display form broken into rows of `bytesPerLine` bytes, so a full
+    /// SHA-256 fingerprint neither wraps mid-byte nor forces a very wide alert.
+    static func displayFingerprint(_ hex: String, bytesPerLine: Int) -> String {
+        let bytes = displayFingerprint(hex).split(separator: ":")
+        return stride(from: 0, to: bytes.count, by: bytesPerLine)
+            .map { bytes[$0..<min($0 + bytesPerLine, bytes.count)].joined(separator: ":") }
+            .joined(separator: "\n")
+    }
+
     private static func hex(_ digest: SHA256Digest) -> String {
         digest.map { String(format: "%02x", $0) }.joined()
     }
@@ -194,21 +216,32 @@ enum CertificateTrust {
             defaults.string(forKey: pinnedKey(host))
         }
         func setPinned(_ fingerprint: String?, host: String) {
-            if let fingerprint {
-                defaults.set(fingerprint, forKey: pinnedKey(host))
-            } else {
-                defaults.removeObject(forKey: pinnedKey(host))
-            }
+            set(fingerprint, forKey: pinnedKey(host))
         }
         func pending(host: String) -> String? {
             defaults.string(forKey: pendingKey(host))
         }
         func setPending(_ fingerprint: String?, host: String) {
+            set(fingerprint, forKey: pendingKey(host))
+        }
+
+        /// Writes (or removes) a value and announces real changes only, so the
+        /// per-connection re-evaluation of an unchanged pin stays silent.
+        private func set(_ fingerprint: String?, forKey key: String) {
+            guard defaults.string(forKey: key) != fingerprint else { return }
             if let fingerprint {
-                defaults.set(fingerprint, forKey: pendingKey(host))
+                defaults.set(fingerprint, forKey: key)
             } else {
-                defaults.removeObject(forKey: pendingKey(host))
+                defaults.removeObject(forKey: key)
             }
+            NotificationCenter.default.post(name: CertificateTrust.didChangeNotification, object: nil)
+        }
+
+        /// The pending change for `host`, if its certificate was rejected and
+        /// the user hasn't decided yet.
+        func change(host: String) -> Change? {
+            guard let candidate = pending(host: host) else { return nil }
+            return Change(host: host, trustedFingerprint: pinned(host: host), newFingerprint: candidate)
         }
 
         /// Every host with a changed certificate awaiting the user's decision,
@@ -224,8 +257,10 @@ enum CertificateTrust {
         /// "Trust new certificate" action in Settings.
         func trustPending(host: String) {
             guard let candidate = pending(host: host) else { return }
-            setPinned(candidate, host: host)
+            // Pending first: in the other order an observer could briefly see
+            // a "change" whose trusted and new keys are the same.
             setPending(nil, host: host)
+            setPinned(candidate, host: host)
         }
     }
 }

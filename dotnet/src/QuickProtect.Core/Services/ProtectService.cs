@@ -60,20 +60,44 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     public const string CertificateChangedMessage =
         "The controller's certificate changed. Open Settings to review and trust it.";
 
+    private CertificateChange? _certificateChange;
     /// <summary>
-    /// Set by the TLS callback when it rejected the controller's certificate, so
-    /// the failure that follows reports the real cause instead of the generic
-    /// transport error. Read-and-cleared by <see cref="TakeCertificateRejected"/>.
+    /// The configured controller's certificate changed and awaits the user's
+    /// decision. Derived from the pin store (not from whichever request failed
+    /// first), so it survives restarts and can't be lost to a race — and it
+    /// covers the RTSPS tunnel, which has no API call to attach an error to.
+    /// Raised from whatever thread changed the store.
     /// </summary>
-    private int _certificateRejected;
-    private bool TakeCertificateRejected() => Interlocked.Exchange(ref _certificateRejected, 0) == 1;
+    public CertificateChange? CertificateChange
+    {
+        get { lock (_certificateLock) return _certificateChange; }
+    }
+    private readonly object _certificateLock = new();
+
+    /// <summary>Re-reads the pending certificate for the configured controller.</summary>
+    public void RefreshCertificateChange()
+    {
+        var change = ControllerAddress is { } address ? _trust.Change(address.PinKey) : null;
+        lock (_certificateLock)
+        {
+            if (change == _certificateChange) return;
+            _certificateChange = change;
+        }
+        Raise(nameof(CertificateChange));
+    }
 
     /// <summary>
-    /// Surfaces a certificate rejection that happened outside an API call (the
-    /// RTSPS tunnel has no other route to the user). Streams are dead until the
-    /// user re-pins, so the error card is the right surface.
+    /// Promotes the pending certificate for <paramref name="host"/> to the
+    /// trusted pin and fetches the camera list again. Streams are restarted by
+    /// the host (see <c>VideoStreamCoordinator.RetryFailedNow</c>).
     /// </summary>
-    public void ShowCertificateRejected() => ErrorMessage = CertificateChangedMessage;
+    public void TrustPendingCertificate(string host)
+    {
+        _trust.TrustPending(host);
+        RefreshCertificateChange();
+        ErrorMessage = null;
+        _ = FetchCamerasAsync(forced: true);
+    }
 
     // Server-side allocations "<cameraId>:<quality>" held by the panel and by
     // pinned windows. The ledger only lets a DELETE through once neither side
@@ -100,6 +124,15 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
         _integration = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
         _classic = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
+
+        // Rejections happen on TLS callback threads (API and RTSPS tunnel);
+        // the pin key follows the configured controller address.
+        _trust.Changed += RefreshCertificateChange;
+        _settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AppSettings.IpAddress)) RefreshCertificateChange();
+        };
+        RefreshCertificateChange();
     }
 
     private HttpClientHandler MakeHandler()
@@ -122,9 +155,9 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         {
             if (cert == null) return false;
             var pinKey = ControllerAddress?.PinKey ?? _settings.IpAddress;
-            var ok = _trust.Evaluate(pinKey, cert, errors);
-            if (!ok) Interlocked.Exchange(ref _certificateRejected, 1);
-            return ok;
+            // A rejection records the new key as pending, which is what
+            // CertificateChange reports.
+            return _trust.Evaluate(pinKey, cert, errors);
         };
         return handler;
     }
@@ -647,7 +680,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                 if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
                 {
                     Log.Line("[PTZ] login failed — PTZ unavailable");
-                    PtzErrorMessage = TakeCertificateRejected()
+                    RefreshCertificateChange();
+                    PtzErrorMessage = CertificateChange != null
                         ? CertificateChangedMessage
                         : "PTZ unavailable — check the username and password in Settings.";
                     return;
@@ -739,7 +773,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     private void ApplyError(Exception ex)
     {
         Log.Line($"[API] applyError: {ex.Message}");
-        ErrorMessage = TakeCertificateRejected() ? CertificateChangedMessage : ex.Message;
+        RefreshCertificateChange();
+        ErrorMessage = CertificateChange != null ? CertificateChangedMessage : ex.Message;
         IsLoading = false;
     }
 
@@ -752,6 +787,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     public void Dispose()
     {
+        _trust.Changed -= RefreshCertificateChange;
         _integration.Dispose();
         _classic.Dispose();
     }

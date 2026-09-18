@@ -297,4 +297,9 @@ QuickProtect.</value></data>
   <data name="New key" xml:space="preserve"><value>New key</value></data>
   <data name="The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.</value></data>
   <data name="The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this." xml:space="preserve"><value>The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.</value></data>
+  <data name="Trust the controller's new certificate?" xml:space="preserve"><value>Trust the controller's new certificate?</value></data>
+  <data name="Controller: %@" xml:space="preserve"><value>Controller: %@</value></data>
+  <data name="Controller certificate changed" xml:space="preserve"><value>Controller certificate changed</value></data>
+  <data name="QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection." xml:space="preserve"><value>QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.</value></data>
+  <data name="Review Certificate…" xml:space="preserve"><value>Review Certificate…</value></data>
 </root>

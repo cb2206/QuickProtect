@@ -5,6 +5,12 @@ using System.Security.Cryptography.X509Certificates;
 namespace QuickProtect.Core.Services;
 
 /// <summary>
+/// A changed controller certificate awaiting the user's decision: the key
+/// currently trusted (null if the pin is gone) and the one now presented.
+/// </summary>
+public sealed record CertificateChange(string Host, string? TrustedFingerprint, string NewFingerprint);
+
+/// <summary>
 /// Certificate policy for the UniFi controller — a faithful port of the macOS
 /// <c>CertificateTrust</c>.
 ///
@@ -41,21 +47,34 @@ public sealed class CertificateTrust
     /// </summary>
     public event Action<string>? Rejected;
 
+    /// <summary>
+    /// Raised (on the thread that made the change) whenever a stored pin or
+    /// pending fingerprint actually changes, so state derived from the store —
+    /// the panel's "certificate changed" card — follows it. A routine
+    /// re-evaluation of an unchanged pin stays silent.
+    /// </summary>
+    public event Action? Changed;
+
     private static string PinnedKey(string host) => PinnedPrefix + host;
     private static string PendingKey(string host) => PendingPrefix + host;
 
     public string? Pinned(string host) => _prefs.GetString(PinnedKey(host));
     public string? Pending(string host) => _prefs.GetString(PendingKey(host));
 
-    private void SetPinned(string host, string? fp)
+    private void SetPinned(string host, string? fp) => Set(PinnedKey(host), fp);
+
+    private void SetPending(string host, string? fp) => Set(PendingKey(host), fp);
+
+    private void Set(string key, string? fp)
     {
-        if (fp == null) _prefs.Remove(PinnedKey(host)); else _prefs.SetString(PinnedKey(host), fp);
+        if (_prefs.GetString(key) == fp) return;
+        if (fp == null) _prefs.Remove(key); else _prefs.SetString(key, fp);
+        Changed?.Invoke();
     }
 
-    private void SetPending(string host, string? fp)
-    {
-        if (fp == null) _prefs.Remove(PendingKey(host)); else _prefs.SetString(PendingKey(host), fp);
-    }
+    /// <summary>The pending change for <paramref name="host"/>, if its certificate was rejected and the user hasn't decided yet.</summary>
+    public CertificateChange? Change(string host)
+        => Pending(host) is { } candidate ? new CertificateChange(host, Pinned(host), candidate) : null;
 
     /// <summary>
     /// SHA-256 of the leaf certificate's DER SubjectPublicKeyInfo, lower-case
@@ -73,6 +92,15 @@ public sealed class CertificateTrust
     public static string DisplayFingerprint(string hex)
         => string.Join(':', Enumerable.Range(0, (hex.Length + 1) / 2)
             .Select(i => hex.Substring(i * 2, Math.Min(2, hex.Length - i * 2))));
+
+    /// <summary>
+    /// The display form broken into rows of <paramref name="bytesPerLine"/>
+    /// bytes, so a full SHA-256 fingerprint never wraps mid-byte.
+    /// </summary>
+    public static string DisplayFingerprint(string hex, int bytesPerLine)
+        => string.Join('\n', DisplayFingerprint(hex).Split(':')
+            .Chunk(bytesPerLine)
+            .Select(row => string.Join(':', row)));
 
     /// <summary>
     /// Evaluate a leaf certificate for the controller identified by
@@ -123,7 +151,9 @@ public sealed class CertificateTrust
     {
         var candidate = Pending(host);
         if (candidate == null) return;
-        SetPinned(host, candidate);
+        // Pending first: in the other order a Changed listener would briefly
+        // see a "change" whose trusted and new keys are the same.
         SetPending(host, null);
+        SetPinned(host, candidate);
     }
 }

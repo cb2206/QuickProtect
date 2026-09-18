@@ -432,7 +432,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void TrustNewCertificate(string? host)
     {
         if (string.IsNullOrEmpty(host)) return;
-        _trust.TrustPending(host);
+        // Through the service, so the panel's card clears, the camera list is
+        // fetched again and failed streams restart (see App).
+        _service.TrustPendingCertificate(host);
         RefreshCertState();
         StatusMessage = Localization.Loc.Get("New certificate trusted.");
     }

@@ -21,8 +21,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<CameraTileViewModel> Tiles { get; } = new();
 
     [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private string? _errorMessage;
-    [ObservableProperty] private bool _hasCameras;
+
+    /// <summary>The service's error, translated (the service reports catalog keys or raw exception text).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowErrorBanner))]
+    private string? _errorMessage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowGrid))]
+    private bool _hasCameras;
+
+    /// <summary>
+    /// The controller's certificate changed. Every request fails until the user
+    /// decides, so the certificate card replaces the error banner, the empty
+    /// state and the (dead) grid.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCertificateChange))]
+    [NotifyPropertyChangedFor(nameof(ShowErrorBanner))]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowGrid))]
+    private CertificateChange? _certificateChange;
+
+    public bool HasCertificateChange => CertificateChange != null;
+    public bool ShowErrorBanner => !string.IsNullOrEmpty(ErrorMessage) && !HasCertificateChange;
+    public bool ShowEmptyState => !HasCameras && !HasCertificateChange;
+    public bool ShowGrid => HasCameras && !HasCertificateChange;
 
     /// <summary>Header search box; filters visible tiles by camera name.</summary>
     [ObservableProperty] private string _searchQuery = "";
@@ -101,6 +126,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _gridWidth = settings.PanelSize()?.Width ?? 760;
         _service.PropertyChanged += OnServiceChanged;
         _settings.PropertyChanged += OnSettingsChanged;
+        ErrorMessage = Localize(_service.ErrorMessage);
+        CertificateChange = _service.CertificateChange;
         RebuildProfiles();
         RebuildTiles();
     }
@@ -139,6 +166,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 || tile.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static string? Localize(string? message) => message is null ? null : Localization.Loc.Get(message);
+
     private void OnServiceChanged(object? sender, PropertyChangedEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
@@ -147,7 +176,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 case nameof(ProtectService.Cameras): RebuildTiles(); break;
                 case nameof(ProtectService.IsLoading): IsLoading = _service.IsLoading; break;
-                case nameof(ProtectService.ErrorMessage): ErrorMessage = _service.ErrorMessage; break;
+                case nameof(ProtectService.ErrorMessage): ErrorMessage = Localize(_service.ErrorMessage); break;
+                case nameof(ProtectService.CertificateChange): CertificateChange = _service.CertificateChange; break;
                 case nameof(ProtectService.PtzErrorMessage):
                     // PTZ problems are per-camera feedback, never the grid's error card.
                     if (_service.PtzErrorMessage is { } ptzError)

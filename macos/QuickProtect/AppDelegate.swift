@@ -65,6 +65,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NotificationCenter.default.addObserver(forName: .layoutProfileChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.applyProfilePanelSize() }
         }
+        #if DEBUG
+        // Testing affordance: pretend the controller's certificate changed by
+        // pinning a key it can't present, so the next connection is rejected
+        // and the certificate card / review flow can be exercised. Trusting
+        // the "new" (real) key from the card restores a working pin.
+        if CommandLine.arguments.contains("--simulate-certificate-change"),
+           let pinKey = service.controllerAddress?.pinKey {
+            let store = CertificateTrust.Store()
+            store.setPending(nil, host: pinKey)
+            store.setPinned(String(repeating: "0", count: 64), host: pinKey)
+        }
+        #endif
         // Instantiate before the first fetch so the manager's camera-list
         // subscription is in place to restore persisted pins when cameras load.
         appState.pinnedWindows = pinnedWindows
@@ -78,7 +90,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // keep-alive grace — stale clients would keep talking to the old host.
         connectionSettingsSubscription = s.$ipAddress.dropFirst().removeDuplicates()
             .merge(with: s.$apiKey.dropFirst().removeDuplicates())
-            .sink { [weak self] _ in self?.teardownStreamsNow() }
+            .sink { [weak self] _ in
+                self?.teardownStreamsNow()
+                // The certificate pin is keyed by the controller identity.
+                self?.service.refreshCertificateChange()
+            }
         if !s.hasCompletedOnboarding {
             showOnboarding()
         } else {

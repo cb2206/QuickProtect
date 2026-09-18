@@ -297,4 +297,9 @@ QuickProtect.</value></data>
   <data name="%lld minutes ago" xml:space="preserve"><value>hace %lld minutos</value></data>
   <data name="%lld seconds ago" xml:space="preserve"><value>hace %lld segundos</value></data>
   <data name="The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this." xml:space="preserve"><value>El controlador no recibe vídeo de esta cámara. Reiniciar la cámara en UniFi Protect suele solucionarlo.</value></data>
+  <data name="Trust the controller's new certificate?" xml:space="preserve"><value>¿Confiar en el nuevo certificado del controlador?</value></data>
+  <data name="Controller: %@" xml:space="preserve"><value>Controlador: %@</value></data>
+  <data name="Controller certificate changed" xml:space="preserve"><value>El certificado del controlador cambió</value></data>
+  <data name="QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection." xml:space="preserve"><value>QuickProtect dejó de conectarse porque el controlador presentó un certificado distinto. Es lo esperado tras reinstalar, restablecer o sustituir el controlador. Si no lo hiciste, alguien podría estar interceptando la conexión.</value></data>
+  <data name="Review Certificate…" xml:space="preserve"><value>Revisar certificado…</value></data>
 </root>

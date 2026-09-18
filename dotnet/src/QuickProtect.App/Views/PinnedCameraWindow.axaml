@@ -50,6 +50,18 @@
           <ProgressBar IsIndeterminate="True" Width="50" Height="4"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding IsLoading}" />
+          <!-- The controller's certificate changed: the stream can't connect
+               until the user trusts the new key (shown from code-behind). -->
+          <Border Name="CertificateOverlay" IsVisible="False" Background="#99000000">
+            <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10">
+              <PathIcon Data="{StaticResource Icon.Lock}" Width="18" Height="18" Foreground="White"
+                        HorizontalAlignment="Center" />
+              <TextBlock Text="{loc:Loc 'Controller certificate changed'}" Foreground="White" FontSize="11"
+                         FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" />
+              <Button Content="{loc:Loc 'Review Certificate…'}" Click="Certificate_Review"
+                      HorizontalAlignment="Center" Classes="accent" />
+            </StackPanel>
+          </Border>
         </Grid>
       </DockPanel>
 

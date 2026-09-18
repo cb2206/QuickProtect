@@ -167,6 +167,26 @@ public class VideoStreamCoordinatorTests
     }
 
     [Fact]
+    public async Task RetryFailedNow_retries_a_failed_allocation_at_once_and_drops_the_pending_backoff()
+    {
+        var svc = new FakeAllocator();
+        svc.Grants["medium"] = null;
+        using var coord = Coord(svc);
+
+        using var handle = coord.Acquire(Cam("a"), "medium");
+        Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
+        Assert.Equal(VideoState.Failed, handle.Client.State);
+
+        svc.Grants["medium"] = "medium";
+        coord.RetryFailedNow();
+        // Well inside the 1 s backoff the failure scheduled.
+        Assert.True(await svc.WaitFor(c => c.Count(x => x == "create a medium") == 2, 500));
+        // The superseded backoff retry never fires.
+        await Task.Delay(1500);
+        Assert.Equal(2, svc.Snapshot().Count(x => x == "create a medium"));
+    }
+
+    [Fact]
     public async Task Allocation_that_completes_after_the_panel_closed_is_released_not_adopted()
     {
         var svc = new FakeAllocator { Gate = new TaskCompletionSource() };

@@ -179,15 +179,8 @@ struct PopoverContentView: View {
         field.placeholderString = String(localized: "Profile name")
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
-        // The popover panel sits at `.popUpMenu` level, which draws above the
-        // modal alert. Temporarily drop it (and any other elevated app windows)
-        // to normal level so the name field is reachable, then restore.
-        let elevated = NSApp.windows.filter { $0.isVisible && $0.level.rawValue >= NSWindow.Level.popUpMenu.rawValue }
-        let savedLevels = elevated.map(\.level)
-        elevated.forEach { $0.level = .normal }
-        NSApp.activate(ignoringOtherApps: true)
-        let response = alert.runModal()
-        zip(elevated, savedLevels).forEach { $0.level = $1 }
+        // Elevated panels would draw over the alert and its name field.
+        let response = alert.runModalAboveFloatingWindows()
         guard response == .alertFirstButtonReturn else { return }
         let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { onConfirm(name) }

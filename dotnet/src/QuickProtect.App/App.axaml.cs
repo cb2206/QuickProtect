@@ -59,9 +59,18 @@ public partial class App : Application
         Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust,
             connectHost => ControllerAddress.Parse(Settings.IpAddress)?.PinKey ?? connectHost);
         Streams = new Video.VideoStreamCoordinator(Service);
-        // A rejection on the RTSPS tunnel has no API call to attach an error to;
-        // surface it on the panel so the user knows why every tile is dead.
-        Trust.Rejected += _ => Dispatcher.UIThread.Post(Service.ShowCertificateRejected);
+        // A rejected certificate (API or RTSPS tunnel) shows as the panel's
+        // certificate card via Service.CertificateChange. Once the user trusts
+        // the new key, every stream failure so far was the rejection — restart
+        // them now rather than after their accumulated backoff.
+        var hadCertificateChange = Service.CertificateChange != null;
+        Service.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(ProtectService.CertificateChange)) return;
+            var hasChange = Service.CertificateChange != null;
+            if (hadCertificateChange && !hasChange) Dispatcher.UIThread.Post(Streams.RetryFailedNow);
+            hadCertificateChange = hasChange;
+        };
         PinnedWindows = new PinnedWindowManager(Service, Settings);
         Updater = new UpdateChecker(CurrentVersion());
         Updater.StartPeriodicChecks();
@@ -327,6 +336,17 @@ public partial class App : Application
     /// and the server-side allocations (DELETE per stream). Runs on grace
     /// expiry, app quit, and connection-settings changes.
     /// </summary>
+    /// <summary>
+    /// Opens the certificate review dialog over <paramref name="owner"/> and
+    /// trusts the new key if the user confirms. No-op when nothing is pending.
+    /// </summary>
+    public async Task ReviewCertificateAsync(Window owner)
+    {
+        if (Service.CertificateChange is not { } change) return;
+        if (await Views.CertificateReviewWindow.ShowAsync(owner, change))
+            Service.TrustPendingCertificate(change.Host);
+    }
+
     public void TeardownStreamsNow()
     {
         CancelStreamTeardown();

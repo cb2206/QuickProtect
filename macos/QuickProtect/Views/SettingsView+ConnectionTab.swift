@@ -100,7 +100,9 @@ extension SettingsView {
                                     title: String(localized: "Trust new certificate"),
                                     disabled: false
                                 ) {
-                                    CertificateTrust.Store().trustPending(host: entry.host)
+                                    // Through the service, so the panel's card clears and
+                                    // pinned windows reconnect along with the test.
+                                    service.trustPendingCertificate(host: entry.host)
                                     certRefresh.toggle()
                                     runTest()
                                 }

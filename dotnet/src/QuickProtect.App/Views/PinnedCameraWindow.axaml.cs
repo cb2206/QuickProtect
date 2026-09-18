@@ -58,7 +58,25 @@ public partial class PinnedCameraWindow : Window
         SizeChanged += OnSizeChanged;
         _aspectRetry.Tick += OnAspectRetry;
         Closed += (_, _) => _aspectRetry.Stop();
+
+        // The certificate overlay follows the service (absent in the previewer).
+        if (Avalonia.Application.Current is App { Service: { } service })
+        {
+            service.PropertyChanged += OnServiceChanged;
+            Closed += (_, _) => service.PropertyChanged -= OnServiceChanged;
+            CertificateOverlay.IsVisible = service.CertificateChange != null;
+        }
     }
+
+    private void OnServiceChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(Core.Services.ProtectService.CertificateChange)) return;
+        Dispatcher.UIThread.Post(() =>
+            CertificateOverlay.IsVisible = App.Instance.Service.CertificateChange != null);
+    }
+
+    private async void Certificate_Review(object? sender, RoutedEventArgs e)
+        => await App.Instance.ReviewCertificateAsync(this);
 
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {

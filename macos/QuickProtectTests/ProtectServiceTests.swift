@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 
 /// Exercises `ProtectService` against a stubbed controller: a `URLProtocol`
@@ -31,6 +32,104 @@ final class ProtectServiceTests: XCTestCase {
     override func tearDown() async throws {
         StubController.reset()
         await MainActor.run { service = nil }
+    }
+
+    // MARK: - Certificate change
+
+    /// A service reading pins from a scratch store, plus that store.
+    private func makeServiceWithScratchPins() -> (ProtectService, CertificateTrust.Store, () -> Void) {
+        let suite = "ProtectServiceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        let store = CertificateTrust.Store(defaults: defaults)
+        let service = ProtectService(settings: credentials, urlProtocolClasses: [StubController.self],
+                                     certificateStore: store)
+        return (service, store, { defaults.removePersistentDomain(forName: suite) })
+    }
+
+    /// The reported bug: a rejected certificate reaches the fetch as
+    /// `URLError.cancelled`, which used to be swallowed as a teardown and left
+    /// a stale "can't connect" error on screen.
+    func testCancelledFetchWithPendingCertificateReportsCertificateChange() async {
+        let (service, store, cleanup) = makeServiceWithScratchPins()
+        defer { cleanup() }
+        _ = CertificateTrust.evaluate(host: "192.168.1.10", fingerprint: "aa", store: store)
+        _ = CertificateTrust.evaluate(host: "192.168.1.10", fingerprint: "bb", store: store)
+        StubController.fail(with: URLError(.cancelled))
+
+        await service.fetchCameras(forced: true)
+
+        XCTAssertEqual(service.certificateChange,
+                       CertificateTrust.Change(host: "192.168.1.10", trustedFingerprint: "aa", newFingerprint: "bb"))
+        XCTAssertEqual(service.errorMessage, ProtectService.certificateChangedMessage)
+        XCTAssertFalse(service.isLoading)
+    }
+
+    func testCancelledFetchWithoutPendingCertificateStaysSilent() async {
+        let (service, _, cleanup) = makeServiceWithScratchPins()
+        defer { cleanup() }
+        StubController.fail(with: URLError(.cancelled))
+
+        await service.fetchCameras(forced: true)
+
+        XCTAssertNil(service.certificateChange)
+        XCTAssertNil(service.errorMessage)
+        XCTAssertFalse(service.isLoading)
+    }
+
+    func testCertificateChangeFollowsTheConfiguredController() {
+        let (service, store, cleanup) = makeServiceWithScratchPins()
+        defer { cleanup() }
+        _ = CertificateTrust.evaluate(host: "10.0.0.5", fingerprint: "aa", store: store)
+        _ = CertificateTrust.evaluate(host: "10.0.0.5", fingerprint: "bb", store: store)
+        service.refreshCertificateChange()
+        XCTAssertNil(service.certificateChange, "another controller's pending key is not ours")
+
+        credentials.ipAddress = "10.0.0.5"
+        service.refreshCertificateChange()
+        XCTAssertEqual(service.certificateChange?.newFingerprint, "bb")
+    }
+
+    func testTrustingPendingCertificateClearsTheChange() {
+        let (service, store, cleanup) = makeServiceWithScratchPins()
+        defer { cleanup() }
+        _ = CertificateTrust.evaluate(host: "192.168.1.10", fingerprint: "aa", store: store)
+        _ = CertificateTrust.evaluate(host: "192.168.1.10", fingerprint: "bb", store: store)
+        service.refreshCertificateChange()
+        XCTAssertNotNil(service.certificateChange)
+
+        service.trustPendingCertificate(host: "192.168.1.10")
+
+        XCTAssertNil(service.certificateChange)
+        XCTAssertEqual(store.pinned(host: "192.168.1.10"), "bb")
+    }
+
+    /// Rejections happen on URLSession's and the RTSP clients' queues; the
+    /// published state must follow without anyone calling refresh.
+    func testRejectionOnAnotherQueuePublishesTheChange() async {
+        let (service, store, cleanup) = makeServiceWithScratchPins()
+        defer { cleanup() }
+        _ = CertificateTrust.evaluate(host: "192.168.1.10", fingerprint: "aa", store: store)
+        let published = expectation(description: "certificateChange published")
+        let subscription = service.$certificateChange.dropFirst().sink { change in
+            if change != nil { published.fulfill() }
+        }
+        DispatchQueue.global().async {
+            _ = CertificateTrust.evaluate(host: "192.168.1.10", fingerprint: "bb", store: store)
+        }
+        await fulfillment(of: [published], timeout: 2)
+        subscription.cancel()
+    }
+
+    func testFetchFailureClassification() {
+        let cancelled = URLError(.cancelled)
+        let offline = URLError(.cannotConnectToHost)
+        typealias Svc = ProtectService
+        XCTAssertEqual(Svc.classifyFetchFailure(cancelled, taskCancelled: true, certificateChanged: true), .ignore)
+        XCTAssertEqual(Svc.classifyFetchFailure(CancellationError(), taskCancelled: false, certificateChanged: true), .ignore)
+        XCTAssertEqual(Svc.classifyFetchFailure(cancelled, taskCancelled: false, certificateChanged: true), .certificateChanged)
+        XCTAssertEqual(Svc.classifyFetchFailure(cancelled, taskCancelled: false, certificateChanged: false), .ignore)
+        XCTAssertEqual(Svc.classifyFetchFailure(offline, taskCancelled: false, certificateChanged: true), .certificateChanged)
+        XCTAssertEqual(Svc.classifyFetchFailure(offline, taskCancelled: false, certificateChanged: false), .failed)
     }
 
     // MARK: - Camera list
@@ -295,6 +394,7 @@ private class StubController: URLProtocol {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var _handler: Handler?   // guarded by `lock`
     nonisolated(unsafe) private static var _requests: [URLRequest] = []
+    nonisolated(unsafe) private static var _failure: URLError?
 
     static var requests: [URLRequest] {
         lock.lock(); defer { lock.unlock() }
@@ -306,10 +406,17 @@ private class StubController: URLProtocol {
         _handler = handler
     }
 
+    /// Fail every request with `error` instead of answering.
+    static func fail(with error: URLError) {
+        lock.lock(); defer { lock.unlock() }
+        _failure = error
+    }
+
     static func reset() {
         lock.lock(); defer { lock.unlock() }
         _handler = nil
         _requests = []
+        _failure = nil
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -319,7 +426,13 @@ private class StubController: URLProtocol {
         Self.lock.lock()
         Self._requests.append(request)
         let handler = Self._handler
+        let failure = Self._failure
         Self.lock.unlock()
+
+        if let failure {
+            client?.urlProtocol(self, didFailWithError: failure)
+            return
+        }
 
         guard let handler, let url = request.url else {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))

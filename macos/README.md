@@ -152,6 +152,10 @@ The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conver
   `QUICKPROTECT_DEBUG_LOG=1 build/Debug/QuickProtect.app/Contents/MacOS/QuickProtect --open-panel 2> qp.log`
 - `--open-panel` opens the camera panel right after launch (scripted runs;
   parity with the .NET port's flag).
+- `--simulate-certificate-change` (Debug builds only) pins a key the
+  controller can't present, so the next connection is rejected and the
+  "Controller certificate changed" card and review dialog can be exercised.
+  Trusting the "new" (real) key from the dialog restores a working pin.
 - With the debug log on, the classic-API enrichment logs every camera's
   channel table (codec, resolution, enabled/RTSP flags). Adding
   `QUICKPROTECT_PROBE_CLASSIC=1` additionally logs each camera's full record

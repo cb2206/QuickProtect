@@ -72,7 +72,7 @@
       <!-- Error banner (own layout row so it never fights the tiles). -->
       <Border Grid.Row="1" Background="{DynamicResource QpStatusRedSurface}" Padding="12,8"
               CornerRadius="6" Margin="14,10,14,0"
-              IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              IsVisible="{Binding ShowErrorBanner}">
         <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
       </Border>
 
@@ -80,12 +80,31 @@
       <TextBlock Grid.Row="2" Text="{loc:Loc 'No cameras yet. Open Settings to connect your controller.'}"
                  Foreground="{DynamicResource QpTextTertiary}" HorizontalAlignment="Center" VerticalAlignment="Center"
                  TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"
-                 IsVisible="{Binding !HasCameras}" />
+                 IsVisible="{Binding ShowEmptyState}" />
+
+      <!-- Certificate changed: every request fails until the user decides, so
+           this card replaces the grid (macOS CameraGridView parity). -->
+      <Border Grid.Row="2" IsVisible="{Binding HasCertificateChange}"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="380" Margin="24"
+              Background="{DynamicResource QpStatusOrangeSurface}" CornerRadius="10" Padding="22,18">
+        <StackPanel Spacing="10" HorizontalAlignment="Center">
+          <PathIcon Data="{StaticResource Icon.Lock}" Width="22" Height="22"
+                    Foreground="{DynamicResource QpTextPrimary}" HorizontalAlignment="Center" />
+          <TextBlock Text="{loc:Loc 'Controller certificate changed'}" FontWeight="SemiBold" FontSize="14"
+                     Foreground="{DynamicResource QpTextPrimary}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+          <TextBlock Text="{loc:Loc 'QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn\'t, someone may be intercepting the connection.'}"
+                     Foreground="{DynamicResource QpTextSecondary}" TextAlignment="Center" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,4,0,0">
+            <Button Content="{loc:Loc 'Review Certificate…'}" Click="Certificate_Review" Classes="accent" />
+            <Button Content="{loc:Loc 'Open Settings'}" Click="Header_Settings" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
 
       <!-- Camera grid. Video is composited, so the whole tile is a click target:
            click focuses, drag reorders, right-click opens the context menu.
            Tiles stay pinned to the Dark variant like macOS. -->
-      <ThemeVariantScope Grid.Row="2" RequestedThemeVariant="Dark" IsVisible="{Binding HasCameras}">
+      <ThemeVariantScope Grid.Row="2" RequestedThemeVariant="Dark" IsVisible="{Binding ShowGrid}">
         <ScrollViewer Name="GridScroll" SizeChanged="GridScroll_SizeChanged">
           <ItemsControl ItemsSource="{Binding Tiles}" Margin="1">
             <ItemsControl.ItemsPanel>

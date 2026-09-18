@@ -63,6 +63,40 @@ final class CertificateTrustTests: XCTestCase {
         XCTAssertEqual(store.pending(host: "h"), "new-hash")
     }
 
+    func testChangeReportsTrustedAndNewKey() {
+        XCTAssertNil(store.change(host: "h"))
+        XCTAssertTrue(evaluate("h", "aa"))
+        XCTAssertNil(store.change(host: "h"))
+        XCTAssertFalse(evaluate("h", "bb"))
+        XCTAssertEqual(store.change(host: "h"),
+                       CertificateTrust.Change(host: "h", trustedFingerprint: "aa", newFingerprint: "bb"))
+    }
+
+    func testStoreAnnouncesOnlyRealChanges() {
+        var posts = 0
+        let observer = NotificationCenter.default.addObserver(
+            forName: CertificateTrust.didChangeNotification, object: nil, queue: nil
+        ) { _ in posts += 1 }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        XCTAssertTrue(evaluate("h", "aa"))    // pin written
+        XCTAssertEqual(posts, 1)
+        XCTAssertTrue(evaluate("h", "aa"))    // routine reconnect: nothing changes
+        XCTAssertEqual(posts, 1)
+        XCTAssertFalse(evaluate("h", "bb"))   // pending written
+        XCTAssertEqual(posts, 2)
+        XCTAssertFalse(evaluate("h", "bb"))   // same candidate again
+        XCTAssertEqual(posts, 2)
+    }
+
+    func testWrappedFingerprintSplitsAfterSixteenBytes() {
+        let hex = String(repeating: "ab", count: 32)
+        let lines = CertificateTrust.displayFingerprint(hex, bytesPerLine: 16).split(separator: "\n")
+        XCTAssertEqual(lines.count, 2)
+        XCTAssertEqual(lines[0].split(separator: ":").count, 16)
+        XCTAssertEqual(lines[1].split(separator: ":").count, 16)
+    }
+
     func testAllPendingListsEveryHost() {
         XCTAssertTrue(evaluate("b.local", "A"))
         XCTAssertTrue(evaluate("a.local", "A"))

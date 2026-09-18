@@ -38,7 +38,11 @@ struct CameraGridView: View {
     var body: some View {
         ZStack {
             palette.gridBg.ignoresSafeArea()
-            if service.isLoading {
+            // A changed certificate blocks every request until the user decides,
+            // so it outranks loading and generic errors.
+            if service.certificateChange != nil {
+                certificateChangedView
+            } else if service.isLoading {
                 loadingView
             } else if let error = service.errorMessage {
                 errorView(error)
@@ -67,6 +71,20 @@ struct CameraGridView: View {
             primary: (String(localized: "Retry"), { lastRetryAt = Date(); Task { await service.fetchCameras(forced: true) } }),
             secondary: (String(localized: "Open Settings"), onOpenSettings),
             footer: lastRetryAt.map { String(localized: "Last try: \(Self.relativeAgo(from: $0))") }
+        )
+        .padding(24)
+    }
+
+    var certificateChangedView: some View {
+        AuroraStateCard(
+            tone: .warning,
+            systemImage: "lock.trianglebadge.exclamationmark",
+            title: String(localized: "Controller certificate changed"),
+            // swiftlint:disable:next line_length
+            message: String(localized: "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection."),
+            primary: (String(localized: "Review Certificate…"), { CertificateReviewAlert.present(service: service) }),
+            secondary: (String(localized: "Open Settings"), onOpenSettings),
+            footer: nil
         )
         .padding(24)
     }

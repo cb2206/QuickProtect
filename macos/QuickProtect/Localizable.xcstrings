@@ -1764,6 +1764,88 @@
         }
       }
     },
+    "Controller certificate changed": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat des Controllers geändert"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le certificat du contrôleur a changé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El certificado del controlador cambió"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificaat van de controller gewijzigd"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificato del controller cambiato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado do controlador alterado"
+          }
+        }
+      }
+    },
+    "Controller: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôleur : %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlador: %@"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlador: %@"
+          }
+        }
+      }
+    },
     "Copied to clipboard": {
       "extractionState": "manual",
       "localizations": {
@@ -5946,6 +6028,47 @@
         }
       }
     },
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect verbindet sich nicht mehr, weil der Controller ein anderes Zertifikat vorgelegt hat. Das ist nach einer Neuinstallation, einem Zurücksetzen oder einem Austausch des Controllers zu erwarten. Falls du nichts davon getan hast, fängt womöglich jemand die Verbindung ab."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect a cessé de se connecter, car le contrôleur a présenté un autre certificat. C'est normal après une réinstallation, une réinitialisation ou un remplacement du contrôleur. Si ce n'est pas le cas, quelqu'un intercepte peut-être la connexion."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect dejó de conectarse porque el controlador presentó un certificado distinto. Es lo esperado tras reinstalar, restablecer o sustituir el controlador. Si no lo hiciste, alguien podría estar interceptando la conexión."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect maakt geen verbinding meer, omdat de controller een ander certificaat toonde. Dat is te verwachten na het opnieuw installeren, resetten of vervangen van de controller. Heb je dat niet gedaan, dan onderschept iemand mogelijk de verbinding."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect ha smesso di connettersi perché il controller ha presentato un certificato diverso. È normale dopo aver reinstallato, ripristinato o sostituito il controller. Se non l'hai fatto, qualcuno potrebbe intercettare la connessione."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O QuickProtect parou de se conectar porque o controlador apresentou um certificado diferente. Isso é esperado depois de reinstalar, redefinir ou substituir o controlador. Se você não fez isso, alguém pode estar interceptando a conexão."
+          }
+        }
+      }
+    },
     "QuickProtect – Settings": {
       "extractionState": "manual",
       "localizations": {
@@ -6393,6 +6516,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tentar novamente"
+          }
+        }
+      }
+    },
+    "Review Certificate…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat prüfen…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Examiner le certificat…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revisar certificado…"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificaat controleren…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esamina certificato…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revisar certificado…"
           }
         }
       }
@@ -8361,6 +8525,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confiar no novo certificado"
+          }
+        }
+      }
+    },
+    "Trust the controller's new certificate?": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dem neuen Zertifikat des Controllers vertrauen?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approuver le nouveau certificat du contrôleur ?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Confiar en el nuevo certificado del controlador?"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Het nieuwe certificaat van de controller vertrouwen?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fidarsi del nuovo certificato del controller?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar no novo certificado do controlador?"
           }
         }
       }

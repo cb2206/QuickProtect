@@ -424,6 +424,9 @@ public partial class MainWindow : Window
 
     private void Header_Settings(object? sender, RoutedEventArgs e) => App.Instance.ShowSettings();
 
+    private async void Certificate_Review(object? sender, RoutedEventArgs e)
+        => await App.Instance.ReviewCertificateAsync(this);
+
     private void Header_Quit(object? sender, RoutedEventArgs e) => App.Instance.RequestShutdown();
 
     private async void Header_SaveProfile(object? sender, RoutedEventArgs e)

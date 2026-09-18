@@ -102,6 +102,7 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
     private var dimsCancellable: AnyCancellable?
     private var errorCancellable: AnyCancellable?
     private var frameCancellable: AnyCancellable?
+    private var certificateCancellable: AnyCancellable?
 
     /// Failure state shown by the view between recovery attempts.
     private let streamState = PinnedStreamState()
@@ -175,6 +176,10 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             .sink { [weak self] hasFrame in
                 if hasFrame { self?.streamRecovered() }
             }
+        certificateCancellable = service.$certificateChange
+            .map { $0 != nil }
+            .removeDuplicates()
+            .sink { [weak self] changed in self?.certificateChanged(changed) }
     }
 
     private func makeView() -> PinnedCameraView {
@@ -183,6 +188,10 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             stream: streamState,
             cameraName: camera.name,
             onReconnect: { [weak self] in self?.reconnect() },
+            onReviewCertificate: { [weak self] in
+                guard let service = self?.service else { return }
+                CertificateReviewAlert.present(service: service)
+            },
             onClose: { [weak self] in self?.requestClose() }
         )
     }
@@ -222,6 +231,7 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
         dimsCancellable = nil
         errorCancellable = nil
         frameCancellable = nil
+        certificateCancellable = nil
         client.disconnect()
         releaseAllocation()
         panel.delegate = nil
@@ -295,6 +305,16 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             releaseAllocation()
         }
         startStream()
+    }
+
+    /// The controller's certificate changed (streams can't connect until the
+    /// user trusts it) or was just trusted — then reconnect right away rather
+    /// than waiting out the backoff the rejected attempts built up.
+    private func certificateChanged(_ changed: Bool) {
+        streamState.certificateChanged = changed
+        guard !changed, streamState.isFailed else { return }
+        recovery.recovered()
+        reconnect()
     }
 
     private func streamRecovered() {
@@ -404,6 +424,8 @@ final class PinnedStreamState: ObservableObject {
     @Published var isFailed = false
     /// The client's reason, when it gave one (nil when the URL POST failed).
     @Published var reason: String?
+    /// The controller's certificate changed; the failure overlay offers review.
+    @Published var certificateChanged = false
 }
 
 /// The contents of a pinned floating window: the live feed plus hover chrome
@@ -414,6 +436,7 @@ struct PinnedCameraView: View {
     @ObservedObject var stream: PinnedStreamState
     let cameraName: String
     let onReconnect: () -> Void
+    let onReviewCertificate: () -> Void
     let onClose: () -> Void
 
     @State private var hover = false
@@ -474,26 +497,53 @@ struct PinnedCameraView: View {
             Color.black.opacity(0.45)
                 .allowsHitTesting(false)
             VStack(spacing: 6) {
-                Group {
-                    Image(systemName: "xmark.octagon")
-                        .font(.system(size: 18))
-                        .foregroundColor(AuroraTokens.statusRed)
-                    Text("Stream unavailable")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.white)
+                if stream.certificateChanged {
+                    certificateContent
+                } else {
+                    failureContent
                 }
-                .allowsHitTesting(false)
-                Button("Reconnect", action: onReconnect)
-                    .buttonStyle(AuroraStatePillButtonStyle(primary: true))
-                if let reason = stream.reason {
-                    Text(reason)
-                        .font(.system(size: 9.5, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.55))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                        .padding(.horizontal, 8)
-                        .allowsHitTesting(false)
-                }
+            }
+        }
+    }
+
+    private var certificateContent: some View {
+        Group {
+            Group {
+                Image(systemName: "lock.trianglebadge.exclamationmark")
+                    .font(.system(size: 18))
+                    .foregroundColor(AuroraTokens.statusOrange)
+                Text("Controller certificate changed")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+            }
+            .allowsHitTesting(false)
+            Button("Review Certificate…", action: onReviewCertificate)
+                .buttonStyle(AuroraStatePillButtonStyle(primary: true))
+        }
+    }
+
+    private var failureContent: some View {
+        Group {
+            Group {
+                Image(systemName: "xmark.octagon")
+                    .font(.system(size: 18))
+                    .foregroundColor(AuroraTokens.statusRed)
+                Text("Stream unavailable")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .allowsHitTesting(false)
+            Button("Reconnect", action: onReconnect)
+                .buttonStyle(AuroraStatePillButtonStyle(primary: true))
+            if let reason = stream.reason {
+                Text(reason)
+                    .font(.system(size: 9.5, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .padding(.horizontal, 8)
+                    .allowsHitTesting(false)
             }
         }
     }

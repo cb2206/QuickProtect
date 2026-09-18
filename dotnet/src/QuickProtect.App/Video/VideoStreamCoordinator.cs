@@ -312,6 +312,30 @@ public sealed class VideoStreamCoordinator : IDisposable
     }
 
     /// <summary>
+    /// Retry every failing stream now, with its backoff reset. Called after the
+    /// user trusted the controller's new certificate: every failure so far was
+    /// the rejected key, so waiting out the accumulated backoff would only
+    /// delay the picture.
+    /// </summary>
+    public void RetryFailedNow()
+    {
+        var due = new List<(Entry Entry, string Quality, int Gen)>();
+        lock (_lock)
+        {
+            foreach (var e in _entries.Values)
+            {
+                if (e.Switching || Wanted(e) is not { } want) continue;
+                if (e.ActiveQuality != null && e.Client.State != VideoState.Failed) continue;
+                e.RetryDelay = RetryInitial;
+                e.ReallocateDelay = ReallocateInitial;
+                e.NextReallocate = DateTime.MinValue;
+                due.Add((e, e.RequestedQuality ?? want, ++e.Generation));
+            }
+        }
+        foreach (var (entry, quality, gen) in due) _ = SwitchAsync(entry, quality, gen);
+    }
+
+    /// <summary>
     /// The client can't open its URL any more: allocate the same quality again
     /// (the controller answers with a live URL) instead of letting the client
     /// retry a deleted one forever. Rate-limited per entry so a controller whose
