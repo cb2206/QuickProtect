@@ -43,13 +43,16 @@ public sealed class VideoStreamCoordinator : IDisposable
 
     public VideoStreamCoordinator(IStreamAllocator service) => _service = service;
 
+    /// <summary>Creates each camera's client (tests substitute one that never opens FFmpeg).</summary>
+    internal Func<VideoStreamClient> ClientFactory { get; init; } = static () => new VideoStreamClient();
+
     private sealed class Entry
     {
         public required Camera Camera;
         public required string Key;
         public string? Lens;               // e.g. "package"; null = primary lens
         public bool Pinned;
-        public VideoStreamClient Client { get; } = new();
+        public required VideoStreamClient Client { get; init; }
         public Dictionary<object, string> Desires { get; } = new();
         public string? RequestedQuality;   // tier the coordinator asked for (desires compare to this)
         public string? ActiveQuality;      // tier the controller granted (may be a fallback; released by this name)
@@ -95,7 +98,7 @@ public sealed class VideoStreamCoordinator : IDisposable
         {
             if (!_entries.TryGetValue(key, out entry!))
             {
-                entry = new Entry { Camera = camera, Key = key, Lens = lens, Pinned = pinned };
+                entry = new Entry { Camera = camera, Key = key, Lens = lens, Pinned = pinned, Client = ClientFactory() };
                 _entries[key] = entry;
                 var created = entry;
                 created.Client.AllocationLost += () => OnAllocationLost(created);

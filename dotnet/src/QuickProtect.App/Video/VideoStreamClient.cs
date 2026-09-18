@@ -53,6 +53,13 @@ public sealed class VideoStreamClient : IDisposable
     /// <summary>Test hook: behave as if the URL stopped opening.</summary>
     internal void RaiseAllocationLostForTest() => AllocationLost?.Invoke();
 
+    /// <summary>
+    /// Test hook: runs instead of the FFmpeg session (returns whether it ended
+    /// cleanly). Lets tests drive the reconnect loop without depending on whether
+    /// another test has initialised the process-wide FFmpeg engine.
+    /// </summary>
+    internal Func<string, bool>? SessionOverride { get; init; }
+
     /// <summary>Consecutive open failures that raise <see cref="AllocationLost"/>.</summary>
     internal const int OpenFailuresBeforeAllocationLost = 3;
 
@@ -400,7 +407,7 @@ public sealed class VideoStreamClient : IDisposable
                 SetState(HasFrame ? State : VideoState.Connecting);
                 var ok = false;
                 t_openFailed = false;
-                try { ok = RunSession(url, gen); }
+                try { ok = SessionOverride?.Invoke(url) ?? RunSession(url, gen); }
                 catch (Exception ex) { Log.Line($"[Video] session error: {ex.Message}"); }
 
                 if (_stop || Superseded(gen)) break;
