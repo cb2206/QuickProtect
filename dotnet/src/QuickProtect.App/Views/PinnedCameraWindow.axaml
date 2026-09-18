@@ -20,7 +20,7 @@
     <Panel>
       <DockPanel>
         <!-- Drag handle + controls, docked above the video surface. -->
-        <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Header_Drag" Name="Header">
+        <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Move_Drag" Name="Header">
           <Grid ColumnDefinitions="*,Auto,Auto" Margin="8,4">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
               <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
@@ -44,7 +44,9 @@
           </Grid>
         </Border>
 
-        <Grid>
+        <!-- Dragging the video moves the window too, like the macOS pinned window.
+             The transparent background makes the whole area hit-testable. -->
+        <Grid Background="Transparent" PointerPressed="Move_Drag">
           <video:VideoSurface Source="{Binding Client}" Fill="True" />
           <ProgressBar IsIndeterminate="True" Width="50" Height="4"
                        HorizontalAlignment="Center" VerticalAlignment="Center"

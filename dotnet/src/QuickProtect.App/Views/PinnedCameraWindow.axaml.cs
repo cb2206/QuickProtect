@@ -7,7 +7,7 @@ namespace QuickProtect.App.Views;
 
 /// <summary>
 /// A single always-on-top floating camera window. Borderless; dragged by its
-/// header. Frame changes and the unpin action are reported to the manager via
+/// header or its video. Frame changes and the unpin action are reported to the manager via
 /// callbacks (the window doesn't know about persistence).
 /// </summary>
 public partial class PinnedCameraWindow : Window
@@ -37,8 +37,11 @@ public partial class PinnedCameraWindow : Window
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
         // Lock height to the camera aspect, driving from width (guarded against the
-        // re-entrant SizeChanged our own Height assignment triggers).
-        if (!_constraining && e.WidthChanged)
+        // re-entrant SizeChanged our own Height assignment triggers). A change of
+        // height alone is corrected too: a corner drag on Windows ends with a resize
+        // that repeats the width but carries the pointer's height, which would
+        // otherwise stick and leave the video cropped.
+        if (!_constraining && (e.WidthChanged || e.HeightChanged))
         {
             var size = PinnedWindowGeometry.Constrain(Width, AspectRatio);
             if (Math.Abs(size.Height - Height) > 0.5)
@@ -51,7 +54,7 @@ public partial class PinnedCameraWindow : Window
         FrameChanged?.Invoke(this);
     }
 
-    private void Header_Drag(object? sender, PointerPressedEventArgs e)
+    private void Move_Drag(object? sender, PointerPressedEventArgs e)
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) BeginMoveDrag(e);
     }
