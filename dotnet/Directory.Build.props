@@ -14,7 +14,7 @@
          with locked-mode. Scoped to project files — the solution's restore
          metaproject has no target framework and NuGet rejects the property there. -->
     <RestorePackagesWithLockFile Condition="'$(MSBuildProjectExtension)' == '.csproj'">true</RestorePackagesWithLockFile>
-    <Version>1.3.1</Version>
+    <Version>1.4</Version>
     <Company>Christian Bartels</Company>
     <Product>QuickProtect</Product>
     <Copyright>Copyright © 2026 Christian Bartels. All rights reserved.</Copyright>
