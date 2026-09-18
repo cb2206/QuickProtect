@@ -100,6 +100,14 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
     private var streamTask: Task<Void, Never>?
     private var connectedQuality: String?
     private var dimsCancellable: AnyCancellable?
+    private var errorCancellable: AnyCancellable?
+    private var frameCancellable: AnyCancellable?
+
+    /// Failure state shown by the view between recovery attempts.
+    private let streamState = PinnedStreamState()
+    private var recovery = StreamRecoveryBackoff()
+    /// The pending fresh-URL attempt after a failure.
+    private var retryTask: Task<Void, Never>?
 
     /// True once the on-screen size has been fixed to the real video aspect.
     private var lockedAspect = false
@@ -121,7 +129,7 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
         let frame = Self.initialFrame(saved: saved, aspect: aspect, cascadeIndex: cascadeIndex)
         self.restoredSavedFrame = saved != nil
 
-        let panel = NSPanel(
+        let panel = PinnedPanel(
             contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel, .resizable],
             backing: .buffered,
@@ -147,17 +155,36 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
 
         super.init()
 
-        let view = PinnedCameraView(
-            client: client,
-            cameraName: camera.name,
-            onClose: { [weak self] in self?.requestClose() }
-        )
-        panel.contentViewController = NSHostingController(rootView: view)
+        panel.contentViewController = NSHostingController(rootView: makeView())
         panel.delegate = self
 
         dimsCancellable = client.$videoDimensions
             .receive(on: RunLoop.main)
             .sink { [weak self] dims in self?.applyAspect(dims) }
+        // The client never retries a URL on its own, so any error it reports
+        // (connection failed, RTSP 404 after another client deleted the
+        // allocation, receive error) needs a fresh URL.
+        errorCancellable = client.$error
+            .receive(on: RunLoop.main)
+            .sink { [weak self] error in
+                guard let error else { return }
+                self?.streamFailed(reason: error)
+            }
+        frameCancellable = client.$hasFrame
+            .receive(on: RunLoop.main)
+            .sink { [weak self] hasFrame in
+                if hasFrame { self?.streamRecovered() }
+            }
+    }
+
+    private func makeView() -> PinnedCameraView {
+        PinnedCameraView(
+            client: client,
+            stream: streamState,
+            cameraName: camera.name,
+            onReconnect: { [weak self] in self?.reconnect() },
+            onClose: { [weak self] in self?.requestClose() }
+        )
     }
 
     func show() {
@@ -171,16 +198,13 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
         let cameWonline = camera.isOnline && !self.camera.isOnline
         self.camera = camera
         if nameChanged {
-            let view = PinnedCameraView(
-                client: client,
-                cameraName: camera.name,
-                onClose: { [weak self] in self?.requestClose() }
-            )
-            (panel.contentViewController as? NSHostingController<PinnedCameraView>)?.rootView = view
+            (panel.contentViewController as? NSHostingController<PinnedCameraView>)?.rootView = makeView()
         }
-        // Pinned at launch while offline → start streaming once it comes online.
+        // Pinned at launch while offline, or offline long enough to fail →
+        // start streaming as soon as it comes online, without waiting out a
+        // pending retry.
         if cameWonline, streamTask == nil, connectedQuality == nil {
-            startStream()
+            reconnect()
         }
     }
 
@@ -190,13 +214,16 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
     /// window. Persistence is the manager's responsibility (kept on quit,
     /// removed on explicit unpin).
     func teardown() {
+        recovery.stop()
+        retryTask?.cancel()
+        retryTask = nil
         streamTask?.cancel()
         streamTask = nil
         dimsCancellable = nil
+        errorCancellable = nil
+        frameCancellable = nil
         client.disconnect()
-        if let quality = connectedQuality {
-            service?.releasePinnedStream(for: cameraId, quality: quality)
-        }
+        releaseAllocation()
         panel.delegate = nil
         panel.orderOut(nil)
         panel.contentViewController = nil
@@ -205,18 +232,23 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
     // MARK: Stream
 
     private func startStream() {
-        guard let service, camera.isOnline else { return }
+        guard let service, camera.isOnline, !recovery.isStopped else { return }
         // A pinned window is a dedicated viewing surface, so resolve `.auto` as
         // if focused (high). Explicit per-camera qualities are honoured as set.
         let quality = AppSettings.shared.effectiveStreamQuality(for: cameraId)
             .resolve(focused: true)
         let camera = self.camera
+        // The attempt shows the spinner; a failure brings the overlay back.
+        streamState.isFailed = false
         streamTask = Task { [weak self] in
-            guard let stream = await service.createPinnedStreamURL(
-                for: camera, quality: quality.apiValue) else { return }
+            let stream = await service.createPinnedStreamURL(for: camera, quality: quality.apiValue)
             guard let self, !Task.isCancelled else { return }
-            self.connectedQuality = stream.quality
             self.streamTask = nil
+            guard let stream else {
+                self.streamFailed(reason: nil)
+                return
+            }
+            self.connectedQuality = stream.quality
             self.client.connect(to: stream.url, pinKey: self.service?.controllerAddress?.pinKey)
             // Negotiate audio (muted by default) and decode capture frames so the
             // window's mute and snapshot controls work without a reconnect.
@@ -224,6 +256,57 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             self.client.setAudioActive(true)
             self.client.setCaptureActive(true)
         }
+    }
+
+    // MARK: Recovery
+
+    /// The URL POST failed (`reason` nil) or the client lost its session.
+    /// Frees the allocation — it may already be gone server-side, and a live
+    /// one would leak once a fresh URL replaces it — and schedules a fresh-URL
+    /// attempt on the backoff. Mirrors the .NET coordinator's
+    /// `OnAllocationLost`.
+    private func streamFailed(reason: String?) {
+        // One pending attempt at a time; a POST in flight reports for itself.
+        guard retryTask == nil, streamTask == nil, let delay = recovery.failed() else { return }
+        RTSPClient.log("[Pinned] \(camera.name): stream failed (\(reason ?? "no stream URL")); "
+            + "fresh URL in \(Int(delay))s")
+        streamState.isFailed = true
+        streamState.reason = reason
+        client.disconnect()
+        releaseAllocation()
+        retryTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(delay))
+            } catch {
+                return // cancelled: torn down, or a manual reconnect took over
+            }
+            self?.reconnect()
+        }
+    }
+
+    /// Starts a fresh-URL attempt now (Reconnect button, camera back online,
+    /// or the backoff elapsing). The backoff keeps its place until a frame paints.
+    private func reconnect() {
+        retryTask?.cancel()
+        retryTask = nil
+        guard streamTask == nil else { return }
+        if connectedQuality != nil {
+            client.disconnect()
+            releaseAllocation()
+        }
+        startStream()
+    }
+
+    private func streamRecovered() {
+        recovery.recovered()
+        streamState.isFailed = false
+        streamState.reason = nil
+    }
+
+    private func releaseAllocation() {
+        guard let quality = connectedQuality else { return }
+        connectedQuality = nil
+        service?.releasePinnedStream(for: cameraId, quality: quality)
     }
 
     // MARK: Aspect ratio
@@ -313,12 +396,24 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
 
 // MARK: - View
 
+/// A pinned window's stream failure, published by its controller so the view
+/// can show why the feed is gone while the next fresh-URL attempt is pending.
+@MainActor
+final class PinnedStreamState: ObservableObject {
+    /// True between a failure and the next attempt.
+    @Published var isFailed = false
+    /// The client's reason, when it gave one (nil when the URL POST failed).
+    @Published var reason: String?
+}
+
 /// The contents of a pinned floating window: the live feed plus hover chrome
 /// (camera name, mute, snapshot, close). Reuses `ProtectStreamView` for display
 /// and `AuroraFocusIconButton` for the controls.
 struct PinnedCameraView: View {
     @ObservedObject var client: RTSPClient
+    @ObservedObject var stream: PinnedStreamState
     let cameraName: String
+    let onReconnect: () -> Void
     let onClose: () -> Void
 
     @State private var hover = false
@@ -329,11 +424,18 @@ struct PinnedCameraView: View {
         ZStack {
             Color.black
             ProtectStreamView(displayLayer: client.displayLayer, videoGravity: .resizeAspect)
+            // Drag anywhere outside the controls to move the window.
+            WindowDragArea()
 
             if !client.hasFrame {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.white)
+                if stream.isFailed {
+                    failedOverlay
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white)
+                        .allowsHitTesting(false)
+                }
             }
 
             chrome
@@ -363,6 +465,37 @@ struct PinnedCameraView: View {
         )
         .onHover { hover = $0 }
         .preferredColorScheme(.dark)
+    }
+
+    /// Shown between recovery attempts. Only the button takes clicks, so the
+    /// window can still be dragged from anywhere else.
+    private var failedOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.45)
+                .allowsHitTesting(false)
+            VStack(spacing: 6) {
+                Group {
+                    Image(systemName: "xmark.octagon")
+                        .font(.system(size: 18))
+                        .foregroundColor(AuroraTokens.statusRed)
+                    Text("Stream unavailable")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .allowsHitTesting(false)
+                Button("Reconnect", action: onReconnect)
+                    .buttonStyle(AuroraStatePillButtonStyle(primary: true))
+                if let reason = stream.reason {
+                    Text(reason)
+                        .font(.system(size: 9.5, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .padding(.horizontal, 8)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
     }
 
     private var chrome: some View {
@@ -427,6 +560,39 @@ struct PinnedCameraView: View {
             if gen == toastGen { withAnimation(.easeInOut(duration: 0.3)) { toast = nil } }
         }
     }
+}
+
+// MARK: - Window drag
+
+/// Borderless panel that moves when dragged by its video. The move starts here,
+/// before the event reaches SwiftUI: `isMovableByWindowBackground` gets no
+/// background drags through the hosting view on macOS 27, and a view's own
+/// `mouseDown` isn't reliable either — the hosting view swallowed about a
+/// third of the clicks that hit-tested to `WindowDragNSView`.
+private final class PinnedPanel: NSPanel {
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown, let content = contentView,
+           content.hitTest(content.convert(event.locationInWindow, from: nil)) is WindowDragNSView {
+            performDrag(with: event)
+            return
+        }
+        super.sendEvent(event)
+    }
+}
+
+/// Marks where a drag moves the window: everywhere over the video that the
+/// controls and the resize grip don't cover (they sit above it and win the
+/// hit test).
+private struct WindowDragArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { WindowDragNSView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class WindowDragNSView: NSView {
+    // `PinnedPanel` starts the drag; don't let AppKit start a second one.
+    override var mouseDownCanMoveWindow: Bool { false }
+    // The pinned panel is non-activating; accept the first click without focus.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 // MARK: - Resize grip

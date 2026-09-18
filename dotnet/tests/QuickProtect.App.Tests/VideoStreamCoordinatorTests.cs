@@ -10,9 +10,12 @@ namespace QuickProtect.App.Tests;
 /// Drives <see cref="VideoStreamCoordinator"/> against a scripted
 /// <see cref="IStreamAllocator"/>: which allocations it asks the controller
 /// for, in what order, and when it releases them. The real
-/// <see cref="VideoStreamClient"/> is used but never decodes anything — the
-/// FFmpeg engine is not initialised, so its session thread fails fast and
-/// backs off, which is exactly what an unreachable camera looks like.
+/// <see cref="VideoStreamClient"/> is used, but its session is replaced by one
+/// that ends at once, so the client backs off and reconnects the way it does
+/// against an unreachable camera. The session must not reach FFmpeg: once
+/// another test class has initialised the process-wide engine, FFmpeg would
+/// try to resolve the fake host, and on Windows that lookup blocks for seconds
+/// (it can't be interrupted), outlasting every wait below.
 /// </summary>
 public class VideoStreamCoordinatorTests
 {
@@ -24,6 +27,10 @@ public class VideoStreamCoordinatorTests
     }
 
     private static Camera Cam(string id) => new() { Id = id, Name = id };
+
+    /// <summary>A coordinator whose clients never open FFmpeg (a broken stream: ended, not refused).</summary>
+    private static VideoStreamCoordinator Coord(IStreamAllocator svc)
+        => new(svc) { ClientFactory = static () => new VideoStreamClient { SessionOverride = static _ => false } };
 
     /// <summary>Scripted allocator: records calls, answers per quality, can hold a request.</summary>
     private sealed class FakeAllocator : IStreamAllocator
@@ -71,7 +78,7 @@ public class VideoStreamCoordinatorTests
     public async Task First_consumer_allocates_at_its_desired_quality()
     {
         var svc = new FakeAllocator();
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         using var handle = coord.Acquire(Cam("a"), "medium");
 
@@ -83,7 +90,7 @@ public class VideoStreamCoordinatorTests
     public async Task Second_consumer_at_higher_quality_upgrades_immediately_and_releases_old_after_handover()
     {
         var svc = new FakeAllocator();
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         using var grid = coord.Acquire(Cam("a"), "medium");
         Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
@@ -105,7 +112,7 @@ public class VideoStreamCoordinatorTests
     public async Task Downgrade_waits_for_the_settle_window()
     {
         var svc = new FakeAllocator();
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         using var grid = coord.Acquire(Cam("a"), "medium");
         var focus = coord.Acquire(Cam("a"), "high");
@@ -123,7 +130,7 @@ public class VideoStreamCoordinatorTests
     public async Task Last_consumer_release_frees_the_allocation_and_stops_the_client_but_keeps_the_entry()
     {
         var svc = new FakeAllocator();
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         var handle = coord.Acquire(Cam("a"), "medium");
         Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
@@ -143,7 +150,7 @@ public class VideoStreamCoordinatorTests
     {
         var svc = new FakeAllocator();
         svc.Grants["medium"] = null;
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         using var handle = coord.Acquire(Cam("a"), "medium");
         Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
@@ -163,7 +170,7 @@ public class VideoStreamCoordinatorTests
     public async Task Allocation_that_completes_after_the_panel_closed_is_released_not_adopted()
     {
         var svc = new FakeAllocator { Gate = new TaskCompletionSource() };
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         var handle = coord.Acquire(Cam("a"), "medium");
         Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
@@ -181,7 +188,7 @@ public class VideoStreamCoordinatorTests
     public async Task Desire_that_changes_mid_switch_is_applied_afterwards()
     {
         var svc = new FakeAllocator { Gate = new TaskCompletionSource() };
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         using var handle = coord.Acquire(Cam("a"), "medium");
         Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
@@ -199,7 +206,7 @@ public class VideoStreamCoordinatorTests
     {
         var svc = new FakeAllocator();
         svc.Grants["high"] = "low"; // camera has no high substream
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         var handle = coord.Acquire(Cam("a"), "high");
         Assert.True(await svc.WaitFor(c => c.Contains("create a high")));
@@ -217,7 +224,7 @@ public class VideoStreamCoordinatorTests
     public async Task Pinned_streams_use_the_pinned_allocation_and_survive_panel_close()
     {
         var svc = new FakeAllocator();
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         using var grid = coord.Acquire(Cam("a"), "medium");
         using var pinned = coord.Acquire(Cam("a"), "high", pinned: true);
@@ -237,7 +244,7 @@ public class VideoStreamCoordinatorTests
     public async Task Lenses_are_independent_streams()
     {
         var svc = new FakeAllocator();
-        using var coord = new VideoStreamCoordinator(svc);
+        using var coord = Coord(svc);
 
         using var main = coord.Acquire(Cam("door"), "medium");
         using var package = coord.Acquire(Cam("door"), "package", lens: "package");
@@ -253,7 +260,7 @@ public class VideoStreamCoordinatorTests
     public async Task Dispose_releases_every_allocation()
     {
         var svc = new FakeAllocator();
-        var coord = new VideoStreamCoordinator(svc);
+        var coord = Coord(svc);
         var a = coord.Acquire(Cam("a"), "medium");
         var b = coord.Acquire(Cam("b"), "high", pinned: true);
         Assert.True(await svc.WaitFor(c => c.Contains("create a medium") && c.Contains("create-pinned b high")));
@@ -262,5 +269,54 @@ public class VideoStreamCoordinatorTests
         Assert.True(await svc.WaitFor(c => c.Contains("release a medium") && c.Contains("release-pinned b high")));
         Assert.Equal(VideoState.Idle, a.Client.State);
         Assert.Equal(VideoState.Idle, b.Client.State);
+    }
+
+    [Fact]
+    public async Task Lost_allocation_is_allocated_again_without_a_release()
+    {
+        var svc = new FakeAllocator();
+        using var coord = Coord(svc);
+        using var pin = coord.Acquire(Cam("a"), "high", pinned: true);
+        Assert.True(await svc.WaitFor(c => c.Contains("create-pinned a high")));
+
+        pin.Client.RaiseAllocationLostForTest();
+
+        Assert.True(await svc.WaitFor(c => c.Count(x => x == "create-pinned a high") == 2));
+        // Releasing would delete the URL for every other consumer of it.
+        Assert.DoesNotContain("release-pinned a high", svc.Snapshot());
+    }
+
+    [Fact]
+    public async Task Repeated_allocation_loss_is_rate_limited()
+    {
+        var svc = new FakeAllocator();
+        using var coord = Coord(svc);
+        using var handle = coord.Acquire(Cam("a"), "medium");
+        Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
+
+        handle.Client.RaiseAllocationLostForTest();
+        Assert.True(await svc.WaitFor(c => c.Count(x => x == "create a medium") == 2));
+        handle.Client.RaiseAllocationLostForTest();
+        handle.Client.RaiseAllocationLostForTest();
+
+        await Task.Delay(300);
+        Assert.Equal(2, svc.Snapshot().Count(x => x == "create a medium"));
+    }
+
+    [Fact]
+    public async Task Allocation_loss_after_the_last_consumer_left_allocates_nothing()
+    {
+        var svc = new FakeAllocator();
+        using var coord = Coord(svc);
+        var handle = coord.Acquire(Cam("a"), "medium");
+        Assert.True(await svc.WaitFor(c => c.Contains("create a medium")));
+        var client = handle.Client;
+        handle.Dispose();
+        Assert.True(await svc.WaitFor(c => c.Contains("release a medium")));
+
+        client.RaiseAllocationLostForTest();
+
+        await Task.Delay(300);
+        Assert.Single(svc.Snapshot(), x => x == "create a medium");
     }
 }

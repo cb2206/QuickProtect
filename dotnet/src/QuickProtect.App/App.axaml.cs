@@ -82,6 +82,11 @@ public partial class App : Application
 
         SetupTray();
 
+        // Before the hotkey registers with the portal, which only accepts the
+        // app id once a quickprotect.desktop is installed.
+        if (OperatingSystem.IsLinux())
+            LinuxDesktopEntries.EnsureUsable();
+
         // Global hotkey toggles the panel; re-applied whenever the binding changes.
         _hotkey = GlobalHotkeyFactory.Create(ToggleMainWindow);
         ApplyHotkey();
@@ -153,10 +158,6 @@ public partial class App : Application
         };
         // Left-click opens the camera panel (right-click shows the menu natively).
         _tray.Clicked += (_, _) => ToggleMainWindow();
-
-        // Avalonia publishes an invalid StatusNotifierItem status, which makes
-        // spec-compliant hosts hide the icon entirely.
-        if (OperatingSystem.IsLinux()) LinuxTrayStatus.KeepActive(_tray);
     }
 
     /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>
@@ -369,8 +370,13 @@ public partial class App : Application
         PinnedWindows.CloseAll();
         Streams.Dispose();
         // Give the DELETEs a moment to reach the controller before the
-        // HttpClient goes away with them; bounded so quit never hangs.
-        var released = Task.WhenAll(Service.CleanupStreams(), Service.CleanupPinnedStreams());
+        // HttpClient goes away with them; bounded so quit never hangs. Closing
+        // the pinned windows and disposing the coordinator above already sent
+        // most of them fire-and-forget, so wait on everything in flight, not
+        // just what the cleanup calls still found.
+        Service.CleanupStreams();
+        Service.CleanupPinnedStreams();
+        var released = Service.ReleasesSettled();
         try { released.Wait(TimeSpan.FromSeconds(2)); } catch { /* best effort on exit */ }
         Service.Dispose();
         Video.FfmpegEngine.Tunnel?.Dispose();

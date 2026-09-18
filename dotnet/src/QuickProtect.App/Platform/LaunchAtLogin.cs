@@ -64,7 +64,7 @@ public sealed class WindowsLaunchAtLogin : ILaunchAtLogin
 [SupportedOSPlatform("linux")]
 public sealed class LinuxLaunchAtLogin : ILaunchAtLogin
 {
-    private static string AutostartFile
+    internal static string AutostartFile
     {
         get
         {

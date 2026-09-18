@@ -51,7 +51,7 @@ public static class SnapshotService
             {
                 var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
                     SnapshotNaming.FileName(tile.Name, DateTime.Now));
-                bmp.Save(tmp);
+                bmp.Save(tmp, PngBitmapEncoderOptions.Default);
                 var copied = ImageClipboard.TrySetPng(tmp);
                 try { File.Delete(tmp); } catch { /* temp file; best effort */ }
                 return copied
@@ -62,7 +62,7 @@ public static class SnapshotService
             var dir = ResolveFolder();
             Directory.CreateDirectory(dir);
             var path = System.IO.Path.Combine(dir, SnapshotNaming.FileName(tile.Name, DateTime.Now));
-            bmp.Save(path);
+            bmp.Save(path, PngBitmapEncoderOptions.Default);
             return new Result(true, path, $"{Localization.Loc.Get("Saved")} {System.IO.Path.GetFileName(path)}");
         }
         catch (Exception ex)

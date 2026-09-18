@@ -3,49 +3,59 @@
         xmlns:video="clr-namespace:QuickProtect.App.Video"
         xmlns:vm="clr-namespace:QuickProtect.App.ViewModels"
         xmlns:loc="clr-namespace:QuickProtect.App.Localization"
+        xmlns:views="clr-namespace:QuickProtect.App.Views"
         x:Class="QuickProtect.App.Views.PinnedCameraWindow"
         x:DataType="vm:CameraTileViewModel"
         Title="QuickProtect"
         Width="360" Height="203"
-        MinWidth="200" MinHeight="120"
         Topmost="True"
         ShowInTaskbar="False"
-        SystemDecorations="None"
+        WindowDecorations="None"
         Background="{DynamicResource QpVideoBg}"
         CanResize="True">
 
   <!-- The whole pinned window is a video surface: pinned to the Dark variant like macOS. -->
   <ThemeVariantScope RequestedThemeVariant="Dark">
-    <DockPanel>
-      <!-- Drag handle + controls, docked above the video surface. -->
-      <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Header_Drag" Name="Header">
-        <Grid ColumnDefinitions="*,Auto,Auto" Margin="8,4">
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
-                       IsVisible="{Binding IsOnline}" />
-            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontSize="11" />
-          </StackPanel>
-          <!-- Window-local mute (starts muted; does not touch the global speaker setting) -->
-          <Button Grid.Column="1" Click="Mute_Click" IsVisible="{Binding HasAudio}"
-                  Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
-                  Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Toggle audio'}">
-            <Panel>
-              <TextBlock Text="🔊" IsVisible="{Binding !IsMuted}" />
-              <TextBlock Text="🔇" IsVisible="{Binding IsMuted}" />
-            </Panel>
-          </Button>
-          <Button Grid.Column="2" Content="✕" Click="Unpin_Click"
-                  Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
-                  Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Unpin'}" />
-        </Grid>
-      </Border>
+    <Panel>
+      <DockPanel>
+        <!-- Drag handle + controls, docked above the video surface. -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource QpChip}" PointerPressed="Move_Drag" Name="Header">
+          <Grid ColumnDefinitions="*,Auto,Auto" Margin="8,4">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
+                         IsVisible="{Binding IsOnline}" />
+              <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontSize="11" />
+            </StackPanel>
+            <!-- Window-local mute (starts muted; does not touch the global speaker setting) -->
+            <Button Grid.Column="1" Click="Mute_Click" IsVisible="{Binding HasAudio}"
+                    Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
+                    Padding="6,0" FontSize="11" ToolTip.Tip="{loc:Loc 'Toggle audio'}">
+              <Panel>
+                <PathIcon Data="{StaticResource Icon.Speaker}" Width="12" Height="12" IsVisible="{Binding !IsMuted}" />
+                <PathIcon Data="{StaticResource Icon.SpeakerMuted}" Width="12" Height="12" IsVisible="{Binding IsMuted}" />
+              </Panel>
+            </Button>
+            <Button Grid.Column="2" Click="Unpin_Click"
+                    Background="Transparent" Foreground="{DynamicResource QpTextSecondary}" BorderThickness="0"
+                    Padding="6,0" ToolTip.Tip="{loc:Loc 'Unpin'}">
+              <PathIcon Data="{StaticResource Icon.Close}" Width="10" Height="10" />
+            </Button>
+          </Grid>
+        </Border>
 
-      <Grid>
-        <video:VideoSurface Source="{Binding Client}" Fill="True" />
-        <ProgressBar IsIndeterminate="True" Width="50" Height="4"
-                     HorizontalAlignment="Center" VerticalAlignment="Center"
-                     IsVisible="{Binding IsLoading}" />
-      </Grid>
-    </DockPanel>
+        <!-- Dragging the video moves the window too, like the macOS pinned window.
+             The transparent background makes the whole area hit-testable. -->
+        <Grid Background="Transparent" PointerPressed="Move_Drag">
+          <video:VideoSurface Source="{Binding Client}" Fill="True" />
+          <ProgressBar IsIndeterminate="True" Width="50" Height="4"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding IsLoading}" />
+        </Grid>
+      </DockPanel>
+
+      <!-- Resize handles for the borderless window. No top/bottom edges: the
+           height follows the width to keep the camera's aspect ratio. -->
+      <views:ResizeGrips VerticalEdges="False" />
+    </Panel>
   </ThemeVariantScope>
 </Window>

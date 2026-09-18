@@ -1,6 +1,6 @@
 # Windows/Linux port — current state
 
-Cross-platform .NET 8 + Avalonia reimplementation of the macOS QuickProtect
+Cross-platform .NET 10 + Avalonia reimplementation of the macOS QuickProtect
 app, living in `dotnet/`. Work happens directly on `dev`; releases are tagged
 from `main` (see the repo README for the branch flow).
 
@@ -88,7 +88,7 @@ dotnet restore QuickProtect.sln --locked-mode  # what CI runs
 dotnet format QuickProtect.sln --verify-no-changes
 dotnet test QuickProtect.sln                   # warnings are errors, analyzers on
 powershell -File scripts/package-windows.ps1   # → dist/QuickProtect-Setup-<v>-win-x64.exe
-scripts/package-linux.sh                       # → dist/QuickProtect-<v>-linux-x64.tar.gz
+scripts/package-linux.sh [--rid <rid>]         # → dist/QuickProtect-<v>-<linux-x64|linux-arm64>.tar.gz
 ```
 
 Every published build carries `LICENSE` and `THIRD-PARTY-NOTICES.txt` (FFmpeg

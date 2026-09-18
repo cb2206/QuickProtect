@@ -22,26 +22,55 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
     private const string DesktopPath = "/org/freedesktop/portal/desktop";
     private const string ShortcutsIface = "org.freedesktop.portal.GlobalShortcuts";
     private const string ShortcutId = "toggle-panel";
+    /// <summary>
+    /// Our desktop-entry id (quickprotect.desktop, shipped in the Linux tarball).
+    /// Declared to the portal so the shortcut is always "quickprotect:toggle-panel",
+    /// however the app was launched — see <see cref="RegisterAppIdAsync"/>.
+    /// </summary>
+    internal const string AppId = "quickprotect";
 
     private readonly Action _onTriggered;
+    // Injected only by the tests (see the internal constructor); production uses
+    // the session bus, Avalonia's UI thread and the shared log.
+    private readonly string? _busAddress;
+    private readonly Action<Action> _dispatch;
+    private readonly Action<string> _log;
     // Serializes UpdateAsync runs; _generation lets a newer Update supersede a
     // stalled one (e.g. the user re-records while a bind dialog sits unanswered).
     private readonly SemaphoreSlim _gate = new(1, 1);
-    // Our own bus connection (the shared Connection.Session forbids explicit
-    // ConnectAsync); the portal reaps the session when this connection drops.
-    private Connection? _conn;
+    // Our own bus connection: we need an explicit ConnectAsync, and
+    // the portal reaps the session when this connection drops.
+    private DBusConnection? _conn;
     private int _generation;
     private string? _sessionHandle;
     private IDisposable? _activatedMatch;
     private TaskCompletionSource<(uint Code, Dictionary<string, VariantValue> Results)>? _pending;
 
-    public PortalGlobalHotkey(Action onTriggered) => _onTriggered = onTriggered;
+    public PortalGlobalHotkey(Action onTriggered)
+        : this(onTriggered, busAddress: null, dispatch: static action => Dispatcher.UIThread.Post(action), log: Log.Line)
+    {
+    }
+
+    /// <summary>
+    /// Test seam: a private bus instead of the session bus, a dispatch that does
+    /// not need a running Avalonia UI thread, and a log sink to assert on.
+    /// </summary>
+    internal PortalGlobalHotkey(Action onTriggered, string? busAddress, Action<Action> dispatch, Action<string> log)
+    {
+        _onTriggered = onTriggered;
+        _busAddress = busAddress;
+        _dispatch = dispatch;
+        _log = log;
+    }
+
+    /// <summary>The most recent Update's portal exchange, so tests can await it.</summary>
+    internal Task LastUpdate { get; private set; } = Task.CompletedTask;
 
     public bool Update(int? keyCode, int? modifiers)
     {
         var gen = Interlocked.Increment(ref _generation);
         _pending?.TrySetCanceled();
-        _ = Task.Run(() => UpdateAsync(gen, keyCode, modifiers));
+        LastUpdate = Task.Run(() => UpdateAsync(gen, keyCode, modifiers));
         // The compositor owns the binding and answers asynchronously (possibly
         // via a consent dialog); the granted trigger is logged when it arrives.
         return true;
@@ -58,8 +87,10 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
 
             if (_conn is null)
             {
-                _conn = new Connection(Address.Session!);
+                _conn = new DBusConnection(_busAddress ?? DBusAddress.Session!);
                 await _conn.ConnectAsync();
+                // Must precede every other portal call on this connection.
+                await RegisterAppIdAsync(_conn);
             }
             var conn = _conn;
 
@@ -69,7 +100,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
                 conn, CreateSessionMessage(conn, sessionToken), sessionToken);
             if (code != 0 || !results.TryGetValue("session_handle", out var handle))
             {
-                Log.Line($"[Hotkey] portal CreateSession failed (response {code}).");
+                _log($"[Hotkey] portal CreateSession failed (response {code}).");
                 return;
             }
             _sessionHandle = AsPath(handle);
@@ -89,12 +120,15 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
                     var r = m.GetBodyReader();
                     return (Session: r.ReadObjectPath().ToString(), Id: r.ReadString());
                 },
-                (ex, a, _, _) =>
+                // Handlers must not throw: Tmds disconnects the whole connection if
+                // one does. Notification.Exception throws unless IsCompletion, so
+                // branch on HasValue/IsCompletion and never touch Exception first.
+                n =>
                 {
-                    if (ex is null && a.Session == _sessionHandle && a.Id == ShortcutId)
-                        Dispatcher.UIThread.Post(_onTriggered);
+                    if (n.HasValue && n.Value.Session == _sessionHandle && n.Value.Id == ShortcutId)
+                        _dispatch(_onTriggered);
                 },
-                ObserverFlags.None);
+                flags: ObserverFlags.None);
 
             // 3. BindShortcuts — the compositor may show a one-time consent
             // dialog; the response reports the trigger it actually granted.
@@ -105,11 +139,11 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
             if (bindCode != 0)
             {
                 // 1 = the user dismissed the consent dialog, 2 = other failure.
-                Log.Line($"[Hotkey] portal BindShortcuts declined (response {bindCode}).");
+                _log($"[Hotkey] portal BindShortcuts declined (response {bindCode}).");
                 await CloseSessionAsync();
                 return;
             }
-            Log.Line($"[Hotkey] bound via portal: {DescribeBoundTrigger(bindResults)}");
+            _log($"[Hotkey] bound via portal: {DescribeBoundTrigger(bindResults)}");
         }
         catch (OperationCanceledException)
         {
@@ -117,7 +151,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         }
         catch (Exception e)
         {
-            Log.Line($"[Hotkey] portal GlobalShortcuts unavailable — global hotkey disabled ({e.Message}).");
+            _log($"[Hotkey] portal GlobalShortcuts unavailable — global hotkey disabled ({e.Message}).");
         }
         finally
         {
@@ -125,7 +159,44 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         }
     }
 
-    private static MessageBuffer CreateSessionMessage(Connection conn, string handleToken)
+    /// <summary>
+    /// Tells the portal which app this unsandboxed connection belongs to. Without
+    /// it the portal infers the id from the launching process's scope, so the
+    /// shortcut id changes with how QuickProtect was started — launched from a
+    /// terminal it belongs to the terminal — and a compositor bind written against
+    /// one id (Hyprland needs one: it registers portal shortcuts but never assigns
+    /// keys) silently stops matching after the next launch.
+    ///
+    /// The portal only accepts an id it can resolve to an installed desktop entry,
+    /// so a checkout run without quickprotect.desktop installed gets refused. That
+    /// is not fatal: the portal falls back to its own inference, as before.
+    /// </summary>
+    private async Task RegisterAppIdAsync(DBusConnection conn)
+    {
+        try
+        {
+            await conn.CallMethodAsync(RegisterAppIdMessage(conn));
+            _log($"[Hotkey] registered with the portal as \"{AppId}\" — shortcut id \"{AppId}:{ShortcutId}\"");
+        }
+        catch (DBusErrorReplyException e)
+        {
+            _log($"[Hotkey] portal did not accept app id \"{AppId}\" ({e.ErrorMessage}); the shortcut id will " +
+                     $"depend on how QuickProtect was launched. Installing {AppId}.desktop into " +
+                     "~/.local/share/applications makes it stable.");
+        }
+    }
+
+    private static MessageBuffer RegisterAppIdMessage(DBusConnection conn)
+    {
+        using var w = conn.GetMessageWriter();
+        w.WriteMethodCallHeader(destination: Service, path: DesktopPath,
+            @interface: "org.freedesktop.host.portal.Registry", member: "Register", signature: "sa{sv}");
+        w.WriteString(AppId);
+        w.WriteDictionary(new Dictionary<string, VariantValue>());
+        return w.CreateMessage();
+    }
+
+    private static MessageBuffer CreateSessionMessage(DBusConnection conn, string handleToken)
     {
         using var w = conn.GetMessageWriter();
         w.WriteMethodCallHeader(destination: Service, path: DesktopPath,
@@ -139,7 +210,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
     }
 
     private static MessageBuffer BindShortcutsMessage(
-        Connection conn, string session, string trigger, string handleToken)
+        DBusConnection conn, string session, string trigger, string handleToken)
     {
         using var w = conn.GetMessageWriter();
         w.WriteMethodCallHeader(destination: Service, path: DesktopPath,
@@ -159,7 +230,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         return w.CreateMessage();
     }
 
-    private static MessageBuffer CloseSessionMessage(Connection conn, string session)
+    private static MessageBuffer CloseSessionMessage(DBusConnection conn, string session)
     {
         using var w = conn.GetMessageWriter();
         w.WriteMethodCallHeader(destination: Service, path: session,
@@ -173,7 +244,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
     /// before sending (the portal-documented way to avoid the reply race).
     /// </summary>
     private async Task<(uint Code, Dictionary<string, VariantValue> Results)> PortalRequestAsync(
-        Connection conn, MessageBuffer call, string handleToken)
+        DBusConnection conn, MessageBuffer call, string handleToken)
     {
         var sender = conn.UniqueName![1..].Replace('.', '_');
         var requestPath = $"{DesktopPath}/request/{sender}/{handleToken}";
@@ -194,16 +265,16 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
                 var r = m.GetBodyReader();
                 return (r.ReadUInt32(), r.ReadDictionaryOfStringToVariantValue());
             },
-            (ex, arg, _, _) =>
+            n =>
             {
-                if (ex is null) tcs.TrySetResult(arg);
-                else tcs.TrySetException(ex);
+                if (n.IsCompletion) tcs.TrySetException(n.Exception);
+                else tcs.TrySetResult(n.Value);
             },
-            ObserverFlags.None);
+            flags: ObserverFlags.None);
         var returned = await conn.CallMethodAsync(call,
             static (m, _) => m.GetBodyReader().ReadObjectPath().ToString(), null);
         if (returned != requestPath)
-            Log.Line($"[Hotkey] portal returned a legacy request path ({returned}) — response may be missed.");
+            _log($"[Hotkey] portal returned a legacy request path ({returned}) — response may be missed.");
         try
         {
             return await tcs.Task;
@@ -227,7 +298,7 @@ public sealed class PortalGlobalHotkey : IGlobalHotkey
         catch (Exception e)
         {
             // Best-effort: the portal also reaps sessions when we disconnect.
-            Log.Line($"[Hotkey] portal session close: {e.Message}");
+            _log($"[Hotkey] portal session close: {e.Message}");
         }
     }
 

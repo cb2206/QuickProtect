@@ -23,37 +23,37 @@
                  Background="Transparent">
           <ListBoxItem>
             <StackPanel Orientation="Horizontal" Spacing="9">
-              <TextBlock Text="⚙" Classes="sideIcon" />
+              <PathIcon Data="{StaticResource Icon.Gear}" Classes="sideIcon" />
               <TextBlock Text="{loc:Loc 'General'}" Classes="sideLabel" />
             </StackPanel>
           </ListBoxItem>
           <ListBoxItem>
             <StackPanel Orientation="Horizontal" Spacing="9">
-              <TextBlock Text="⇄" Classes="sideIcon" />
+              <PathIcon Data="{StaticResource Icon.Swap}" Classes="sideIcon" />
               <TextBlock Text="{loc:Loc 'Connection'}" Classes="sideLabel" />
             </StackPanel>
           </ListBoxItem>
           <ListBoxItem>
             <StackPanel Orientation="Horizontal" Spacing="9">
-              <TextBlock Text="✛" Classes="sideIcon" />
+              <PathIcon Data="{StaticResource Icon.Move}" Classes="sideIcon" />
               <TextBlock Text="{loc:Loc 'PTZ'}" Classes="sideLabel" />
             </StackPanel>
           </ListBoxItem>
           <ListBoxItem>
             <StackPanel Orientation="Horizontal" Spacing="9">
-              <TextBlock Text="▦" Classes="sideIcon" />
+              <PathIcon Data="{StaticResource Icon.Grid}" Classes="sideIcon" />
               <TextBlock Text="{loc:Loc 'Cameras'}" Classes="sideLabel" />
             </StackPanel>
           </ListBoxItem>
           <ListBoxItem>
             <StackPanel Orientation="Horizontal" Spacing="9">
-              <TextBlock Text="⌨" Classes="sideIcon" />
+              <PathIcon Data="{StaticResource Icon.Keyboard}" Classes="sideIcon" />
               <TextBlock Text="{loc:Loc 'Shortcuts'}" Classes="sideLabel" />
             </StackPanel>
           </ListBoxItem>
           <ListBoxItem>
             <StackPanel Orientation="Horizontal" Spacing="9">
-              <TextBlock Text="⤓" Classes="sideIcon" />
+              <PathIcon Data="{StaticResource Icon.Download}" Classes="sideIcon" />
               <TextBlock Text="{loc:Loc 'Updates'}" Classes="sideLabel" />
             </StackPanel>
           </ListBoxItem>
@@ -224,7 +224,7 @@
                       <TextBlock Text="{loc:Loc 'Local IP of your UniFi Protect controller'}" Classes="rowHint" />
                     </StackPanel>
                     <TextBox Grid.Column="1" Text="{Binding IpAddress, UpdateSourceTrigger=LostFocus}"
-                             Watermark="192.168.1.1" Width="240" VerticalAlignment="Center" />
+                             PlaceholderText="192.168.1.1" Width="240" VerticalAlignment="Center" />
                   </Grid>
                   <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
@@ -359,7 +359,7 @@
                   <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="*,Auto,Auto">
                     <TextBox Grid.Column="0" Text="{Binding Layout.NewProfileName}"
-                             Watermark="{loc:Loc 'New profile name'}" MaxWidth="240" HorizontalAlignment="Left" />
+                             PlaceholderText="{loc:Loc 'New profile name'}" MaxWidth="240" HorizontalAlignment="Left" />
                     <Button Grid.Column="1" Content="{loc:Loc 'Create'}" Command="{Binding Layout.CreateProfileCommand}"
                             Margin="0,0,8,0" />
                     <Button Grid.Column="2" Content="{loc:Loc 'Rename'}" Command="{Binding Layout.RenameProfileCommand}" />
@@ -572,11 +572,11 @@
       <Setter Property="Margin" Value="0,1" />
       <Setter Property="CornerRadius" Value="6" />
     </Style>
-    <Style Selector="TextBlock.sideIcon">
+    <Style Selector="PathIcon.sideIcon">
       <Setter Property="Foreground" Value="{DynamicResource QpTextSecondary}" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Width" Value="18" />
-      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+      <Setter Property="Margin" Value="2,0" />
       <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
     <Style Selector="TextBlock.sideLabel">

@@ -70,6 +70,11 @@ port (`dotnet/`).
   `PtzBurstTimer` in Core, unit-tested).
 - **Pinned always-on-top windows** — borderless, top-most, draggable, aspect-locked
   resize, frame persistence, restore-on-launch, independent pinned allocation.
+  The controller shares one allocation per camera + quality between the panel
+  and a pin, so both apps release through a ledger (`StreamAllocationLedger`,
+  unit-tested on both sides): no DELETE while the other owner holds the key or
+  a creation for it is in flight; a release racing a creation is sent only if
+  that creation fails.
 - **Snapshots** — clipboard (Win32 CF_DIB+PNG / wl-copy / xclip / osascript) or
   folder, honoring the destination setting; captures the latest decoded frame
   straight from the video engine.
@@ -149,12 +154,19 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 | About tab | separate sidebar tab | About card on the Updates section | six sections fit the window; split it out if it grows |
 | Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
+| Lost stream URL (allocation deleted by another client) | a tile shows the failure with a Reconnect button and does not retry on its own; a pinned window retries: on any client error (connection failed, RTSP 404, receive error) or failed POST it releases its allocation, shows the failure with Reconnect, and POSTs a fresh URL after 5 s doubling to 60 s (reset once a frame paints; first retry waits 5 s) | after 3 consecutive open failures the coordinator re-POSTs the same quality immediately, then 5 s doubling to 60 s (reset once playing), for tiles and pinned windows alike | the FFmpeg client retries its URL on its own, so it needs the re-POST to escape a deleted URL; macOS `RTSPClient` never retries a URL, so the first error is the failure signal. Tiles stay manual because every popover reopen, quality switch or Reconnect already POSTs a fresh URL |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
 
 ## Platform notes (Linux)
 
 - Video needs the FFmpeg 9.0 natives (`scripts/get-ffmpeg.sh`, fetched into
   gitignored `native/`) or a matching system FFmpeg (9.x / `libavcodec.so.63`).
+- **glibc 2.27+** (Ubuntu 18.04 / Debian 10 / RHEL 8 and newer), measured on
+  the published payload. Two things land on exactly 2.27: SkiaSharp 3's
+  `libSkiaSharp.so` (Avalonia 12 raised it from 2.17) and .NET 10's
+  `libcoreclr.so`. Everything that drops off is already EOL, and the FFmpeg 9
+  requirement above is the stricter constraint in practice.
+  `libfontconfig.so.1` is still the only linked system dependency beyond libc.
 - The rtsps TLS tunnel works unchanged on Linux (pure .NET sockets).
 - Tray icons need StatusNotifierItem/appindicator support (GNOME may need an
   extension) — without a tray, add a `--open-panel` desktop entry as fallback.
@@ -199,7 +211,7 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   winget listing — the Store is the auto-updating channel. One release tag per
   version carries all OS assets:
   `QuickProtect-<ver>.dmg` / `QuickProtect-Setup-<ver>-win-x64.exe` /
-  `QuickProtect-<ver>-linux-x64.tar.gz`.
+  `QuickProtect-<ver>-linux-x64.tar.gz` / `QuickProtect-<ver>-linux-arm64.tar.gz`.
   MSIX packaging: `scripts/package-msix.ps1` +
   `installer/msix/AppxManifest.xml` (committed tile assets); the Partner Center
   identity/publisher values are supplied at package time. Two container
@@ -207,9 +219,9 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   (no change needed), and launch-at-login moves from the `Run` key — virtualised
   away in a package — to the manifest's `windows.startupTask`, which the
   Settings UI surfaces as a pointer to Windows' own switch.
-- **Linux** (decided 2026-08, ships with 1.3.1): GitHub-release tarball
-  (`scripts/package-linux.sh`, self-contained linux-x64 with the FFmpeg 9.0
-  natives bundled, plus a .desktop template + icon) with the in-app
+- **Linux** (decided 2026-08, ships with 1.3.1): GitHub-release tarballs
+  (`scripts/package-linux.sh --rid linux-x64|linux-arm64`, self-contained with
+  the FFmpeg 9.0 natives bundled, plus a .desktop template + icon) with the in-app
   notify-only update check, and an AUR package (`quickprotect-bin`,
   `installer/aur/PKGBUILD`, consumes the tarball). Linux is free-only — there
   is no viable paid Linux store, and unlike winget on Windows the frictionless

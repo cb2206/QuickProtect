@@ -22,6 +22,9 @@ namespace QuickProtect.App.Video;
 ///  • A desire that changes while a switch is in flight is re-resolved once the
 ///    switch completes; a failed allocation (rate limit, unreachable controller)
 ///    is retried with backoff and the tile is told so it can drop its spinner.
+///  • A client whose URL stops opening (the allocation was deleted on the
+///    controller — by another QuickProtect, say) gets a freshly allocated URL,
+///    with backoff until the stream plays again.
 ///
 /// Entry state (<c>ActiveQuality</c>, <c>Switching</c>, <c>Generation</c>) is
 /// only touched under <c>_lock</c>.
@@ -35,8 +38,13 @@ public sealed class VideoStreamCoordinator : IDisposable
     private static readonly TimeSpan DowngradeSettle = TimeSpan.FromMilliseconds(600);
     private static readonly TimeSpan RetryInitial = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan RetryMax = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ReallocateInitial = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ReallocateMax = TimeSpan.FromSeconds(60);
 
     public VideoStreamCoordinator(IStreamAllocator service) => _service = service;
+
+    /// <summary>Creates each camera's client (tests substitute one that never opens FFmpeg).</summary>
+    internal Func<VideoStreamClient> ClientFactory { get; init; } = static () => new VideoStreamClient();
 
     private sealed class Entry
     {
@@ -44,13 +52,15 @@ public sealed class VideoStreamCoordinator : IDisposable
         public required string Key;
         public string? Lens;               // e.g. "package"; null = primary lens
         public bool Pinned;
-        public VideoStreamClient Client { get; } = new();
+        public required VideoStreamClient Client { get; init; }
         public Dictionary<object, string> Desires { get; } = new();
         public string? RequestedQuality;   // tier the coordinator asked for (desires compare to this)
         public string? ActiveQuality;      // tier the controller granted (may be a fallback; released by this name)
         public int Generation;             // invalidates stale delayed switches and retries
         public bool Switching;
         public TimeSpan RetryDelay = RetryInitial;
+        public TimeSpan ReallocateDelay = ReallocateInitial;
+        public DateTime NextReallocate = DateTime.MinValue;
     }
 
     /// <summary>A consumer's claim on a stream. Dispose to release.</summary>
@@ -88,8 +98,19 @@ public sealed class VideoStreamCoordinator : IDisposable
         {
             if (!_entries.TryGetValue(key, out entry!))
             {
-                entry = new Entry { Camera = camera, Key = key, Lens = lens, Pinned = pinned };
+                entry = new Entry { Camera = camera, Key = key, Lens = lens, Pinned = pinned, Client = ClientFactory() };
                 _entries[key] = entry;
+                var created = entry;
+                created.Client.AllocationLost += () => OnAllocationLost(created);
+                created.Client.StateChanged += state =>
+                {
+                    if (state != VideoState.Playing) return;
+                    lock (_lock)
+                    {
+                        created.ReallocateDelay = ReallocateInitial;
+                        created.NextReallocate = DateTime.MinValue;
+                    }
+                };
             }
             entry.Camera = camera; // keep enrichment (PTZ flags, online state) fresh
             handle = new Handle(this) { Key = key, Client = entry.Client };
@@ -288,6 +309,30 @@ public sealed class VideoStreamCoordinator : IDisposable
             // SwitchAsync (Switching was true) — pick it up now.
             if (settled && wantNow != requestedNow) Resolve(entry, immediate: true);
         }
+    }
+
+    /// <summary>
+    /// The client can't open its URL any more: allocate the same quality again
+    /// (the controller answers with a live URL) instead of letting the client
+    /// retry a deleted one forever. Rate-limited per entry so a controller whose
+    /// RTSP side is down doesn't turn every reconnect into a POST.
+    /// </summary>
+    private void OnAllocationLost(Entry entry)
+    {
+        string quality;
+        int gen;
+        lock (_lock)
+        {
+            if (entry.Switching || entry.Desires.Count == 0 || entry.RequestedQuality is not { } requested) return;
+            var now = DateTime.UtcNow;
+            if (now < entry.NextReallocate) return;
+            entry.NextReallocate = now + entry.ReallocateDelay;
+            entry.ReallocateDelay = TimeSpan.FromTicks(Math.Min(entry.ReallocateDelay.Ticks * 2, ReallocateMax.Ticks));
+            quality = requested;
+            gen = ++entry.Generation;
+        }
+        Log.Line($"[Video] {entry.Camera.Name}: stream URL no longer opens; allocating a fresh one");
+        _ = SwitchAsync(entry, quality, gen);
     }
 
     /// <summary>

@@ -177,7 +177,89 @@ final class ProtectServiceTests: XCTestCase {
         XCTAssertEqual(deletes.last?.url?.path, "/proxy/protect/integration/v1/cameras/pinned/rtsps-stream")
     }
 
+    func testPopoverCleanupKeepsAnAllocationAPinnedWindowHolds() async {
+        StubController.respond { _ in (200, Data(#"{"high":"rtsps://192.168.1.10:7441/h"}"#.utf8)) }
+        _ = await service.createRtspStreamURL(for: Self.camera("cam1"), quality: "high")
+        _ = await service.createPinnedStreamURL(for: Self.camera("cam1"), quality: "high")
+
+        service.cleanupStreams()
+        service.waitForStreamReleases(timeout: 5)
+        XCTAssertTrue(Self.deletes.isEmpty, "the pinned window still plays cam1:high")
+
+        service.releasePinnedStream(for: "cam1", quality: "high")
+        service.waitForStreamReleases(timeout: 5)
+        XCTAssertEqual(Self.deletes.map { $0.url?.query }, ["qualities=high"])
+    }
+
+    func testPopoverCleanupRacingAnInFlightPinnedPostDoesNotDelete() async throws {
+        // Pin a camera open in focus with keep-alive off: the panel hides and
+        // cleans up while the pin's POST for the same key is still in flight.
+        let gate = DispatchSemaphore(value: 0)
+        StubController.respond { _ in (200, Data(#"{"high":"rtsps://192.168.1.10:7441/h"}"#.utf8)) }
+        _ = await service.createRtspStreamURL(for: Self.camera("cam1"), quality: "high")
+        StubController.respond { _ in
+            _ = gate.wait(timeout: .now() + 5)
+            return (200, Data(#"{"high":"rtsps://192.168.1.10:7441/h"}"#.utf8))
+        }
+
+        let service = self.service!
+        let pin = Task { await service.createPinnedStreamURL(for: Self.camera("cam1"), quality: "high") }
+        try await Self.waitForPosts(2)
+
+        service.cleanupStreams()
+        service.waitForStreamReleases(timeout: 5)
+        XCTAssertTrue(Self.deletes.isEmpty, "the pin's creation is in flight")
+
+        gate.signal()
+        let pinned = await pin.value
+        service.waitForStreamReleases(timeout: 5)
+        XCTAssertEqual(pinned?.quality, "high")
+        XCTAssertTrue(Self.deletes.isEmpty, "the pin now owns the allocation")
+
+        service.cleanupPinnedStreams()
+        service.waitForStreamReleases(timeout: 5)
+        XCTAssertEqual(Self.deletes.count, 1)
+    }
+
+    func testPopoverReleaseDeferredByAFailedPinnedPostIsSentAfterwards() async throws {
+        let gate = DispatchSemaphore(value: 0)
+        StubController.respond { _ in (200, Data(#"{"high":"rtsps://192.168.1.10:7441/h"}"#.utf8)) }
+        _ = await service.createRtspStreamURL(for: Self.camera("cam1"), quality: "high")
+        StubController.respond { request in
+            guard request.httpMethod == "POST" else { return (200, Data()) }
+            _ = gate.wait(timeout: .now() + 5)
+            return (429, Data())
+        }
+
+        let service = self.service!
+        let pin = Task { await service.createPinnedStreamURL(for: Self.camera("cam1"), quality: "high") }
+        try await Self.waitForPosts(2)
+
+        service.cleanupStreams()
+        service.waitForStreamReleases(timeout: 5)
+        XCTAssertTrue(Self.deletes.isEmpty)
+
+        gate.signal()
+        let pinned = await pin.value
+        service.waitForStreamReleases(timeout: 5)
+        XCTAssertNil(pinned)
+        XCTAssertEqual(Self.deletes.count, 1, "nobody holds cam1:high any more")
+    }
+
     // MARK: - Helpers
+
+    private static var deletes: [URLRequest] {
+        StubController.requests.filter { $0.httpMethod == "DELETE" }
+    }
+
+    /// Yields until the stub has seen `count` POSTs (bounded at ~5 s).
+    private static func waitForPosts(_ count: Int) async throws {
+        for _ in 0..<500 {
+            if StubController.requests.filter({ $0.httpMethod == "POST" }).count >= count { return }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("expected \(count) POSTs")
+    }
 
     private static func camera(_ id: String) -> Camera {
         // swiftlint:disable:next force_try

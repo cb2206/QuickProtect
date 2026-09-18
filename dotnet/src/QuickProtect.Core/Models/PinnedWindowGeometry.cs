@@ -24,6 +24,14 @@ public static class PinnedWindowGeometry
     }
 
     /// <summary>
+    /// Smallest and largest window sizes at <paramref name="aspectRatio"/>: the width
+    /// range with heights that keep the aspect (like the macOS panel's <c>minSize</c>).
+    /// A fixed minimum height would stop a wide camera short of its aspect.
+    /// </summary>
+    public static (Size Min, Size Max) SizeLimits(double aspectRatio)
+        => (Constrain(MinWidth, aspectRatio), Constrain(MaxWidth, aspectRatio));
+
+    /// <summary>
     /// Constrain a proposed size to <paramref name="aspectRatio"/>, driving from
     /// width so a corner drag keeps the camera's proportions. Width is clamped.
     /// </summary>

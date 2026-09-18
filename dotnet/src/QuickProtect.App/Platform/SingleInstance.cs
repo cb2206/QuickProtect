@@ -59,7 +59,12 @@ internal sealed class WindowsSingleInstance : ISingleInstance
     {
         try
         {
-            EventWaitHandle.OpenExisting(SingleInstanceFactory.ChannelName).Set();
+            using var channel = EventWaitHandle.OpenExisting(SingleInstanceFactory.ChannelName);
+            // This launch may take the foreground; the running instance may not.
+            // Pass the right on, or its panel opens behind the current window,
+            // never active, so clicking elsewhere can't dismiss it.
+            AllowSetForegroundWindow(AsfwAny);
+            channel.Set();
             return true;
         }
         catch (WaitHandleCannotBeOpenedException)
@@ -68,6 +73,11 @@ internal sealed class WindowsSingleInstance : ISingleInstance
             return false;
         }
     }
+
+    private const int AsfwAny = -1;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int processId);
 
     public void OnRaiseRequested(Action handler)
     {

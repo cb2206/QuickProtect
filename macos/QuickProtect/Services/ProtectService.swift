@@ -57,65 +57,12 @@ final class ProtectService: NSObject, ObservableObject {
         return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
-    /// Guards `activeStreams` and `pinnedStreams`. They're mutated from the
-    /// continuations of concurrent stream-start `Task`s, which resume on
-    /// arbitrary cooperative-pool threads — without this lock two of them
-    /// racing on the same `Set` corrupts its buffer and segfaults.
-    private let streamsLock = NSLock()
-
-    /// Active server-side RTSP stream allocations keyed as "<cameraId>:<quality>".
-    /// Used to send DELETE requests on cleanup, preventing stale sessions from
-    /// accumulating on the UDM when the panel is closed or the app quits. A
-    /// camera can hold more than one (e.g. a doorbell's main + package lens).
-    /// Access only via the `streamsLock`-guarded helpers below.
-    private var activeStreams: Set<String> = []
-
-    /// Server-side allocations held by pinned floating windows, tracked
-    /// separately from `activeStreams` so the popover's `cleanupStreams()` never
-    /// tears down a pinned window's feed. Released individually on unpin/close
-    /// and en masse by `cleanupPinnedStreams()` on app termination.
-    /// Access only via the `streamsLock`-guarded helpers below.
-    private var pinnedStreams: Set<String> = []
-
-    private func streamKey(_ cameraId: String, _ quality: String) -> String {
-        "\(cameraId):\(quality)"
-    }
-
-    /// Records a freshly created allocation. `pinned` routes it to the set that
-    /// survives `cleanupStreams()`.
-    private func trackStream(_ key: String, pinned: Bool) {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        if pinned { pinnedStreams.insert(key) } else { activeStreams.insert(key) }
-    }
-
-    /// Atomically removes one active allocation; returns `true` if it was present.
-    private func removeActiveStream(_ key: String) -> Bool {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        return activeStreams.remove(key) != nil
-    }
-
-    /// Atomically removes one pinned allocation; returns `true` if it was present.
-    private func removePinnedStream(_ key: String) -> Bool {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        return pinnedStreams.remove(key) != nil
-    }
-
-    /// Atomically snapshots and clears the active set, so cleanup can iterate the
-    /// keys without holding the lock across the DELETE requests.
-    private func drainActiveStreams() -> Set<String> {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        let keys = activeStreams
-        activeStreams.removeAll()
-        return keys
-    }
-
-    /// Atomically snapshots and clears the pinned set.
-    private func drainPinnedStreams() -> Set<String> {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        let keys = pinnedStreams
-        pinnedStreams.removeAll()
-        return keys
-    }
+    /// Server-side allocations "<cameraId>:<quality>" held by the popover and
+    /// by pinned windows. The controller shares one allocation per key between
+    /// them, so the ledger only lets a DELETE through once neither side holds
+    /// (or is creating) it. Used to release sessions when the panel closes, a
+    /// pin closes or the app quits, so stale ones don't accumulate on the UDM.
+    private let allocations = StreamAllocationLedger()
 
     /// Guards the classic-API credential fields below, which are read and written
     /// from concurrent PTZ `Task`s and the fetch path.
@@ -301,9 +248,11 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     /// Stream-URL creation for a pinned floating window. Identical to
-    /// `createRtspStreamURL` but the resulting server-side allocation is tracked
-    /// in `pinnedStreams`, so closing the popover (`cleanupStreams()`) leaves the
-    /// pinned feed running. The caller releases it with `releasePinnedStream`.
+    /// `createRtspStreamURL` but the resulting server-side allocation is owned by
+    /// the pinned side of the ledger, so closing the popover (`cleanupStreams()`)
+    /// leaves the pinned feed running — even when the popover was watching the
+    /// same camera at the same quality. The caller releases it with
+    /// `releasePinnedStream`.
     func createPinnedStreamURL(for camera: Camera,
                                quality: String = "high") async -> (url: URL, quality: String)? {
         for tier in Self.qualityFallbackLadder(from: quality) {
@@ -345,13 +294,40 @@ final class ProtectService: NSObject, ObservableObject {
         case failed
     }
 
-    /// Single POST attempt for one quality.
+    /// Single POST attempt for one quality, bracketed in the ledger so a
+    /// release racing it can't DELETE the allocation it is about to return.
     private func requestRtspStreamURL(for camera: Camera, quality: String,
                                       pinned: Bool = false) async -> StreamRequestOutcome {
         RTSPClient.log("[Stream] requestRtspStreamURL(\(quality)) for \(camera.name)")
+        let key = StreamAllocationLedger.key(cameraId: camera.id, quality: quality)
+        let owner: StreamAllocationLedger.Owner = pinned ? .pinned : .popover
+
+        allocations.beginCreate(key)
+        let (outcome, allocated) = await postRtspStream(for: camera, quality: quality)
+        // Every exit of the POST lands here, so the in-flight mark always ends.
+        // A release that arrived meanwhile was held back; it is due now if the
+        // POST failed and nobody else holds the allocation.
+        if allocations.endCreate(key, owner: owner, succeeded: allocated) {
+            deleteRtspStream(for: camera.id, quality: quality)
+        }
+
+        // The requester went away while the POST was in flight (panel closed,
+        // pin torn down). Give the allocation straight back — through the
+        // ledger, so a pinned window holding or creating the same key keeps it.
+        if allocated, Task.isCancelled {
+            release(key, owner: owner)
+            return .failed
+        }
+        return outcome
+    }
+
+    /// The POST itself. `allocated` is true when the controller answered with
+    /// a URL for `quality`, i.e. an allocation now exists server-side.
+    private func postRtspStream(for camera: Camera,
+                                quality: String) async -> (outcome: StreamRequestOutcome, allocated: Bool) {
         guard let url = makeURL(
             path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(camera.id))/rtsps-stream"
-        ) else { RTSPClient.log("[Stream] makeURL failed"); return .failed }
+        ) else { RTSPClient.log("[Stream] makeURL failed"); return (.failed, false) }
 
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.httpMethod = "POST"
@@ -364,69 +340,63 @@ final class ProtectService: NSObject, ObservableObject {
 
         guard let (data, resp) = try? await tlsSession.data(for: request) else {
             RTSPClient.log("[Stream] HTTP request failed (no response)")
-            return .failed
+            return (.failed, false)
         }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         guard status == 200 else {
             RTSPClient.log("[Stream] HTTP \(status): \(String(data: data, encoding: .utf8) ?? "")")
-            return ControllerRequestPolicy.abortsQualityLadder(httpStatus: status)
-                ? .failed : .qualityUnavailable
+            return (ControllerRequestPolicy.abortsQualityLadder(httpStatus: status)
+                ? .failed : .qualityUnavailable, false)
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rtspsString = json[quality] as? String else { return .qualityUnavailable }
+              let rtspsString = json[quality] as? String else { return (.qualityUnavailable, false) }
 
-        // The panel may have closed while the POST was in flight. cleanupStreams()
-        // has already drained the tracking set by now, so recording the allocation
-        // would leak it server-side — release it instead.
-        guard !Task.isCancelled else {
-            deleteRtspStream(for: camera.id, quality: quality)
-            return .failed
-        }
-
-        trackStream(streamKey(camera.id, quality), pinned: pinned)
         let playable = toPlayableURL(rtspsString)
         RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable.map(RTSPClient.redactedDescription(of:)) ?? "nil")")
-        guard let playable else { return .qualityUnavailable }
-        return .success(playable)
+        // An unusable URL still allocated server-side: keep it owned so cleanup frees it.
+        guard let playable else { return (.qualityUnavailable, true) }
+        return (.success(playable), true)
     }
 
     // MARK: - RTSP stream cleanup
 
-    /// Sends DELETE requests for all server-side stream allocations.
-    /// Call when the panel closes to prevent stale sessions accumulating on the UDM.
+    /// Releases every popover-owned allocation — except those a pinned window
+    /// still holds or is creating. Call when the panel closes to prevent stale
+    /// sessions accumulating on the UDM.
     func cleanupStreams() {
-        let keys = drainActiveStreams()
-        for key in keys {
-            let parts = key.split(separator: ":", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-            deleteRtspStream(for: String(parts[0]), quality: String(parts[1]))
-        }
+        releaseAll(owner: .popover)
     }
 
-    /// Releases a single secondary allocation (e.g. a doorbell's package lens)
-    /// when its picture-in-picture closes, without tearing down the main stream.
+    /// Releases a single popover allocation (e.g. a doorbell's package lens
+    /// when its picture-in-picture closes, or the quality a switch replaced).
     func releaseStream(for cameraId: String, quality: String) {
-        guard removeActiveStream(streamKey(cameraId, quality)) else { return }
-        deleteRtspStream(for: cameraId, quality: quality)
+        release(StreamAllocationLedger.key(cameraId: cameraId, quality: quality), owner: .popover)
     }
 
-    /// Releases a pinned floating window's server-side allocation when it's
-    /// unpinned or closed. Tracked apart from `activeStreams`, so this is the
-    /// only path that frees it (never `cleanupStreams()`).
+    /// Releases a pinned floating window's allocation when it's unpinned or
+    /// closed. `cleanupStreams()` never frees it; the popover sharing the same
+    /// key keeps it alive until the popover lets go too.
     func releasePinnedStream(for cameraId: String, quality: String) {
-        guard removePinnedStream(streamKey(cameraId, quality)) else { return }
-        deleteRtspStream(for: cameraId, quality: quality)
+        release(StreamAllocationLedger.key(cameraId: cameraId, quality: quality), owner: .pinned)
     }
 
-    /// DELETEs every pinned allocation. Called on app termination so pinned
+    /// Releases every pinned allocation. Called on app termination so pinned
     /// windows don't leave sessions alive on the controller.
     func cleanupPinnedStreams() {
-        let keys = drainPinnedStreams()
-        for key in keys {
-            let parts = key.split(separator: ":", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-            deleteRtspStream(for: String(parts[0]), quality: String(parts[1]))
+        releaseAll(owner: .pinned)
+    }
+
+    private func release(_ key: String, owner: StreamAllocationLedger.Owner) {
+        guard allocations.release(key, owner: owner),
+              let parsed = StreamAllocationLedger.parse(key) else { return }
+        deleteRtspStream(for: parsed.cameraId, quality: parsed.quality)
+    }
+
+    private func releaseAll(owner: StreamAllocationLedger.Owner) {
+        for key in allocations.releaseAll(owner: owner) {
+            guard let parsed = StreamAllocationLedger.parse(key) else { continue }
+            deleteRtspStream(for: parsed.cameraId, quality: parsed.quality)
         }
     }
 
@@ -452,6 +422,7 @@ final class ProtectService: NSObject, ObservableObject {
         request.httpMethod = "DELETE"
         request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
 
+        RTSPClient.log("[Stream] DELETE \(quality) for camera \(cameraId)")
         releaseGroup.enter()
         // Detached: an inherited main-actor context would make the quit-time
         // wait above deadlock on itself. Only Sendable values cross over.

@@ -54,7 +54,7 @@ public static class ApertureIcon
         }
 
         using var ms = new MemoryStream();
-        rtb.Save(ms);
+        rtb.Save(ms, PngBitmapEncoderOptions.Default);
         ms.Position = 0;
         return new WindowIcon(ms);
     }

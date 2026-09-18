@@ -7,9 +7,9 @@ using Xunit;
 namespace QuickProtect.App.Tests;
 
 /// <summary>
-/// Covers the two Linux-only pieces that keep the tray agent reachable: the
-/// status it publishes to the tray host, and the arbitration that keeps a
-/// second launch from becoming a second agent.
+/// Covers the Linux-only pieces that keep the tray agent well-behaved: the
+/// arbitration that keeps a second launch from becoming a second agent, and
+/// the termination handling that quits through Avalonia instead of exiting.
 ///
 /// Every test is a no-op off Linux. The class carries
 /// <c>[SupportedOSPlatform("linux")]</c> so the call sites compile warning-free
@@ -19,23 +19,6 @@ namespace QuickProtect.App.Tests;
 [SupportedOSPlatform("linux")]
 public class PlatformSignalTests
 {
-    /// <summary>
-    /// <see cref="LinuxTrayStatus"/> corrects Avalonia's invalid tray status
-    /// through private fields, so an Avalonia upgrade can silently disarm it.
-    /// This is the tripwire: it fails on the bump, not in a user's empty tray.
-    /// </summary>
-    [Fact]
-    public void TrayStatusWorkaroundStillFindsAvaloniaInternals()
-    {
-        if (!OperatingSystem.IsLinux()) return;
-
-        var binding = LinuxTrayStatus.ResolveBinding();
-
-        Assert.NotNull(binding);
-        Assert.Equal(typeof(string), binding.StatusProperty.PropertyType);
-        Assert.True(binding.StatusProperty.CanWrite);
-    }
-
     /// <summary>The only launch around owns the tray.</summary>
     [Fact]
     public void LoneLaunchBecomesPrimary()
