@@ -4,7 +4,7 @@
 #
 #   powershell -File dotnet/scripts/get-ffmpeg.ps1 [-Rids win-x64,win-arm64]
 #
-# Source: https://github.com/BtbN/FFmpeg-Builds — LGPL, dynamically linked,
+# Source: https://github.com/BtbN/FFmpeg-Builds - LGPL, dynamically linked,
 # redistribution-friendly with attribution (see THIRD-PARTY-NOTICES.txt).
 #
 # PINNED. The download is a fixed release tag with a SHA-256 per asset, not the
@@ -77,7 +77,7 @@ foreach ($rid in $Rids) {
     } else {
         tar -xJf $tmp -C $extract 2>$null; if ($LASTEXITCODE -ne 0) { New-Item -ItemType Directory -Force $extract | Out-Null; tar -xJf $tmp -C $extract }
         $lib = Get-ChildItem $extract -Recurse -Directory -Filter lib | Select-Object -First 1
-        # Only the soname files (libavcodec.so.63) — what FFmpeg.AutoGen and the
+        # Only the soname files (libavcodec.so.63) - what FFmpeg.AutoGen and the
         # libraries' NEEDED entries load; copying the version symlinks as well
         # would ship every library twice.
         Get-ChildItem $lib.FullName -Filter "lib*.so.*" |

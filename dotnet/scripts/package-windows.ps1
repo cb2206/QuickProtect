@@ -2,7 +2,7 @@
 #   powershell -File dotnet/scripts/package-windows.ps1 [-Version 1.3]
 # Output: dotnet/dist/QuickProtect-Setup-<version>-win-x64.exe
 #
-# The paid Microsoft Store build is a different artifact — see package-msix.ps1.
+# The paid Microsoft Store build is a different artifact - see package-msix.ps1.
 #
 # Notes:
 #  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 9.0 natives
@@ -26,6 +26,10 @@ if (-not $Version) {
 
 & (Join-Path $PSScriptRoot "get-ffmpeg.ps1") -Rids win-x64
 
+# Publish into an empty folder: files a previous build left behind (e.g. the
+# FFmpeg DLLs of an older pin, whose names change with each major version)
+# would otherwise ship as well.
+if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 Write-Host "Publishing self-contained win-x64 (Release)..."
 dotnet publish (Join-Path $desktop "src\QuickProtect.App") -c Release -r win-x64 --self-contained -o $publish
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }

@@ -33,7 +33,7 @@ $expectedSha256 = @{
     "10.0.26100.8249" = "1628c77d21ed187c4db998b37b18e267a7f092ae755589e21110c14260b14960"
 }
 $expected = $expectedSha256[$Version]
-if (-not $expected) { throw "No SHA-256 recorded for $pkg $Version — add it to get-sdk-buildtools.ps1" }
+if (-not $expected) { throw "No SHA-256 recorded for $pkg $Version - add it to get-sdk-buildtools.ps1" }
 $actual = (Get-FileHash $tmp -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) {
     Remove-Item $tmp -Force
