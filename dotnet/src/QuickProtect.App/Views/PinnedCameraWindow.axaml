@@ -8,7 +8,6 @@
         x:DataType="vm:CameraTileViewModel"
         Title="QuickProtect"
         Width="360" Height="203"
-        MinWidth="200" MinHeight="120"
         Topmost="True"
         ShowInTaskbar="False"
         WindowDecorations="None"

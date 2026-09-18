@@ -265,6 +265,32 @@ public class PinnedWindowGeometryTests
         Assert.Equal(800, s.Width);
         Assert.Equal(400, s.Height);
     }
+
+    [Fact]
+    public void Constrain_clamps_width_and_keeps_the_aspect()
+    {
+        const double wide = 2560.0 / 720.0; // 3.556
+        Assert.Equal(new PinnedWindowGeometry.Size(1600, 450), PinnedWindowGeometry.Constrain(1711, wide));
+        Assert.Equal(new PinnedWindowGeometry.Size(200, 56), PinnedWindowGeometry.Constrain(150, wide));
+    }
+
+    [Fact]
+    public void SizeLimits_follow_the_aspect()
+    {
+        const double wide = 2560.0 / 720.0;
+        var (min, max) = PinnedWindowGeometry.SizeLimits(wide);
+        Assert.Equal(new PinnedWindowGeometry.Size(200, 56), min);
+        Assert.Equal(new PinnedWindowGeometry.Size(1600, 450), max);
+
+        // The default size of a wide camera fits inside them (no fixed min height).
+        var d = PinnedWindowGeometry.DefaultSize(wide);
+        Assert.Equal(new PinnedWindowGeometry.Size(360, 101), d);
+        Assert.InRange(d.Height, min.Height, max.Height);
+
+        var (tallMin, tallMax) = PinnedWindowGeometry.SizeLimits(9.0 / 16.0);
+        Assert.Equal(356, tallMin.Height);
+        Assert.Equal(2844, tallMax.Height);
+    }
 }
 
 public class SnapshotNamingTests

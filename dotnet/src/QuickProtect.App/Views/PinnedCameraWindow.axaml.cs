@@ -17,11 +17,28 @@ public partial class PinnedCameraWindow : Window
     public event Action<string>? Unpinned;
     public event Action<PinnedCameraWindow>? FrameChanged;
 
-    /// <summary>Camera aspect ratio (w/h) used to lock proportions on resize.</summary>
-    public double AspectRatio { get; set; } = PinnedWindowGeometry.FallbackAspect;
+    /// <summary>
+    /// Camera aspect ratio (w/h) used to lock proportions on resize. Also sets the
+    /// window's min/max size to the width range at this aspect, so the WM stops a
+    /// drag at the limits instead of the app snapping it back.
+    /// </summary>
+    public double AspectRatio
+    {
+        get => _aspectRatio;
+        set
+        {
+            _aspectRatio = value;
+            var (min, max) = PinnedWindowGeometry.SizeLimits(value);
+            MinWidth = min.Width;
+            MinHeight = min.Height;
+            MaxWidth = max.Width;
+            MaxHeight = max.Height;
+        }
+    }
+    private double _aspectRatio;
     private bool _constraining;
 
-    // Re-requests the aspect height after a resize the WM didn't apply (~3 s at most).
+    // Re-requests the aspect size after a resize the WM didn't apply (~3 s at most).
     private const int AspectRetryCount = 20;
     private readonly DispatcherTimer _aspectRetry = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private int _aspectRetriesLeft;
@@ -33,6 +50,7 @@ public partial class PinnedCameraWindow : Window
     {
         CameraId = cameraId;
         InitializeComponent();
+        AspectRatio = PinnedWindowGeometry.FallbackAspect;
         Icon = ApertureIcon.Create(64);
 
         // Persist position/size as the user moves or resizes.
@@ -72,21 +90,24 @@ public partial class PinnedCameraWindow : Window
     }
 
     /// <summary>
-    /// Request the aspect-locked height if the real size is off it. Returns true when
-    /// the window already has it (or is maximized/fullscreen, where the WM owns the size).
+    /// Request the aspect-locked size (width clamped to range, height from width) if the
+    /// real size is off it. Returns true when the window already has it (or is
+    /// maximized/fullscreen, where the WM owns the size).
     /// </summary>
     private bool ApplyAspect()
     {
         if (WindowState != WindowState.Normal) return true;
-        // ClientSize is the size the WM last confirmed; Height is only what we asked
-        // for, and keeps our value when the WM drops the request.
-        var target = Math.Clamp(PinnedWindowGeometry.Constrain(ClientSize.Width, AspectRatio).Height,
-            MinHeight, MaxHeight);
-        if (Math.Abs(target - ClientSize.Height) <= 0.5) return true;
+        // ClientSize is the size the WM last confirmed; Width/Height are only what we
+        // asked for, and keep our values when the WM drops the request.
+        var target = PinnedWindowGeometry.Constrain(ClientSize.Width, AspectRatio);
+        if (Math.Abs(target.Width - ClientSize.Width) <= 0.5
+            && Math.Abs(target.Height - ClientSize.Height) <= 0.5) return true;
 
         _constraining = true;
-        if (Math.Abs(target - Height) > 0.5) Height = target;
-        else InvalidateMeasure(); // Height already holds the target: re-send it via layout
+        var changed = false;
+        if (Math.Abs(target.Width - Width) > 0.5) { Width = target.Width; changed = true; }
+        if (Math.Abs(target.Height - Height) > 0.5) { Height = target.Height; changed = true; }
+        if (!changed) InvalidateMeasure(); // already hold the target: re-send it via layout
         _constraining = false;
         return false;
     }
