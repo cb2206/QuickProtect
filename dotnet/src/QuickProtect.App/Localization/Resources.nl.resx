@@ -303,4 +303,14 @@ QuickProtect.</value></data>
   <data name="Controller certificate changed" xml:space="preserve"><value>Certificaat van de controller gewijzigd</value></data>
   <data name="QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection." xml:space="preserve"><value>QuickProtect maakt geen verbinding meer, omdat de controller een ander certificaat toonde. Dat is te verwachten na het opnieuw installeren, resetten of vervangen van de controller. Heb je dat niet gedaan, dan onderschept iemand mogelijk de verbinding.</value></data>
   <data name="Review Certificate…" xml:space="preserve"><value>Certificaat controleren…</value></data>
+  <data name="Can't find the controller. Check the IP address or hostname in Settings." xml:space="preserve"><value>Controller niet gevonden. Controleer het IP-adres of de hostnaam in de instellingen.</value></data>
+  <data name="The controller refused the connection. Check the IP address in Settings." xml:space="preserve"><value>De controller heeft de verbinding geweigerd. Controleer het IP-adres in de instellingen.</value></data>
+  <data name="Can't reach the controller. Check that it's online and on the same network." xml:space="preserve"><value>Controller niet bereikbaar. Controleer of hij aan staat en in hetzelfde netwerk zit.</value></data>
+  <data name="The controller didn't respond in time. Check that it's online and on the same network." xml:space="preserve"><value>De controller reageerde niet op tijd. Controleer of hij aan staat en in hetzelfde netwerk zit.</value></data>
+  <data name="A secure connection to the controller couldn't be established." xml:space="preserve"><value>Er kon geen beveiligde verbinding met de controller worden gemaakt.</value></data>
+  <data name="The controller rejected the API key. Check it in Settings." xml:space="preserve"><value>De controller heeft de API-sleutel geweigerd. Controleer hem in de instellingen.</value></data>
+  <data name="The controller is busy. Try again in a moment." xml:space="preserve"><value>De controller is bezet. Probeer het zo meteen opnieuw.</value></data>
+  <data name="The controller reported an internal error. Try again later." xml:space="preserve"><value>De controller meldde een interne fout. Probeer het later opnieuw.</value></data>
+  <data name="The controller returned an unexpected response." xml:space="preserve"><value>De controller gaf een onverwacht antwoord.</value></data>
+  <data name="The controller sent a response QuickProtect couldn't read." xml:space="preserve"><value>De controller stuurde een antwoord dat QuickProtect niet kan lezen.</value></data>
 </root>

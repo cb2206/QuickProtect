@@ -393,7 +393,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         await _service.FetchCamerasAsync(forced: true);
         RefreshCertState();
         StatusMessage = _service.ErrorMessage is { } err
-            ? string.Format(Localization.Loc.Get("Error: {0}"), err)
+            ? string.Format(Localization.Loc.Get("Error: {0}"), Localization.Loc.Get(err))
             : Localization.Loc.Get("Connected — %lld cameras found")
                 .Replace("%lld", _service.Cameras.Count.ToString());
     }

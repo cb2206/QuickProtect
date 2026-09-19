@@ -303,4 +303,14 @@ QuickProtect.</value></data>
   <data name="Controller certificate changed" xml:space="preserve"><value>Zertifikat des Controllers geändert</value></data>
   <data name="QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection." xml:space="preserve"><value>QuickProtect verbindet sich nicht mehr, weil der Controller ein anderes Zertifikat vorgelegt hat. Das ist nach einer Neuinstallation, einem Zurücksetzen oder einem Austausch des Controllers zu erwarten. Falls du nichts davon getan hast, fängt womöglich jemand die Verbindung ab.</value></data>
   <data name="Review Certificate…" xml:space="preserve"><value>Zertifikat prüfen…</value></data>
+  <data name="Can't find the controller. Check the IP address or hostname in Settings." xml:space="preserve"><value>Controller nicht gefunden. Prüfe die IP-Adresse oder den Hostnamen in den Einstellungen.</value></data>
+  <data name="The controller refused the connection. Check the IP address in Settings." xml:space="preserve"><value>Der Controller hat die Verbindung abgelehnt. Prüfe die IP-Adresse in den Einstellungen.</value></data>
+  <data name="Can't reach the controller. Check that it's online and on the same network." xml:space="preserve"><value>Controller nicht erreichbar. Prüfe, ob er eingeschaltet und im selben Netzwerk ist.</value></data>
+  <data name="The controller didn't respond in time. Check that it's online and on the same network." xml:space="preserve"><value>Der Controller hat nicht rechtzeitig geantwortet. Prüfe, ob er eingeschaltet und im selben Netzwerk ist.</value></data>
+  <data name="A secure connection to the controller couldn't be established." xml:space="preserve"><value>Es konnte keine sichere Verbindung zum Controller hergestellt werden.</value></data>
+  <data name="The controller rejected the API key. Check it in Settings." xml:space="preserve"><value>Der Controller hat den API-Schlüssel abgelehnt. Prüfe ihn in den Einstellungen.</value></data>
+  <data name="The controller is busy. Try again in a moment." xml:space="preserve"><value>Der Controller ist gerade ausgelastet. Versuche es gleich noch einmal.</value></data>
+  <data name="The controller reported an internal error. Try again later." xml:space="preserve"><value>Der Controller hat einen internen Fehler gemeldet. Versuche es später noch einmal.</value></data>
+  <data name="The controller returned an unexpected response." xml:space="preserve"><value>Der Controller hat eine unerwartete Antwort gesendet.</value></data>
+  <data name="The controller sent a response QuickProtect couldn't read." xml:space="preserve"><value>Der Controller hat eine Antwort gesendet, die QuickProtect nicht lesen kann.</value></data>
 </root>

@@ -292,14 +292,15 @@ public partial class MainWindow : Window
         var qualityMenu = new MenuItem { Header = Localization.Loc.Get("Stream quality") };
         var useDefault = new MenuItem
         {
+            // Composed like macOS ("Use default" + " (High)"), both parts from the catalog.
             Header = (currentQuality == null ? "✓ " : "   ") +
-                     string.Format(Localization.Loc.Get("Use default ({0})"), vm.DefaultQuality.RawValue())
+                     $"{Localization.Loc.Get("Use default")} ({QualityName(vm.DefaultQuality)})"
         };
         useDefault.Click += (_, _) => vm.SetTileQuality(tile, null);
         qualityMenu.Items.Add(useDefault);
         foreach (var q in new[] { StreamQuality.Auto, StreamQuality.Low, StreamQuality.Medium, StreamQuality.High })
         {
-            var item = new MenuItem { Header = (currentQuality == q ? "✓ " : "   ") + q.RawValue() };
+            var item = new MenuItem { Header = (currentQuality == q ? "✓ " : "   ") + QualityName(q) };
             var quality = q;
             item.Click += (_, _) => vm.SetTileQuality(tile, quality);
             qualityMenu.Items.Add(item);
@@ -329,6 +330,15 @@ public partial class MainWindow : Window
 
         flyout.ShowAt(border, true);
     }
+
+    /// <summary>The quality's display name from the catalog (macOS <c>StreamQuality.displayName</c>).</summary>
+    private static string QualityName(StreamQuality q) => Localization.Loc.Get(q switch
+    {
+        StreamQuality.Auto => "Auto",
+        StreamQuality.High => "High",
+        StreamQuality.Medium => "Medium",
+        _ => "Low"
+    });
 
     // MARK: - Focus entry / exit
 

@@ -5,13 +5,14 @@
         Width="460" SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource QpPopoverBg}"
+        Background="{DynamicResource QpDialogBg}"
         WindowDecorations="BorderOnly"
         ShowInTaskbar="False"
         Topmost="True">
   <!-- Asks whether to trust a changed controller certificate. Opened only by an
        explicit click (panel card, pinned window), never unprompted. Cancel is
        the default and the Esc button; trusting takes a deliberate click. -->
+  <Border BorderBrush="{DynamicResource QpDialogBorder}" BorderThickness="1">
   <StackPanel Margin="18" Spacing="10">
     <TextBlock Text="{loc:Loc 'Trust the controller\'s new certificate?'}"
                FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
@@ -35,4 +36,5 @@
       <Button Content="{loc:Loc 'Trust new certificate'}" Click="Trust_Click" />
     </StackPanel>
   </StackPanel>
+  </Border>
 </Window>

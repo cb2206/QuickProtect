@@ -102,7 +102,7 @@ public partial class App : Application
         // A controller/API-key change invalidates live streams and any pending
         // keep-alive grace — stale clients would keep talking to the old host.
         // The setters raise on every write (Settings re-applies unchanged text
-        // on focus loss), so only an actual value change tears down.
+        // on focus loss), so only an actual value change reconnects.
         var lastIp = Settings.IpAddress;
         var lastApiKey = Settings.ApiKey;
         Settings.PropertyChanged += (_, e) =>
@@ -113,12 +113,12 @@ public partial class App : Application
             if (e.PropertyName == nameof(AppSettings.IpAddress) && Settings.IpAddress != lastIp)
             {
                 lastIp = Settings.IpAddress;
-                Dispatcher.UIThread.Post(TeardownStreamsNow);
+                Dispatcher.UIThread.Post(ReconnectController);
             }
             if (e.PropertyName == nameof(AppSettings.ApiKey) && Settings.ApiKey != lastApiKey)
             {
                 lastApiKey = Settings.ApiKey;
-                Dispatcher.UIThread.Post(TeardownStreamsNow);
+                Dispatcher.UIThread.Post(ReconnectController);
             }
         };
 
@@ -332,11 +332,6 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Immediate stream teardown: the in-flight camera fetch, all tile streams,
-    /// and the server-side allocations (DELETE per stream). Runs on grace
-    /// expiry, app quit, and connection-settings changes.
-    /// </summary>
-    /// <summary>
     /// Opens the certificate review dialog over <paramref name="owner"/> and
     /// trusts the new key if the user confirms. No-op when nothing is pending.
     /// </summary>
@@ -347,10 +342,32 @@ public partial class App : Application
             Service.TrustPendingCertificate(change.Host);
     }
 
-    public void TeardownStreamsNow()
+    /// <summary>
+    /// The controller address or API key changed: drop the old controller's
+    /// streams, fetch from the new one (clearing the old error banner), and
+    /// restart the tiles if the panel is showing.
+    /// </summary>
+    private async void ReconnectController()
+    {
+        // The service decides which in-flight fetch is stale (see RefetchForNewConnectionAsync).
+        TeardownStreamsNow(cancelFetch: false);
+        await Service.RefetchForNewConnectionAsync();
+        if (_mainWindow is { IsVisible: true, DataContext: MainViewModel vm } && Service.ErrorMessage == null)
+            vm.StartAll();
+    }
+
+    /// <summary>
+    /// Immediate stream teardown: the in-flight camera fetch (unless
+    /// <paramref name="cancelFetch"/> is false), all tile streams, and the
+    /// server-side allocations (DELETE per stream). Runs on grace expiry, app
+    /// quit, and connection-settings changes.
+    /// </summary>
+    public void TeardownStreamsNow() => TeardownStreamsNow(cancelFetch: true);
+
+    private void TeardownStreamsNow(bool cancelFetch)
     {
         CancelStreamTeardown();
-        Service.CancelFetch();
+        if (cancelFetch) Service.CancelFetch();
         // Reset the pause flag so a client that restarts later decodes again.
         Streams.SetRenderPaused(false);
         if (_mainWindow?.DataContext is MainViewModel vm)

@@ -303,4 +303,14 @@ QuickProtect.</value></data>
   <data name="Controller certificate changed" xml:space="preserve"><value>Le certificat du contrôleur a changé</value></data>
   <data name="QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection." xml:space="preserve"><value>QuickProtect a cessé de se connecter, car le contrôleur a présenté un autre certificat. C'est normal après une réinstallation, une réinitialisation ou un remplacement du contrôleur. Si ce n'est pas le cas, quelqu'un intercepte peut-être la connexion.</value></data>
   <data name="Review Certificate…" xml:space="preserve"><value>Examiner le certificat…</value></data>
+  <data name="Can't find the controller. Check the IP address or hostname in Settings." xml:space="preserve"><value>Contrôleur introuvable. Vérifiez l'adresse IP ou le nom d'hôte dans les réglages.</value></data>
+  <data name="The controller refused the connection. Check the IP address in Settings." xml:space="preserve"><value>Le contrôleur a refusé la connexion. Vérifiez l'adresse IP dans les réglages.</value></data>
+  <data name="Can't reach the controller. Check that it's online and on the same network." xml:space="preserve"><value>Contrôleur injoignable. Vérifiez qu'il est allumé et sur le même réseau.</value></data>
+  <data name="The controller didn't respond in time. Check that it's online and on the same network." xml:space="preserve"><value>Le contrôleur n'a pas répondu à temps. Vérifiez qu'il est allumé et sur le même réseau.</value></data>
+  <data name="A secure connection to the controller couldn't be established." xml:space="preserve"><value>Impossible d'établir une connexion sécurisée avec le contrôleur.</value></data>
+  <data name="The controller rejected the API key. Check it in Settings." xml:space="preserve"><value>Le contrôleur a refusé la clé API. Vérifiez-la dans les réglages.</value></data>
+  <data name="The controller is busy. Try again in a moment." xml:space="preserve"><value>Le contrôleur est occupé. Réessayez dans un instant.</value></data>
+  <data name="The controller reported an internal error. Try again later." xml:space="preserve"><value>Le contrôleur a signalé une erreur interne. Réessayez plus tard.</value></data>
+  <data name="The controller returned an unexpected response." xml:space="preserve"><value>Le contrôleur a renvoyé une réponse inattendue.</value></data>
+  <data name="The controller sent a response QuickProtect couldn't read." xml:space="preserve"><value>Le contrôleur a envoyé une réponse que QuickProtect ne peut pas lire.</value></data>
 </root>

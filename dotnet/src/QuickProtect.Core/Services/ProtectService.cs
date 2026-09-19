@@ -177,9 +177,13 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     // toggle, refresh buttons, Settings). Guarded by _fetchLock.
     private readonly object _fetchLock = new();
     private Task? _fetchTask;
+    // The controller address and API key the in-flight fetch was started with.
+    private string? _fetchConnection;
     private CancellationTokenSource? _fetchCts;
     private DateTime? _lastFetchSucceededAt;
     private ControllerRequestPolicy.PtzEnrichRecord? _lastPtzEnrich;
+
+    private string Connection => $"{_settings.IpAddress}\n{_settings.ApiKey}";
 
     /// <summary>
     /// Fetches the camera list, coalescing concurrent calls into one request
@@ -204,8 +208,34 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             // the lock, which we still hold).
             var task = Task.Run(() => RunFetchAsync(forced, ct));
             _fetchTask = task;
+            _fetchConnection = Connection;
             return task;
         }
+    }
+
+    /// <summary>
+    /// The controller address or API key changed. Clears the old controller's
+    /// error, cancels a fetch still talking to it and fetches again. A fetch
+    /// already started for the new connection (Test Connection) is joined,
+    /// not restarted, so its caller sees the real result.
+    /// </summary>
+    public async Task RefetchForNewConnectionAsync()
+    {
+        Task? stale = null;
+        lock (_fetchLock)
+        {
+            // The last success was for the old controller; it must not let a
+            // later automatic refresh skip the new one.
+            _lastFetchSucceededAt = null;
+            if (_fetchTask is { } inFlight && _fetchConnection != Connection)
+            {
+                _fetchCts?.Cancel();
+                stale = inFlight;
+            }
+        }
+        ErrorMessage = null;
+        if (stale != null) await stale.ConfigureAwait(false);
+        await FetchCamerasAsync(forced: true).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -290,7 +320,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private async Task<IReadOnlyList<Camera>> RequestCameraListOnceAsync(CancellationToken ct)
     {
-        var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new InvalidOperationException("invalid URL");
+        var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new UriFormatException("invalid URL");
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
         req.Headers.TryAddWithoutValidation("Accept", "application/json");
@@ -774,7 +804,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     {
         Log.Line($"[API] applyError: {ex.Message}");
         RefreshCertificateChange();
-        ErrorMessage = CertificateChange != null ? CertificateChangedMessage : ex.Message;
+        // A catalog key the UI translates, not the (English-only) exception text.
+        ErrorMessage = CertificateChange != null ? CertificateChangedMessage : ControllerErrors.Describe(ex);
         IsLoading = false;
     }
 

@@ -37,6 +37,10 @@
           <Color x:Key="QpStatusGreenColor">#FF30D158</Color>
           <Color x:Key="QpStatusGreenTextColor">#FF30D158</Color>
           <Color x:Key="QpStatusGreenSurfaceColor">#2430D158</Color>
+          <!-- Modal dialogs sit above the popover: a raised surface plus a visible
+               edge, since Windows draws no border for BorderOnly windows. -->
+          <Color x:Key="QpDialogBgColor">#FF1C1C1E</Color>
+          <Color x:Key="QpDialogBorderColor">#33FFFFFF</Color>
           <Color x:Key="QpStatusRedColor">#FFFF453A</Color>
           <Color x:Key="QpStatusRedSurfaceColor">#33FF453A</Color>
           <Color x:Key="QpStatusOrangeSurfaceColor">#33FF9F0A</Color>
@@ -65,6 +69,8 @@
           <SolidColorBrush x:Key="QpStatusRedSurface" Color="{StaticResource QpStatusRedSurfaceColor}" />
           <SolidColorBrush x:Key="QpStatusOrangeSurface" Color="{StaticResource QpStatusOrangeSurfaceColor}" />
           <SolidColorBrush x:Key="QpVideoBg" Color="{StaticResource QpVideoBgColor}" />
+          <SolidColorBrush x:Key="QpDialogBg" Color="{StaticResource QpDialogBgColor}" />
+          <SolidColorBrush x:Key="QpDialogBorder" Color="{StaticResource QpDialogBorderColor}" />
         </ResourceDictionary>
 
         <ResourceDictionary x:Key="Light">
@@ -87,6 +93,8 @@
           <Color x:Key="QpStatusGreenColor">#FF30D158</Color>
           <Color x:Key="QpStatusGreenTextColor">#FF248A3D</Color>
           <Color x:Key="QpStatusGreenSurfaceColor">#2E30D158</Color>
+          <Color x:Key="QpDialogBgColor">#FFFFFFFF</Color>
+          <Color x:Key="QpDialogBorderColor">#26000000</Color>
           <Color x:Key="QpStatusRedColor">#FFFF453A</Color>
           <Color x:Key="QpStatusRedSurfaceColor">#33FF453A</Color>
           <Color x:Key="QpStatusOrangeSurfaceColor">#33FF9F0A</Color>
@@ -115,6 +123,8 @@
           <SolidColorBrush x:Key="QpStatusRedSurface" Color="{StaticResource QpStatusRedSurfaceColor}" />
           <SolidColorBrush x:Key="QpStatusOrangeSurface" Color="{StaticResource QpStatusOrangeSurfaceColor}" />
           <SolidColorBrush x:Key="QpVideoBg" Color="{StaticResource QpVideoBgColor}" />
+          <SolidColorBrush x:Key="QpDialogBg" Color="{StaticResource QpDialogBgColor}" />
+          <SolidColorBrush x:Key="QpDialogBorder" Color="{StaticResource QpDialogBorderColor}" />
         </ResourceDictionary>
 
       </ResourceDictionary.ThemeDictionaries>

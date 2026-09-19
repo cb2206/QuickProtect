@@ -78,7 +78,7 @@ public sealed partial class OnboardingViewModel : ObservableObject
         await _service.FetchCamerasAsync(forced: true);
         CameraCount = _service.Cameras.Count;
         StatusMessage = _service.ErrorMessage is { } err
-            ? string.Format(Localization.Loc.Get("Error: {0}"), err)
+            ? string.Format(Localization.Loc.Get("Error: {0}"), Localization.Loc.Get(err))
             : Localization.Loc.Get("Connected — %lld cameras found")
                 .Replace("%lld", CameraCount.ToString());
     }
