@@ -68,7 +68,7 @@ struct SettingsView: View {
     @State var isRecordingHotkey = false
     @State var showApiKey = false
     @State var showPassword = false
-    /// Toggled to force `pendingCertFingerprint` to re-read after the user re-pins.
+    /// Toggled to make `pendingCertificates` re-read the pin store.
     @State var certRefresh = false
     @State var hotkeyRegistrationFailed = false
 
