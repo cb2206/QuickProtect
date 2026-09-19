@@ -1,6 +1,6 @@
 # Privacy Policy for QuickProtect
 
-_Last updated: August 13, 2026_
+_Last updated: September 19, 2026_
 
 QuickProtect ("the app") is a menu-bar (macOS) and system-tray (Windows, Linux)
 application for viewing live camera feeds from your own UniFi Protect
@@ -42,7 +42,7 @@ Controllers usually present a self-signed certificate. If your operating
 system already trusts the controller's certificate, it is used as is. Otherwise
 the app remembers the certificate's public key the first time it connects
 ("trust on first use") and refuses to connect if that key later changes until
-you review both fingerprints in Settings and confirm the change. The very first
+you review both fingerprints and confirm the change. The very first
 connection is therefore only as trustworthy as the network you make it on. The
 remembered fingerprint is stored with the app's preferences on your device.
 
