@@ -20,7 +20,7 @@ public class SettingsCertificateTests
     }
 
     [Fact]
-    public void Pending_list_follows_changes_made_outside_settings()
+    public void Pending_list_follows_changes_made_outside_settings() => UiThread.Run(() =>
     {
         var dir = Path.Combine(Path.GetTempPath(), "qp-settings-cert-" + Guid.NewGuid().ToString("N"));
         try
@@ -51,5 +51,5 @@ public class SettingsCertificateTests
         {
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
-    }
+    });
 }

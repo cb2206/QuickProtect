@@ -185,52 +185,72 @@
         <!-- Top chrome bar (auto-hides in fullscreen) -->
         <Border VerticalAlignment="Top" Background="{DynamicResource QpChrome}" Padding="10,7"
                 IsVisible="{Binding ChromeVisible}">
-          <Grid ColumnDefinitions="Auto,*,Auto" DataContext="{Binding FocusTile}"
-                x:DataType="vm:CameraTileViewModel">
-            <Button Grid.Column="0" Click="Focus_Back"
-                    Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0">
-              <TextBlock><Run Text="◀ " /><Run Text="{loc:Loc 'Grid'}" /></TextBlock>
+          <!-- Back / title / actions. Too narrow for the labels (long translations,
+               small panel): the labels drop to icons with tooltips, then the
+               camera name trims. See FocusHeaderPanel. -->
+          <views:FocusHeaderPanel DataContext="{Binding FocusTile}"
+                                  x:DataType="vm:CameraTileViewModel">
+            <Button Click="Focus_Back" VerticalAlignment="Center" AutomationProperties.Name="{loc:Loc 'Grid'}"
+                    Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
+                    ToolTip.Tip="{loc:Loc 'Grid'}">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock Text="◀" />
+                <TextBlock Classes="headerLabel" Text="{loc:Loc 'Grid'}" />
+              </StackPanel>
             </Button>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                        HorizontalAlignment="Center" VerticalAlignment="Center">
-              <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="9" VerticalAlignment="Center" />
-              <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontWeight="SemiBold" FontSize="13" />
-              <Border IsVisible="{Binding IsPtz}" Background="{DynamicResource QpAccentSurface}" CornerRadius="9" Padding="7,2">
-                <TextBlock Text="{loc:Loc 'PTZ · ARROW KEYS'}" Foreground="{DynamicResource QpTextSecondary}" FontSize="9" />
-              </Border>
-              <Border IsVisible="{Binding DigitalZoomLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+            <DockPanel VerticalAlignment="Center" Margin="8,0">
+              <TextBlock DockPanel.Dock="Left" Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="9"
+                         VerticalAlignment="Center" Margin="0,0,8,0" />
+              <Border DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center"
+                      IsVisible="{Binding DigitalZoomLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                       Background="{DynamicResource QpAccentSurface}" CornerRadius="9" Padding="7,2">
                 <TextBlock Text="{Binding DigitalZoomLabel}" Foreground="{DynamicResource QpTextSecondary}" FontSize="9" />
               </Border>
-            </StackPanel>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-              <Button Click="Focus_Fill"
+              <Border DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center"
+                      IsVisible="{Binding IsPtz}" Background="{DynamicResource QpAccentSurface}" CornerRadius="9" Padding="7,2">
+                <TextBlock Text="{loc:Loc 'PTZ · ARROW KEYS'}" Foreground="{DynamicResource QpTextSecondary}" FontSize="9" />
+              </Border>
+              <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Name}" TextTrimming="CharacterEllipsis"
+                         Foreground="{DynamicResource QpTextPrimary}" FontWeight="SemiBold" FontSize="13"
+                         VerticalAlignment="Center" />
+            </DockPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+              <Button Click="Focus_Fill" AutomationProperties.Name="{loc:Loc 'Fit/Fill'}"
                       Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
                       ToolTip.Tip="{loc:Loc 'Toggle fit vs. fill'}">
-                <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.FitFill}" Width="12" Height="12" /><TextBlock Text="{loc:Loc 'Fit/Fill'}" VerticalAlignment="Center" /></StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.FitFill}" Width="12" Height="12" /><TextBlock Classes="headerLabel" Text="{loc:Loc 'Fit/Fill'}" VerticalAlignment="Center" /></StackPanel>
               </Button>
-              <Button Click="Focus_Mute" IsVisible="{Binding HasAudio}"
+              <Button Click="Focus_Mute" IsVisible="{Binding HasAudio}" AutomationProperties.Name="{loc:Loc 'Toggle audio'}"
                       Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
                       ToolTip.Tip="{loc:Loc 'Toggle audio'}">
-                <Panel>
-                  <TextBlock Text="{loc:Loc 'Mute (M)'}" IsVisible="{Binding !IsMuted}" />
-                  <TextBlock Text="{loc:Loc 'Unmute (M)'}" IsVisible="{Binding IsMuted}" />
-                </Panel>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Panel VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource Icon.Speaker}" Width="12" Height="12" IsVisible="{Binding !IsMuted}" />
+                    <PathIcon Data="{StaticResource Icon.SpeakerMuted}" Width="12" Height="12" IsVisible="{Binding IsMuted}" />
+                  </Panel>
+                  <Panel Classes="headerLabel" VerticalAlignment="Center">
+                    <TextBlock Text="{loc:Loc 'Mute (M)'}" IsVisible="{Binding !IsMuted}" />
+                    <TextBlock Text="{loc:Loc 'Unmute (M)'}" IsVisible="{Binding IsMuted}" />
+                  </Panel>
+                </StackPanel>
               </Button>
-              <Button Click="Focus_Snapshot"
+              <Button Click="Focus_Snapshot" AutomationProperties.Name="{loc:Loc 'Snapshot (S)'}"
                       Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
                       ToolTip.Tip="{loc:Loc 'Save a still frame'}">
-                <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.Download}" Width="12" Height="12" /><TextBlock Text="{loc:Loc 'Snapshot (S)'}" VerticalAlignment="Center" /></StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.Download}" Width="12" Height="12" /><TextBlock Classes="headerLabel" Text="{loc:Loc 'Snapshot (S)'}" VerticalAlignment="Center" /></StackPanel>
               </Button>
-              <Button Click="Focus_Pin"
+              <Button Click="Focus_Pin" AutomationProperties.Name="{loc:Loc 'Pin'}"
                       Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
                       ToolTip.Tip="{loc:Loc 'Pin as an always-on-top window'}">
-                <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.Pin}" Width="12" Height="12" /><TextBlock Text="{loc:Loc 'Pin'}" VerticalAlignment="Center" /></StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.Pin}" Width="12" Height="12" /><TextBlock Classes="headerLabel" Text="{loc:Loc 'Pin'}" VerticalAlignment="Center" /></StackPanel>
               </Button>
-              <Button Content="{loc:Loc 'Fullscreen (F)'}" Click="Focus_ToggleFullscreen"
-                      Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0" />
+              <Button Click="Focus_ToggleFullscreen" AutomationProperties.Name="{loc:Loc 'Fullscreen (F)'}"
+                      Background="Transparent" Foreground="{DynamicResource QpTextPrimary}" BorderThickness="0"
+                      ToolTip.Tip="{loc:Loc 'Fullscreen (F)'}">
+                <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource Icon.Fullscreen}" Width="12" Height="12" /><TextBlock Classes="headerLabel" Text="{loc:Loc 'Fullscreen (F)'}" VerticalAlignment="Center" /></StackPanel>
+              </Button>
             </StackPanel>
-          </Grid>
+          </views:FocusHeaderPanel>
         </Border>
 
         <!-- PTZ controls overlaid bottom-right (macOS AuroraPtzDpad/ZoomControl) -->
@@ -351,6 +371,10 @@
   </Grid>
 
   <Window.Styles>
+    <!-- Focus header too narrow for its labels: icons (with tooltips) only. -->
+    <Style Selector="views|FocusHeaderPanel:compact :is(Control).headerLabel">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
     <Style Selector="Border.dpad">
       <Setter Property="Background" Value="{DynamicResource QpChip}" />
       <Setter Property="CornerRadius" Value="6" />

@@ -20,6 +20,7 @@
   <StreamGeometry x:Key="Icon.Grid">F1 M0,0 L0,0 M16,16 L16,16 M2,2 H7 V7 H2 Z M9,2 H14 V7 H9 Z M2,9 H7 V14 H2 Z M9,9 H14 V14 H9 Z</StreamGeometry>
   <StreamGeometry x:Key="Icon.Keyboard">F0 M0,0 L0,0 M16,16 L16,16 M1,3.5 H15 V12.5 H1 Z M2.3,4.8 H13.7 V11.2 H2.3 Z M3.5,6 H4.7 V7.2 H3.5 Z M5.7,6 H6.9 V7.2 H5.7 Z M7.9,6 H9.1 V7.2 H7.9 Z M10.1,6 H11.3 V7.2 H10.1 Z M12.3,6 H13.5 V7.2 H12.3 Z M5,9 H11 V10.1 H5 Z</StreamGeometry>
   <StreamGeometry x:Key="Icon.Download">F1 M0,0 L0,0 M16,16 L16,16 M7.2,1.5 H8.8 V8.5 H7.2 Z M4.2,7.5 L11.8,7.5 L8,11.5 Z M2.5,12.8 H13.5 V14.4 H2.5 Z</StreamGeometry>
+  <StreamGeometry x:Key="Icon.Fullscreen">F1 M0,0 L0,0 M16,16 L16,16 M9,2 H14 V7 H12.5 V4.6 L9.6,7.5 L8.5,6.4 L11.4,3.5 H9 Z M7,14 H2 V9 H3.5 V11.4 L6.4,8.5 L7.5,9.6 L4.6,12.5 H7 Z</StreamGeometry>
   <StreamGeometry x:Key="Icon.FitFill">F1 M0,0 L0,0 M16,16 L16,16 M2,2 H6.5 V3.5 H3.5 V6.5 H2 Z M14,2 V6.5 H12.5 V3.5 H9.5 V2 Z M2,14 V9.5 H3.5 V12.5 H6.5 V14 Z M14,14 H9.5 V12.5 H12.5 V9.5 H14 Z</StreamGeometry>
   <StreamGeometry x:Key="Icon.Lock">F0 M0,0 L0,0 M16,16 L16,16 M3,7 H13 V15 H3 Z M4.5,7 V5 A3.5,3.5 0 0 1 11.5,5 V7 H10 V5 A2,2 0 0 0 6,5 V7 Z</StreamGeometry>
   <StreamGeometry x:Key="Icon.Pin">F1 M0,0 L0,0 M16,16 L16,16 M5,1.5 H11 V3 H5 Z M6,3 L10,3 L11.5,8.5 L4.5,8.5 Z M3.5,8.5 H12.5 V10 H3.5 Z M7.4,10 L8.6,10 L8,15 Z</StreamGeometry>
