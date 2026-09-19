@@ -38,6 +38,14 @@ on your local network (or through a VPN you set up yourself). The app does not
 connect to any developer-operated servers and does not transmit your data
 anywhere else.
 
+Controllers usually present a self-signed certificate. If your operating
+system already trusts the controller's certificate, it is used as is. Otherwise
+the app remembers the certificate's public key the first time it connects
+("trust on first use") and refuses to connect if that key later changes until
+you review both fingerprints in Settings and confirm the change. The very first
+connection is therefore only as trustworthy as the network you make it on. The
+remembered fingerprint is stored with the app's preferences on your device.
+
 One exception: the free builds downloaded from GitHub check **GitHub
 (api.github.com)** once a day for a newer release, so they can show a notice in
 Settings. This request contains no personal data or identifiers, and nothing is

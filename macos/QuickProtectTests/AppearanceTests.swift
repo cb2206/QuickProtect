@@ -54,6 +54,12 @@ final class AppearanceTests: XCTestCase {
 
     // MARK: - Appearance enum
 
+    func testAppearanceMapsToAppKitAppearance() {
+        XCTAssertNil(AppSettings.Appearance.auto.nsAppearance, "auto follows the system")
+        XCTAssertEqual(AppSettings.Appearance.light.nsAppearance?.name, .aqua)
+        XCTAssertEqual(AppSettings.Appearance.dark.nsAppearance?.name, .darkAqua)
+    }
+
     func testAppearanceRawValues() {
         XCTAssertEqual(AppSettings.Appearance.auto.rawValue, 0)
         XCTAssertEqual(AppSettings.Appearance.light.rawValue, 1)

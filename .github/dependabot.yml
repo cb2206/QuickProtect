@@ -1,0 +1,20 @@
+# Keeps the SHA-pinned GitHub Actions and the NuGet lock files current.
+# Everything else that is pinned by hand (FFmpeg natives, XcodeGen, SwiftLint,
+# Inno Setup, the Windows SDK build tools) is bumped deliberately with its
+# checksum — see the comments next to each pin.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies]
+
+  - package-ecosystem: nuget
+    directory: /dotnet
+    schedule:
+      interval: weekly
+    labels: [dependencies]
+    groups:
+      avalonia:
+        patterns: ["Avalonia*"]

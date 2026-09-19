@@ -4,5 +4,7 @@ set -euo pipefail
 "$(dirname "$0")/build.sh"
 
 cd "$(dirname "$0")/../../dotnet"
-pkill -f QuickProtect.App 2>/dev/null && sleep 1 || true
+# Exact process name: -f would also match any process whose command line
+# merely mentions the path (an editor, a tail on the log).
+pkill -x QuickProtect 2>/dev/null && sleep 1 || true
 exec dotnet run --project src/QuickProtect.App --no-build

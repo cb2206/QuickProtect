@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Security;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -21,7 +22,7 @@ namespace QuickProtect.Core.Services;
 ///
 /// Both share trust-on-first-use certificate pinning via <see cref="CertificateTrust"/>.
 /// </summary>
-public sealed class ProtectService : INotifyPropertyChanged, IDisposable
+public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStreamAllocator
 {
     private readonly AppSettings _settings;
     private readonly CertificateTrust _trust;
@@ -36,20 +37,77 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private bool _isLoading;
     public bool IsLoading { get => _isLoading; private set { _isLoading = value; Raise(); } }
 
+    /// <summary>
+    /// Controller reachability / API errors. The panel replaces the grid with an
+    /// error card while this is set, so it must only carry problems that make
+    /// the camera list itself unusable.
+    /// </summary>
     private string? _errorMessage;
     public string? ErrorMessage { get => _errorMessage; private set { _errorMessage = value; Raise(); } }
+
+    /// <summary>
+    /// PTZ-only problems (classic-API login), surfaced as a toast — never in
+    /// <see cref="ErrorMessage"/>, which would blank the grid. Cleared by the
+    /// host once shown via <see cref="ClearPtzError"/>.
+    /// </summary>
+    private string? _ptzErrorMessage;
+    public string? PtzErrorMessage { get => _ptzErrorMessage; private set { _ptzErrorMessage = value; Raise(); } }
+    public void ClearPtzError() => _ptzErrorMessage = null;
 
     private bool _isClassicLoggedIn;
     public bool IsClassicLoggedIn { get => _isClassicLoggedIn; private set { _isClassicLoggedIn = value; Raise(); } }
 
-    /// <summary>Raised on the UI thread by the host when a cert mismatch is detected.</summary>
-    public event EventHandler<string>? CertificateChanged;
+    public const string CertificateChangedMessage =
+        "The controller's certificate changed. Open Settings to review and trust it.";
 
-    // Active server-side allocations "<cameraId>:<quality>". Popover-owned streams
-    // are torn down on close; pinned streams live independently.
-    private readonly HashSet<string> _activeStreams = new();
-    private readonly HashSet<string> _pinnedStreams = new();
-    private readonly object _streamLock = new();
+    private CertificateChange? _certificateChange;
+    /// <summary>
+    /// The configured controller's certificate changed and awaits the user's
+    /// decision. Derived from the pin store (not from whichever request failed
+    /// first), so it survives restarts and can't be lost to a race — and it
+    /// covers the RTSPS tunnel, which has no API call to attach an error to.
+    /// Raised from whatever thread changed the store.
+    /// </summary>
+    public CertificateChange? CertificateChange
+    {
+        get { lock (_certificateLock) return _certificateChange; }
+    }
+    private readonly object _certificateLock = new();
+
+    /// <summary>Re-reads the pending certificate for the configured controller.</summary>
+    public void RefreshCertificateChange()
+    {
+        var change = ControllerAddress is { } address ? _trust.Change(address.PinKey) : null;
+        lock (_certificateLock)
+        {
+            if (change == _certificateChange) return;
+            _certificateChange = change;
+        }
+        Raise(nameof(CertificateChange));
+    }
+
+    /// <summary>
+    /// Promotes the pending certificate for <paramref name="host"/> to the
+    /// trusted pin and fetches the camera list again. Streams are restarted by
+    /// the host (see <c>VideoStreamCoordinator.RetryFailedNow</c>).
+    /// </summary>
+    public void TrustPendingCertificate(string host)
+    {
+        _trust.TrustPending(host);
+        RefreshCertificateChange();
+        ErrorMessage = null;
+        _ = FetchCamerasAsync(forced: true);
+    }
+
+    // Server-side allocations "<cameraId>:<quality>" held by the panel and by
+    // pinned windows. The ledger only lets a DELETE through once neither side
+    // holds (or is creating) the allocation — the controller shares it.
+    private readonly StreamAllocationLedger _allocations = new();
+
+    // DELETEs still on the wire, so quit can wait for them before the
+    // HttpClient is disposed (which would cancel them).
+    private readonly object _releaseLock = new();
+    private readonly HashSet<Task> _releasesInFlight = new();
 
     // Classic-API credentials captured at login.
     private readonly object _credLock = new();
@@ -66,6 +124,15 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
         _integration = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
         _classic = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
+
+        // Rejections happen on TLS callback threads (API and RTSPS tunnel);
+        // the pin key follows the configured controller address.
+        _trust.Changed += RefreshCertificateChange;
+        _settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AppSettings.IpAddress)) RefreshCertificateChange();
+        };
+        RefreshCertificateChange();
     }
 
     private HttpClientHandler MakeHandler()
@@ -79,22 +146,30 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             UseCookies = false,
             AllowAutoRedirect = false
         };
-        // TOFU pinning — replaces system trust for the self-signed controller cert.
-        handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+        handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                               | System.Security.Authentication.SslProtocols.Tls13;
+        // System trust first, then trust-on-first-use pinning of the controller's
+        // key (see CertificateTrust). The pin is keyed by the configured
+        // controller identity so the RTSPS tunnel consults the same one.
+        handler.ServerCertificateCustomValidationCallback = (_, cert, _, errors) =>
         {
             if (cert == null) return false;
-            var host = _settings.IpAddress;
-            var ok = _trust.Evaluate(host, cert);
-            if (!ok)
-                CertificateChanged?.Invoke(this,
-                    "The controller's certificate changed. Open Settings to review and trust it.");
-            return ok;
+            var pinKey = ControllerAddress?.PinKey ?? _settings.IpAddress;
+            // A rejection records the new key as pending, which is what
+            // CertificateChange reports.
+            return _trust.Evaluate(pinKey, cert, errors);
         };
         return handler;
     }
 
-    private string? BaseUrl => string.IsNullOrEmpty(_settings.IpAddress) ? null : $"https://{_settings.IpAddress}";
-    private Uri? MakeUrl(string path) => BaseUrl is { } b ? new Uri($"{b}/{path}") : null;
+    /// <summary>The configured controller, normalised (host, optional port, pin identity).</summary>
+    public ControllerAddress? ControllerAddress => ControllerAddress.Parse(_settings.IpAddress);
+
+    private Uri? MakeUrl(string path)
+        => ControllerAddress is { } address ? new Uri($"{address.HttpsBase}/{path}") : null;
+
+    /// <summary>Percent-encodes a controller-supplied identifier for use as one path segment.</summary>
+    private static string PathSegment(string value) => Uri.EscapeDataString(value);
 
     // MARK: - Fetch camera list
 
@@ -102,9 +177,15 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     // toggle, refresh buttons, Settings). Guarded by _fetchLock.
     private readonly object _fetchLock = new();
     private Task? _fetchTask;
+    // The controller address and API key the in-flight fetch was started with,
+    // and the ones the current camera list was fetched with.
+    private string? _fetchConnection;
+    private string? _camerasConnection;
     private CancellationTokenSource? _fetchCts;
     private DateTime? _lastFetchSucceededAt;
     private ControllerRequestPolicy.PtzEnrichRecord? _lastPtzEnrich;
+
+    private string Connection => $"{_settings.IpAddress}\n{_settings.ApiKey}";
 
     /// <summary>
     /// Fetches the camera list, coalescing concurrent calls into one request
@@ -129,8 +210,41 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             // the lock, which we still hold).
             var task = Task.Run(() => RunFetchAsync(forced, ct));
             _fetchTask = task;
+            _fetchConnection = Connection;
             return task;
         }
+    }
+
+    /// <summary>
+    /// The controller address or API key changed. Clears the old controller's
+    /// error, cancels a fetch still talking to it and fetches again. A fetch
+    /// already started for the new connection (Test Connection) is joined,
+    /// not restarted, so its caller sees the real result.
+    /// </summary>
+    public async Task RefetchForNewConnectionAsync()
+    {
+        Task? stale = null;
+        lock (_fetchLock)
+        {
+            // The last success was for the old controller; it must not let a
+            // later automatic refresh skip the new one.
+            _lastFetchSucceededAt = null;
+            if (_fetchTask is { } inFlight && _fetchConnection != Connection)
+            {
+                _fetchCts?.Cancel();
+                stale = inFlight;
+            }
+        }
+        ErrorMessage = null;
+        // Checked after the stale fetch ends: it may still have applied the old
+        // controller's cameras just before it saw the cancellation.
+        if (stale != null) await stale.ConfigureAwait(false);
+        bool camerasAreStale;
+        lock (_fetchLock) camerasAreStale = _camerasConnection != Connection;
+        // The old controller's cameras must not stay on screen under the new
+        // address's result: they aren't there, and their streams are gone.
+        if (camerasAreStale && Cameras.Count > 0) Cameras = Array.Empty<Camera>();
+        await FetchCamerasAsync(forced: true).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -152,13 +266,18 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private async Task PerformFetchAsync(bool forced, CancellationToken ct)
     {
         Log.Line("[API] fetchCameras called");
+        var connection = Connection;
         if (!Validate()) { Log.Line("[API] validate failed"); return; }
         IsLoading = true;
 
         try
         {
             var cameras = await RequestCameraListAsync(ct).ConfigureAwait(false);
-            lock (_fetchLock) _lastFetchSucceededAt = DateTime.UtcNow;
+            lock (_fetchLock)
+            {
+                _lastFetchSucceededAt = DateTime.UtcNow;
+                _camerasConnection = connection;
+            }
             ApplySuccess(cameras);
 
             // If classic API credentials are configured, enrich PTZ flags —
@@ -215,7 +334,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
     private async Task<IReadOnlyList<Camera>> RequestCameraListOnceAsync(CancellationToken ct)
     {
-        var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new InvalidOperationException("invalid URL");
+        var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new UriFormatException("invalid URL");
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
         req.Headers.TryAddWithoutValidation("Accept", "application/json");
@@ -293,9 +412,13 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
         Camera camera, string quality, bool pinned)
     {
         Log.Line($"[Stream] requestRtspStreamURL({quality}) for {camera.Name}");
-        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{camera.Id}/rtsps-stream");
+        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(camera.Id)}/rtsps-stream");
         if (url == null) { Log.Line("[Stream] makeURL failed"); return (StreamRequestOutcome.Failed, null); }
 
+        var key = StreamAllocationLedger.Key(camera.Id, quality);
+        var owner = pinned ? StreamOwner.Pinned : StreamOwner.Panel;
+        var succeeded = false;
+        _allocations.BeginCreate(key);
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
@@ -317,10 +440,9 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             if (!doc.RootElement.TryGetProperty(quality, out var v) || v.ValueKind != JsonValueKind.String)
                 return (StreamRequestOutcome.QualityUnavailable, null);
 
-            var key = StreamKey(camera.Id, quality);
-            lock (_streamLock) { (pinned ? _pinnedStreams : _activeStreams).Add(key); }
+            succeeded = true;
             var playable = ToPlayableUrl(v.GetString()!);
-            Log.Line($"[Stream] Created {quality} for {camera.Name}: {playable}");
+            Log.Line($"[Stream] Created {quality} for {camera.Name}: {Log.RedactUrl(playable)}");
             return (StreamRequestOutcome.Success, playable);
         }
         catch (Exception ex)
@@ -328,51 +450,64 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
             Log.Line($"[Stream] request failed: {ex.Message}");
             return (StreamRequestOutcome.Failed, null);
         }
+        finally
+        {
+            // A release that arrived while this POST was in flight was held back;
+            // it is due now if the POST failed and nobody else holds the stream.
+            if (_allocations.EndCreate(key, owner, succeeded))
+                _ = DeleteRtspStream(camera.Id, quality);
+        }
     }
-
-    private static string StreamKey(string cameraId, string quality) => $"{cameraId}:{quality}";
 
     // MARK: - RTSP stream cleanup
 
-    public void CleanupStreams()
-    {
-        string[] keys;
-        lock (_streamLock) { keys = _activeStreams.ToArray(); _activeStreams.Clear(); }
-        foreach (var key in keys) DeleteByKey(key);
-    }
+    /// <summary>
+    /// Releases every popover-owned allocation. The returned task completes when
+    /// the DELETEs have been sent (or failed); callers other than quit ignore it.
+    /// </summary>
+    public Task CleanupStreams() => Task.WhenAll(_allocations.ReleaseAll(StreamOwner.Panel).Select(DeleteByKey));
 
     public void ReleaseStream(string cameraId, string quality)
     {
-        var key = StreamKey(cameraId, quality);
-        lock (_streamLock) { if (!_activeStreams.Remove(key)) return; }
-        DeleteRtspStream(cameraId, quality);
+        if (_allocations.Release(StreamAllocationLedger.Key(cameraId, quality), StreamOwner.Panel))
+            _ = DeleteRtspStream(cameraId, quality);
     }
 
     public void ReleasePinnedStream(string cameraId, string quality)
     {
-        var key = StreamKey(cameraId, quality);
-        lock (_streamLock) { if (!_pinnedStreams.Remove(key)) return; }
-        DeleteRtspStream(cameraId, quality);
+        if (_allocations.Release(StreamAllocationLedger.Key(cameraId, quality), StreamOwner.Pinned))
+            _ = DeleteRtspStream(cameraId, quality);
     }
 
-    public void CleanupPinnedStreams()
+    public Task CleanupPinnedStreams() => Task.WhenAll(_allocations.ReleaseAll(StreamOwner.Pinned).Select(DeleteByKey));
+
+    /// <summary>
+    /// Completes when every DELETE sent so far has reached the controller (or
+    /// failed). Quit waits on it: releases fired by closing windows and stopping
+    /// streams are fire-and-forget, and disposing the HttpClient under them
+    /// would cancel them.
+    /// </summary>
+    public Task ReleasesSettled()
     {
-        string[] keys;
-        lock (_streamLock) { keys = _pinnedStreams.ToArray(); _pinnedStreams.Clear(); }
-        foreach (var key in keys) DeleteByKey(key);
+        lock (_releaseLock) return Task.WhenAll(_releasesInFlight.ToArray());
     }
 
-    private void DeleteByKey(string key)
+    private Task DeleteByKey(string key)
     {
         var parts = key.Split(':', 2);
-        if (parts.Length == 2) DeleteRtspStream(parts[0], parts[1]);
+        return parts.Length == 2 ? DeleteRtspStream(parts[0], parts[1]) : Task.CompletedTask;
     }
 
-    private void DeleteRtspStream(string cameraId, string quality)
+    /// <summary>
+    /// Releases a server-side allocation. Fire-and-forget for callers during
+    /// normal operation; quit awaits the returned task (bounded) so the
+    /// controller isn't left holding sessions until its own timeout.
+    /// </summary>
+    private Task DeleteRtspStream(string cameraId, string quality)
     {
-        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{cameraId}/rtsps-stream?qualities={quality}");
-        if (url == null) return;
-        _ = Task.Run(async () =>
+        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(cameraId)}/rtsps-stream?qualities={quality}");
+        if (url == null) return Task.CompletedTask;
+        var release = Task.Run(async () =>
         {
             try
             {
@@ -380,8 +515,11 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
                 req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
                 using var _ = await _integration.SendAsync(req).ConfigureAwait(false);
             }
-            catch { /* fire and forget */ }
+            catch (Exception ex) { Log.Line($"[Stream] release failed: {ex.Message}"); }
         });
+        lock (_releaseLock) _releasesInFlight.Add(release);
+        _ = release.ContinueWith(t => { lock (_releaseLock) _releasesInFlight.Remove(t); }, TaskScheduler.Default);
+        return release;
     }
 
     // MARK: - Classic API (cookie auth — required for PTZ)
@@ -480,7 +618,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private async Task<(byte[]? bytes, bool unauthorized)> RequestPackageSnapshotAsync(Camera camera)
     {
         var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // cache-buster: always a fresh capture
-        var url = MakeUrl($"proxy/protect/api/cameras/{camera.Id}/package-snapshot?ts={ts}");
+        var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(camera.Id)}/package-snapshot?ts={ts}");
         if (url == null) return (null, false);
         try
         {
@@ -585,8 +723,11 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
                 if (delay > TimeSpan.Zero) await Task.Delay(delay).ConfigureAwait(false);
                 if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
                 {
-                    ApplyError(new InvalidOperationException(
-                        "PTZ unavailable — check the username and password in Settings."));
+                    Log.Line("[PTZ] login failed — PTZ unavailable");
+                    RefreshCertificateChange();
+                    PtzErrorMessage = CertificateChange != null
+                        ? CertificateChangedMessage
+                        : "PTZ unavailable — check the username and password in Settings.";
                     return;
                 }
                 (double x, double y, double z) next;
@@ -603,7 +744,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
 
     private async Task SendMoveAsync(string cameraId, (double x, double y, double z) v)
     {
-        var url = MakeUrl($"proxy/protect/api/cameras/{cameraId}/move");
+        var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(cameraId)}/move");
         if (url == null) return;
         try
         {
@@ -676,19 +817,22 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable
     private void ApplyError(Exception ex)
     {
         Log.Line($"[API] applyError: {ex.Message}");
-        ErrorMessage = ex.Message;
+        RefreshCertificateChange();
+        // A catalog key the UI translates, not the (English-only) exception text.
+        ErrorMessage = CertificateChange != null ? CertificateChangedMessage : ControllerErrors.Describe(ex);
         IsLoading = false;
     }
 
     private bool Validate()
     {
-        if (string.IsNullOrEmpty(_settings.IpAddress)) { ErrorMessage = "No IP address configured. Open Settings."; return false; }
+        if (ControllerAddress is null) { ErrorMessage = "No IP address configured. Open Settings."; return false; }
         if (string.IsNullOrEmpty(_settings.ApiKey)) { ErrorMessage = "No API key configured. Open Settings."; return false; }
         return true;
     }
 
     public void Dispose()
     {
+        _trust.Changed -= RefreshCertificateChange;
         _integration.Dispose();
         _classic.Dispose();
     }

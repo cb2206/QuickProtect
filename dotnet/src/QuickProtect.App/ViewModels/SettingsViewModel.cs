@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Reflection;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -7,6 +8,12 @@ using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App.ViewModels;
+
+/// <summary>A changed controller certificate awaiting the user's decision, with both keys for out-of-band verification.</summary>
+public sealed record PendingCertificate(string Host, string? TrustedFingerprint, string NewFingerprint)
+{
+    public bool HasTrustedFingerprint => TrustedFingerprint != null;
+}
 
 /// <summary>
 /// Settings window: sidebar-sectioned (General / Connection / PTZ / Cameras /
@@ -72,7 +79,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _updateStatusMessage = "";
     [ObservableProperty] private bool _showLanguageRestartHint;
     [ObservableProperty] private bool _hasPendingCert;
+
+    /// <summary>Every host with a pending certificate — listed rather than one guessed key.</summary>
+    public ObservableCollection<PendingCertificate> PendingCertificates { get; } = new();
+
     [ObservableProperty] private string _hotkeyDisplay = Localization.Loc.Get("Not set");
+    [ObservableProperty] private string _hotkeyStatusMessage = "";
     [ObservableProperty] private bool _isRecordingHotkey;
     [ObservableProperty] private bool _updateAvailable;
 
@@ -199,6 +211,10 @@ public sealed partial class SettingsViewModel : ObservableObject
                 });
         };
 
+        // A hotkey the OS refused (already taken by another app) is reported
+        // inline in the Shortcuts section.
+        if (Avalonia.Application.Current is App app) app.HotkeyApplied += OnHotkeyApplied;
+
         _ipAddress = settings.IpAddress;
         _apiKey = settings.ApiKey;
         _username = settings.Username;
@@ -226,6 +242,10 @@ public sealed partial class SettingsViewModel : ObservableObject
                 or nameof(ProtectService.Cameras)
                 or nameof(ProtectService.IsClassicLoggedIn))
                 Avalonia.Threading.Dispatcher.UIThread.Post(RefreshBadge);
+            // A certificate trusted from the panel or a pinned window (or a new
+            // rejection) must not leave this section stale while Settings is open.
+            else if (e.PropertyName is nameof(ProtectService.CertificateChange))
+                Avalonia.Threading.Dispatcher.UIThread.Post(RefreshCertState);
         };
     }
 
@@ -319,12 +339,28 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (key == Key.Escape) { IsRecordingHotkey = false; RefreshHotkey(); return; }
         if (HotkeyCodec.VirtualKey(key) is not { } vk)
         {
-            StatusMessage = Localization.Loc.Get("Unsupported key — use a letter, number, or function key.");
+            HotkeyStatusMessage = Localization.Loc.Get("Unsupported key — use a letter, number, or function key.");
             return;
         }
-        _settings.SetGlobalHotkey(vk, HotkeyCodec.Modifiers(modifiers));
+        var mod = HotkeyCodec.Modifiers(modifiers);
+        if (mod == 0)
+        {
+            // A bare key registered system-wide would swallow that key in every
+            // app (macOS parity: the recorder requires a modifier there too).
+            HotkeyStatusMessage = Localization.Loc.Get("Add a modifier key (Ctrl, Alt, Shift or Win) to the shortcut.");
+            return;
+        }
+        HotkeyStatusMessage = "";
+        _settings.SetGlobalHotkey(vk, mod);
         IsRecordingHotkey = false;
         RefreshHotkey();
+    }
+
+    /// <summary>Called by the app after each (re)registration; a refusal is shown inline.</summary>
+    public void OnHotkeyApplied(bool registered)
+    {
+        if (!registered)
+            HotkeyStatusMessage = Localization.Loc.Get("Couldn't register this shortcut — it may be in use by another app.");
     }
 
     partial void OnDefaultQualityIndexChanged(int value)
@@ -333,18 +369,31 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnLaunchAtLoginChanged(bool value) => _settings.LaunchAtLogin = value;
 
     private void RefreshCertState()
-        => HasPendingCert = !string.IsNullOrEmpty(_settings.IpAddress)
-                            && _trust.Pending(_settings.IpAddress) != null;
+    {
+        PendingCertificates.Clear();
+        foreach (var (host, fingerprint) in _trust.AllPending())
+        {
+            var pinned = _trust.Pinned(host);
+            PendingCertificates.Add(new PendingCertificate(
+                host,
+                pinned == null ? null : CertificateTrust.DisplayFingerprint(pinned, bytesPerLine: 16),
+                CertificateTrust.DisplayFingerprint(fingerprint, bytesPerLine: 16)));
+        }
+        HasPendingCert = PendingCertificates.Count > 0;
+    }
 
     [RelayCommand]
     private async Task TestConnection()
     {
-        _settings.IpAddress = IpAddress.Trim();
+        // Store the address in its canonical form (scheme, path and whitespace
+        // dropped) so what the user sees is exactly what gets pinned and dialled.
+        _settings.IpAddress = ControllerAddress.Parse(IpAddress)?.Authority ?? IpAddress.Trim();
+        IpAddress = _settings.IpAddress;
         _settings.ApiKey = ApiKey.Trim();
         await _service.FetchCamerasAsync(forced: true);
         RefreshCertState();
         StatusMessage = _service.ErrorMessage is { } err
-            ? string.Format(Localization.Loc.Get("Error: {0}"), err)
+            ? string.Format(Localization.Loc.Get("Error: {0}"), Localization.Loc.Get(err))
             : Localization.Loc.Get("Connected — %lld cameras found")
                 .Replace("%lld", _service.Cameras.Count.ToString());
     }
@@ -384,10 +433,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         => UrlOpener.Open(_updater.ReleaseUrl ?? _updater.ReleasesPageUrl);
 
     [RelayCommand]
-    private void TrustNewCertificate()
+    private void TrustNewCertificate(string? host)
     {
-        if (string.IsNullOrEmpty(_settings.IpAddress)) return;
-        _trust.TrustPending(_settings.IpAddress);
+        if (string.IsNullOrEmpty(host)) return;
+        // Through the service, so the panel's card clears, the camera list is
+        // fetched again and failed streams restart (see App).
+        _service.TrustPendingCertificate(host);
         RefreshCertState();
         StatusMessage = Localization.Loc.Get("New certificate trusted.");
     }

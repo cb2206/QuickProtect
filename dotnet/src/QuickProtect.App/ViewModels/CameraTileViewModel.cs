@@ -45,6 +45,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _tileHeight;
     /// <summary>True when the video engine couldn't initialize (tile shows a notice).</summary>
     [ObservableProperty] private bool _videoUnavailable;
+    /// <summary>Localized reason the stream is not playing (from the engine), or null.</summary>
+    [ObservableProperty] private string? _streamFailure;
     /// <summary>False when filtered out by the header search box.</summary>
     [ObservableProperty] private bool _matchesSearch = true;
 
@@ -167,8 +169,12 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     {
         _stateHandler = state => Dispatcher.UIThread.Post(() =>
         {
+            // Queued before Stop() or a swap: the tile shows another client now.
+            if (!ReferenceEquals(Client, client)) return;
             IsPlaying = state == VideoState.Playing;
             if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
+            StreamFailure = state == VideoState.Failed && client.LastError is { } reason
+                ? Localization.Loc.Get(reason) : null;
         });
         // Learn the real frame size for aspect-dependent UI (pinned windows,
         // grid tile aspect) — macOS caches decoder dimensions the same way.
@@ -388,11 +394,16 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             // exits), and a stopping grid tile must not silence a focused one.
             if (IsFocused || _pinned) c.SetAudioActive(false);
             UnsubscribeClient(c);
+            // Unbind the surface too: the shared client may be stopped (or keep
+            // running for another view), and either way its last frame is not
+            // this tile's picture any more. StartAsync binds the live client again.
+            Client = null;
         }
         _handle?.Dispose();
         _handle = null;
         IsPlaying = false;
         IsLoading = false;
+        StreamFailure = null;
     }
 
     public void Dispose() => Stop();

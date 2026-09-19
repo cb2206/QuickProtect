@@ -11,7 +11,11 @@ settings:
   base:
     PRODUCT_NAME: QuickProtect
     PRODUCT_BUNDLE_IDENTIFIER: com.cb.quickprotect
-    SWIFT_VERSION: "5.9"
+    # Swift 6 language mode: data-race safety is checked at compile time.
+    # Every type states its isolation (@MainActor for settings, services,
+    # windows and views; RTSPClient is @unchecked Sendable with a documented
+    # queue discipline), so a new cross-thread access fails the build.
+    SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     ENABLE_HARDENED_RUNTIME: YES
     CODE_SIGN_STYLE: Automatic
@@ -21,7 +25,9 @@ settings:
     # (the app ships unsigned outside the App Store; releases are cloud-signed
     # via fastlane's ASC key, Release config only), so Debug signs ad-hoc and
     # drops the hardened runtime. Without this, `xcodebuild test` fails at the
-    # signing step.
+    # signing step. Ad-hoc builds re-trigger the Keychain consent prompt on
+    # every rebuild (new code hash = new app); scripts/macos/build.sh overrides
+    # these with an Apple Development identity when the keychain has one.
     Debug:
       CODE_SIGN_STYLE: Manual
       CODE_SIGN_IDENTITY: "-"
@@ -57,12 +63,12 @@ targets:
         CFBundleIconFile: QuickProtect
         # Marketing version (bump on release). project.yml is the source of truth —
         # `xcodegen generate` writes these into Info.plist, so never hand-edit the plist.
-        CFBundleShortVersionString: "1.3.1"
-        CFBundleVersion: "7"
+        CFBundleShortVersionString: "1.4"
+        CFBundleVersion: "8"
         # Required for the Mac App Store.
         LSApplicationCategoryType: public.app-category.utilities
-        # Advertise the languages the app ships (English + German) so the system
-        # offers German when the user's preferred language is German.
+        # Advertise the languages the app ships so the system offers the user's
+        # preferred one when it's among them.
         CFBundleLocalizations:
           - en
           - de
@@ -116,15 +122,14 @@ targets:
       - path: QuickProtectTests
         excludes:
           - "**/*.md"
-          - TestRunner.swift
-      # Include testable source files directly (no BUNDLE_LOADER needed)
-      - path: QuickProtect/Services/RTPParser.swift
-      - path: QuickProtect/Services/ControllerRequestPolicy.swift
-      - path: QuickProtect/Services/PausedGOPBuffer.swift
-      - path: QuickProtect/Services/UpdateAssets.swift
-      - path: QuickProtect/Services/HotkeyManager.swift
-      - path: QuickProtect/Models/AppSettings.swift
-      - path: QuickProtect/Models/Camera.swift
+      # The test bundle compiles the app's non-UI layers directly instead of
+      # loading the app as a test host: the app is a sandboxed menu-bar agent
+      # whose launch reads the Keychain (a consent prompt on a fresh ad-hoc
+      # build) and whose sandbox would block the local RTSPS server the
+      # integration tests spawn. Every file under Services/ and Models/ is
+      # therefore testable without being listed here.
+      - path: QuickProtect/Services
+      - path: QuickProtect/Models
       - path: QuickProtect/Views/AuroraDesign.swift
 
     settings:
@@ -135,3 +140,7 @@ targets:
     dependencies:
       - sdk: Carbon.framework
       - sdk: ServiceManagement.framework
+      - sdk: AVFoundation.framework
+      - sdk: Network.framework
+      - sdk: VideoToolbox.framework
+      - sdk: CoreMedia.framework

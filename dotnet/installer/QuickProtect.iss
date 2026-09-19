@@ -1,13 +1,13 @@
 ; Inno Setup script for the QuickProtect Windows build.
 ; Compile via dotnet/scripts/package-windows.ps1 (it publishes the app and
 ; passes AppVersion/PublishDir/OutputDir), or manually:
-;   iscc QuickProtect.iss /DAppVersion=1.3 /DPublishDir=..\dist\win-x64 /DOutputDir=..\dist
+;   iscc QuickProtect.iss /DAppVersion=1.4 /DPublishDir=..\dist\win-x64 /DOutputDir=..\dist
 ;
 ; The fallback below is only used for a manual iscc run without /DAppVersion;
 ; package-windows.ps1 always passes the version from Directory.Build.props.
 
 #ifndef AppVersion
-  #define AppVersion "1.3"
+  #define AppVersion "1.4"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\dist\win-x64"
@@ -22,7 +22,7 @@ AppId={{9C2E7B44-31D8-4F1A-A9E3-6B0C54D7F8A1}
 AppName=QuickProtect
 AppVersion={#AppVersion}
 AppPublisher=Christian Bartels
-AppPublisherURL=https://github.com/cbartels/QuickProtect
+AppPublisherURL=https://github.com/cb2206/QuickProtect
 DefaultDirName={autopf}\QuickProtect
 DefaultGroupName=QuickProtect
 DisableProgramGroupPage=yes
@@ -52,8 +52,7 @@ Name: "dutch"; MessagesFile: "compiler:Languages\Dutch.isl"
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Files]
-; win-x86 libVLC comes along in the publish but is dead weight in an x64 app.
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Excludes: "libvlc\win-x86\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\QuickProtect"; Filename: "{app}\QuickProtect.exe"

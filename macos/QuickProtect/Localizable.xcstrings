@@ -1,6 +1,88 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "A new version is available": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine neue Version ist verfügbar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une nouvelle version est disponible"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hay una nueva versión disponible"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er is een nieuwe versie beschikbaar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "È disponibile una nuova versione"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma nova versão está disponível"
+          }
+        }
+      }
+    },
+    "A secure connection to the controller couldn't be established.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es konnte keine sichere Verbindung zum Controller hergestellt werden."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'établir une connexion sécurisée avec le contrôleur."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo establecer una conexión segura con el controlador."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er kon geen beveiligde verbinding met de controller worden gemaakt."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile stabilire una connessione sicura con il controller."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível estabelecer uma conexão segura com o controlador."
+          }
+        }
+      }
+    },
     "API Key": {
       "extractionState": "manual",
       "localizations": {
@@ -411,6 +493,88 @@
         }
       }
     },
+    "Automatic updates — always on the latest version, no manual downloads.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Updates – immer auf der neuesten Version, ohne manuelle Downloads."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mises à jour automatiques — toujours la dernière version, sans téléchargement manuel."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizaciones automáticas: siempre la última versión, sin descargas manuales."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische updates – altijd de nieuwste versie, zonder handmatige downloads."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiornamenti automatici: sempre l'ultima versione, senza download manuali."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualizações automáticas — sempre na versão mais recente, sem downloads manuais."
+          }
+        }
+      }
+    },
+    "Automatic updates, an Apple-signed install with no security warnings, and it supports development.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Updates, eine von Apple signierte Installation ohne Sicherheitswarnungen – und du unterstützt die Entwicklung."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mises à jour automatiques, installation signée par Apple sans avertissement de sécurité, et un soutien au développement."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizaciones automáticas, una instalación firmada por Apple sin avisos de seguridad, y apoyas el desarrollo."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische updates, een door Apple ondertekende installatie zonder beveiligingswaarschuwingen, en je ondersteunt de ontwikkeling."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiornamenti automatici, un'installazione firmata da Apple senza avvisi di sicurezza, e sostieni lo sviluppo."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualizações automáticas, uma instalação assinada pela Apple sem avisos de segurança, e você apoia o desenvolvimento."
+          }
+        }
+      }
+    },
     "Automatically start QuickProtect when you log in.": {
       "extractionState": "manual",
       "localizations": {
@@ -575,6 +739,47 @@
         }
       }
     },
+    "Can't find the controller. Check the IP address or hostname in Settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller nicht gefunden. Prüfe die IP-Adresse oder den Hostnamen in den Einstellungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôleur introuvable. Vérifiez l'adresse IP ou le nom d'hôte dans les réglages."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encuentra el controlador. Revisa la dirección IP o el nombre de host en los ajustes."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller niet gevonden. Controleer het IP-adres of de hostnaam in de instellingen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller non trovato. Controlla l'indirizzo IP o il nome host nelle impostazioni."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlador não encontrado. Verifique o endereço IP ou o nome do host nos ajustes."
+          }
+        }
+      }
+    },
     "Can't reach controller": {
       "extractionState": "manual",
       "localizations": {
@@ -612,6 +817,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Não foi possível conectar ao controlador"
+          }
+        }
+      }
+    },
+    "Can't reach the controller. Check that it's online and on the same network.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller nicht erreichbar. Prüfe, ob er eingeschaltet und im selben Netzwerk ist."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôleur injoignable. Vérifiez qu'il est allumé et sur le même réseau."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede conectar con el controlador. Comprueba que esté encendido y en la misma red."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller niet bereikbaar. Controleer of hij aan staat en in hetzelfde netwerk zit."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller non raggiungibile. Verifica che sia acceso e sulla stessa rete."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível conectar ao controlador. Verifique se ele está ligado e na mesma rede."
           }
         }
       }
@@ -1641,6 +1887,88 @@
         }
       }
     },
+    "Controller certificate changed": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat des Controllers geändert"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le certificat du contrôleur a changé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El certificado del controlador cambió"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificaat van de controller gewijzigd"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificato del controller cambiato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado do controlador alterado"
+          }
+        }
+      }
+    },
+    "Controller: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôleur : %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlador: %@"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller: %@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlador: %@"
+          }
+        }
+      }
+    },
     "Copied to clipboard": {
       "extractionState": "manual",
       "localizations": {
@@ -1678,6 +2006,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copiado para a área de transferência"
+          }
+        }
+      }
+    },
+    "Couldn't register this shortcut — it may be in use by another app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Kürzel konnte nicht registriert werden – möglicherweise wird es von einer anderen App verwendet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'enregistrer ce raccourci — il est peut-être déjà utilisé par une autre app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo registrar este atajo: puede que otra app ya lo esté usando."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deze sneltoets kon niet worden geregistreerd – mogelijk gebruikt een andere app hem al."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile registrare questa scorciatoia: potrebbe essere già usata da un'altra app."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível registrar este atalho — talvez outro app já o esteja usando."
           }
         }
       }
@@ -2170,6 +2539,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Falha no download: %@"
+          }
+        }
+      }
+    },
+    "Download from GitHub": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von GitHub laden"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Télécharger depuis GitHub"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descargar de GitHub"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaden van GitHub"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scarica da GitHub"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baixar do GitHub"
           }
         }
       }
@@ -2871,6 +3281,47 @@
         }
       }
     },
+    "Get the App Store edition": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hol dir die App-Store-Version"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtenir la version App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consigue la versión del App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haal de App Store-versie"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ottieni la versione App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtenha a versão da App Store"
+          }
+        }
+      }
+    },
     "Get update": {
       "extractionState": "manual",
       "localizations": {
@@ -2908,6 +3359,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Obter atualização"
+          }
+        }
+      }
+    },
+    "GitHub": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
           }
         }
       }
@@ -3322,6 +3814,88 @@
         }
       }
     },
+    "Keep streams alive": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams aktiv halten"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garder les flux actifs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantener streams activos"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams actief houden"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantieni attivi gli stream"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manter streams ativos"
+          }
+        }
+      }
+    },
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir."
+          }
+        }
+      }
+    },
     "LIVE": {
       "extractionState": "manual",
       "localizations": {
@@ -3441,6 +4015,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Última tentativa: %@"
+          }
+        }
+      }
+    },
+    "Later": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Später"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus tard"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más tarde"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Later"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Più tardi"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mais tarde"
           }
         }
       }
@@ -3855,6 +4470,47 @@
         }
       }
     },
+    "Mac App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac App Store"
+          }
+        }
+      }
+    },
     "Medium": {
       "extractionState": "manual",
       "localizations": {
@@ -4015,6 +4671,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Desativar som (M)"
+          }
+        }
+      }
+    },
+    "New key": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Schlüssel"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvelle clé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave nueva"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nieuwe sleutel"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuova chiave"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nova chave"
           }
         }
       }
@@ -4347,6 +5044,47 @@
         }
       }
     },
+    "Not now": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt nicht"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas maintenant"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ahora no"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niet nu"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non ora"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agora não"
+          }
+        }
+      }
+    },
     "Not verified": {
       "extractionState": "manual",
       "localizations": {
@@ -4384,6 +5122,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Não verificado"
+          }
+        }
+      }
+    },
+    "Off": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactivé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disattivato"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desativado"
           }
         }
       }
@@ -4716,6 +5495,47 @@
         }
       }
     },
+    "Package Camera": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paketkamera"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caméra colis"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cámara de paquetes"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pakketcamera"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotocamera pacchi"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Câmera de encomendas"
+          }
+        }
+      }
+    },
     "Pan & tilt (PTZ)": {
       "extractionState": "manual",
       "localizations": {
@@ -4921,6 +5741,47 @@
         }
       }
     },
+    "Pause decoding while closed": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dekodierung bei geschlossenem Fenster pausieren"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suspendre le décodage quand le panneau est fermé"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar la decodificación con el panel cerrado"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decoderen pauzeren terwijl gesloten"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sospendi la decodifica a pannello chiuso"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar a decodificação enquanto fechado"
+          }
+        }
+      }
+    },
     "Picture-in-picture when focused": {
       "extractionState": "manual",
       "localizations": {
@@ -4999,6 +5860,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fixar como janela flutuante"
+          }
+        }
+      }
+    },
+    "Prefer automatic updates and an Apple-signed, hassle-free install? Get QuickProtect from the Mac App Store.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lieber automatische Updates und eine von Apple signierte, unkomplizierte Installation? Hol dir QuickProtect aus dem Mac App Store."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous préférez les mises à jour automatiques et une installation signée par Apple, sans tracas ? Obtenez QuickProtect sur le Mac App Store."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Prefieres actualizaciones automáticas y una instalación firmada por Apple sin complicaciones? Consigue QuickProtect en la Mac App Store."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liever automatische updates en een door Apple ondertekende installatie zonder gedoe? Haal QuickProtect uit de Mac App Store."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferisci aggiornamenti automatici e un'installazione firmata da Apple, senza problemi? Scarica QuickProtect dal Mac App Store."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefere atualizações automáticas e uma instalação assinada pela Apple, sem complicações? Baixe o QuickProtect na Mac App Store."
           }
         }
       }
@@ -5126,6 +6028,47 @@
         }
       }
     },
+    "QuickProtect %@ is out. The easiest way to stay up to date — and get a signed, hassle-free install — is the Mac App Store.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ ist da. Am einfachsten bleibst du aktuell – mit einer signierten, unkomplizierten Installation – über den Mac App Store."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ est disponible. Le moyen le plus simple de rester à jour — avec une installation signée et sans tracas — est le Mac App Store."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ ya está disponible. La forma más fácil de estar al día, con una instalación firmada y sin complicaciones, es la Mac App Store."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ is uit. De makkelijkste manier om up-to-date te blijven – met een ondertekende installatie zonder gedoe – is de Mac App Store."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect %@ è disponibile. Il modo più semplice per restare aggiornato, con un'installazione firmata e senza problemi, è il Mac App Store."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O QuickProtect %@ foi lançado. A maneira mais fácil de se manter atualizado — com uma instalação assinada e sem complicações — é a Mac App Store."
+          }
+        }
+      }
+    },
     "QuickProtect can start automatically when you log in so your cameras are always one click away.": {
       "extractionState": "manual",
       "localizations": {
@@ -5163,6 +6106,88 @@
           "stringUnit": {
             "state": "translated",
             "value": "O QuickProtect pode iniciar automaticamente ao fazer login para que suas câmeras estejam sempre a um clique."
+          }
+        }
+      }
+    },
+    "QuickProtect is on the App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect gibt es im App Store"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect est sur l'App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect está en el App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect staat in de App Store"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect è sull'App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O QuickProtect está na App Store"
+          }
+        }
+      }
+    },
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect verbindet sich nicht mehr, weil der Controller ein anderes Zertifikat vorgelegt hat. Das ist nach einer Neuinstallation, einem Zurücksetzen oder einem Austausch des Controllers zu erwarten. Falls du nichts davon getan hast, fängt womöglich jemand die Verbindung ab."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect a cessé de se connecter, car le contrôleur a présenté un autre certificat. C'est normal après une réinstallation, une réinitialisation ou un remplacement du contrôleur. Si ce n'est pas le cas, quelqu'un intercepte peut-être la connexion."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect dejó de conectarse porque el controlador presentó un certificado distinto. Es lo esperado tras reinstalar, restablecer o sustituir el controlador. Si no lo hiciste, alguien podría estar interceptando la conexión."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect maakt geen verbinding meer, omdat de controller een ander certificaat toonde. Dat is te verwachten na het opnieuw installeren, resetten of vervangen van de controller. Heb je dat niet gedaan, dan onderschept iemand mogelijk de verbinding."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuickProtect ha smesso di connettersi perché il controller ha presentato un certificato diverso. È normale dopo aver reinstallato, ripristinato o sostituito il controller. Se non l'hai fatto, qualcuno potrebbe intercettare la connessione."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O QuickProtect parou de se conectar porque o controlador apresentou um certificado diferente. Isso é esperado depois de reinstalar, redefinir ou substituir o controlador. Se você não fez isso, alguém pode estar interceptando a conexão."
           }
         }
       }
@@ -5618,6 +6643,88 @@
         }
       }
     },
+    "Review Certificate…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat prüfen…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Examiner le certificat…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revisar certificado…"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificaat controleren…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esamina certificato…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revisar certificado…"
+          }
+        }
+      }
+    },
+    "Sandboxed for extra security.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft in der Sandbox – für zusätzliche Sicherheit."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exécutée en bac à sable pour plus de sécurité."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aislada en un sandbox para mayor seguridad."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Draait in een sandbox voor extra beveiliging."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eseguita in sandbox per maggiore sicurezza."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Executado em sandbox para mais segurança."
+          }
+        }
+      }
+    },
     "Save": {
       "extractionState": "manual",
       "localizations": {
@@ -6065,6 +7172,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mostrar controles sobrepostos"
+          }
+        }
+      }
+    },
+    "Signed and notarized by Apple — installs cleanly, with no security warnings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von Apple signiert und beglaubigt – installiert sich sauber, ohne Sicherheitswarnungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signée et notarisée par Apple — s'installe proprement, sans avertissement de sécurité."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Firmada y notarizada por Apple: se instala sin problemas ni avisos de seguridad."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ondertekend en genotariseerd door Apple – installeert netjes, zonder beveiligingswaarschuwingen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Firmata e autenticata da Apple: si installa senza problemi né avvisi di sicurezza."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assinado e autenticado pela Apple — instala sem problemas nem avisos de segurança."
           }
         }
       }
@@ -6889,6 +8037,88 @@
         }
       }
     },
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams bleiben nach dem Schließen so lange verbunden – öffnest du schnell wieder, ist das Video sofort da"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les flux restent connectés pendant cette durée après la fermeture – la vidéo s'affiche instantanément à la réouverture"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los streams permanecen conectados durante este tiempo tras cerrar, así el vídeo aparece al instante al reabrir"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams blijven na het sluiten zo lang verbonden, zodat de video direct terug is bij opnieuw openen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gli stream restano connessi per questo tempo dopo la chiusura, così il video appare subito alla riapertura"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os streams permanecem conectados por esse tempo após fechar, para o vídeo aparecer na hora ao reabrir"
+          }
+        }
+      }
+    },
+    "Supports development and helps keep QuickProtect improving.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterstützt die Entwicklung und hilft, QuickProtect weiter zu verbessern."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soutient le développement et aide QuickProtect à s'améliorer."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apoya el desarrollo y ayuda a que QuickProtect siga mejorando."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ondersteunt de ontwikkeling en helpt QuickProtect beter te maken."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sostiene lo sviluppo e aiuta QuickProtect a migliorare."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apoia o desenvolvimento e ajuda o QuickProtect a continuar melhorando."
+          }
+        }
+      }
+    },
     "Swap with main view (C)": {
       "extractionState": "manual",
       "localizations": {
@@ -7012,6 +8242,88 @@
         }
       }
     },
+    "The controller didn't respond in time. Check that it's online and on the same network.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller hat nicht rechtzeitig geantwortet. Prüfe, ob er eingeschaltet und im selben Netzwerk ist."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur n'a pas répondu à temps. Vérifiez qu'il est allumé et sur le même réseau."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador no respondió a tiempo. Comprueba que esté encendido y en la misma red."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller reageerde niet op tijd. Controleer of hij aan staat en in hetzelfde netwerk zit."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller non ha risposto in tempo. Verifica che sia acceso e sulla stessa rete."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador não respondeu a tempo. Verifique se ele está ligado e na mesma rede."
+          }
+        }
+      }
+    },
+    "The controller is busy. Try again in a moment.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller ist gerade ausgelastet. Versuche es gleich noch einmal."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur est occupé. Réessayez dans un instant."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador está ocupado. Vuelve a intentarlo en un momento."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller is bezet. Probeer het zo meteen opnieuw."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller è occupato. Riprova tra un momento."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador está ocupado. Tente novamente em instantes."
+          }
+        }
+      }
+    },
     "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": {
       "extractionState": "manual",
       "localizations": {
@@ -7049,6 +8361,293 @@
           "stringUnit": {
             "state": "translated",
             "value": "O controlador está apresentando um novo certificado (chave %@…). Isso é esperado se você reinstalou ou substituiu o controlador — caso contrário, pode indicar que alguém está interceptando a conexão. Confie nele somente se reconhecer a alteração."
+          }
+        }
+      }
+    },
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller zeigt ein neues Zertifikat. Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vergleiche den neuen Schlüssel mit dem Zertifikat, das dein Controller anzeigt, bevor du ihm vertraust."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur présente un nouveau certificat. C'est normal si vous l'avez réinstallé ou remplacé — sinon, cela peut indiquer que quelqu'un intercepte la connexion. Comparez la nouvelle clé avec le certificat affiché par votre contrôleur avant de l'approuver."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador presenta un certificado nuevo. Es normal si lo reinstalaste o lo sustituiste; si no, podría indicar que alguien está interceptando la conexión. Compara la clave nueva con el certificado que muestra tu controlador antes de confiar en ella."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller toont een nieuw certificaat. Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen – zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vergelijk de nieuwe sleutel met het certificaat dat je controller toont voordat je hem vertrouwt."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller presenta un nuovo certificato. È normale se lo hai reinstallato o sostituito; in caso contrario potrebbe indicare che qualcuno sta intercettando la connessione. Confronta la nuova chiave con il certificato mostrato dal tuo controller prima di fidarti."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador está apresentando um novo certificado. Isso é esperado se você o reinstalou ou substituiu — caso contrário, pode indicar que alguém está interceptando a conexão. Compare a nova chave com o certificado exibido pelo seu controlador antes de confiar nela."
+          }
+        }
+      }
+    },
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller empfängt kein Video von dieser Kamera. Ein Neustart der Kamera in UniFi Protect behebt das in der Regel."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur ne reçoit pas de vidéo de cette caméra. Redémarrer la caméra dans UniFi Protect règle généralement le problème."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador no recibe vídeo de esta cámara. Reiniciar la cámara en UniFi Protect suele solucionarlo."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller ontvangt geen video van deze camera. De camera opnieuw starten in UniFi Protect lost dit meestal op."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller non riceve video da questa telecamera. Riavviare la telecamera in UniFi Protect di solito risolve il problema."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador não está recebendo vídeo desta câmera. Reiniciar a câmera no UniFi Protect geralmente resolve isso."
+          }
+        }
+      }
+    },
+    "The controller refused the connection. Check the IP address in Settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller hat die Verbindung abgelehnt. Prüfe die IP-Adresse in den Einstellungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur a refusé la connexion. Vérifiez l'adresse IP dans les réglages."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador rechazó la conexión. Revisa la dirección IP en los ajustes."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller heeft de verbinding geweigerd. Controleer het IP-adres in de instellingen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller ha rifiutato la connessione. Controlla l'indirizzo IP nelle impostazioni."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador recusou a conexão. Verifique o endereço IP nos ajustes."
+          }
+        }
+      }
+    },
+    "The controller rejected the API key. Check it in Settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller hat den API-Schlüssel abgelehnt. Prüfe ihn in den Einstellungen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur a refusé la clé API. Vérifiez-la dans les réglages."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador rechazó la clave API. Revísala en los ajustes."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller heeft de API-sleutel geweigerd. Controleer hem in de instellingen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller ha rifiutato la chiave API. Controllala nelle impostazioni."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador recusou a chave de API. Verifique-a nos ajustes."
+          }
+        }
+      }
+    },
+    "The controller reported an internal error. Try again later.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller hat einen internen Fehler gemeldet. Versuche es später noch einmal."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur a signalé une erreur interne. Réessayez plus tard."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador informó de un error interno. Vuelve a intentarlo más tarde."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller meldde een interne fout. Probeer het later opnieuw."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller ha segnalato un errore interno. Riprova più tardi."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador relatou um erro interno. Tente novamente mais tarde."
+          }
+        }
+      }
+    },
+    "The controller returned an unexpected response.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller hat eine unerwartete Antwort gesendet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur a renvoyé une réponse inattendue."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador devolvió una respuesta inesperada."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller gaf een onverwacht antwoord."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller ha restituito una risposta inattesa."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador retornou uma resposta inesperada."
+          }
+        }
+      }
+    },
+    "The controller sent a response QuickProtect couldn't read.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Controller hat eine Antwort gesendet, die QuickProtect nicht lesen kann."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contrôleur a envoyé une réponse que QuickProtect ne peut pas lire."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El controlador envió una respuesta que QuickProtect no puede leer."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De controller stuurde een antwoord dat QuickProtect niet kan lezen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il controller ha inviato una risposta che QuickProtect non riesce a leggere."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O controlador enviou uma resposta que o QuickProtect não consegue ler."
           }
         }
       }
@@ -7336,6 +8935,88 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confiar no novo certificado"
+          }
+        }
+      }
+    },
+    "Trust the controller's new certificate?": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dem neuen Zertifikat des Controllers vertrauen?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approuver le nouveau certificat du contrôleur ?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Confiar en el nuevo certificado del controlador?"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Het nieuwe certificaat van de controller vertrouwen?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fidarsi del nuovo certificato del controller?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar no novo certificado do controlador?"
+          }
+        }
+      }
+    },
+    "Trusted key": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrauter Schlüssel"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé approuvée"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave de confianza"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrouwde sleutel"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiave attendibile"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chave confiável"
           }
         }
       }
@@ -7705,6 +9386,47 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ver no GitHub"
+          }
+        }
+      }
+    },
+    "View on the App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im App Store ansehen"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir sur l'App Store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver en el App Store"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bekijk in de App Store"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vedi sull'App Store"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver na App Store"
           }
         }
       }
@@ -9229,211 +10951,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "Keep streams alive": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams aktiv halten"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Garder les flux actifs"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mantener streams activos"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams actief houden"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mantieni attivi gli stream"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manter streams ativos"
-          }
-        }
-      }
-    },
-    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams bleiben nach dem Schließen so lange verbunden – öffnest du schnell wieder, ist das Video sofort da"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les flux restent connectés pendant cette durée après la fermeture – la vidéo s'affiche instantanément à la réouverture"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Los streams permanecen conectados durante este tiempo tras cerrar, así el vídeo aparece al instante al reabrir"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streams blijven na het sluiten zo lang verbonden, zodat de video direct terug is bij opnieuw openen"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gli stream restano connessi per questo tempo dopo la chiusura, così il video appare subito alla riapertura"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Os streams permanecem conectados por esse tempo após fechar, para o vídeo aparecer na hora ao reabrir"
-          }
-        }
-      }
-    },
-    "Off": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aus"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Désactivé"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Desactivado"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uit"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Disattivato"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Desativado"
-          }
-        }
-      }
-    },
-    "Pause decoding while closed": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dekodierung bei geschlossenem Fenster pausieren"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Suspendre le décodage quand le panneau est fermé"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pausar la decodificación con el panel cerrado"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Decoderen pauzeren terwijl gesloten"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sospendi la decodifica a pannello chiuso"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pausar a decodificação enquanto fechado"
-          }
-        }
-      }
-    },
-    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir."
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir."
           }
         }
       }

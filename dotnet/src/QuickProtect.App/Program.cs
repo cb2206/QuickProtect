@@ -10,8 +10,11 @@ internal static class Program
     /// <summary>Raw launch arguments (e.g. <c>--open-panel</c> opens the grid at startup).</summary>
     public static string[] LaunchArgs { get; private set; } = Array.Empty<string>();
 
-    /// <summary>Signaled by a second launch to bring the running instance's panel up.</summary>
-    public const string ShowPanelEventName = "QuickProtect-ShowPanel";
+    /// <summary>
+    /// This process's claim on being the one tray agent. The app picks it up in
+    /// <c>OnFrameworkInitializationCompleted</c> to listen for later launches.
+    /// </summary>
+    internal static Platform.ISingleInstance? SingleInstance { get; private set; }
 
     [STAThread]
     public static void Main(string[] args)
@@ -21,14 +24,13 @@ internal static class Program
         // Single instance: the tray agent must never run twice (duplicate trays,
         // duplicate stream allocations). A second launch nudges the running
         // instance to show its panel instead, then exits.
-        using var singleInstance = new Mutex(initiallyOwned: true, "QuickProtect-SingleInstance", out var isFirstInstance);
-        if (!isFirstInstance)
+        using var singleInstance = Platform.SingleInstanceFactory.Acquire();
+        SingleInstance = singleInstance;
+        if (!singleInstance.IsPrimary)
         {
-            if (OperatingSystem.IsWindows())
-            {
-                try { EventWaitHandle.OpenExisting(ShowPanelEventName).Set(); }
-                catch { /* running instance is still starting up — nothing to signal */ }
-            }
+            // A failed nudge means the running instance is still starting up
+            // (or this platform has no channel); either way this copy exits.
+            singleInstance.RaiseRunningInstance();
             return;
         }
         // Capture any fatal exception to a log file so crashes are diagnosable
@@ -38,6 +40,10 @@ internal static class Program
 
         try
         {
+            // Before any Avalonia code runs: the X11 backend reads its scaling
+            // variables once, while the platform initializes.
+            if (OperatingSystem.IsLinux()) Platform.LinuxDisplayScaling.Apply();
+
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)

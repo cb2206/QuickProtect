@@ -18,7 +18,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Icon = ApertureIcon.Create(64);
         // Tile drag-reorder needs tunnel handlers: the footer Button swallows
-        // bubbled pointer events, and the native VideoView swallows everything.
+        // bubbled pointer events before they reach the tile.
         AddHandler(PointerPressedEvent, Tile_DragPressed, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, Tile_DragMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, Tile_DragReleased, RoutingStrategies.Tunnel);
@@ -36,8 +36,13 @@ public partial class MainWindow : Window
             if (Vm is { } vm)
                 vm.PropertyChanged += (_, e) =>
                 {
-                    if (e.PropertyName == nameof(MainViewModel.IsFocusMode) && vm.IsFocusMode)
+                    if (e.PropertyName != nameof(MainViewModel.IsFocusMode)) return;
+                    if (vm.IsFocusMode)
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => FocusRoot.Focus());
+                    // Focus can also end from the view model (the focused camera
+                    // left the list); fullscreen belongs to focus mode.
+                    else if (WindowState == WindowState.FullScreen)
+                        WindowState = WindowState.Normal;
                 };
         };
         // Restore the per-profile panel size (macOS persists panel geometry).
@@ -51,15 +56,55 @@ public partial class MainWindow : Window
         // (dropdowns, Settings) doesn't count as "outside". --no-dismiss keeps
         // the panel up for automated UI testing.
         if (!Program.LaunchArgs.Contains("--no-dismiss"))
+        {
             Deactivated += (_, _) =>
             {
-                if (WindowState != WindowState.FullScreen && !ForegroundBelongsToThisProcess())
-                {
-                    LastAutoHide = DateTime.UtcNow;
-                    Hide();
-                }
+                if (!ForegroundBelongsToThisProcess()) AutoHide();
             };
+            // Deactivated alone misses every click outside made while the panel
+            // isn't the active window: after Settings or a pinned window took
+            // focus, or when Windows refused to activate the panel at all. So on
+            // Windows, any foreground change to another process dismisses it.
+            if (OperatingSystem.IsWindows()) WatchForeground();
+        }
     }
+
+    private void AutoHide()
+    {
+        if (!IsVisible || WindowState == WindowState.FullScreen) return;
+        LastAutoHide = DateTime.UtcNow;
+        Hide();
+    }
+
+    // Kept in a field: the native hook calls it for the app's lifetime.
+    private WinEventDelegate? _foregroundChanged;
+
+    private void WatchForeground()
+    {
+        _foregroundChanged = (_, _, hwnd, _, _, _, _) =>
+        {
+            _ = GetWindowThreadProcessId(hwnd, out var pid);
+            if (pid != Environment.ProcessId) AutoHide();
+        };
+        // Out-of-context: delivered through this (UI) thread's message loop.
+        var hook = SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero,
+            _foregroundChanged, 0, 0, WineventOutOfContext | WineventSkipOwnProcess);
+        if (hook != IntPtr.Zero) Closed += (_, _) => UnhookWinEvent(hook);
+    }
+
+    private const uint EventSystemForeground = 0x0003;
+    private const uint WineventOutOfContext = 0x0000;
+    private const uint WineventSkipOwnProcess = 0x0002;
+
+    private delegate void WinEventDelegate(IntPtr hook, uint eventType, IntPtr hwnd,
+        int idObject, int idChild, uint eventThread, uint eventTime);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module,
+        WinEventDelegate callback, uint processId, uint threadId, uint flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool UnhookWinEvent(IntPtr hook);
 
     /// <summary>
     /// When the outside-click that dismissed the panel was the tray icon itself,
@@ -252,14 +297,15 @@ public partial class MainWindow : Window
         var qualityMenu = new MenuItem { Header = Localization.Loc.Get("Stream quality") };
         var useDefault = new MenuItem
         {
+            // Composed like macOS ("Use default" + " (High)"), both parts from the catalog.
             Header = (currentQuality == null ? "✓ " : "   ") +
-                     string.Format(Localization.Loc.Get("Use default ({0})"), vm.DefaultQuality.RawValue())
+                     $"{Localization.Loc.Get("Use default")} ({QualityName(vm.DefaultQuality)})"
         };
         useDefault.Click += (_, _) => vm.SetTileQuality(tile, null);
         qualityMenu.Items.Add(useDefault);
         foreach (var q in new[] { StreamQuality.Auto, StreamQuality.Low, StreamQuality.Medium, StreamQuality.High })
         {
-            var item = new MenuItem { Header = (currentQuality == q ? "✓ " : "   ") + q.RawValue() };
+            var item = new MenuItem { Header = (currentQuality == q ? "✓ " : "   ") + QualityName(q) };
             var quality = q;
             item.Click += (_, _) => vm.SetTileQuality(tile, quality);
             qualityMenu.Items.Add(item);
@@ -289,6 +335,15 @@ public partial class MainWindow : Window
 
         flyout.ShowAt(border, true);
     }
+
+    /// <summary>The quality's display name from the catalog (macOS <c>StreamQuality.displayName</c>).</summary>
+    private static string QualityName(StreamQuality q) => Localization.Loc.Get(q switch
+    {
+        StreamQuality.Auto => "Auto",
+        StreamQuality.High => "High",
+        StreamQuality.Medium => "Medium",
+        _ => "Low"
+    });
 
     // MARK: - Focus entry / exit
 
@@ -336,6 +391,7 @@ public partial class MainWindow : Window
         // Single click on the video goes back to the grid (macOS tap behavior),
         // deferred briefly so a double-click can cancel it.
         _pendingExit?.Cancel();
+        _pendingExit?.Dispose();
         var cts = new CancellationTokenSource();
         _pendingExit = cts;
         _ = Task.Delay(280, cts.Token).ContinueWith(t =>
@@ -382,6 +438,9 @@ public partial class MainWindow : Window
     // MARK: - Header actions
 
     private void Header_Settings(object? sender, RoutedEventArgs e) => App.Instance.ShowSettings();
+
+    private async void Certificate_Review(object? sender, RoutedEventArgs e)
+        => await App.Instance.ReviewCertificateAsync(this);
 
     private void Header_Quit(object? sender, RoutedEventArgs e) => App.Instance.RequestShutdown();
 
@@ -430,9 +489,9 @@ public partial class MainWindow : Window
 
     // MARK: - Fullscreen HUD (auto-hides the focus chrome after a few idle seconds)
     //
-    // Pointer wake-up needs a global cursor poll: mouse moves over the native
-    // libVLC child window never reach Avalonia, so OnPointerMoved alone can't
-    // resurface the chrome. Windows polls GetCursorPos; elsewhere keys still work.
+    // Pointer wake-up uses a global cursor poll on Windows (GetCursorPos) so the
+    // chrome resurfaces on any mouse movement, including over children that
+    // handle the pointer themselves; elsewhere keys wake it.
 
     private Avalonia.Threading.DispatcherTimer? _hudTimer;
     private Avalonia.Threading.DispatcherTimer? _cursorPoll;

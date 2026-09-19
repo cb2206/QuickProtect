@@ -2,28 +2,41 @@ name: macOS
 
 on:
   push:
-    branches: [main, dev, "feat/**"]
+    branches: [main, dev, "feat/**", "fix/**"]
     paths:
       - "macos/**"
       - ".github/workflows/ci-macos.yml"
+      - ".github/actions/macos-tools/**"
   pull_request:
     paths:
       - "macos/**"
       - ".github/workflows/ci-macos.yml"
+      - ".github/actions/macos-tools/**"
   workflow_dispatch:
+
+# Actions are pinned to commit SHAs (Dependabot keeps them current); the
+# version comment is for humans.
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Install XcodeGen and SwiftLint
-        run: brew install xcodegen swiftlint
+      - uses: ./.github/actions/macos-tools
 
       - name: Generate Xcode project
         working-directory: macos
         run: xcodegen generate
+
+      # project.yml is the source of truth and Info.plist is generated from
+      # it; a committed plist that no longer matches means someone hand-edited
+      # one side.
+      - name: Info.plist matches project.yml
+        run: git diff --exit-code -- macos/QuickProtect/Info.plist
 
       # Debug builds sign ad-hoc (see project.yml), so no certificates are needed.
       - name: Run tests

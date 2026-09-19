@@ -9,6 +9,7 @@ using QuickProtect.App.Platform;
 using QuickProtect.App.Services;
 using QuickProtect.App.ViewModels;
 using QuickProtect.App.Views;
+using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App;
@@ -31,8 +32,9 @@ public partial class App : Application
     /// runs (see <see cref="PanelClosed"/>). Cancelled when the panel reopens in time.</summary>
     private DispatcherTimer? _streamTeardownTimer;
     private SettingsWindow? _settingsWindow;
-    private OnboardingWindow? _onboardingWindow;
     private IGlobalHotkey? _hotkey;
+    /// <summary>Termination-signal handlers (Linux); see <see cref="LinuxTerminationSignal"/>.</summary>
+    private IDisposable? _termination;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -52,10 +54,23 @@ public partial class App : Application
         // Custom FFmpeg video engine; rtsps rides the local TLS bridge with the
         // same TOFU trust as the API.
         Video.FfmpegEngine.Initialize();
-        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust);
+        // The tunnel pins under the configured controller identity, not under
+        // whatever host the stream URL names, so video and API share one pin.
+        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust,
+            connectHost => ControllerAddress.Parse(Settings.IpAddress)?.PinKey ?? connectHost);
         Streams = new Video.VideoStreamCoordinator(Service);
-        Service.CertificateChanged += (_, message) =>
-            Dispatcher.UIThread.Post(() => Service_ShowError(message));
+        // A rejected certificate (API or RTSPS tunnel) shows as the panel's
+        // certificate card via Service.CertificateChange. Once the user trusts
+        // the new key, every stream failure so far was the rejection — restart
+        // them now rather than after their accumulated backoff.
+        var hadCertificateChange = Service.CertificateChange != null;
+        Service.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(ProtectService.CertificateChange)) return;
+            var hasChange = Service.CertificateChange != null;
+            if (hadCertificateChange && !hasChange) Dispatcher.UIThread.Post(Streams.RetryFailedNow);
+            hadCertificateChange = hasChange;
+        };
         PinnedWindows = new PinnedWindowManager(Service, Settings);
         Updater = new UpdateChecker(CurrentVersion());
         Updater.StartPeriodicChecks();
@@ -66,9 +81,20 @@ public partial class App : Application
             // when all windows close (mirrors LSUIElement on macOS).
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             desktop.Exit += (_, _) => OnExit();
+            // A termination signal (logout, systemctl --user stop, the dev
+            // scripts' pkill) has to leave through that same Exit, not through
+            // the runtime's exit() — see LinuxTerminationSignal. Held for the
+            // process's lifetime: the app answers signals until it is gone.
+            if (OperatingSystem.IsLinux())
+                _termination = LinuxTerminationSignal.Install(() => Dispatcher.UIThread.Post(RequestShutdown));
         }
 
         SetupTray();
+
+        // Before the hotkey registers with the portal, which only accepts the
+        // app id once a quickprotect.desktop is installed.
+        if (OperatingSystem.IsLinux())
+            LinuxDesktopEntries.EnsureUsable();
 
         // Global hotkey toggles the panel; re-applied whenever the binding changes.
         _hotkey = GlobalHotkeyFactory.Create(ToggleMainWindow);
@@ -76,7 +102,7 @@ public partial class App : Application
         // A controller/API-key change invalidates live streams and any pending
         // keep-alive grace — stale clients would keep talking to the old host.
         // The setters raise on every write (Settings re-applies unchanged text
-        // on focus loss), so only an actual value change tears down.
+        // on focus loss), so only an actual value change reconnects.
         var lastIp = Settings.IpAddress;
         var lastApiKey = Settings.ApiKey;
         Settings.PropertyChanged += (_, e) =>
@@ -87,12 +113,12 @@ public partial class App : Application
             if (e.PropertyName == nameof(AppSettings.IpAddress) && Settings.IpAddress != lastIp)
             {
                 lastIp = Settings.IpAddress;
-                Dispatcher.UIThread.Post(TeardownStreamsNow);
+                Dispatcher.UIThread.Post(ReconnectController);
             }
             if (e.PropertyName == nameof(AppSettings.ApiKey) && Settings.ApiKey != lastApiKey)
             {
                 lastApiKey = Settings.ApiKey;
-                Dispatcher.UIThread.Post(TeardownStreamsNow);
+                Dispatcher.UIThread.Post(ReconnectController);
             }
         };
 
@@ -100,8 +126,8 @@ public partial class App : Application
         if (!string.IsNullOrEmpty(Settings.IpAddress) && !string.IsNullOrEmpty(Settings.ApiKey))
             _ = Service.FetchCamerasAsync();
 
-        // A second app launch signals this event instead of starting (see Program).
-        if (OperatingSystem.IsWindows()) StartShowPanelListener();
+        // A second app launch signals this instead of starting (see Program).
+        StartShowPanelListener();
 
         if (!Settings.HasCompletedOnboarding)
             ShowOnboarding();
@@ -144,17 +170,8 @@ public partial class App : Application
     }
 
     /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>
-    private void StartShowPanelListener()
-    {
-        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ShowPanelEventName);
-        var thread = new Thread(() =>
-        {
-            while (signal.WaitOne())
-                Dispatcher.UIThread.Post(ShowMainWindow);
-        })
-        { IsBackground = true, Name = "QP-ShowPanel" };
-        thread.Start();
-    }
+    private void StartShowPanelListener() =>
+        Program.SingleInstance?.OnRaiseRequested(() => Dispatcher.UIThread.Post(ShowMainWindow));
 
     /// <summary>Show (never hide) the camera panel — used by external activation.</summary>
     private void ShowMainWindow()
@@ -201,10 +218,8 @@ public partial class App : Application
         vm.Finished += (_, _) =>
         {
             window.Close();
-            _onboardingWindow = null;
             ToggleMainWindow(); // open the grid right after setup
         };
-        _onboardingWindow = window;
         window.Show();
         window.Activate();
     }
@@ -263,10 +278,14 @@ public partial class App : Application
             _ => ThemeVariant.Default
         };
 
+    /// <summary>Raised after each hotkey (re)registration with whether the OS accepted it.</summary>
+    public event Action<bool>? HotkeyApplied;
+
     private void ApplyHotkey()
     {
         var hk = Settings.GlobalHotkey();
-        _hotkey?.Update(hk?.keyCode, hk?.modifiers);
+        var ok = _hotkey?.Update(hk?.keyCode, hk?.modifiers) ?? true;
+        HotkeyApplied?.Invoke(ok);
     }
 
     // MARK: - Stream keep-alive (the macOS scheduleStreamTeardown / teardownStreamsNow)
@@ -313,14 +332,42 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Immediate stream teardown: the in-flight camera fetch, all tile streams,
-    /// and the server-side allocations (DELETE per stream). Runs on grace
-    /// expiry, app quit, and connection-settings changes.
+    /// Opens the certificate review dialog over <paramref name="owner"/> and
+    /// trusts the new key if the user confirms. No-op when nothing is pending.
     /// </summary>
-    public void TeardownStreamsNow()
+    public async Task ReviewCertificateAsync(Window owner)
+    {
+        if (Service.CertificateChange is not { } change) return;
+        if (await Views.CertificateReviewWindow.ShowAsync(owner, change))
+            Service.TrustPendingCertificate(change.Host);
+    }
+
+    /// <summary>
+    /// The controller address or API key changed: drop the old controller's
+    /// streams, fetch from the new one (clearing the old error banner), and
+    /// restart the tiles if the panel is showing.
+    /// </summary>
+    private async void ReconnectController()
+    {
+        // The service decides which in-flight fetch is stale (see RefetchForNewConnectionAsync).
+        TeardownStreamsNow(cancelFetch: false);
+        await Service.RefetchForNewConnectionAsync();
+        if (_mainWindow is { IsVisible: true, DataContext: MainViewModel vm } && Service.ErrorMessage == null)
+            vm.StartAll();
+    }
+
+    /// <summary>
+    /// Immediate stream teardown: the in-flight camera fetch (unless
+    /// <paramref name="cancelFetch"/> is false), all tile streams, and the
+    /// server-side allocations (DELETE per stream). Runs on grace expiry, app
+    /// quit, and connection-settings changes.
+    /// </summary>
+    public void TeardownStreamsNow() => TeardownStreamsNow(cancelFetch: true);
+
+    private void TeardownStreamsNow(bool cancelFetch)
     {
         CancelStreamTeardown();
-        Service.CancelFetch();
+        if (cancelFetch) Service.CancelFetch();
         // Reset the pause flag so a client that restarts later decodes again.
         Streams.SetRenderPaused(false);
         if (_mainWindow?.DataContext is MainViewModel vm)
@@ -338,12 +385,6 @@ public partial class App : Application
     {
         _streamTeardownTimer?.Stop();
         _streamTeardownTimer = null;
-    }
-
-    private void Service_ShowError(string message)
-    {
-        // Lightweight surface for now; a styled alert is a follow-up.
-        Console.Error.WriteLine($"[QuickProtect] {message}");
     }
 
     /// <summary>Quit the app (tray menu and the panel header's power button).</summary>
@@ -365,9 +406,20 @@ public partial class App : Application
         Updater.Dispose();
         PinnedWindows.CloseAll();
         Streams.Dispose();
+        // Give the DELETEs a moment to reach the controller before the
+        // HttpClient goes away with them; bounded so quit never hangs. Closing
+        // the pinned windows and disposing the coordinator above already sent
+        // most of them fire-and-forget, so wait on everything in flight, not
+        // just what the cleanup calls still found.
         Service.CleanupStreams();
         Service.CleanupPinnedStreams();
+        var released = Service.ReleasesSettled();
+        try { released.Wait(TimeSpan.FromSeconds(2)); } catch { /* best effort on exit */ }
         Service.Dispose();
         Video.FfmpegEngine.Tunnel?.Dispose();
+        // Last: the quit these handlers exist to run is this one. From here the
+        // renderer is already stopped, so a further signal has nothing left to
+        // race with and the runtime's own exit() is safe again.
+        _termination?.Dispose();
     }
 }

@@ -1,12 +1,20 @@
 <Project>
   <!-- Shared build settings for the cross-platform (Windows + Linux) QuickProtect port. -->
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Version>1.3.1</Version>
+    <!-- The build is warning-free; keep it that way. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Reproducible restores: packages.lock.json is committed and CI restores
+         with locked-mode. Scoped to project files — the solution's restore
+         metaproject has no target framework and NuGet rejects the property there. -->
+    <RestorePackagesWithLockFile Condition="'$(MSBuildProjectExtension)' == '.csproj'">true</RestorePackagesWithLockFile>
+    <Version>1.4</Version>
     <Company>Christian Bartels</Company>
     <Product>QuickProtect</Product>
     <Copyright>Copyright © 2026 Christian Bartels. All rights reserved.</Copyright>

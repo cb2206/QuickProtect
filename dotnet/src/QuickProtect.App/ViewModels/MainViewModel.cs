@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Avalonia.Threading;
 using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
@@ -21,8 +21,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<CameraTileViewModel> Tiles { get; } = new();
 
     [ObservableProperty] private bool _isLoading;
-    [ObservableProperty] private string? _errorMessage;
-    [ObservableProperty] private bool _hasCameras;
+
+    /// <summary>The service's error, translated (the service reports catalog keys or raw exception text).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowErrorBanner))]
+    private string? _errorMessage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowGrid))]
+    private bool _hasCameras;
+
+    /// <summary>
+    /// The controller's certificate changed. Every request fails until the user
+    /// decides, so the certificate card replaces the error banner, the empty
+    /// state and the (dead) grid.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCertificateChange))]
+    [NotifyPropertyChangedFor(nameof(ShowErrorBanner))]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowGrid))]
+    private CertificateChange? _certificateChange;
+
+    public bool HasCertificateChange => CertificateChange != null;
+    public bool ShowErrorBanner => !string.IsNullOrEmpty(ErrorMessage) && !HasCertificateChange;
+    public bool ShowEmptyState => !HasCameras && !HasCertificateChange;
+    public bool ShowGrid => HasCameras && !HasCertificateChange;
 
     /// <summary>Header search box; filters visible tiles by camera name.</summary>
     [ObservableProperty] private string _searchQuery = "";
@@ -44,8 +69,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// The camera shown enlarged in focus mode, or null for the grid. Focus uses
-    /// a dedicated tile (its own high-quality stream + player) so it never shares
-    /// a <c>MediaPlayer</c> with a grid tile.
+    /// a dedicated tile view model; its stream handle adopts the grid tile's
+    /// client through the coordinator, so entry is instant and the quality
+    /// upgrade happens in place.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFocusMode))]
@@ -100,6 +126,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _gridWidth = settings.PanelSize()?.Width ?? 760;
         _service.PropertyChanged += OnServiceChanged;
         _settings.PropertyChanged += OnSettingsChanged;
+        ErrorMessage = Localize(_service.ErrorMessage);
+        CertificateChange = _service.CertificateChange;
         RebuildProfiles();
         RebuildTiles();
     }
@@ -138,6 +166,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 || tile.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static string? Localize(string? message) => message is null ? null : Localization.Loc.Get(message);
+
     private void OnServiceChanged(object? sender, PropertyChangedEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
@@ -146,7 +176,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 case nameof(ProtectService.Cameras): RebuildTiles(); break;
                 case nameof(ProtectService.IsLoading): IsLoading = _service.IsLoading; break;
-                case nameof(ProtectService.ErrorMessage): ErrorMessage = _service.ErrorMessage; break;
+                case nameof(ProtectService.ErrorMessage): ErrorMessage = Localize(_service.ErrorMessage); break;
+                case nameof(ProtectService.CertificateChange): CertificateChange = _service.CertificateChange; break;
+                case nameof(ProtectService.PtzErrorMessage):
+                    // PTZ problems are per-camera feedback, never the grid's error card.
+                    if (_service.PtzErrorMessage is { } ptzError)
+                    {
+                        ShowToast(Localization.Loc.Get(ptzError));
+                        _service.ClearPtzError();
+                    }
+                    break;
             }
         });
     }
@@ -158,6 +197,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(AppSettings.ShowFocusOverlayControls))
+        {
+            // Settings toggle must reach an already-open focus view.
+            Dispatcher.UIThread.Post(() =>
+            {
+                OnPropertyChanged(nameof(ShowFocusControls));
+                OnPropertyChanged(nameof(ControlsVisible));
+            });
+            return;
+        }
         if (e.PropertyName is nameof(AppSettings.ShowsSecondaryLensPip)
             or nameof(AppSettings.ShowsSecondaryLensPipInGrid))
         {
@@ -203,7 +252,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var byId = Tiles.ToDictionary(t => t.Camera.Id);
 
         // Stop+drop tiles whose camera disappeared. Remove from the collection
-        // first so the VideoView detaches from a still-live player.
+        // first so the surface unsubscribes from a still-live client.
         foreach (var tile in Tiles.ToList())
             if (!visible.Any(c => c.Id == tile.Camera.Id))
             {
@@ -234,9 +283,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnSearchQueryChanged(SearchQuery); // re-apply filter to any new tiles
 
         // The focus tile isn't in Tiles — refresh it too so the PTZ overlay
-        // appears once capability enrichment lands mid-focus.
-        if (FocusTile is { } ft && _service.Cameras.FirstOrDefault(c => c.Id == ft.Camera.Id) is { } focused)
-            ft.UpdateFrom(focused);
+        // appears once capability enrichment lands mid-focus. A focused camera
+        // that left the list (removed, or another controller configured) ends focus.
+        if (FocusTile is { } ft)
+        {
+            if (_service.Cameras.FirstOrDefault(c => c.Id == ft.Camera.Id) is { } focused)
+                ft.UpdateFrom(focused);
+            else
+                ExitFocus();
+        }
     }
 
     [RelayCommand]
@@ -281,9 +336,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Open the camera in the controller's web UI (macOS "Open in Protect").</summary>
     public void OpenInProtect(CameraTileViewModel tile)
     {
-        var ip = _settings.IpAddress;
-        if (string.IsNullOrEmpty(ip)) return;
-        Platform.UrlOpener.Open($"https://{ip}/protect/dashboard/all/sidepanel/device/{tile.Camera.Id}");
+        if (ControllerAddress.Parse(_settings.IpAddress) is not { } address) return;
+        Platform.UrlOpener.Open($"{address.HttpsBase}/protect/dashboard/all/sidepanel/device/{Uri.EscapeDataString(tile.Camera.Id)}");
     }
 
     /// <summary>"Save Current View as New Profile…" (header profile menu parity).</summary>
@@ -411,7 +465,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var pip = SecondaryTile;
         var ft = FocusTile;
         var tiles = Tiles.ToList();
-        // Unbind everything first, then dispose (VideoView detach touches players).
+        // Unbind everything first, then dispose (surfaces unsubscribe on detach).
         SecondaryTile = null;
         FocusTile = null;
         Tiles.Clear();

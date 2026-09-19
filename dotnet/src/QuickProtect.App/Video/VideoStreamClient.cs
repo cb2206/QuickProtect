@@ -40,7 +40,48 @@ public sealed class VideoStreamClient : IDisposable
     /// <summary>An audio track was found (or lost) for the current session.</summary>
     public event Action<bool>? HasAudioChanged;
 
+    /// <summary>
+    /// The newest session failed to even open its URL
+    /// <see cref="OpenFailuresBeforeAllocationLost"/> times in a row (raised on
+    /// the decode thread, again after every further run of that many). The
+    /// controller keeps one URL per camera and quality and a DELETE from any
+    /// client — another QuickProtect included — removes it; reconnecting to the
+    /// same URL then never succeeds, so the owner should allocate a fresh one.
+    /// </summary>
+    public event Action? AllocationLost;
+
+    /// <summary>Test hook: behave as if the URL stopped opening.</summary>
+    internal void RaiseAllocationLostForTest() => AllocationLost?.Invoke();
+
+    /// <summary>
+    /// Test hook: runs instead of the FFmpeg session (returns whether it ended
+    /// cleanly). Lets tests drive the reconnect loop without depending on whether
+    /// another test has initialised the process-wide FFmpeg engine.
+    /// </summary>
+    internal Func<string, bool>? SessionOverride { get; init; }
+
+    /// <summary>Consecutive open failures that raise <see cref="AllocationLost"/>.</summary>
+    internal const int OpenFailuresBeforeAllocationLost = 3;
+
+    // Set by RunSession when avformat_open_input fails. Each session runs on its
+    // own thread, so a thread-static needs no generation bookkeeping.
+    [ThreadStatic] private static bool t_openFailed;
+
     public VideoState State { get; private set; } = VideoState.Idle;
+
+    /// <summary>
+    /// Why the session last went to <see cref="VideoState.Failed"/> (an English
+    /// key the UI localizes), or null. Cleared when a frame arrives.
+    /// </summary>
+    public string? LastError { get; private set; }
+
+    /// <summary>
+    /// The controller answered DESCRIBE with audio tracks only: it isn't
+    /// receiving video from the camera (seen after a camera's ingest pipeline
+    /// on the controller stalled; a camera restart fixed it).
+    /// </summary>
+    public const string NoVideoTrackMessage =
+        "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.";
 
     /// <summary>True while the current session carries a decodable audio track.</summary>
     public bool HasAudio { get; private set; }
@@ -72,6 +113,15 @@ public sealed class VideoStreamClient : IDisposable
     private readonly List<(int Gen, Thread Thread)> _threads = new();
     private string? _url;
     private volatile bool _stop;
+    /// <summary>Set by <see cref="Stop"/> so a session sleeping in its reconnect backoff wakes at once.</summary>
+    private readonly ManualResetEventSlim _wake = new(false);
+
+    /// <summary>
+    /// Frames beyond this edge length are refused. FFmpeg's own decoders allow
+    /// up to 16384², i.e. a 1 GiB BGRA buffer per reconnect — a hostile or
+    /// broken stream must not be able to drive the app into that.
+    /// </summary>
+    private const int MaxDimension = 8192;
 
     // Session generations (seamless switching). _latestGen is the newest session
     // started; _paintGen is the one owning the frame buffer (bumped under
@@ -82,7 +132,11 @@ public sealed class VideoStreamClient : IDisposable
     private volatile int _latestGen;
     private volatile int _paintGen;
     private long _switchDeadlineTicks;
-    private static readonly TimeSpan SwitchGrace = TimeSpan.FromSeconds(10);
+    /// <summary>
+    /// How long a superseded session keeps rendering while its successor has not
+    /// painted yet. Settable so tests can exercise a handover without decoding.
+    /// </summary>
+    internal static TimeSpan SwitchGrace { get; set; } = TimeSpan.FromSeconds(10);
 
     // Deferred actions for quality switches: each entry runs once every session
     // with Gen <= Ceiling has fully ended (the coordinator releases the old
@@ -163,6 +217,7 @@ public sealed class VideoStreamClient : IDisposable
                 _threads.Clear();
                 _url = url;
                 _stop = false;
+                _wake.Reset();
                 StartSessionThreadLocked(url);
                 fireNow = onPreviousSessionEnded; // no previous session
             }
@@ -178,19 +233,40 @@ public sealed class VideoStreamClient : IDisposable
         thread.Start();
     }
 
+    /// <summary>
+    /// Stop streaming. Signals the session threads and returns immediately:
+    /// callers are on the UI thread (tile release, panel close for every tile,
+    /// quit), and a session blocked in a socket read, a reconnect backoff or an
+    /// audio write must not stall them. The thread exits on its own (the
+    /// interrupt callback aborts blocking I/O); <see cref="Dispose"/> waits.
+    /// </summary>
     public void Stop()
     {
-        Thread[] threads;
-        lock (_ctrlLock)
-        {
-            _stop = true;
-            threads = _threads.Select(t => t.Thread).ToArray();
-        }
-        foreach (var t in threads) t.Join(3000);
+        lock (_ctrlLock) _stop = true;
+        _wake.Set();
         SetState(VideoState.Idle);
     }
 
-    public void Dispose() => Stop();
+    /// <summary>
+    /// The stream's allocation could not be (re)created — the coordinator will
+    /// retry, but the UI should drop its spinner meanwhile (the last frame, if
+    /// any, stays on screen).
+    /// </summary>
+    public void ReportFailure() => SetState(VideoState.Failed);
+
+    /// <summary>Stop and wait (briefly) for the session threads to end — app exit only.</summary>
+    public void Dispose()
+    {
+        Stop();
+        Thread[] threads;
+        lock (_ctrlLock) threads = _threads.Select(t => t.Thread).ToArray();
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(1);
+        foreach (var t in threads)
+        {
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining > TimeSpan.Zero) t.Join(remaining);
+        }
+    }
 
     /// <summary>
     /// Copy the latest frame into <paramref name="buffer"/> (reallocated when too
@@ -325,19 +401,31 @@ public sealed class VideoStreamClient : IDisposable
         try
         {
             var backoff = TimeSpan.FromMilliseconds(500);
+            var openFailures = 0;
             while (!_stop && !Superseded(gen))
             {
                 SetState(HasFrame ? State : VideoState.Connecting);
                 var ok = false;
-                try { ok = RunSession(url, gen); }
+                t_openFailed = false;
+                try { ok = SessionOverride?.Invoke(url) ?? RunSession(url, gen); }
                 catch (Exception ex) { Log.Line($"[Video] session error: {ex.Message}"); }
 
                 if (_stop || Superseded(gen)) break;
+                // Only a URL the controller no longer answers counts — a session
+                // that opened and later broke is a network hiccup, not a lost
+                // allocation. A switch target that never opened counts too.
+                openFailures = t_openFailed ? openFailures + 1 : 0;
+                if (openFailures > 0 && openFailures % OpenFailuresBeforeAllocationLost == 0 && gen == _latestGen)
+                    AllocationLost?.Invoke();
                 // Broken stream: retry with backoff (keeping the last frame on
                 // screen). Only the painting session flips the UI to Connecting —
                 // a warming-up switch target must not spinner over a live picture.
                 if (gen == _paintGen) SetState(VideoState.Connecting);
-                Thread.Sleep(ok ? TimeSpan.FromMilliseconds(500) : backoff);
+                // Interruptible: Stop() sets _wake so the thread exits at once,
+                // and a session superseded by a quality switch leaves within a
+                // slice instead of sleeping out its backoff — the coordinator's
+                // release of the old allocation waits for that exit.
+                WaitUnlessSuperseded(ok ? TimeSpan.FromMilliseconds(500) : backoff, gen);
                 if (!ok) backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, TimeSpan.FromSeconds(5).Ticks));
             }
         }
@@ -345,6 +433,59 @@ public sealed class VideoStreamClient : IDisposable
         {
             OnSessionThreadExit(gen);
         }
+    }
+
+    private void WaitUnlessSuperseded(TimeSpan timeout, int gen)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!_stop && !Superseded(gen))
+        {
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero) return;
+            if (_wake.Wait(remaining < SupersedePoll ? remaining : SupersedePoll)) return;
+        }
+    }
+
+    private static readonly TimeSpan SupersedePoll = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// The format and range to hand swscale for a decoded frame. Full-range H.264
+    /// (what UniFi cameras send) decodes as a deprecated YUVJ format; swscale swaps
+    /// that for the plain YUV format internally, so a YUVJ format never matches the
+    /// cached context and <c>sws_getCachedContext</c> rebuilds it every frame (with a
+    /// "deprecated pixel format" warning each time). Pass the plain format and carry
+    /// the range separately instead.
+    /// </summary>
+    internal static (AVPixelFormat Format, bool FullRange) ScalerInput(AVPixelFormat format, AVColorRange range)
+        => format switch
+        {
+            AVPixelFormat.AV_PIX_FMT_YUVJ420P => (AVPixelFormat.AV_PIX_FMT_YUV420P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ422P => (AVPixelFormat.AV_PIX_FMT_YUV422P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ444P => (AVPixelFormat.AV_PIX_FMT_YUV444P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ440P => (AVPixelFormat.AV_PIX_FMT_YUV440P, true),
+            AVPixelFormat.AV_PIX_FMT_YUVJ411P => (AVPixelFormat.AV_PIX_FMT_YUV411P, true),
+            _ => (format, range == AVColorRange.AVCOL_RANGE_JPEG)
+        };
+
+    /// <summary>Sets the source range on a scaler, keeping its coefficients and output range.</summary>
+    private static unsafe void SetSourceRange(SwsContext* sws, bool fullRange)
+    {
+        int* invTable, table;
+        int srcRange, dstRange, brightness, contrast, saturation;
+        if (ffmpeg.sws_getColorspaceDetails(sws, &invTable, &srcRange, &table, &dstRange,
+                &brightness, &contrast, &saturation) < 0)
+            return; // not a YUV→RGB conversion: range doesn't apply
+        var fullSrc = fullRange ? 1 : 0;
+        if (srcRange == fullSrc) return;
+        var inv = new int4();
+        var fwd = new int4();
+        for (uint i = 0; i < 4; i++)
+        {
+            inv[i] = invTable[i];
+            fwd[i] = table[i];
+        }
+        if (ffmpeg.sws_setColorspaceDetails(sws, inv, fullSrc, fwd, dstRange, brightness, contrast, saturation) < 0)
+            Log.Line($"[Video] could not set {(fullRange ? "full" : "limited")} source range on the scaler");
     }
 
     /// <summary>One demux/decode session. Returns true when it ended cleanly (EOF).</summary>
@@ -361,6 +502,7 @@ public sealed class VideoStreamClient : IDisposable
         AVCodecContext* codec = null;
         AVBufferRef* hwDevice = null;
         SwsContext* sws = null;
+        (int Width, int Height, AVPixelFormat Format, bool FullRange) swsConfigured = default;
         AVFrame* frame = null;
         AVFrame* hwTransfer = null;
         AVPacket* packet = null;
@@ -380,17 +522,36 @@ public sealed class VideoStreamClient : IDisposable
 
             var rc = ffmpeg.avformat_open_input(&fmt, url, null, &opts);
             ffmpeg.av_dict_free(&opts);
-            if (rc < 0) return LogAv("open_input", rc);
+            if (rc < 0)
+            {
+                t_openFailed = !_stop && !Superseded(gen); // an interrupted open isn't the URL's fault
+                return LogAv("open_input", rc);
+            }
 
             rc = ffmpeg.avformat_find_stream_info(fmt, null);
             if (rc < 0) return LogAv("find_stream_info", rc);
 
             AVCodec* decoder = null;
             var vs = ffmpeg.av_find_best_stream(fmt, AVMediaType.AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
-            if (vs < 0 || decoder == null) return LogAv("find_best_stream", vs);
+            if (vs < 0 || decoder == null)
+            {
+                // Audio-only stream: keep retrying with backoff (the camera may
+                // be restarted meanwhile) but tell the tile why it's not playing
+                // instead of leaving the spinner up.
+                LastError = NoVideoTrackMessage;
+                SetState(VideoState.Failed);
+                return LogAv("find_best_stream (no video track)", vs);
+            }
 
+            var par = fmt->streams[vs]->codecpar;
+            if (par->width > MaxDimension || par->height > MaxDimension)
+            {
+                Log.Line($"[Video] refusing {par->width}x{par->height} stream (limit {MaxDimension})");
+                return false;
+            }
             codec = ffmpeg.avcodec_alloc_context3(decoder);
-            ffmpeg.avcodec_parameters_to_context(codec, fmt->streams[vs]->codecpar);
+            rc = ffmpeg.avcodec_parameters_to_context(codec, par);
+            if (rc < 0) return LogAv("parameters_to_context", rc);
             codec->flags |= ffmpeg.AV_CODEC_FLAG_LOW_DELAY;
             codec->thread_count = Math.Min(2, Environment.ProcessorCount);
 
@@ -419,8 +580,8 @@ public sealed class VideoStreamClient : IDisposable
             if (audioIdx >= 0 && audioDecoder != null)
             {
                 audioCodec = ffmpeg.avcodec_alloc_context3(audioDecoder);
-                ffmpeg.avcodec_parameters_to_context(audioCodec, fmt->streams[audioIdx]->codecpar);
-                if (ffmpeg.avcodec_open2(audioCodec, audioDecoder, null) < 0)
+                if (ffmpeg.avcodec_parameters_to_context(audioCodec, fmt->streams[audioIdx]->codecpar) < 0
+                    || ffmpeg.avcodec_open2(audioCodec, audioDecoder, null) < 0)
                 {
                     ffmpeg.avcodec_free_context(&audioCodec);
                     audioCodec = null;
@@ -447,6 +608,10 @@ public sealed class VideoStreamClient : IDisposable
             // are useless against a fresh decoder).
             var pausedGop = new PausedGopBuffer();
             var wasPaused = false;
+            // Set by ReceiveFrames when the decoder produces a frame the engine
+            // refuses (oversized, or no scaler for its pixel format); the
+            // session ends rather than decoding into nothing.
+            var refused = false;
 
             // Drain every decoded frame into the latest-wins BGRA buffer. The
             // codec/frame pointers come in as parameters: capturing them would
@@ -474,10 +639,38 @@ public sealed class VideoStreamClient : IDisposable
                         VideoSizeKnown?.Invoke(src->width, src->height);
                     }
 
+                    if (src->width > MaxDimension || src->height > MaxDimension || src->width <= 0 || src->height <= 0)
+                    {
+                        Log.Line($"[Video] refusing {src->width}x{src->height} frame (limit {MaxDimension})");
+                        if (src == hwSw) ffmpeg.av_frame_unref(hwSw);
+                        ffmpeg.av_frame_unref(frm);
+                        refused = true;
+                        return;
+                    }
+                    var (srcFormat, fullRange) = ScalerInput((AVPixelFormat)src->format, src->color_range);
                     sws = ffmpeg.sws_getCachedContext(sws,
-                        src->width, src->height, (AVPixelFormat)src->format,
+                        src->width, src->height, srcFormat,
                         src->width, src->height, AVPixelFormat.AV_PIX_FMT_BGRA,
-                        ffmpeg.SWS_BILINEAR, null, null, null);
+                        (int)SwsFlags.SWS_BILINEAR, null, null, null);
+                    if (sws == null)
+                    {
+                        // No scaler for this pixel format: sws_scale on null is a
+                        // native crash, not a managed exception.
+                        Log.Line($"[Video] no scaler for pixel format {src->format}");
+                        if (src == hwSw) ffmpeg.av_frame_unref(hwSw);
+                        ffmpeg.av_frame_unref(frm);
+                        refused = true;
+                        return;
+                    }
+
+                    // A rebuilt context starts at limited range, so reapply whenever
+                    // the scaler's inputs change (not per frame: it rebuilds tables).
+                    var swsKey = (src->width, src->height, srcFormat, fullRange);
+                    if (swsKey != swsConfigured)
+                    {
+                        SetSourceRange(sws, fullRange);
+                        swsConfigured = swsKey;
+                    }
 
                     var stride = src->width * 4;
                     var published = false;
@@ -515,6 +708,7 @@ public sealed class VideoStreamClient : IDisposable
                     if (!published) return; // outpainted by a newer session: stop draining
 
                     // First frame → Playing immediately (macOS DisplayImmediately parity).
+                    LastError = null;
                     if (State != VideoState.Playing) SetState(VideoState.Playing);
                     FrameReady?.Invoke();
                 }
@@ -617,6 +811,7 @@ public sealed class VideoStreamClient : IDisposable
                 if (rc < 0 && rc != ffmpeg.AVERROR(ffmpeg.EAGAIN)) continue; // tolerate glitches
 
                 ReceiveFrames(codec, frame, hwTransfer);
+                if (refused) return false;
             }
             return true;
         }

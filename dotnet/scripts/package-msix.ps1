@@ -4,21 +4,21 @@
 #         dotnet/dist/QuickProtect-<version>-win-x64-sideload.msix (-SelfSign)
 #
 # Notes:
-#  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 7.1 natives
+#  - Publishes self-contained win-x64 (bundles .NET + the FFmpeg 9.0 natives
 #    the custom video engine uses; fetched on demand by get-ffmpeg.ps1).
 #  - Needs makeappx.exe (and signtool.exe when -SelfSign is used). Uses an
-#    installed Windows 10/11 SDK if present — winget install
-#    Microsoft.WindowsSDK.10.0.26100 — otherwise falls back to fetching just the
+#    installed Windows 10/11 SDK if present - winget install
+#    Microsoft.WindowsSDK.10.0.26100 - otherwise falls back to fetching just the
 #    tools from NuGet via get-sdk-buildtools.ps1 (no admin, ~30 MB).
-#  - Store uploads are UNSIGNED — Partner Center re-signs the package with a
+#  - Store uploads are UNSIGNED - Partner Center re-signs the package with a
 #    Microsoft certificate, which is why the paid build needs no code-signing
 #    certificate of its own. -SelfSign exists only so the package can be
 #    sideloaded locally for testing; such a package is NOT what you upload, so
 #    it is written to a separate *-sideload.msix filename to keep the two apart.
-#  - IdentityName/Publisher must match Partner Center → your app → Product
+#  - IdentityName/Publisher must match Partner Center -> your app -> Product
 #    identity exactly, or the upload is rejected (both as the publisher string
 #    and via the package family name, whose suffix is a hash of it). The app is
-#    reserved, so the defaults below are the real values — a plain run with no
+#    reserved, so the defaults below are the real values - a plain run with no
 #    -Publisher produces an uploadable package.
 
 param(
@@ -63,6 +63,10 @@ if (-not $Publisher) {
 
 & (Join-Path $PSScriptRoot "get-ffmpeg.ps1") -Rids win-x64
 
+# Publish into an empty folder: files a previous build left behind (e.g. the
+# FFmpeg DLLs of an older pin, whose names change with each major version)
+# would otherwise ship as well.
+if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
 Write-Host "Publishing self-contained win-x64 (Release)..."
 dotnet publish (Join-Path $desktop "src\QuickProtect.App") -c Release -r win-x64 --self-contained -o $publish
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }

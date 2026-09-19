@@ -5,6 +5,17 @@ import json, collections, sys, os
 # German (informal "du") — the existing, reviewed translation.
 # ---------------------------------------------------------------------------
 de = {
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "Der Controller empfängt kein Video von dieser Kamera. Ein Neustart der Kamera in UniFi Protect behebt das in der Regel.",
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Streams aktiv halten",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Aktiv gehaltene Streams bleiben verbunden, überspringen aber die Videodekodierung, solange das Panel geschlossen ist – das senkt die CPU-Last auf fast null. Beim Wiederöffnen ist das Bild sofort aktuell.",
+    "Off": "Aus",
+    "Pause decoding while closed": "Dekodierung bei geschlossenem Fenster pausieren",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Streams bleiben nach dem Schließen so lange verbunden – öffnest du schnell wieder, ist das Video sofort da",
+    "Couldn't register this shortcut — it may be in use by another app.": "Dieses Kürzel konnte nicht registriert werden – möglicherweise wird es von einer anderen App verwendet.",
+    "Trusted key": "Vertrauter Schlüssel",
+    "New key": "Neuer Schlüssel",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "Der Controller zeigt ein neues Zertifikat. Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vergleiche den neuen Schlüssel mit dem Zertifikat, das dein Controller anzeigt, bevor du ihm vertraust.",
     "Save Current View as New Profile…": "Aktuelle Ansicht als neues Profil sichern…",
     "Save Current View as New Profile": "Aktuelle Ansicht als neues Profil sichern",
     "Add Camera": "Kamera hinzufügen",
@@ -23,6 +34,11 @@ de = {
     "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "Der Controller zeigt ein neues Zertifikat (Schlüssel %@…). Das ist zu erwarten, wenn du den Controller neu installiert oder ersetzt hast – falls nicht, kann es aber bedeuten, dass jemand die Verbindung abfängt. Vertraue ihm nur, wenn du die Änderung kennst.",
     "The controller's certificate changed. Open Settings to review and trust it.": "Das Zertifikat des Controllers hat sich geändert. Öffne die Einstellungen, um es zu prüfen und ihm zu vertrauen.",
     "Trust new certificate": "Neuem Zertifikat vertrauen",
+    "Trust the controller's new certificate?": "Dem neuen Zertifikat des Controllers vertrauen?",
+    "Controller: %@": "Controller: %@",
+    "Controller certificate changed": "Zertifikat des Controllers geändert",
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": "QuickProtect verbindet sich nicht mehr, weil der Controller ein anderes Zertifikat vorgelegt hat. Das ist nach einer Neuinstallation, einem Zurücksetzen oder einem Austausch des Controllers zu erwarten. Falls du nichts davon getan hast, fängt womöglich jemand die Verbindung ab.",
+    "Review Certificate…": "Zertifikat prüfen…",
     "Get update": "Update laden",
     "API Key": "API-Schlüssel",
     "About": "Über",
@@ -180,6 +196,17 @@ de = {
 # French (formal "vous" — macOS norm)
 # ---------------------------------------------------------------------------
 fr = {
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "Le contrôleur ne reçoit pas de vidéo de cette caméra. Redémarrer la caméra dans UniFi Protect règle généralement le problème.",
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Garder les flux actifs",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Les flux maintenus restent connectés mais sautent le décodage vidéo tant que le panneau est fermé, réduisant l'usage CPU à presque rien. L'image se met à jour instantanément à la réouverture.",
+    "Off": "Désactivé",
+    "Pause decoding while closed": "Suspendre le décodage quand le panneau est fermé",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Les flux restent connectés pendant cette durée après la fermeture – la vidéo s'affiche instantanément à la réouverture",
+    "Couldn't register this shortcut — it may be in use by another app.": "Impossible d'enregistrer ce raccourci — il est peut-être déjà utilisé par une autre app.",
+    "Trusted key": "Clé approuvée",
+    "New key": "Nouvelle clé",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "Le contrôleur présente un nouveau certificat. C'est normal si vous l'avez réinstallé ou remplacé — sinon, cela peut indiquer que quelqu'un intercepte la connexion. Comparez la nouvelle clé avec le certificat affiché par votre contrôleur avant de l'approuver.",
     "Save Current View as New Profile…": "Enregistrer la vue actuelle comme nouveau profil…",
     "Save Current View as New Profile": "Enregistrer la vue actuelle comme nouveau profil",
     "Add Camera": "Ajouter une caméra",
@@ -198,6 +225,11 @@ fr = {
     "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "Le contrôleur présente un nouveau certificat (clé %@…). C'est normal si vous avez réinstallé ou remplacé le contrôleur — sinon, cela peut indiquer que quelqu'un intercepte la connexion. Ne l'approuvez que si vous reconnaissez ce changement.",
     "The controller's certificate changed. Open Settings to review and trust it.": "Le certificat du contrôleur a changé. Ouvrez les réglages pour l'examiner et l'approuver.",
     "Trust new certificate": "Approuver le nouveau certificat",
+    "Trust the controller's new certificate?": "Approuver le nouveau certificat du contrôleur ?",
+    "Controller: %@": "Contrôleur : %@",
+    "Controller certificate changed": "Le certificat du contrôleur a changé",
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": "QuickProtect a cessé de se connecter, car le contrôleur a présenté un autre certificat. C'est normal après une réinstallation, une réinitialisation ou un remplacement du contrôleur. Si ce n'est pas le cas, quelqu'un intercepte peut-être la connexion.",
+    "Review Certificate…": "Examiner le certificat…",
     "Get update": "Obtenir la mise à jour",
     "API Key": "Clé API",
     "About": "À propos",
@@ -355,6 +387,17 @@ fr = {
 # Spanish (informal "tú")
 # ---------------------------------------------------------------------------
 es = {
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "El controlador no recibe vídeo de esta cámara. Reiniciar la cámara en UniFi Protect suele solucionarlo.",
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Mantener streams activos",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Los streams mantenidos siguen conectados pero omiten la decodificación de vídeo mientras el panel está cerrado, reduciendo el uso de CPU casi a cero. La imagen se actualiza al instante al reabrir.",
+    "Off": "Desactivado",
+    "Pause decoding while closed": "Pausar la decodificación con el panel cerrado",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Los streams permanecen conectados durante este tiempo tras cerrar, así el vídeo aparece al instante al reabrir",
+    "Couldn't register this shortcut — it may be in use by another app.": "No se pudo registrar este atajo: puede que otra app ya lo esté usando.",
+    "Trusted key": "Clave de confianza",
+    "New key": "Clave nueva",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "El controlador presenta un certificado nuevo. Es normal si lo reinstalaste o lo sustituiste; si no, podría indicar que alguien está interceptando la conexión. Compara la clave nueva con el certificado que muestra tu controlador antes de confiar en ella.",
     "Save Current View as New Profile…": "Guardar vista actual como nuevo perfil…",
     "Save Current View as New Profile": "Guardar vista actual como nuevo perfil",
     "Add Camera": "Añadir cámara",
@@ -373,6 +416,11 @@ es = {
     "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "El controlador presenta un certificado nuevo (clave %@…). Es lo esperado si reinstalaste o reemplazaste el controlador, pero si no, podría indicar que alguien está interceptando la conexión. Confía en él solo si reconoces el cambio.",
     "The controller's certificate changed. Open Settings to review and trust it.": "El certificado del controlador cambió. Abre los ajustes para revisarlo y confiar en él.",
     "Trust new certificate": "Confiar en el nuevo certificado",
+    "Trust the controller's new certificate?": "¿Confiar en el nuevo certificado del controlador?",
+    "Controller: %@": "Controlador: %@",
+    "Controller certificate changed": "El certificado del controlador cambió",
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": "QuickProtect dejó de conectarse porque el controlador presentó un certificado distinto. Es lo esperado tras reinstalar, restablecer o sustituir el controlador. Si no lo hiciste, alguien podría estar interceptando la conexión.",
+    "Review Certificate…": "Revisar certificado…",
     "Get update": "Obtener actualización",
     "API Key": "Clave API",
     "About": "Acerca de",
@@ -530,6 +578,17 @@ es = {
 # Dutch (informal "je")
 # ---------------------------------------------------------------------------
 nl = {
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "De controller ontvangt geen video van deze camera. De camera opnieuw starten in UniFi Protect lost dit meestal op.",
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Streams actief houden",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Actief gehouden streams blijven verbonden maar slaan videodecodering over zolang het paneel gesloten is, waardoor het CPU-gebruik vrijwel nul wordt. Het beeld is direct actueel bij opnieuw openen.",
+    "Off": "Uit",
+    "Pause decoding while closed": "Decoderen pauzeren terwijl gesloten",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Streams blijven na het sluiten zo lang verbonden, zodat de video direct terug is bij opnieuw openen",
+    "Couldn't register this shortcut — it may be in use by another app.": "Deze sneltoets kon niet worden geregistreerd – mogelijk gebruikt een andere app hem al.",
+    "Trusted key": "Vertrouwde sleutel",
+    "New key": "Nieuwe sleutel",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "De controller toont een nieuw certificaat. Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen – zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vergelijk de nieuwe sleutel met het certificaat dat je controller toont voordat je hem vertrouwt.",
     "Save Current View as New Profile…": "Huidige weergave als nieuw profiel bewaren…",
     "Save Current View as New Profile": "Huidige weergave als nieuw profiel bewaren",
     "Add Camera": "Camera toevoegen",
@@ -548,6 +607,11 @@ nl = {
     "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "De controller presenteert een nieuw certificaat (sleutel %@…). Dat is te verwachten als je de controller opnieuw hebt geïnstalleerd of vervangen — zo niet, dan kan het betekenen dat iemand de verbinding onderschept. Vertrouw het alleen als je de wijziging herkent.",
     "The controller's certificate changed. Open Settings to review and trust it.": "Het certificaat van de controller is gewijzigd. Open de instellingen om het te controleren en te vertrouwen.",
     "Trust new certificate": "Nieuw certificaat vertrouwen",
+    "Trust the controller's new certificate?": "Het nieuwe certificaat van de controller vertrouwen?",
+    "Controller: %@": "Controller: %@",
+    "Controller certificate changed": "Certificaat van de controller gewijzigd",
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": "QuickProtect maakt geen verbinding meer, omdat de controller een ander certificaat toonde. Dat is te verwachten na het opnieuw installeren, resetten of vervangen van de controller. Heb je dat niet gedaan, dan onderschept iemand mogelijk de verbinding.",
+    "Review Certificate…": "Certificaat controleren…",
     "Get update": "Update ophalen",
     "API Key": "API-sleutel",
     "About": "Over",
@@ -705,6 +769,17 @@ nl = {
 # Italian (informal "tu")
 # ---------------------------------------------------------------------------
 it = {
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "Il controller non riceve video da questa telecamera. Riavviare la telecamera in UniFi Protect di solito risolve il problema.",
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Mantieni attivi gli stream",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Gli stream mantenuti attivi restano connessi ma saltano la decodifica video finché il pannello è chiuso, riducendo l'uso della CPU quasi a zero. L'immagine si aggiorna all'istante alla riapertura.",
+    "Off": "Disattivato",
+    "Pause decoding while closed": "Sospendi la decodifica a pannello chiuso",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Gli stream restano connessi per questo tempo dopo la chiusura, così il video appare subito alla riapertura",
+    "Couldn't register this shortcut — it may be in use by another app.": "Impossibile registrare questa scorciatoia: potrebbe essere già usata da un'altra app.",
+    "Trusted key": "Chiave attendibile",
+    "New key": "Nuova chiave",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "Il controller presenta un nuovo certificato. È normale se lo hai reinstallato o sostituito; in caso contrario potrebbe indicare che qualcuno sta intercettando la connessione. Confronta la nuova chiave con il certificato mostrato dal tuo controller prima di fidarti.",
     "Save Current View as New Profile…": "Salva vista attuale come nuovo profilo…",
     "Save Current View as New Profile": "Salva vista attuale come nuovo profilo",
     "Add Camera": "Aggiungi telecamera",
@@ -723,6 +798,11 @@ it = {
     "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "Il controller presenta un nuovo certificato (chiave %@…). È previsto se hai reinstallato o sostituito il controller, ma in caso contrario potrebbe indicare che qualcuno sta intercettando la connessione. Fidati solo se riconosci la modifica.",
     "The controller's certificate changed. Open Settings to review and trust it.": "Il certificato del controller è cambiato. Apri le impostazioni per esaminarlo e fidarti.",
     "Trust new certificate": "Fidati del nuovo certificato",
+    "Trust the controller's new certificate?": "Fidarsi del nuovo certificato del controller?",
+    "Controller: %@": "Controller: %@",
+    "Controller certificate changed": "Certificato del controller cambiato",
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": "QuickProtect ha smesso di connettersi perché il controller ha presentato un certificato diverso. È normale dopo aver reinstallato, ripristinato o sostituito il controller. Se non l'hai fatto, qualcuno potrebbe intercettare la connessione.",
+    "Review Certificate…": "Esamina certificato…",
     "Get update": "Ottieni aggiornamento",
     "API Key": "Chiave API",
     "About": "Informazioni",
@@ -880,6 +960,17 @@ it = {
 # Brazilian Portuguese ("você")
 # ---------------------------------------------------------------------------
 pt_br = {
+    "The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this.": "O controlador não está recebendo vídeo desta câmera. Reiniciar a câmera no UniFi Protect geralmente resolve isso.",
+    # Keep-alive settings (were added to the catalog by hand; now sourced here).
+    "Keep streams alive": "Manter streams ativos",
+    "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen.": "Os streams mantidos ativos permanecem conectados, mas pulam a decodificação de vídeo enquanto o painel está fechado, reduzindo o uso de CPU a quase nada. A imagem atualiza na hora ao reabrir.",
+    "Off": "Desativado",
+    "Pause decoding while closed": "Pausar a decodificação enquanto fechado",
+    "Streams stay connected for this long after closing, so a quick reopen shows video instantly": "Os streams permanecem conectados por esse tempo após fechar, para o vídeo aparecer na hora ao reabrir",
+    "Couldn't register this shortcut — it may be in use by another app.": "Não foi possível registrar este atalho — talvez outro app já o esteja usando.",
+    "Trusted key": "Chave confiável",
+    "New key": "Nova chave",
+    "The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.": "O controlador está apresentando um novo certificado. Isso é esperado se você o reinstalou ou substituiu — caso contrário, pode indicar que alguém está interceptando a conexão. Compare a nova chave com o certificado exibido pelo seu controlador antes de confiar nela.",
     "Save Current View as New Profile…": "Salvar visualização atual como novo perfil…",
     "Save Current View as New Profile": "Salvar visualização atual como novo perfil",
     "Add Camera": "Adicionar câmera",
@@ -898,6 +989,11 @@ pt_br = {
     "The controller is presenting a new certificate (key %@…). This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change.": "O controlador está apresentando um novo certificado (chave %@…). Isso é esperado se você reinstalou ou substituiu o controlador — caso contrário, pode indicar que alguém está interceptando a conexão. Confie nele somente se reconhecer a alteração.",
     "The controller's certificate changed. Open Settings to review and trust it.": "O certificado do controlador foi alterado. Abra os ajustes para revisá-lo e confiar nele.",
     "Trust new certificate": "Confiar no novo certificado",
+    "Trust the controller's new certificate?": "Confiar no novo certificado do controlador?",
+    "Controller: %@": "Controlador: %@",
+    "Controller certificate changed": "Certificado do controlador alterado",
+    "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection.": "O QuickProtect parou de se conectar porque o controlador apresentou um certificado diferente. Isso é esperado depois de reinstalar, redefinir ou substituir o controlador. Se você não fez isso, alguém pode estar interceptando a conexão.",
+    "Review Certificate…": "Revisar certificado…",
     "Get update": "Obter atualização",
     "API Key": "Chave de API",
     "About": "Sobre",
@@ -1150,6 +1246,156 @@ _pinned = {
     "Drag to resize": ("Zum Anpassen ziehen", "Glisser pour redimensionner", "Arrastra para cambiar el tamaño", "Sleep om te vergroten/verkleinen", "Trascina per ridimensionare", "Arraste para redimensionar"),
 }
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _pinned.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
+# ---------------------------------------------------------------------------
+# App Store promotion (non-App-Store builds only: launch nudge, update prompt,
+# Settings → Updates section) and the doorbell's secondary lens. "Mac App
+# Store" and "GitHub" are proper nouns and stay as they are. German keeps the
+# informal du ("Hol dir …"), French stays formal. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_appstore = {
+    "Automatic updates — always on the latest version, no manual downloads.": (
+        "Automatische Updates – immer auf der neuesten Version, ohne manuelle Downloads.",
+        "Mises à jour automatiques — toujours la dernière version, sans téléchargement manuel.",
+        "Actualizaciones automáticas: siempre la última versión, sin descargas manuales.",
+        "Automatische updates – altijd de nieuwste versie, zonder handmatige downloads.",
+        "Aggiornamenti automatici: sempre l'ultima versione, senza download manuali.",
+        "Atualizações automáticas — sempre na versão mais recente, sem downloads manuais."),
+    "Signed and notarized by Apple — installs cleanly, with no security warnings.": (
+        "Von Apple signiert und beglaubigt – installiert sich sauber, ohne Sicherheitswarnungen.",
+        "Signée et notarisée par Apple — s'installe proprement, sans avertissement de sécurité.",
+        "Firmada y notarizada por Apple: se instala sin problemas ni avisos de seguridad.",
+        "Ondertekend en genotariseerd door Apple – installeert netjes, zonder beveiligingswaarschuwingen.",
+        "Firmata e autenticata da Apple: si installa senza problemi né avvisi di sicurezza.",
+        "Assinado e autenticado pela Apple — instala sem problemas nem avisos de segurança."),
+    "Sandboxed for extra security.": (
+        "Läuft in der Sandbox – für zusätzliche Sicherheit.",
+        "Exécutée en bac à sable pour plus de sécurité.",
+        "Aislada en un sandbox para mayor seguridad.",
+        "Draait in een sandbox voor extra beveiliging.",
+        "Eseguita in sandbox per maggiore sicurezza.",
+        "Executado em sandbox para mais segurança."),
+    "Supports development and helps keep QuickProtect improving.": (
+        "Unterstützt die Entwicklung und hilft, QuickProtect weiter zu verbessern.",
+        "Soutient le développement et aide QuickProtect à s'améliorer.",
+        "Apoya el desarrollo y ayuda a que QuickProtect siga mejorando.",
+        "Ondersteunt de ontwikkeling en helpt QuickProtect beter te maken.",
+        "Sostiene lo sviluppo e aiuta QuickProtect a migliorare.",
+        "Apoia o desenvolvimento e ajuda o QuickProtect a continuar melhorando."),
+    "View on the App Store": ("Im App Store ansehen", "Voir sur l'App Store", "Ver en el App Store", "Bekijk in de App Store", "Vedi sull'App Store", "Ver na App Store"),
+    "Download from GitHub": ("Von GitHub laden", "Télécharger depuis GitHub", "Descargar de GitHub", "Downloaden van GitHub", "Scarica da GitHub", "Baixar do GitHub"),
+    "Not now": ("Jetzt nicht", "Pas maintenant", "Ahora no", "Niet nu", "Non ora", "Agora não"),
+    "Later": ("Später", "Plus tard", "Más tarde", "Later", "Più tardi", "Mais tarde"),
+    "QuickProtect is on the App Store": ("QuickProtect gibt es im App Store", "QuickProtect est sur l'App Store", "QuickProtect está en el App Store", "QuickProtect staat in de App Store", "QuickProtect è sull'App Store", "O QuickProtect está na App Store"),
+    "A new version is available": ("Eine neue Version ist verfügbar", "Une nouvelle version est disponible", "Hay una nueva versión disponible", "Er is een nieuwe versie beschikbaar", "È disponibile una nuova versione", "Uma nova versão está disponível"),
+    "QuickProtect %@ is out. The easiest way to stay up to date — and get a signed, hassle-free install — is the Mac App Store.": (
+        "QuickProtect %@ ist da. Am einfachsten bleibst du aktuell – mit einer signierten, unkomplizierten Installation – über den Mac App Store.",
+        "QuickProtect %@ est disponible. Le moyen le plus simple de rester à jour — avec une installation signée et sans tracas — est le Mac App Store.",
+        "QuickProtect %@ ya está disponible. La forma más fácil de estar al día, con una instalación firmada y sin complicaciones, es la Mac App Store.",
+        "QuickProtect %@ is uit. De makkelijkste manier om up-to-date te blijven – met een ondertekende installatie zonder gedoe – is de Mac App Store.",
+        "QuickProtect %@ è disponibile. Il modo più semplice per restare aggiornato, con un'installazione firmata e senza problemi, è il Mac App Store.",
+        "O QuickProtect %@ foi lançado. A maneira mais fácil de se manter atualizado — com uma instalação assinada e sem complicações — é a Mac App Store."),
+    "Prefer automatic updates and an Apple-signed, hassle-free install? Get QuickProtect from the Mac App Store.": (
+        "Lieber automatische Updates und eine von Apple signierte, unkomplizierte Installation? Hol dir QuickProtect aus dem Mac App Store.",
+        "Vous préférez les mises à jour automatiques et une installation signée par Apple, sans tracas ? Obtenez QuickProtect sur le Mac App Store.",
+        "¿Prefieres actualizaciones automáticas y una instalación firmada por Apple sin complicaciones? Consigue QuickProtect en la Mac App Store.",
+        "Liever automatische updates en een door Apple ondertekende installatie zonder gedoe? Haal QuickProtect uit de Mac App Store.",
+        "Preferisci aggiornamenti automatici e un'installazione firmata da Apple, senza problemi? Scarica QuickProtect dal Mac App Store.",
+        "Prefere atualizações automáticas e uma instalação assinada pela Apple, sem complicações? Baixe o QuickProtect na Mac App Store."),
+    "Mac App Store": ("Mac App Store",) * 6,
+    "GitHub": ("GitHub",) * 6,
+    "Get the App Store edition": ("Hol dir die App-Store-Version", "Obtenir la version App Store", "Consigue la versión del App Store", "Haal de App Store-versie", "Ottieni la versione App Store", "Obtenha a versão da App Store"),
+    "Automatic updates, an Apple-signed install with no security warnings, and it supports development.": (
+        "Automatische Updates, eine von Apple signierte Installation ohne Sicherheitswarnungen – und du unterstützt die Entwicklung.",
+        "Mises à jour automatiques, installation signée par Apple sans avertissement de sécurité, et un soutien au développement.",
+        "Actualizaciones automáticas, una instalación firmada por Apple sin avisos de seguridad, y apoyas el desarrollo.",
+        "Automatische updates, een door Apple ondertekende installatie zonder beveiligingswaarschuwingen, en je ondersteunt de ontwikkeling.",
+        "Aggiornamenti automatici, un'installazione firmata da Apple senza avvisi di sicurezza, e sostieni lo sviluppo.",
+        "Atualizações automáticas, uma instalação assinada pela Apple sem avisos de segurança, e você apoia o desenvolvimento."),
+    "Package Camera": ("Paketkamera", "Caméra colis", "Cámara de paquetes", "Pakketcamera", "Fotocamera pacchi", "Câmera de encomendas"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _appstore.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
+# ---------------------------------------------------------------------------
+# Controller connection errors (ControllerErrors.swift). The English keys and
+# all translations are shared with the .NET port (ControllerErrors.cs and its
+# Resources.*.resx) — change both together. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_errors = {
+    "Can't find the controller. Check the IP address or hostname in Settings.": (
+        "Controller nicht gefunden. Prüfe die IP-Adresse oder den Hostnamen in den Einstellungen.",
+        "Contrôleur introuvable. Vérifiez l'adresse IP ou le nom d'hôte dans les réglages.",
+        "No se encuentra el controlador. Revisa la dirección IP o el nombre de host en los ajustes.",
+        "Controller niet gevonden. Controleer het IP-adres of de hostnaam in de instellingen.",
+        "Controller non trovato. Controlla l'indirizzo IP o il nome host nelle impostazioni.",
+        "Controlador não encontrado. Verifique o endereço IP ou o nome do host nos ajustes."),
+    "The controller refused the connection. Check the IP address in Settings.": (
+        "Der Controller hat die Verbindung abgelehnt. Prüfe die IP-Adresse in den Einstellungen.",
+        "Le contrôleur a refusé la connexion. Vérifiez l'adresse IP dans les réglages.",
+        "El controlador rechazó la conexión. Revisa la dirección IP en los ajustes.",
+        "De controller heeft de verbinding geweigerd. Controleer het IP-adres in de instellingen.",
+        "Il controller ha rifiutato la connessione. Controlla l'indirizzo IP nelle impostazioni.",
+        "O controlador recusou a conexão. Verifique o endereço IP nos ajustes."),
+    "Can't reach the controller. Check that it's online and on the same network.": (
+        "Controller nicht erreichbar. Prüfe, ob er eingeschaltet und im selben Netzwerk ist.",
+        "Contrôleur injoignable. Vérifiez qu'il est allumé et sur le même réseau.",
+        "No se puede conectar con el controlador. Comprueba que esté encendido y en la misma red.",
+        "Controller niet bereikbaar. Controleer of hij aan staat en in hetzelfde netwerk zit.",
+        "Controller non raggiungibile. Verifica che sia acceso e sulla stessa rete.",
+        "Não foi possível conectar ao controlador. Verifique se ele está ligado e na mesma rede."),
+    "The controller didn't respond in time. Check that it's online and on the same network.": (
+        "Der Controller hat nicht rechtzeitig geantwortet. Prüfe, ob er eingeschaltet und im selben Netzwerk ist.",
+        "Le contrôleur n'a pas répondu à temps. Vérifiez qu'il est allumé et sur le même réseau.",
+        "El controlador no respondió a tiempo. Comprueba que esté encendido y en la misma red.",
+        "De controller reageerde niet op tijd. Controleer of hij aan staat en in hetzelfde netwerk zit.",
+        "Il controller non ha risposto in tempo. Verifica che sia acceso e sulla stessa rete.",
+        "O controlador não respondeu a tempo. Verifique se ele está ligado e na mesma rede."),
+    "A secure connection to the controller couldn't be established.": (
+        "Es konnte keine sichere Verbindung zum Controller hergestellt werden.",
+        "Impossible d'établir une connexion sécurisée avec le contrôleur.",
+        "No se pudo establecer una conexión segura con el controlador.",
+        "Er kon geen beveiligde verbinding met de controller worden gemaakt.",
+        "Impossibile stabilire una connessione sicura con il controller.",
+        "Não foi possível estabelecer uma conexão segura com o controlador."),
+    "The controller rejected the API key. Check it in Settings.": (
+        "Der Controller hat den API-Schlüssel abgelehnt. Prüfe ihn in den Einstellungen.",
+        "Le contrôleur a refusé la clé API. Vérifiez-la dans les réglages.",
+        "El controlador rechazó la clave API. Revísala en los ajustes.",
+        "De controller heeft de API-sleutel geweigerd. Controleer hem in de instellingen.",
+        "Il controller ha rifiutato la chiave API. Controllala nelle impostazioni.",
+        "O controlador recusou a chave de API. Verifique-a nos ajustes."),
+    "The controller is busy. Try again in a moment.": (
+        "Der Controller ist gerade ausgelastet. Versuche es gleich noch einmal.",
+        "Le contrôleur est occupé. Réessayez dans un instant.",
+        "El controlador está ocupado. Vuelve a intentarlo en un momento.",
+        "De controller is bezet. Probeer het zo meteen opnieuw.",
+        "Il controller è occupato. Riprova tra un momento.",
+        "O controlador está ocupado. Tente novamente em instantes."),
+    "The controller reported an internal error. Try again later.": (
+        "Der Controller hat einen internen Fehler gemeldet. Versuche es später noch einmal.",
+        "Le contrôleur a signalé une erreur interne. Réessayez plus tard.",
+        "El controlador informó de un error interno. Vuelve a intentarlo más tarde.",
+        "De controller meldde een interne fout. Probeer het later opnieuw.",
+        "Il controller ha segnalato un errore interno. Riprova più tardi.",
+        "O controlador relatou um erro interno. Tente novamente mais tarde."),
+    "The controller returned an unexpected response.": (
+        "Der Controller hat eine unerwartete Antwort gesendet.",
+        "Le contrôleur a renvoyé une réponse inattendue.",
+        "El controlador devolvió una respuesta inesperada.",
+        "De controller gaf een onverwacht antwoord.",
+        "Il controller ha restituito una risposta inattesa.",
+        "O controlador retornou uma resposta inesperada."),
+    "The controller sent a response QuickProtect couldn't read.": (
+        "Der Controller hat eine Antwort gesendet, die QuickProtect nicht lesen kann.",
+        "Le contrôleur a envoyé une réponse que QuickProtect ne peut pas lire.",
+        "El controlador envió una respuesta que QuickProtect no puede leer.",
+        "De controller stuurde een antwoord dat QuickProtect niet kan lezen.",
+        "Il controller ha inviato una risposta che QuickProtect non riesce a leggere.",
+        "O controlador enviou uma resposta que o QuickProtect não consegue ler."),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _errors.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}

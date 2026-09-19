@@ -2,11 +2,27 @@ import Foundation
 import AppKit
 
 /// Handles all communication with the UniFi Protect Integration API.
+/// Main-actor isolated: its published state feeds SwiftUI, and the network
+/// calls are `async` so awaiting URLSession never blocks the actor. Anything
+/// that must run off the actor (the TLS challenge, fire-and-forget releases)
+/// receives value snapshots.
+@MainActor
 final class ProtectService: NSObject, ObservableObject {
 
     @Published var cameras: [Camera] = []
     @Published var isLoading = false
+    /// Controller reachability / API errors. The grid replaces itself with an
+    /// error card while this is set, so it must only carry problems that make
+    /// the camera list itself unusable.
     @Published var errorMessage: String?
+    /// PTZ-only problems (classic-API login), surfaced as a toast on the
+    /// focused camera — never in `errorMessage`, which would blank the grid.
+    @Published var ptzErrorMessage: String?
+    /// The configured controller's certificate changed and awaits the user's
+    /// decision. Derived from the pin store (not from whichever request failed
+    /// first), so it survives restarts and can't be lost to a race; the grid
+    /// shows a dedicated card while it is set.
+    @Published private(set) var certificateChange: CertificateTrust.Change?
     /// Set by AppDelegate when the popover opens/closes so cells can pause players.
     @Published var isPopoverOpen = false
     /// Remembers which camera was focused so it can be restored when the panel reopens.
@@ -15,67 +31,69 @@ final class ProtectService: NSObject, ObservableObject {
     /// header swap so the camera's own top bar replaces the grid header.
     @Published var isFocusMode = false
 
-    private let settings = AppSettings.shared
+    private let settings: ProtectCredentialSource
+    /// Extra `URLProtocol` classes registered on both sessions — tests install
+    /// a stub controller here; the app passes none.
+    private let urlProtocolClasses: [AnyClass]
+    /// Answers the TLS server-trust challenge on URLSession's delegate queue.
+    private let pinning = PinningSessionDelegate()
+    /// Where `certificateChange` is read from. Tests pass a scratch store.
+    private let certificateStore: CertificateTrust.Store
 
-    /// Guards `activeStreams` and `pinnedStreams`. They're mutated from the
-    /// continuations of concurrent stream-start `Task`s, which resume on
-    /// arbitrary cooperative-pool threads — without this lock two of them
-    /// racing on the same `Set` corrupts its buffer and segfaults.
-    private let streamsLock = NSLock()
-
-    /// Active server-side RTSP stream allocations keyed as "<cameraId>:<quality>".
-    /// Used to send DELETE requests on cleanup, preventing stale sessions from
-    /// accumulating on the UDM when the panel is closed or the app quits. A
-    /// camera can hold more than one (e.g. a doorbell's main + package lens).
-    /// Access only via the `streamsLock`-guarded helpers below.
-    private var activeStreams: Set<String> = []
-
-    /// Server-side allocations held by pinned floating windows, tracked
-    /// separately from `activeStreams` so the popover's `cleanupStreams()` never
-    /// tears down a pinned window's feed. Released individually on unpin/close
-    /// and en masse by `cleanupPinnedStreams()` on app termination.
-    /// Access only via the `streamsLock`-guarded helpers below.
-    private var pinnedStreams: Set<String> = []
-
-    private func streamKey(_ cameraId: String, _ quality: String) -> String {
-        "\(cameraId):\(quality)"
+    /// `settings` defaults to the app's shared store; tests pass their own so
+    /// the service never reads UserDefaults or the Keychain.
+    init(settings: ProtectCredentialSource = AppSettings.shared, urlProtocolClasses: [AnyClass] = [],
+         certificateStore: CertificateTrust.Store = CertificateTrust.Store()) {
+        self.settings = settings
+        self.urlProtocolClasses = urlProtocolClasses
+        self.certificateStore = certificateStore
+        super.init()
+        // Selector-based, so the registration ends with the object.
+        NotificationCenter.default.addObserver(self, selector: #selector(certificateTrustDidChange),
+                                               name: CertificateTrust.didChangeNotification, object: nil)
+        refreshCertificateChange()
     }
 
-    /// Records a freshly created allocation. `pinned` routes it to the set that
-    /// survives `cleanupStreams()`.
-    private func trackStream(_ key: String, pinned: Bool) {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        if pinned { pinnedStreams.insert(key) } else { activeStreams.insert(key) }
+    /// Evaluations run on URLSession's and the RTSP clients' queues; hop to the
+    /// main actor before touching published state.
+    @objc nonisolated private func certificateTrustDidChange(_ note: Notification) {
+        Task { @MainActor [weak self] in self?.refreshCertificateChange() }
     }
 
-    /// Atomically removes one active allocation; returns `true` if it was present.
-    private func removeActiveStream(_ key: String) -> Bool {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        return activeStreams.remove(key) != nil
+    /// Re-reads the pending certificate for the configured controller. Also
+    /// called when the controller address changes, since the pin key does.
+    func refreshCertificateChange() {
+        let change = controllerAddress.flatMap { certificateStore.change(host: $0.pinKey) }
+        if change != certificateChange { certificateChange = change }
     }
 
-    /// Atomically removes one pinned allocation; returns `true` if it was present.
-    private func removePinnedStream(_ key: String) -> Bool {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        return pinnedStreams.remove(key) != nil
+    /// Promotes the pending certificate for `host` to the trusted pin, then
+    /// reconnects: the camera list is fetched again and observers of
+    /// `certificateChange` (pinned windows) restart their streams.
+    func trustPendingCertificate(host: String) {
+        certificateStore.trustPending(host: host)
+        refreshCertificateChange()
+        errorMessage = nil
+        Task { await fetchCameras(forced: true) }
     }
 
-    /// Atomically snapshots and clears the active set, so cleanup can iterate the
-    /// keys without holding the lock across the DELETE requests.
-    private func drainActiveStreams() -> Set<String> {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        let keys = activeStreams
-        activeStreams.removeAll()
-        return keys
+    /// The configured controller, normalised (host, optional port, pin identity).
+    var controllerAddress: ControllerAddress? { ControllerAddress.parse(settings.ipAddress) }
+
+    static let certificateChangedMessage = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
+
+    /// Percent-encodes a controller-supplied identifier for use as one URL path segment.
+    static func pathSegment(_ value: String) -> String {
+        let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#"))
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
-    /// Atomically snapshots and clears the pinned set.
-    private func drainPinnedStreams() -> Set<String> {
-        streamsLock.lock(); defer { streamsLock.unlock() }
-        let keys = pinnedStreams
-        pinnedStreams.removeAll()
-        return keys
-    }
+    /// Server-side allocations "<cameraId>:<quality>" held by the popover and
+    /// by pinned windows. The controller shares one allocation per key between
+    /// them, so the ledger only lets a DELETE through once neither side holds
+    /// (or is creating) it. Used to release sessions when the panel closes, a
+    /// pin closes or the app quits, so stale ones don't accumulate on the UDM.
+    private let allocations = StreamAllocationLedger()
 
     /// Guards the classic-API credential fields below, which are read and written
     /// from concurrent PTZ `Task`s and the fetch path.
@@ -105,8 +123,21 @@ final class ProtectService: NSObject, ObservableObject {
     /// caller contexts (status-bar toggle, refresh buttons, Settings).
     private let fetchLock = NSLock()
     private var _fetchTask: Task<Void, Never>?
+    /// The controller address and API key the in-flight fetch was started
+    /// with, and the ones the current camera list came from.
+    private var _fetchConnection: Connection?
+    private var _camerasConnection: Connection?
     private var _lastFetchSucceededAt: Date?
     private var _lastPtzEnrich: ControllerRequestPolicy.PtzEnrichRecord?
+
+    /// What identifies "the controller" for a fetch: a different address or
+    /// API key may answer with different cameras (or not at all).
+    private struct Connection: Equatable {
+        let address: String
+        let apiKey: String
+    }
+
+    private var connection: Connection { Connection(address: settings.ipAddress, apiKey: settings.apiKey) }
 
     /// Fetches the camera list, coalescing concurrent calls into one request
     /// chain (rapid panel toggles must not stack fetches against the
@@ -116,7 +147,55 @@ final class ProtectService: NSObject, ObservableObject {
     func fetchCameras(forced: Bool = false) async {
         guard let (task, started) = joinOrStartFetch(forced: forced) else { return }
         await task.value
-        if started { clearFetchTask() }
+        if started { clearFetchTask(task) }
+    }
+
+    /// The controller address or API key changed. Clears the old controller's
+    /// error, cancels a fetch still talking to it and fetches again; a fetch
+    /// already running for the new connection (Test Connection) is joined, not
+    /// restarted. The old controller's cameras are dropped rather than left on
+    /// screen under the new address's result — re-applying the same
+    /// connection keeps them.
+    func refetchForNewConnection() async {
+        let stale = forgetOldConnection()
+
+        // The classic-API session belongs to the old controller; its cookie
+        // must never be sent to another host.
+        csrfToken = nil
+        tokenCookie = nil
+        isClassicLoggedIn = false
+        errorMessage = nil
+        // Settings are read after the change here (the change notification
+        // itself arrives before the new value is stored), so this pin lookup
+        // is for the new controller.
+        refreshCertificateChange()
+
+        // Checked after the stale fetch ends: it may still have applied the old
+        // controller's cameras just before it saw the cancellation.
+        await stale?.value
+        if camerasConnection != connection, !cameras.isEmpty {
+            cameras = []
+        }
+        await fetchCameras(forced: true)
+    }
+
+    /// Resets the throttles (their last successes were for the old
+    /// controller) and cancels a fetch still running against it, returning
+    /// that fetch so the caller can wait for it to end. Synchronous so the
+    /// lock never spans a suspension point.
+    private func forgetOldConnection() -> Task<Void, Never>? {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        _lastFetchSucceededAt = nil
+        _lastPtzEnrich = nil
+        guard let inFlight = _fetchTask, _fetchConnection != connection else { return nil }
+        inFlight.cancel()
+        _fetchTask = nil
+        return inFlight
+    }
+
+    private var camerasConnection: Connection? {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        return _camerasConnection
     }
 
     /// Atomically joins the in-flight fetch or starts a new one; `nil` when the
@@ -131,12 +210,15 @@ final class ProtectService: NSObject, ObservableObject {
         }
         let task = Task { await self.performFetch(forced: forced) }
         _fetchTask = task
+        _fetchConnection = connection
         return (task, true)
     }
 
-    private func clearFetchTask() {
+    /// Clears the in-flight slot if it still holds `task` — a connection
+    /// change may already have replaced it with a fetch for the new controller.
+    private func clearFetchTask(_ task: Task<Void, Never>) {
         fetchLock.lock(); defer { fetchLock.unlock() }
-        _fetchTask = nil
+        if _fetchTask == task { _fetchTask = nil }
     }
 
     /// Cancels an in-flight camera fetch. Called by the deferred stream
@@ -149,12 +231,13 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func performFetch(forced: Bool) async {
         RTSPClient.log("[API] fetchCameras called")
-        guard validate() else { RTSPClient.log("[API] validate failed"); return }
+        let connection = self.connection
+        guard await validate() else { RTSPClient.log("[API] validate failed"); return }
         await setLoading(true)
 
         do {
             let cameras = try await requestCameraList()
-            markFetchSucceeded()
+            markFetchSucceeded(connection: connection)
             await applySuccess(cameras)
 
             // If classic API credentials are configured, enrich PTZ flags.
@@ -169,12 +252,18 @@ final class ProtectService: NSObject, ObservableObject {
             }
         } catch {
             // A fetch cancelled by the deferred teardown isn't a failure the
-            // user should see — leave the camera list and error state alone.
-            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+            // user should see; a rejected certificate looks the same to
+            // URLSession, so the pin store decides (see classifyFetchFailure).
+            await MainActor.run { self.refreshCertificateChange() }
+            switch Self.classifyFetchFailure(error, taskCancelled: Task.isCancelled,
+                                             certificateChanged: certificateChange != nil) {
+            case .ignore:
                 await setLoading(false)
-                return
+            case .certificateChanged:
+                await applyErrorMessage(Self.certificateChangedMessage, logging: error)
+            case .failed:
+                await applyErrorMessage(ControllerErrors.describe(error), logging: error)
             }
-            await applyError(error)
         }
     }
 
@@ -202,7 +291,7 @@ final class ProtectService: NSObject, ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await tlsSession.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw APIError.invalidURL }
+        guard let http = response as? HTTPURLResponse else { throw APIError.notHTTP }
         guard (200...299).contains(http.statusCode) else {
             throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
         }
@@ -215,9 +304,10 @@ final class ProtectService: NSObject, ObservableObject {
         return try JSONDecoder().decode([Camera].self, from: data)
     }
 
-    private func markFetchSucceeded() {
+    private func markFetchSucceeded(connection: Connection) {
         fetchLock.lock(); defer { fetchLock.unlock() }
         _lastFetchSucceededAt = Date()
+        _camerasConnection = connection
     }
 
     private func shouldSkipPtzEnrich() -> Bool {
@@ -261,9 +351,11 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     /// Stream-URL creation for a pinned floating window. Identical to
-    /// `createRtspStreamURL` but the resulting server-side allocation is tracked
-    /// in `pinnedStreams`, so closing the popover (`cleanupStreams()`) leaves the
-    /// pinned feed running. The caller releases it with `releasePinnedStream`.
+    /// `createRtspStreamURL` but the resulting server-side allocation is owned by
+    /// the pinned side of the ledger, so closing the popover (`cleanupStreams()`)
+    /// leaves the pinned feed running — even when the popover was watching the
+    /// same camera at the same quality. The caller releases it with
+    /// `releasePinnedStream`.
     func createPinnedStreamURL(for camera: Camera,
                                quality: String = "high") async -> (url: URL, quality: String)? {
         for tier in Self.qualityFallbackLadder(from: quality) {
@@ -305,13 +397,40 @@ final class ProtectService: NSObject, ObservableObject {
         case failed
     }
 
-    /// Single POST attempt for one quality.
+    /// Single POST attempt for one quality, bracketed in the ledger so a
+    /// release racing it can't DELETE the allocation it is about to return.
     private func requestRtspStreamURL(for camera: Camera, quality: String,
                                       pinned: Bool = false) async -> StreamRequestOutcome {
         RTSPClient.log("[Stream] requestRtspStreamURL(\(quality)) for \(camera.name)")
+        let key = StreamAllocationLedger.key(cameraId: camera.id, quality: quality)
+        let owner: StreamAllocationLedger.Owner = pinned ? .pinned : .popover
+
+        allocations.beginCreate(key)
+        let (outcome, allocated) = await postRtspStream(for: camera, quality: quality)
+        // Every exit of the POST lands here, so the in-flight mark always ends.
+        // A release that arrived meanwhile was held back; it is due now if the
+        // POST failed and nobody else holds the allocation.
+        if allocations.endCreate(key, owner: owner, succeeded: allocated) {
+            deleteRtspStream(for: camera.id, quality: quality)
+        }
+
+        // The requester went away while the POST was in flight (panel closed,
+        // pin torn down). Give the allocation straight back — through the
+        // ledger, so a pinned window holding or creating the same key keeps it.
+        if allocated, Task.isCancelled {
+            release(key, owner: owner)
+            return .failed
+        }
+        return outcome
+    }
+
+    /// The POST itself. `allocated` is true when the controller answered with
+    /// a URL for `quality`, i.e. an allocation now exists server-side.
+    private func postRtspStream(for camera: Camera,
+                                quality: String) async -> (outcome: StreamRequestOutcome, allocated: Bool) {
         guard let url = makeURL(
-            path: "proxy/protect/integration/v1/cameras/\(camera.id)/rtsps-stream"
-        ) else { RTSPClient.log("[Stream] makeURL failed"); return .failed }
+            path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(camera.id))/rtsps-stream"
+        ) else { RTSPClient.log("[Stream] makeURL failed"); return (.failed, false) }
 
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.httpMethod = "POST"
@@ -324,84 +443,98 @@ final class ProtectService: NSObject, ObservableObject {
 
         guard let (data, resp) = try? await tlsSession.data(for: request) else {
             RTSPClient.log("[Stream] HTTP request failed (no response)")
-            return .failed
+            return (.failed, false)
         }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         guard status == 200 else {
             RTSPClient.log("[Stream] HTTP \(status): \(String(data: data, encoding: .utf8) ?? "")")
-            return ControllerRequestPolicy.abortsQualityLadder(httpStatus: status)
-                ? .failed : .qualityUnavailable
+            return (ControllerRequestPolicy.abortsQualityLadder(httpStatus: status)
+                ? .failed : .qualityUnavailable, false)
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rtspsString = json[quality] as? String else { return .qualityUnavailable }
+              let rtspsString = json[quality] as? String else { return (.qualityUnavailable, false) }
 
-        // The panel may have closed while the POST was in flight. cleanupStreams()
-        // has already drained the tracking set by now, so recording the allocation
-        // would leak it server-side — release it instead.
-        guard !Task.isCancelled else {
-            deleteRtspStream(for: camera.id, quality: quality)
-            return .failed
-        }
-
-        trackStream(streamKey(camera.id, quality), pinned: pinned)
         let playable = toPlayableURL(rtspsString)
-        RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable?.absoluteString ?? "nil")")
-        guard let playable else { return .qualityUnavailable }
-        return .success(playable)
+        RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable.map(RTSPClient.redactedDescription(of:)) ?? "nil")")
+        // An unusable URL still allocated server-side: keep it owned so cleanup frees it.
+        guard let playable else { return (.qualityUnavailable, true) }
+        return (.success(playable), true)
     }
 
     // MARK: - RTSP stream cleanup
 
-    /// Sends DELETE requests for all server-side stream allocations.
-    /// Call when the panel closes to prevent stale sessions accumulating on the UDM.
+    /// Releases every popover-owned allocation — except those a pinned window
+    /// still holds or is creating. Call when the panel closes to prevent stale
+    /// sessions accumulating on the UDM.
     func cleanupStreams() {
-        let keys = drainActiveStreams()
-        for key in keys {
-            let parts = key.split(separator: ":", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-            deleteRtspStream(for: String(parts[0]), quality: String(parts[1]))
-        }
+        releaseAll(owner: .popover)
     }
 
-    /// Releases a single secondary allocation (e.g. a doorbell's package lens)
-    /// when its picture-in-picture closes, without tearing down the main stream.
+    /// Releases a single popover allocation (e.g. a doorbell's package lens
+    /// when its picture-in-picture closes, or the quality a switch replaced).
     func releaseStream(for cameraId: String, quality: String) {
-        guard removeActiveStream(streamKey(cameraId, quality)) else { return }
-        deleteRtspStream(for: cameraId, quality: quality)
+        release(StreamAllocationLedger.key(cameraId: cameraId, quality: quality), owner: .popover)
     }
 
-    /// Releases a pinned floating window's server-side allocation when it's
-    /// unpinned or closed. Tracked apart from `activeStreams`, so this is the
-    /// only path that frees it (never `cleanupStreams()`).
+    /// Releases a pinned floating window's allocation when it's unpinned or
+    /// closed. `cleanupStreams()` never frees it; the popover sharing the same
+    /// key keeps it alive until the popover lets go too.
     func releasePinnedStream(for cameraId: String, quality: String) {
-        guard removePinnedStream(streamKey(cameraId, quality)) else { return }
-        deleteRtspStream(for: cameraId, quality: quality)
+        release(StreamAllocationLedger.key(cameraId: cameraId, quality: quality), owner: .pinned)
     }
 
-    /// DELETEs every pinned allocation. Called on app termination so pinned
+    /// Releases every pinned allocation. Called on app termination so pinned
     /// windows don't leave sessions alive on the controller.
     func cleanupPinnedStreams() {
-        let keys = drainPinnedStreams()
-        for key in keys {
-            let parts = key.split(separator: ":", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-            deleteRtspStream(for: String(parts[0]), quality: String(parts[1]))
+        releaseAll(owner: .pinned)
+    }
+
+    private func release(_ key: String, owner: StreamAllocationLedger.Owner) {
+        guard allocations.release(key, owner: owner),
+              let parsed = StreamAllocationLedger.parse(key) else { return }
+        deleteRtspStream(for: parsed.cameraId, quality: parsed.quality)
+    }
+
+    private func releaseAll(owner: StreamAllocationLedger.Owner) {
+        for key in allocations.releaseAll(owner: owner) {
+            guard let parsed = StreamAllocationLedger.parse(key) else { continue }
+            deleteRtspStream(for: parsed.cameraId, quality: parsed.quality)
         }
+    }
+
+    /// In-flight allocation releases, so quit can wait (briefly) for them to
+    /// reach the controller instead of spinning the run loop and hoping.
+    private let releaseGroup = DispatchGroup()
+
+    /// Blocks the caller for up to `timeout` while pending stream releases
+    /// complete. Quit-time only: the releases run detached from any actor, so
+    /// waiting on the main thread cannot deadlock them.
+    func waitForStreamReleases(timeout: TimeInterval) {
+        _ = releaseGroup.wait(timeout: .now() + timeout)
     }
 
     /// Fire-and-forget DELETE to release a server-side RTSP stream allocation.
     /// The API requires the `qualities` query parameter matching what was created.
     private func deleteRtspStream(for cameraId: String, quality: String) {
         guard let url = makeURL(
-            path: "proxy/protect/integration/v1/cameras/\(cameraId)/rtsps-stream?qualities=\(quality)"
+            path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(cameraId))/rtsps-stream?qualities=\(quality)"
         ) else { return }
 
         var request = URLRequest(url: url, timeoutInterval: 5)
         request.httpMethod = "DELETE"
         request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
 
-        Task { _ = try? await tlsSession.data(for: request) }
+        RTSPClient.log("[Stream] DELETE \(quality) for camera \(cameraId)")
+        releaseGroup.enter()
+        // Detached: an inherited main-actor context would make the quit-time
+        // wait above deadlock on itself. Only Sendable values cross over.
+        let session = tlsSession
+        let group = releaseGroup
+        Task.detached {
+            defer { group.leave() }
+            _ = try? await session.data(for: request)
+        }
     }
 
     // MARK: - Classic API (cookie auth — required for PTZ control)
@@ -454,6 +587,79 @@ final class ProtectService: NSObject, ObservableObject {
     /// Fetches camera list from classic API and merges isPtz flags into existing cameras.
     /// Returns `true` only when flags were actually applied, so the caller can
     /// arm the enrichment throttle on success alone.
+    /// Debug-only (QUICKPROTECT_PROBE_CLASSIC=1): DESCRIBE each online camera's
+    /// classic RTSPS alias stream for a few seconds so the debug log shows
+    /// whether the controller serves video on that path (the alias itself is
+    /// never logged — RTSPClient redacts URLs).
+    private static var classicProbes: [RTSPClient] = []
+    private func probeClassicStreams(_ cameras: [Camera]) async {
+        guard let address = controllerAddress else { return }
+        let targets = cameras.compactMap { cam -> (String, URL)? in
+            guard cam.isOnline, let alias = cam.primaryRtspAlias,
+                  let url = URL(string: "rtsps://\(address.authority.contains(":") ? address.host : address.host):7441/\(alias)")
+            else { return nil }
+            return (cam.name, url)
+        }
+        await MainActor.run {
+            for (name, url) in targets {
+                RTSPClient.log("[Probe] \(name): DESCRIBE classic alias stream")
+                let client = RTSPClient()
+                Self.classicProbes.append(client)
+                client.connect(to: url, pinKey: address.pinKey)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                for client in Self.classicProbes { client.disconnect() }
+                Self.classicProbes.removeAll()
+                RTSPClient.log("[Probe] classic alias probes closed")
+            }
+        }
+    }
+
+    /// Debug-log only: per-camera channel configuration from the classic API
+    /// (codec, resolution, enabled/RTSP flags) — what the controller can hand
+    /// out over RTSP for each camera. No aliases or tokens are logged.
+    private static func logChannelSummary(_ data: Data) {
+        guard let cams = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return }
+        for cam in cams {
+            let name = cam["name"] as? String ?? "?"
+            let model = cam["type"] as? String ?? "?"
+            let state = cam["state"] as? String ?? "?"
+            let fw = cam["firmwareVersion"] as? String ?? "?"
+            let codec = cam["videoCodec"] as? String ?? (cam["videoMode"] as? String ?? "-")
+            let channels = (cam["channels"] as? [[String: Any]] ?? []).map { ch -> String in
+                let id = ch["id"].map { "\($0)" } ?? "?"
+                let n = ch["name"] as? String ?? "?"
+                let en = (ch["enabled"] as? Bool).map { $0 ? "on" : "off" } ?? "?"
+                let rtsp = (ch["isRtspEnabled"] as? Bool).map { $0 ? "rtsp" : "no-rtsp" } ?? "?"
+                let w = ch["width"] as? Int ?? 0, h = ch["height"] as? Int ?? 0
+                let fps = ch["fps"] as? Int ?? 0
+                let vid = ch["videoId"] as? String ?? "-"
+                return "\(id):\(n) \(en) \(rtsp) \(w)x\(h)@\(fps) \(vid)"
+            }
+            RTSPClient.log("[Cameras] \(name) type=\(model) state=\(state) fw=\(fw) codec=\(codec) channels=[\(channels.joined(separator: "; "))]")
+            if ProcessInfo.processInfo.environment["QUICKPROTECT_PROBE_CLASSIC"] == "1" {
+                // Full record with anything credential-like stripped (aliases,
+                // tokens, keys, hosts, MACs), scalars only at the top level plus
+                // the channel objects — for comparing a failing camera with a
+                // working one.
+                let secretish = ["alias", "token", "password", "secret", "host", "mac", "uuid", "apikey", "wifi"]
+                let exact: Set<String> = ["id", "nvrMac", "ip", "connectionHost", "sshKey"]
+                func clean(_ dict: [String: Any]) -> [String: Any] {
+                    dict.filter { k, v in
+                        !exact.contains(k) && !secretish.contains { k.lowercased().contains($0) }
+                            && !(v is [Any]) && !(v is [String: Any])
+                    }
+                }
+                let top = clean(cam)
+                let chans = (cam["channels"] as? [[String: Any]] ?? []).map(clean)
+                RTSPClient.log("[Cameras:full] \(name) \(top.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))")
+                for ch in chans {
+                    RTSPClient.log("[Cameras:channel] \(name) \(ch.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))")
+                }
+            }
+        }
+    }
+
     private func enrichPtzFlags() async -> Bool {
         guard await classicLogin() else {
             RTSPClient.log("[PTZ] enrich failed: classic login failed")
@@ -484,6 +690,10 @@ final class ProtectService: NSObject, ObservableObject {
 
         // Classic API returns a plain array (not wrapped in {data: [...]})
         let classicCameras = (try? JSONDecoder().decode([Camera].self, from: data)) ?? []
+        if RTSPClient.debugLoggingEnabled { Self.logChannelSummary(data) }
+        if ProcessInfo.processInfo.environment["QUICKPROTECT_PROBE_CLASSIC"] == "1" {
+            await probeClassicStreams(classicCameras)
+        }
 
         // Only apply flags when we actually got a camera list back. A transient
         // empty/failed response must not wipe previously-known PTZ flags; but when
@@ -528,7 +738,7 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func requestPackageSnapshot(for camera: Camera) async -> (image: CGImage?, unauthorized: Bool) {
         let ts = Int(Date().timeIntervalSince1970 * 1000)   // cache-buster: always a fresh capture
-        guard let url = makeURL(path: "proxy/protect/api/cameras/\(camera.id)/package-snapshot?ts=\(ts)") else {
+        guard let url = makeURL(path: "proxy/protect/api/cameras/\(Self.pathSegment(camera.id))/package-snapshot?ts=\(ts)") else {
             return (nil, false)
         }
         var request = URLRequest(url: url, timeoutInterval: 8)
@@ -631,9 +841,11 @@ final class ProtectService: NSObject, ObservableObject {
             }
             if !isClassicLoggedIn {
                 guard await classicLogin() else {
-                    await MainActor.run {
-                        self.errorMessage = String(localized: "PTZ unavailable — check the username and password in Settings.")
-                    }
+                    await MainActor.run { self.refreshCertificateChange() }
+                    let message = certificateChange != nil
+                        ? Self.certificateChangedMessage
+                        : String(localized: "PTZ unavailable — check the username and password in Settings.")
+                    await MainActor.run { self.ptzErrorMessage = message }
                     return
                 }
             }
@@ -650,7 +862,7 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func sendMove(cameraId: String, body: [String: Any]) async {
         guard let url = makeURL(
-            path: "proxy/protect/api/cameras/\(cameraId)/move"
+            path: "proxy/protect/api/cameras/\(Self.pathSegment(cameraId))/move"
         ) else { return }
 
         var request = URLRequest(url: url, timeoutInterval: 5)
@@ -706,12 +918,41 @@ final class ProtectService: NSObject, ObservableObject {
         }
     }
 
-    private func applyError(_ error: Error) async {
-        RTSPClient.log("[API] applyError: \(error.localizedDescription)")
+    /// How a failed camera fetch is reported.
+    enum FetchFailure: Equatable {
+        /// Torn down on purpose (panel closed) — leave the UI alone.
+        case ignore
+        /// The pin check rejected the controller's key.
+        case certificateChanged
+        /// Anything else: show the error's own description.
+        case failed
+    }
+
+    /// A rejected certificate surfaces from URLSession as `URLError.cancelled`
+    /// (the delegate cancels the challenge) — the same code a deliberate
+    /// teardown produces. A pending certificate change therefore wins over the
+    /// cancellation, unless the fetch task itself was cancelled.
+    nonisolated static func classifyFetchFailure(_ error: Error, taskCancelled: Bool,
+                                                 certificateChanged: Bool) -> FetchFailure {
+        if taskCancelled || error is CancellationError { return .ignore }
+        if certificateChanged { return .certificateChanged }
+        if (error as? URLError)?.code == .cancelled { return .ignore }
+        return .failed
+    }
+
+    private func applyErrorMessage(_ message: String, logging error: Error) async {
+        RTSPClient.log("[API] applyError: \(Self.logDescription(of: error))")
         await MainActor.run {
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = message
             self.isLoading = false
         }
+    }
+
+    /// The raw failure for the debug log, including the controller's reply to
+    /// a failed request (the UI only gets the catalog message).
+    private nonisolated static func logDescription(of error: Error) -> String {
+        if case APIError.http(let status, let body) = error { return "HTTP \(status) – \(body.prefix(200))" }
+        return String(describing: error)
     }
 
     private func setLoading(_ value: Bool) async {
@@ -719,50 +960,81 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     func makeURL(path: String) -> URL? {
-        guard !settings.ipAddress.isEmpty else { return nil }
-        return URL(string: "https://\(settings.ipAddress)/\(path)")
+        guard let address = controllerAddress else { return nil }
+        // Every request passes through here, so the delegate always pins
+        // against the currently configured controller identity.
+        pinning.pinKey = address.pinKey
+        return URL(string: "\(address.httpsBase)/\(path)")
     }
 
-    private func validate() -> Bool {
+    /// Checks the configuration and publishes the reason it's unusable before
+    /// returning, so a caller that awaits `fetchCameras` sees the error.
+    private func validate() async -> Bool {
+        let problem: String?
         if settings.ipAddress.isEmpty {
-            Task { await MainActor.run { self.errorMessage = String(localized: "No IP address configured. Open Settings.") } }
-            return false
+            problem = String(localized: "No IP address configured. Open Settings.")
+        } else if settings.apiKey.isEmpty {
+            problem = String(localized: "No API key configured. Open Settings.")
+        } else {
+            problem = nil
         }
-        if settings.apiKey.isEmpty {
-            Task { await MainActor.run { self.errorMessage = String(localized: "No API key configured. Open Settings.") } }
-            return false
-        }
-        return true
+        guard let problem else { return true }
+        await MainActor.run { self.errorMessage = problem }
+        return false
     }
 
     /// Integration API session — ephemeral config to avoid cookie pollution from classic API.
     private lazy var tlsSession: URLSession = {
-        URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
+        let config = URLSessionConfiguration.ephemeral
+        installURLProtocols(on: config)
+        return URLSession(configuration: config, delegate: pinning, delegateQueue: nil)
     }()
 
     /// Classic API session — separate cookie jar for session-based auth (PTZ).
+    /// No disk cache: package-snapshot JPEGs and camera JSON must not be
+    /// persisted to the Caches folder by the shared URLCache.
     private lazy var classicSession: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = URLSessionConfiguration.ephemeral
         config.httpCookieStorage = HTTPCookieStorage()
-        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        installURLProtocols(on: config)
+        return URLSession(configuration: config, delegate: pinning, delegateQueue: nil)
     }()
+
+    private func installURLProtocols(on config: URLSessionConfiguration) {
+        guard !urlProtocolClasses.isEmpty else { return }
+        config.protocolClasses = urlProtocolClasses + (config.protocolClasses ?? [])
+    }
 
     enum APIError: LocalizedError {
         case invalidURL
+        case notHTTP
+        /// Status and body; the body is for the debug log, never the UI.
         case http(Int, String)
 
-        var errorDescription: String? {
-            switch self {
-            case .invalidURL:            return String(localized: "Invalid IP address or URL.")
-            case .http(let c, let body): return "HTTP \(c) – \(body.prefix(200))"
-            }
-        }
+        var errorDescription: String? { ControllerErrors.describe(self) }
     }
 }
 
 // MARK: - URLSessionDelegate (trust-on-first-use pinning for the self-signed controller cert)
 
-extension ProtectService: URLSessionDelegate {
+/// Answers server-trust challenges: system trust first, then pin the
+/// controller's public key on first use and reject if it later changes
+/// (possible MITM) — see CertificateTrust. Runs on URLSession's delegate
+/// queue, so it is a small Sendable object with lock-guarded state rather
+/// than the main-actor service. Never writes to the system trust store.
+final class PinningSessionDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _pinKey: String?
+
+    /// The configured controller identity the pin is keyed by (so the RTSPS
+    /// video channel consults the same one). Nil falls back to the server host.
+    var pinKey: String? {
+        get { lock.lock(); defer { lock.unlock() }; return _pinKey }
+        set { lock.lock(); _pinKey = newValue; lock.unlock() }
+    }
+
     func urlSession(
         _ session: URLSession,
         didReceive challenge: URLAuthenticationChallenge,
@@ -773,16 +1045,26 @@ extension ProtectService: URLSessionDelegate {
             completionHandler(.performDefaultHandling, nil)
             return
         }
-        // Pin the controller's public key on first use; reject if it later changes
-        // (possible MITM). Never writes to the system trust store.
-        let host = challenge.protectionSpace.host
-        if CertificateTrust.evaluate(host: host, trust: trust) {
+        let serverHost = challenge.protectionSpace.host
+        let key = pinKey ?? serverHost
+        // A rejection records the new key as pending, which is what the
+        // service reports (see `ProtectService.certificateChange`).
+        if CertificateTrust.evaluate(pinKey: key, serverHost: serverHost, trust: trust) {
             completionHandler(.useCredential, URLCredential(trust: trust))
         } else {
-            Task { await MainActor.run {
-                self.errorMessage = String(localized: "The controller's certificate changed. Open Settings to review and trust it.")
-            } }
             completionHandler(.cancelAuthenticationChallenge, nil)
         }
     }
 }
+
+/// The credentials `ProtectService` needs — the subset of `AppSettings` it
+/// reads, so tests can hand it plain values.
+@MainActor
+protocol ProtectCredentialSource: AnyObject {
+    var ipAddress: String { get }
+    var apiKey: String { get }
+    var username: String { get }
+    var password: String { get }
+}
+
+extension AppSettings: ProtectCredentialSource {}

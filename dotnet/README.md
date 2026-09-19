@@ -1,7 +1,7 @@
 # QuickProtect for Windows & Linux (.NET / Avalonia port)
 
 A cross-platform port of the macOS **QuickProtect** menu-bar app — a UniFi Protect
-camera viewer — built on **.NET 8 + Avalonia + FFmpeg** so a single codebase
+camera viewer — built on **.NET 10 + Avalonia + FFmpeg** so a single codebase
 runs on **Windows and Linux** (and macOS, if ever wanted).
 
 > The original macOS app is a Swift/SwiftUI/AppKit project in `macos/`. This
@@ -11,17 +11,18 @@ runs on **Windows and Linux** (and macOS, if ever wanted).
 
 The Windows build ships on the
 [**Microsoft Store**](https://apps.microsoft.com/detail/9n7q858g3tk5) (signed,
-auto-updating) and as a free unsigned installer on
+auto-updating) and as a free installer (not code-signed) on
 [GitHub Releases](https://github.com/cb2206/QuickProtect/releases); the Linux
-build ships (since 1.3.1) as a self-contained x64 tarball on the same releases
+build ships (since 1.3.1) as self-contained tarballs on the same releases — x64,
+plus arm64 from 1.4
 (see [`PARITY.md`](../docs/PARITY.md) → Distribution for the channel details).
 
 ## Why this stack
 
 | Concern | macOS (Swift) | This port |
 |---|---|---|
-| Language / runtime | Swift | C# / .NET 8 (cross-platform, supersedes Mono) |
-| UI | SwiftUI + AppKit | Avalonia 11 (Windows + Linux + macOS) |
+| Language / runtime | Swift | C# / .NET 10 (cross-platform, supersedes Mono) |
+| UI | SwiftUI + AppKit | Avalonia 12 (Windows + Linux + macOS) |
 | Tray / menu-bar | `NSStatusItem` | Avalonia `TrayIcon` |
 | Video (RTSP→decode→render) | hand-written RTSP/RTP + VideoToolbox + `AVSampleBufferDisplayLayer` | **FFmpeg** (via FFmpeg.AutoGen) demux + decode, frames composited by Avalonia `VideoSurface` |
 | RTSPS (RTSP-over-TLS) | own TLS socket with TOFU trust | loopback `RtspTlsTunnel` with the same TOFU trust (FFmpeg's TLS can't do the app's TOFU pinning) |
@@ -52,7 +53,8 @@ dotnet/
       Models/      Camera, StreamQuality, PtzMapping, PtzBurstTimer,
                    SnapshotNaming, PinnedWindowGeometry
       Services/    ProtectService (dual UniFi API client), RtspTlsTunnel,
-                   CertificateTrust (TOFU), AppSettings, IPreferences,
+                   CertificateTrust (TOFU), ControllerErrors, ControllerRequestPolicy,
+                   StreamAllocationLedger, AppSettings, IPreferences,
                    ISecretStore, ILaunchAtLogin, UpdateChecker, AppPaths, Log
     QuickProtect.App/              # Avalonia desktop app
       Program.cs, App.axaml(.cs)   # tray agent shell (≈ AppDelegate)
@@ -64,20 +66,27 @@ dotnet/
       ViewModels/  Main, CameraTile, Settings, Onboarding, Layout
       Views/       MainWindow (grid/focus), SettingsWindow, OnboardingWindow,
                    PinnedCameraWindow
-      Localization/                # 7 languages from the macOS String Catalog
+      Localization/                # 7 languages, same keys as the macOS String
+                                   # Catalog (kept in sync by hand; a parity test
+                                   # fails on drift between the .resx files)
   tests/QuickProtect.Core.Tests/   # unit tests for the Core layer
+  tests/QuickProtect.App.Tests/    # video engine, view/layout and platform tests
   installer/QuickProtect.iss       # Inno Setup script (free GitHub build)
   installer/msix/                  # MSIX manifest + tile assets (Store build)
-  scripts/get-ffmpeg.ps1           # fetch FFmpeg natives (Windows RIDs by default)
+  installer/aur/PKGBUILD           # AUR package consuming the Linux tarball
+  THIRD-PARTY-NOTICES.txt          # bundled component licenses (shipped in every build)
+  scripts/get-ffmpeg.ps1           # fetch pinned FFmpeg natives, SHA-256 verified (Windows RIDs by default)
   scripts/get-ffmpeg.sh            # same, for Linux (host-arch RID by default)
+  scripts/get-sdk-buildtools.ps1   # makeappx/signtool from NuGet for package-msix.ps1 (no full SDK)
   scripts/package-windows.ps1      # publish + build the Windows installer
   scripts/package-msix.ps1         # publish + build the Store (MSIX) package
+  scripts/package-linux.sh         # publish + build the Linux tarball (--rid linux-arm64 for arm64)
   scripts/generate-msix-assets.swift  # regenerate the MSIX tile PNGs (macOS)
 ```
 
 ## Build & run
 
-Prerequisites: **.NET 8 SDK**, plus the **FFmpeg 7.1 shared libraries** for
+Prerequisites: the **.NET 10 SDK**, plus the **FFmpeg 9.0 shared libraries** for
 video. Fetch them once per checkout into `native/ffmpeg/<rid>/` (gitignored);
 the build bundles them next to the app automatically:
 
@@ -89,12 +98,12 @@ powershell -File scripts/get-ffmpeg.ps1            # Windows (win-x64 + win-arm6
 
 If the bundle is absent, the engine falls back to system-installed FFmpeg
 libraries — that only works when the system major version matches the
-`FFmpeg.AutoGen` binding (7.x, i.e. `libavcodec.so.61`); otherwise the app
+`FFmpeg.AutoGen` binding (9.x, i.e. `libavcodec.so.63`); otherwise the app
 still runs, just with video disabled.
 
 ```bash
 dotnet build QuickProtect.sln
-dotnet test tests/QuickProtect.Core.Tests
+dotnet test QuickProtect.sln                       # both test projects
 dotnet run --project src/QuickProtect.App          # host-arch build
 dotnet publish src/QuickProtect.App -c Release -r win-x64 --self-contained
 ```
@@ -112,12 +121,19 @@ Diagnostics: fatal errors land in `%APPDATA%\QuickProtect\crash.log`
 (`~/.config/QuickProtect/` on Linux), FFmpeg warnings/errors in `video.log`
 next to it.
 
+Display scaling on Wayland: Avalonia (12.x here) has no Wayland backend, so the app runs
+through XWayland on an unscaled surface and takes its scale from the desktop's
+`GDK_SCALE` (see `Platform/LinuxDisplayScaling.cs`) — the same signal GTK and
+Electron apps follow. Set `AVALONIA_GLOBAL_SCALE_FACTOR` to override it, e.g. to
+get the fractional value behind an integer `GDK_SCALE`. The scale is read once
+at startup, so restart the agent after changing the desktop's scaling.
+
 ## Packaging (Windows)
 
 Two artifacts, matching the two distribution channels (see
-[`PARITY.md`](../docs/PARITY.md#distribution-future)).
+[`PARITY.md`](../docs/PARITY.md#distribution)).
 
-**Free build** — unsigned installer for GitHub releases. It is not code-signed,
+**Free build** — installer for GitHub releases. It is not code-signed,
 so Windows shows a SmartScreen warning on first run.
 
 ```powershell

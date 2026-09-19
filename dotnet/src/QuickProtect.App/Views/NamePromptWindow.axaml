@@ -5,15 +5,17 @@
         Width="340" SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource QpPopoverBg}"
-        SystemDecorations="BorderOnly"
+        Background="{DynamicResource QpDialogBg}"
+        WindowDecorations="BorderOnly"
         ShowInTaskbar="False">
+  <Border BorderBrush="{DynamicResource QpDialogBorder}" BorderThickness="1">
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Name="TitleText" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" />
-    <TextBox Name="NameBox" Watermark="{loc:Loc 'New profile name'}" />
+    <TextBox Name="NameBox" PlaceholderText="{loc:Loc 'New profile name'}" />
     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
       <Button Content="{loc:Loc 'Cancel'}" Click="Cancel_Click" />
       <Button Content="{loc:Loc 'Save'}" Click="Ok_Click" IsDefault="True" Classes="accent" />
     </StackPanel>
   </StackPanel>
+  </Border>
 </Window>

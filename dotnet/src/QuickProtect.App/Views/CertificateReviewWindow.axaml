@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:QuickProtect.App.Localization"
+        x:Class="QuickProtect.App.Views.CertificateReviewWindow"
+        Width="460" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource QpDialogBg}"
+        WindowDecorations="BorderOnly"
+        ShowInTaskbar="False"
+        Topmost="True">
+  <!-- Asks whether to trust a changed controller certificate. Opened only by an
+       explicit click (panel card, pinned window), never unprompted. Cancel is
+       the default and the Esc button; trusting takes a deliberate click. -->
+  <Border BorderBrush="{DynamicResource QpDialogBorder}" BorderThickness="1">
+  <StackPanel Margin="18" Spacing="10">
+    <TextBlock Text="{loc:Loc 'Trust the controller\'s new certificate?'}"
+               FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
+    <TextBlock Text="{loc:Loc 'The controller\'s certificate changed since you last connected.'}"
+               Foreground="{DynamicResource QpTextPrimary}" TextWrapping="Wrap" />
+    <TextBlock Text="{loc:Loc 'This is expected if you reinstalled or replaced the controller — but if you didn\'t, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it.'}"
+               Foreground="{DynamicResource QpTextSecondary}" TextWrapping="Wrap" />
+    <TextBlock Name="HostText" FontWeight="SemiBold" Foreground="{DynamicResource QpTextPrimary}" Margin="0,4,0,0" />
+    <StackPanel Name="TrustedPanel" Spacing="2">
+      <TextBlock Text="{loc:Loc 'Trusted key'}" Foreground="{DynamicResource QpTextSecondary}" FontSize="11" />
+      <SelectableTextBlock Name="TrustedText" FontFamily="Consolas,Menlo,monospace" FontSize="11"
+                           TextWrapping="Wrap" Foreground="{DynamicResource QpTextPrimary}" />
+    </StackPanel>
+    <StackPanel Spacing="2">
+      <TextBlock Text="{loc:Loc 'New key'}" Foreground="{DynamicResource QpTextSecondary}" FontSize="11" />
+      <SelectableTextBlock Name="NewText" FontFamily="Consolas,Menlo,monospace" FontSize="11"
+                           TextWrapping="Wrap" Foreground="{DynamicResource QpTextPrimary}" />
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,6,0,0">
+      <Button Content="{loc:Loc 'Cancel'}" Click="Cancel_Click" IsDefault="True" IsCancel="True" />
+      <Button Content="{loc:Loc 'Trust new certificate'}" Click="Trust_Click" />
+    </StackPanel>
+  </StackPanel>
+  </Border>
+</Window>

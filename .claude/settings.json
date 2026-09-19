@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "IN=$(cat); F=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('file_path',''))\" 2>/dev/null); SID=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('session_id',''))\" 2>/dev/null); case \"$F\" in *.cs|*.axaml) [ -n \"$SID\" ] && touch \"/tmp/qp-dirty-net-$SID\"; exit 0;; *.swift) ;; *) exit 0;; esac; [ -n \"$SID\" ] && touch \"/tmp/qp-dirty-$SID\"; SL=$(command -v swiftlint || echo /opt/homebrew/bin/swiftlint); [ -x \"$SL\" ] || exit 0; ERR=$(cd macos && \"$SL\" lint --quiet \"$F\" 2>&1 | grep ': error:' | head -10); if [ -n \"$ERR\" ]; then echo \"$ERR\" >&2; exit 2; fi"
+            "command": "IN=$(cat); F=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('file_path',''))\" 2>/dev/null); SID=$(printf '%s' \"$IN\" | python3 -c \"import json,sys; print(json.load(sys.stdin).get('session_id',''))\" 2>/dev/null); case \"$F\" in *.cs|*.axaml) [ -n \"$SID\" ] && touch \"/tmp/qp-dirty-net-$SID\"; exit 0;; */macos/QuickProtect/*.swift|*/macos/QuickProtectTests/*.swift) ;; *) exit 0;; esac; [ -n \"$SID\" ] && touch \"/tmp/qp-dirty-$SID\"; SL=$(command -v swiftlint || echo /opt/homebrew/bin/swiftlint); [ -x \"$SL\" ] || exit 0; ERR=$(cd macos && \"$SL\" lint --quiet \"$F\" 2>&1 | grep ': error:' | head -10); if [ -n \"$ERR\" ]; then echo \"$ERR\" >&2; exit 2; fi"
           }
         ]
       }

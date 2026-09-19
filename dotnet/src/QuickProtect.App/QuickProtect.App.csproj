@@ -10,27 +10,35 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Avalonia previewer / XAML compilation -->
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Every RID the release scripts publish. Declared up front so restore
+         writes their sections into packages.lock.json; otherwise each
+         `dotnet publish -r` adds them and dirties the committed lock file. -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64;win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.19" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.19" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.19" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.19" />
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
     <!-- MVVM helpers (ObservableObject, RelayCommand) -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <!-- FFmpeg bindings for the custom video engine (demux + decode). The
          DynamicallyLoaded variant lets us point at per-RID native libraries. -->
-    <PackageReference Include="FFmpeg.AutoGen.Abstractions" Version="7.1.1" />
-    <PackageReference Include="FFmpeg.AutoGen.Bindings.DynamicallyLoaded" Version="7.1.1" />
+    <PackageReference Include="FFmpeg.AutoGen.Abstractions" Version="9.0.1.1" />
+    <PackageReference Include="FFmpeg.AutoGen.Bindings.DynamicallyLoaded" Version="9.0.1.1" />
     <!-- WASAPI output for the engine's audio sink (Windows). Linux uses ALSA
          via P/Invoke (AudioSink.cs); these managed packages are inert there. -->
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- Used directly by PortalGlobalHotkey (XDG portal over D-Bus). Referenced
+         explicitly rather than relied on as Avalonia's transitive dependency,
+         so an Avalonia bump can't silently remove it. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.1" />
   </ItemGroup>
 
-  <!-- FFmpeg 7.1 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).
-       Bundled per-RID from desktop/native/ffmpeg/<rid>; a no-RID dev build picks
+  <!-- FFmpeg 9.0 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).
+       Bundled per-RID from dotnet/native/ffmpeg/<rid>; a no-RID dev build picks
        the host architecture so `dotnet run` works (natively, incl. win-arm64).
        When the folder is absent (e.g. Linux without the script), the engine
        falls back to system-installed FFmpeg libraries. -->
@@ -46,8 +54,19 @@
              Link="ffmpeg\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- License and third-party notices travel with every published build
+       (installer, tarball, MSIX all take the publish folder wholesale). -->
+  <ItemGroup>
+    <None Include="..\..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\QuickProtect.Core\QuickProtect.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuickProtect.App.Tests" />
   </ItemGroup>
 
 </Project>

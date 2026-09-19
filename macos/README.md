@@ -8,9 +8,9 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
   <a href="https://apps.apple.com/app/id6776899427"><img alt="Download QuickProtect on the App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="52"></a>
 </p>
 
-**Looking for a signed binary?** [Download QuickProtect from the App Store](https://apps.apple.com/app/id6776899427) — sandboxed, auto-updating, and notarized by Apple. The [GitHub release](https://github.com/cb2206/QuickProtect/releases) DMG is not code-signed (see [Installing an Unsigned App](#installing-an-unsigned-app)).
+**Looking for a signed binary?** [Download QuickProtect from the App Store](https://apps.apple.com/app/id6776899427) — sandboxed, auto-updating, and notarized by Apple. The [GitHub release](https://github.com/cb2206/QuickProtect/releases) DMG is not code-signed (see [Installing the GitHub build](#installing-the-github-build)).
 
-**On Windows or Linux?** QuickProtect ships there too — Windows via the [Microsoft Store](https://apps.microsoft.com/detail/9n7q858g3tk5) or the unsigned installer on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), Linux as a tarball on the same releases. See the [.NET/Avalonia port](../dotnet/README.md).
+**On Windows or Linux?** QuickProtect ships there too — Windows via the [Microsoft Store](https://apps.microsoft.com/detail/9n7q858g3tk5) or the installer (not code-signed) on [GitHub Releases](https://github.com/cb2206/QuickProtect/releases), Linux as a tarball on the same releases. See the [.NET/Avalonia port](../dotnet/README.md).
 
 ![QuickProtect](../docs/screenshots/appstore-1.png)
 
@@ -20,8 +20,13 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **H.265 (HEVC) and H.264** codec support, including multi-slice encoding (e.g. G4 Doorbell Pro)
 - **Automatic aspect ratio detection** — wide cameras like the G6 180 display at their native ratio
 - **Single-click focus** — click any camera to view it fullscreen within the popover
-- **Display fullscreen** — press **F**, **Space**, or the expand button to fill your entire screen with a camera feed; press **F**, **Space**, or **Escape** to return
-- **PTZ camera control** — pan and tilt PTZ cameras (e.g. G6 PTZ) with arrow keys while viewing a focused feed; hold to move continuously, release to stop
+- **Display fullscreen** — press **F** or the expand button to fill your entire screen with a camera feed; press **F** or **Escape** to return
+- **PTZ camera control** — pan and tilt PTZ cameras (e.g. G6 PTZ) with the arrow keys or the on-screen pad, and zoom with **I** / **O**; hold to move continuously, release to stop
+- **Pinned windows** — float any camera in a compact always-on-top window that keeps streaming while the popover is closed and reconnects on its own if its stream drops
+- **Snapshots** — press **S** on a focused feed to copy a still to the clipboard or save it to a folder
+- **Audio** — hear the focused camera (muted by default, **M** toggles)
+- **Package camera** — doorbells with a second lens show it picture-in-picture; **C** swaps the two
+- **Layout profiles** — save and switch between camera arrangements from the header
 - **Zoom and pan** — pinch-to-zoom and two-finger pan on trackpad, scroll wheel zoom on mouse; pan is clamped to video edges
 - **Fit or fill** — toggle a focused feed between fitting the whole image and filling the frame (crop to edges); the choice is remembered per camera
 - **Double-click to open in Protect** — double-click any feed to jump straight to that camera in the UniFi Protect web UI
@@ -36,14 +41,14 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **First-run onboarding** — a short guided setup walks you through connecting on first launch
 - **Update notifications** — checks for updates on launch and daily, then points you to the latest GitHub release to download (it never auto-installs)
 - **Launch at login** — optional, with a first-run prompt; toggle in Settings
-- **Self-signed TLS support** — connects to controllers using self-signed certificates without system-wide trust changes
+- **Self-signed TLS support** — connects to controllers using self-signed certificates without system-wide trust changes; the controller's key is pinned on first use, and if it later changes the app stops, shows both keys, and lets you trust the new one after comparing
 - **Credentials in the Keychain** — your API key and PTZ admin login are stored in the macOS Keychain, not in plaintext preferences
 - **Remembers focused camera** — reopen the popover and it picks up where you left off
 - **Closes on outside click** — click anywhere outside the popover to dismiss it
 
 ## Requirements
 
-- macOS 13.0 or later (Apple Silicon)
+- macOS 13.0 or later (universal: Apple Silicon and Intel)
 - A UniFi Protect controller with the [Integration API](https://developers.ui.com/protect-api/) enabled
 - An API key generated from the controller's settings
 - *(Optional, for PTZ)* A local admin account on the controller
@@ -74,10 +79,14 @@ To control PTZ cameras (e.g. G6 PTZ) with arrow keys:
 
 | Key | Context | Action |
 |-----|---------|--------|
-| **F** / **Space** | Popover focus | Toggle display fullscreen |
+| **F** | Popover focus | Toggle display fullscreen |
 | **Escape** | Display fullscreen | Return to popover focus |
 | **Escape** | Popover focus | Return to grid view |
+| **S** | Focused camera | Snapshot (clipboard or folder, per Settings) |
+| **M** | Focused camera with audio | Mute / unmute |
+| **C** | Focused doorbell with PiP | Swap the main and package lens |
 | **Arrow keys** | Focused PTZ camera | Pan and tilt (hold to move continuously) |
+| **I** / **O** | Focused PTZ camera with zoom | Zoom in / out |
 | Custom shortcut | Anywhere | Toggle popover (configurable in Settings) |
 
 ## Building from Source
@@ -117,11 +126,13 @@ swiftc \
 
 > The `swiftc` path compiles code only and won't process the String Catalog, so a `swiftc` build runs in English. Use the Xcode/XcodeGen build for a localized app.
 
+**Keychain prompts during development.** The Debug configuration signs ad-hoc, and every ad-hoc build has a new code hash, so macOS asks for access to the stored API key and credentials on each launch. `scripts/macos/build.sh` (and `run.sh`) avoid this by signing with an Apple Development certificate when the login keychain has one; click *Always Allow* once after switching and the prompts stop. Xcode does the same if you set the Debug signing identity to your development certificate locally (don't commit that).
+
 ## Localization
 
 QuickProtect ships in English, German, French, Spanish, Dutch, Italian, and Brazilian Portuguese, and follows the system language automatically (set a per-app language in **System Settings → General → Language & Region**).
 
-All UI strings live in a single String Catalog at `QuickProtect/Localizable.xcstrings`. The catalog is generated from `tools/gen_localizations.py`, which holds one dictionary per language plus plural rules and a parity check that every language covers the full key set:
+All UI strings live in a single String Catalog at `QuickProtect/Localizable.xcstrings`. The catalog is generated from `tools/gen_localizations.py`, which holds one dictionary per language plus plural rules and a parity check that every language covers the full key set — never edit the catalog by hand, the next run overwrites it. The connection-error messages (`_errors` block) share their English keys and translations with the .NET port:
 
 ```bash
 python3 tools/gen_localizations.py   # regenerates QuickProtect/Localizable.xcstrings
@@ -132,21 +143,43 @@ To add or edit a translation, update the relevant dictionary in that script and 
 ## Running Tests
 
 ```bash
-# Via Xcode (requires Xcode.app)
-xcodebuild test -project QuickProtect.xcodeproj -scheme QuickProtect -destination 'platform=macOS'
-
-# Standalone (no Xcode needed)
-swiftc -sdk $(xcrun --show-sdk-path) -target arm64-apple-macos13.0 -parse-as-library \
-  -o /tmp/QuickProtectTests QuickProtect/Services/RTPParser.swift \
-  QuickProtect/Models/Camera.swift QuickProtectTests/TestRunner.swift \
-  && /tmp/QuickProtectTests
+xcodegen generate   # once per checkout (the .xcodeproj is not committed)
+xcodebuild test -scheme QuickProtect -destination 'platform=macOS'
+swiftlint lint --strict
 ```
 
-120+ tests cover RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings.
+The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), certificate pinning (policy state machine, SPKI fingerprints against openssl vectors, legacy-pin migration), controller address normalisation, `ProtectService` against a stubbed controller (camera list, 429 retry, quality ladder, stream release, connection changes), connection-error messages and their translations, the stream-allocation ledger and recovery backoff, `AppSettings` persistence and migrations, version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings. `RTSPClientIntegrationTests` plays a real RTSPS stream from a local mediamtx + ffmpeg (`brew install mediamtx ffmpeg`) and is skipped when those tools are missing.
 
-## Installing an Unsigned App
+## Diagnostics
 
-QuickProtect is not signed with an Apple Developer certificate. When you first open it, macOS will block it with a message like *"QuickProtect can't be opened because Apple cannot check it for malicious software."*
+- `defaults write com.cb.quickprotect QPDebugLogging -bool YES` turns on the
+  RTSP/API debug log (`quickprotect_debug.log` in the app's temp directory;
+  stream URLs are redacted to host:port). For a sandboxed build, whose
+  container preferences and temp directory a shell can't reach, launch the
+  binary with `QUICKPROTECT_DEBUG_LOG=1` instead — every line is then also
+  written to stderr:
+  `QUICKPROTECT_DEBUG_LOG=1 build/Debug/QuickProtect.app/Contents/MacOS/QuickProtect --open-panel 2> qp.log`
+- `--open-panel` opens the camera panel right after launch (scripted runs;
+  parity with the .NET port's flag).
+- `--simulate-certificate-change` (Debug builds only) pins a key the
+  controller can't present, so the next connection is rejected and the
+  "Controller certificate changed" card and review dialog can be exercised.
+  Trusting the "new" (real) key from the dialog restores a working pin.
+- With the debug log on, the classic-API enrichment logs every camera's
+  channel table (codec, resolution, enabled/RTSP flags). Adding
+  `QUICKPROTECT_PROBE_CLASSIC=1` additionally logs each camera's full record
+  (credential-like fields stripped) and DESCRIBEs its classic RTSPS alias
+  stream for a few seconds, so a camera whose on-demand stream has no video
+  can be compared against the controller's other path. Aliases and stream
+  tokens are never written to the log.
+- A tile that shows "Stream unavailable" prints the client's own reason under
+  the Reconnect button — e.g. the controller answering DESCRIBE with audio
+  tracks only, which means the controller itself is not receiving video from
+  that camera.
+
+## Installing the GitHub build
+
+The GitHub build is not code-signed with an Apple Developer certificate (the App Store build is). When you first open it, macOS will block it with a message like *"QuickProtect can't be opened because Apple cannot check it for malicious software."* The release page carries a `SHA256SUMS` file to verify the download against.
 
 To allow it:
 
@@ -187,11 +220,11 @@ Any VPN solution that gives you access to your home LAN will work — WireGuard,
 
 ## How It Works
 
-QuickProtect connects to your UniFi Protect controller using the Integration API (`/proxy/protect/integration/v1/`). It authenticates with an API key and creates on-demand RTSP sessions for each camera. For PTZ control, it additionally authenticates with the classic Protect API using local admin credentials and sends repeating relative move commands via the `/cameras/{id}/move` endpoint. The API key and PTZ admin credentials are stored in the macOS Keychain (an existing plaintext copy from an older version is migrated automatically on first launch).
+QuickProtect connects to your UniFi Protect controller using the Integration API (`/proxy/protect/integration/v1/`). It authenticates with an API key and creates on-demand RTSP sessions for each camera. For PTZ control, it additionally authenticates with the classic Protect API using local admin credentials and sends continuous-velocity move commands via the `/cameras/{id}/move` endpoint (all zeros stops). The API key and PTZ admin credentials are stored in the macOS Keychain (an existing plaintext copy from an older version is migrated automatically on first launch).
 
 Since macOS 13+ dropped AVFoundation support for RTSP URLs, QuickProtect includes a custom RTSP/RTP client that:
 
-1. Opens a TLS connection via `NWConnection` with per-connection certificate verification bypass
+1. Opens a TLS connection via `NWConnection` and verifies the controller's certificate the same way the API does: system trust first, otherwise the key pinned on first use
 2. Runs the RTSP state machine (OPTIONS → DESCRIBE → SETUP → PLAY)
 3. Parses RTP interleaved framing and reassembles H.264/H.265 NAL units
 4. Groups NAL units into access units using the RTP marker bit (required for multi-slice cameras like the G4 Doorbell Pro)

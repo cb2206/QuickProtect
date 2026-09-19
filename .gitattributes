@@ -1,0 +1,10 @@
+# Normalise line endings to LF for every text file on every platform. The
+# Windows CI runner checks out with CRLF by default, which makes
+# `dotnet format --verify-no-changes` (end_of_line = lf in dotnet/.editorconfig)
+# fail on files nobody touched. Binary types are detected automatically.
+* text=auto eol=lf
+
+# Windows-native formats that tooling expects with CRLF
+*.iss text eol=crlf
+*.ps1 text eol=crlf
+*.manifest text eol=lf

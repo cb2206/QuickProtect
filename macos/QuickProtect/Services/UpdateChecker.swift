@@ -3,9 +3,9 @@ import AppKit
 
 /// Identifies how this build was distributed.
 ///
-/// The GitHub build is distributed **unsigned**. Because an unsigned build can't
-/// be safely auto-installed — downloading and executing an unsigned DMG would be
-/// a supply-chain risk — the updater only *notifies* and links to the release
+/// The GitHub build is not code-signed. Because such a build can't be safely
+/// auto-installed — downloading and executing an unverifiable DMG would be a
+/// supply-chain risk — the updater only *notifies* and links to the release
 /// page; it never installs. Mac App Store builds are updated by the App Store
 /// itself, and Apple forbids in-app update mechanisms there (Guideline 2.4.5 /
 /// 3.2.2), so the updater stays idle when a `_MASReceipt/receipt` is present.
@@ -40,8 +40,9 @@ enum AppStorePromo {
 
 /// Checks GitHub for a newer release and surfaces it in Settings. Notify-only:
 /// it does not download or install anything. The user opens the release page and
-/// updates manually (the GitHub build is unsigned, so auto-install
+/// updates manually (the GitHub build is not code-signed, so auto-install
 /// is neither possible nor safe — see `AppDistribution`).
+@MainActor
 final class UpdateChecker: NSObject, ObservableObject {
 
     // MARK: - Published state
@@ -75,7 +76,8 @@ final class UpdateChecker: NSObject, ObservableObject {
             self?.checkForUpdate()
         }
         timer = Timer.scheduledTimer(withTimeInterval: 86_400, repeats: true) { [weak self] _ in
-            self?.checkForUpdate()
+            // The timer fires on the main run loop; tell the compiler so.
+            MainActor.assumeIsolated { self?.checkForUpdate() }
         }
     }
 
@@ -93,7 +95,7 @@ final class UpdateChecker: NSObject, ObservableObject {
         request.cachePolicy = .reloadIgnoringLocalCacheData
 
         URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self else { return }
                 self.isChecking = false
 
@@ -111,17 +113,25 @@ final class UpdateChecker: NSObject, ObservableObject {
 
                 let remote = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
                 self.latestVersion = remote
-                self.releaseURL = URL(string: htmlURL)
+                self.releaseURL = URL(string: htmlURL).flatMap(self.validatedReleaseURL)
                 self.updateAvailable = self.isNewer(remote: remote, local: self.currentVersion)
                     && UpdateAssets.containsMacAsset(assetNames)
             }
         }.resume()
     }
 
+    /// Only ever hand the browser this project's own GitHub release pages,
+    /// whatever `html_url` the API response carried.
+    func validatedReleaseURL(_ url: URL) -> URL? {
+        guard url.scheme == "https", url.host == "github.com",
+              url.path.hasPrefix("/\(repoOwner)/\(repoName)/") else { return nil }
+        return url
+    }
+
     // MARK: - Open the release for manual download
 
     /// Opens the latest release page in the browser. The user downloads and
-    /// installs manually — this build is unsigned, so there is no
+    /// installs manually — this build is not code-signed, so there is no
     /// in-app installer.
     func openReleasePage() {
         if let url = releaseURL ?? releasesPageURL {
@@ -131,9 +141,7 @@ final class UpdateChecker: NSObject, ObservableObject {
 
     // MARK: - Version comparison
 
-    /// Delegates to the single, unit-tested implementation in RTPParser so the
-    /// shipping comparison and the tested one can't drift apart.
     private func isNewer(remote: String, local: String) -> Bool {
-        RTPParser.isNewer(remote: remote, local: local)
+        VersionCompare.isNewer(remote: remote, local: local)
     }
 }

@@ -24,9 +24,14 @@ public static class FfmpegEngine
     /// <summary>TLS bridge for rtsps:// URLs, sharing the API's TOFU pinning.</summary>
     public static RtspTlsTunnel? Tunnel { get; set; }
 
+    private const string HomebrewFfmpegLib = "/opt/homebrew/opt/ffmpeg/lib";
+
     private static StreamWriter? _logWriter;
     private static readonly object _logLock = new();
     private static av_log_set_callback_callback? _logCallback; // keep delegate alive
+
+    /// <summary>Every FFmpeg log line mirrored to video.log (tests observe decoder warnings).</summary>
+    internal static event Action<string>? LogLine;
 
     public static void Initialize()
     {
@@ -35,6 +40,11 @@ public static class FfmpegEngine
             var bundled = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
             if (Directory.Exists(bundled))
                 DynamicallyLoadedBindings.LibrariesPath = bundled;
+            else if (OperatingSystem.IsMacOS() && Directory.Exists(HomebrewFfmpegLib))
+                // Development only (macOS isn't a shipping target for this port):
+                // dlopen doesn't search Homebrew's prefix, so point at it when
+                // the natives aren't bundled.
+                DynamicallyLoadedBindings.LibrariesPath = HomebrewFfmpegLib;
             DynamicallyLoadedBindings.Initialize();
 
             ffmpeg.av_log_set_level(ffmpeg.AV_LOG_WARNING);
@@ -55,7 +65,7 @@ public static class FfmpegEngine
 
     /// <summary>
     /// Mirrors FFmpeg warnings/errors to <c>%APPDATA%\QuickProtect\video.log</c>
-    /// (truncated per session), like the old vlc.log.
+    /// (truncated per session).
     /// </summary>
     private static unsafe void SetupFileLog()
     {
@@ -81,6 +91,7 @@ public static class FfmpegEngine
             var line = Marshal.PtrToStringAnsi((IntPtr)buffer)?.TrimEnd();
             if (string.IsNullOrEmpty(line)) return;
             lock (_logLock) { _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss}] {line}"); }
+            LogLine?.Invoke(line);
         };
         ffmpeg.av_log_set_callback(_logCallback);
     }

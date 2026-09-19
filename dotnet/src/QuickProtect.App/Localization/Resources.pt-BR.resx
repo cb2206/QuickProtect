@@ -289,4 +289,28 @@ QuickProtect.</value></data>
   <data name="Signing in…" xml:space="preserve"><value>Entrando…</value></data>
   <data name="Swap secondary lens" xml:space="preserve"><value>Trocar a lente secundária</value></data>
   <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Trust it only if you recognize the change." xml:space="preserve"><value>Isso é esperado se você reinstalou ou substituiu o controlador — caso contrário, pode indicar que alguém está interceptando a conexão. Confie no certificado apenas se você reconhecer a mudança.</value></data>
+  <data name="This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>Isso é esperado se você reinstalou ou substituiu o controlador — caso contrário, pode indicar que alguém está interceptando a conexão. Compare a nova chave com o certificado exibido pelo seu controlador antes de confiar nela.</value></data>
+  <data name="Couldn't register this shortcut — it may be in use by another app." xml:space="preserve"><value>Não foi possível registrar este atalho — talvez outro app já o esteja usando.</value></data>
+  <data name="Add a modifier key (Ctrl, Alt, Shift or Win) to the shortcut." xml:space="preserve"><value>Adicione uma tecla modificadora (Ctrl, Alt, Shift ou Win) ao atalho.</value></data>
+  <data name="Trusted key" xml:space="preserve"><value>Chave confiável</value></data>
+  <data name="New key" xml:space="preserve"><value>Nova chave</value></data>
+  <data name="The controller is presenting a new certificate. This is expected if you reinstalled or replaced the controller — but if you didn't, it may indicate someone intercepting the connection. Compare the new key with the certificate your controller shows before trusting it." xml:space="preserve"><value>O controlador está apresentando um novo certificado. Isso é esperado se você o reinstalou ou substituiu — caso contrário, pode indicar que alguém está interceptando a conexão. Compare a nova chave com o certificado exibido pelo seu controlador antes de confiar nela.</value></data>
+  <data name="%lld minutes ago" xml:space="preserve"><value>há %lld minutos</value></data>
+  <data name="%lld seconds ago" xml:space="preserve"><value>há %lld segundos</value></data>
+  <data name="The controller isn't receiving video from this camera. Restarting the camera in UniFi Protect usually fixes this." xml:space="preserve"><value>O controlador não está recebendo vídeo desta câmera. Reiniciar a câmera no UniFi Protect geralmente resolve isso.</value></data>
+  <data name="Trust the controller's new certificate?" xml:space="preserve"><value>Confiar no novo certificado do controlador?</value></data>
+  <data name="Controller: %@" xml:space="preserve"><value>Controlador: %@</value></data>
+  <data name="Controller certificate changed" xml:space="preserve"><value>Certificado do controlador alterado</value></data>
+  <data name="QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection." xml:space="preserve"><value>O QuickProtect parou de se conectar porque o controlador apresentou um certificado diferente. Isso é esperado depois de reinstalar, redefinir ou substituir o controlador. Se você não fez isso, alguém pode estar interceptando a conexão.</value></data>
+  <data name="Review Certificate…" xml:space="preserve"><value>Revisar certificado…</value></data>
+  <data name="Can't find the controller. Check the IP address or hostname in Settings." xml:space="preserve"><value>Controlador não encontrado. Verifique o endereço IP ou o nome do host nos ajustes.</value></data>
+  <data name="The controller refused the connection. Check the IP address in Settings." xml:space="preserve"><value>O controlador recusou a conexão. Verifique o endereço IP nos ajustes.</value></data>
+  <data name="Can't reach the controller. Check that it's online and on the same network." xml:space="preserve"><value>Não foi possível conectar ao controlador. Verifique se ele está ligado e na mesma rede.</value></data>
+  <data name="The controller didn't respond in time. Check that it's online and on the same network." xml:space="preserve"><value>O controlador não respondeu a tempo. Verifique se ele está ligado e na mesma rede.</value></data>
+  <data name="A secure connection to the controller couldn't be established." xml:space="preserve"><value>Não foi possível estabelecer uma conexão segura com o controlador.</value></data>
+  <data name="The controller rejected the API key. Check it in Settings." xml:space="preserve"><value>O controlador recusou a chave de API. Verifique-a nos ajustes.</value></data>
+  <data name="The controller is busy. Try again in a moment." xml:space="preserve"><value>O controlador está ocupado. Tente novamente em instantes.</value></data>
+  <data name="The controller reported an internal error. Try again later." xml:space="preserve"><value>O controlador relatou um erro interno. Tente novamente mais tarde.</value></data>
+  <data name="The controller returned an unexpected response." xml:space="preserve"><value>O controlador retornou uma resposta inesperada.</value></data>
+  <data name="The controller sent a response QuickProtect couldn't read." xml:space="preserve"><value>O controlador enviou uma resposta que o QuickProtect não consegue ler.</value></data>
 </root>

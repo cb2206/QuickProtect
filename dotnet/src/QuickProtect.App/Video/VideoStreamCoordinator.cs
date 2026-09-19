@@ -19,14 +19,32 @@ namespace QuickProtect.App.Video;
 ///  • When the last consumer releases, the client stops and the allocation is
 ///    freed, but the entry (with its last frame) is kept — reopening the panel
 ///    shows the previous frame immediately while the stream reconnects.
+///  • A desire that changes while a switch is in flight is re-resolved once the
+///    switch completes; a failed allocation (rate limit, unreachable controller)
+///    is retried with backoff and the tile is told so it can drop its spinner.
+///  • A client whose URL stops opening (the allocation was deleted on the
+///    controller — by another QuickProtect, say) gets a freshly allocated URL,
+///    with backoff until the stream plays again.
+///
+/// Entry state (<c>ActiveQuality</c>, <c>Switching</c>, <c>Generation</c>) is
+/// only touched under <c>_lock</c>.
 /// </summary>
 public sealed class VideoStreamCoordinator : IDisposable
 {
-    private readonly ProtectService _service;
+    private readonly IStreamAllocator _service;
     private readonly object _lock = new();
     private readonly Dictionary<string, Entry> _entries = new();
 
-    public VideoStreamCoordinator(ProtectService service) => _service = service;
+    private static readonly TimeSpan DowngradeSettle = TimeSpan.FromMilliseconds(600);
+    private static readonly TimeSpan RetryInitial = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan RetryMax = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ReallocateInitial = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ReallocateMax = TimeSpan.FromSeconds(60);
+
+    public VideoStreamCoordinator(IStreamAllocator service) => _service = service;
+
+    /// <summary>Creates each camera's client (tests substitute one that never opens FFmpeg).</summary>
+    internal Func<VideoStreamClient> ClientFactory { get; init; } = static () => new VideoStreamClient();
 
     private sealed class Entry
     {
@@ -34,11 +52,15 @@ public sealed class VideoStreamCoordinator : IDisposable
         public required string Key;
         public string? Lens;               // e.g. "package"; null = primary lens
         public bool Pinned;
-        public VideoStreamClient Client { get; } = new();
+        public required VideoStreamClient Client { get; init; }
         public Dictionary<object, string> Desires { get; } = new();
-        public string? ActiveQuality;      // allocated on the controller
-        public int Generation;             // invalidates stale delayed switches
+        public string? RequestedQuality;   // tier the coordinator asked for (desires compare to this)
+        public string? ActiveQuality;      // tier the controller granted (may be a fallback; released by this name)
+        public int Generation;             // invalidates stale delayed switches and retries
         public bool Switching;
+        public TimeSpan RetryDelay = RetryInitial;
+        public TimeSpan ReallocateDelay = ReallocateInitial;
+        public DateTime NextReallocate = DateTime.MinValue;
     }
 
     /// <summary>A consumer's claim on a stream. Dispose to release.</summary>
@@ -76,8 +98,19 @@ public sealed class VideoStreamCoordinator : IDisposable
         {
             if (!_entries.TryGetValue(key, out entry!))
             {
-                entry = new Entry { Camera = camera, Key = key, Lens = lens, Pinned = pinned };
+                entry = new Entry { Camera = camera, Key = key, Lens = lens, Pinned = pinned, Client = ClientFactory() };
                 _entries[key] = entry;
+                var created = entry;
+                created.Client.AllocationLost += () => OnAllocationLost(created);
+                created.Client.StateChanged += state =>
+                {
+                    if (state != VideoState.Playing) return;
+                    lock (_lock)
+                    {
+                        created.ReallocateDelay = ReallocateInitial;
+                        created.NextReallocate = DateTime.MinValue;
+                    }
+                };
             }
             entry.Camera = camera; // keep enrichment (PTZ flags, online state) fresh
             handle = new Handle(this) { Key = key, Client = entry.Client };
@@ -143,13 +176,20 @@ public sealed class VideoStreamCoordinator : IDisposable
         _ => 3 // fixed lenses ("package") never compete
     };
 
+    private static string? Wanted(Entry entry)
+        => entry.Desires.Values.OrderByDescending(Rank).FirstOrDefault();
+
     private void Resolve(Entry entry, bool immediate)
     {
-        string? want;
+        string? want, active;
         int gen;
         lock (_lock)
         {
-            want = entry.Desires.Values.OrderByDescending(Rank).FirstOrDefault();
+            want = Wanted(entry);
+            // Compare against what was asked for, not what the controller
+            // granted: a camera without the wanted substream answers with a
+            // fallback tier, and re-resolving on that would loop forever.
+            active = entry.RequestedQuality;
             gen = ++entry.Generation;
         }
 
@@ -160,26 +200,28 @@ public sealed class VideoStreamCoordinator : IDisposable
             ReleaseAllocation(entry);
             return;
         }
-        if (want == entry.ActiveQuality) return;
+        if (want == active) return;
 
-        var isUpgrade = entry.ActiveQuality == null || Rank(want) > Rank(entry.ActiveQuality);
+        var isUpgrade = active == null || Rank(want) > Rank(active);
         if (isUpgrade || immediate)
         {
             _ = SwitchAsync(entry, want, gen);
         }
         else
         {
-            // Downgrade: settle for 0.6s first (macOS anti-churn behavior).
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(600);
-                lock (_lock)
-                {
-                    if (entry.Generation != gen) return; // superseded
-                }
-                await SwitchAsync(entry, want, gen);
-            });
+            // Downgrade: settle first (macOS anti-churn behavior).
+            _ = SwitchLater(entry, want, gen, DowngradeSettle);
         }
+    }
+
+    private async Task SwitchLater(Entry entry, string quality, int gen, TimeSpan delay)
+    {
+        await Task.Delay(delay);
+        lock (_lock)
+        {
+            if (entry.Generation != gen) return; // superseded
+        }
+        await SwitchAsync(entry, quality, gen);
     }
 
     private async Task SwitchAsync(Entry entry, string quality, int gen)
@@ -189,13 +231,21 @@ public sealed class VideoStreamCoordinator : IDisposable
             if (entry.Switching || entry.Generation != gen) return;
             entry.Switching = true;
         }
+        // True once this switch reached a settled state (started, or abandoned
+        // because nobody wants the stream any more). A failed allocation is
+        // retried with backoff instead of re-resolving in a tight loop.
+        var settled = false;
         try
         {
             // Allocate the new quality BEFORE releasing the old one.
             var result = entry.Pinned
                 ? await _service.CreatePinnedStreamUrlAsync(entry.Camera, quality)
                 : await _service.CreateRtspStreamUrlAsync(entry.Camera, quality);
-            if (result is not { } r) return;
+            if (result is not { } r)
+            {
+                ScheduleRetry(entry, quality, gen);
+                return;
+            }
 
             // The last consumer may have released while the POST was in flight
             // (panel closed): adopting the allocation now would leak it
@@ -206,11 +256,18 @@ public sealed class VideoStreamCoordinator : IDisposable
             {
                 if (entry.Pinned) _service.ReleasePinnedStream(entry.Camera.Id, r.quality);
                 else _service.ReleaseStream(entry.Camera.Id, r.quality);
+                settled = true;
                 return;
             }
 
-            var old = entry.ActiveQuality;
-            entry.ActiveQuality = r.quality;
+            string? old;
+            lock (_lock)
+            {
+                old = entry.ActiveQuality;
+                entry.RequestedQuality = quality;
+                entry.ActiveQuality = r.quality;
+                entry.RetryDelay = RetryInitial;
+            }
             if (old != null && old != r.quality)
             {
                 // Seamless switch: the client keeps the old session decoding
@@ -229,21 +286,107 @@ public sealed class VideoStreamCoordinator : IDisposable
             {
                 entry.Client.Start(FfmpegEngine.MapUrl(r.url));
             }
+            settled = true;
         }
         catch (Exception ex)
         {
             Log.Line($"[Video] quality switch failed for {entry.Camera.Name}: {ex.Message}");
+            ScheduleRetry(entry, quality, gen);
         }
         finally
         {
-            lock (_lock) entry.Switching = false;
+            string? wantNow = null, requestedNow = null;
+            lock (_lock)
+            {
+                entry.Switching = false;
+                if (settled)
+                {
+                    wantNow = Wanted(entry);
+                    requestedNow = entry.RequestedQuality;
+                }
+            }
+            // A desire that arrived mid-switch was dropped at the top of
+            // SwitchAsync (Switching was true) — pick it up now.
+            if (settled && wantNow != requestedNow) Resolve(entry, immediate: true);
         }
+    }
+
+    /// <summary>
+    /// Retry every failing stream now, with its backoff reset. Called after the
+    /// user trusted the controller's new certificate: every failure so far was
+    /// the rejected key, so waiting out the accumulated backoff would only
+    /// delay the picture.
+    /// </summary>
+    public void RetryFailedNow()
+    {
+        var due = new List<(Entry Entry, string Quality, int Gen)>();
+        lock (_lock)
+        {
+            foreach (var e in _entries.Values)
+            {
+                if (e.Switching || Wanted(e) is not { } want) continue;
+                if (e.ActiveQuality != null && e.Client.State != VideoState.Failed) continue;
+                e.RetryDelay = RetryInitial;
+                e.ReallocateDelay = ReallocateInitial;
+                e.NextReallocate = DateTime.MinValue;
+                due.Add((e, e.RequestedQuality ?? want, ++e.Generation));
+            }
+        }
+        foreach (var (entry, quality, gen) in due) _ = SwitchAsync(entry, quality, gen);
+    }
+
+    /// <summary>
+    /// The client can't open its URL any more: allocate the same quality again
+    /// (the controller answers with a live URL) instead of letting the client
+    /// retry a deleted one forever. Rate-limited per entry so a controller whose
+    /// RTSP side is down doesn't turn every reconnect into a POST.
+    /// </summary>
+    private void OnAllocationLost(Entry entry)
+    {
+        string quality;
+        int gen;
+        lock (_lock)
+        {
+            if (entry.Switching || entry.Desires.Count == 0 || entry.RequestedQuality is not { } requested) return;
+            var now = DateTime.UtcNow;
+            if (now < entry.NextReallocate) return;
+            entry.NextReallocate = now + entry.ReallocateDelay;
+            entry.ReallocateDelay = TimeSpan.FromTicks(Math.Min(entry.ReallocateDelay.Ticks * 2, ReallocateMax.Ticks));
+            quality = requested;
+            gen = ++entry.Generation;
+        }
+        Log.Line($"[Video] {entry.Camera.Name}: stream URL no longer opens; allocating a fresh one");
+        _ = SwitchAsync(entry, quality, gen);
+    }
+
+    /// <summary>
+    /// A failed allocation (429/5xx, unreachable controller) is retried with
+    /// exponential backoff while the desire stands. The tile is told so its
+    /// spinner doesn't stay up forever; the last frame (if any) stays on screen.
+    /// </summary>
+    private void ScheduleRetry(Entry entry, string quality, int gen)
+    {
+        TimeSpan delay;
+        lock (_lock)
+        {
+            delay = entry.RetryDelay;
+            entry.RetryDelay = TimeSpan.FromTicks(Math.Min(entry.RetryDelay.Ticks * 2, RetryMax.Ticks));
+        }
+        entry.Client.ReportFailure();
+        Log.Line($"[Video] allocation failed for {entry.Camera.Name}; retrying in {delay.TotalSeconds:0.#}s");
+        _ = SwitchLater(entry, quality, gen, delay);
     }
 
     private void ReleaseAllocation(Entry entry)
     {
-        if (entry.ActiveQuality is not { } q) return;
-        entry.ActiveQuality = null;
+        string? q;
+        lock (_lock)
+        {
+            q = entry.ActiveQuality;
+            entry.ActiveQuality = null;
+            entry.RequestedQuality = null;
+        }
+        if (q == null) return;
         if (entry.Pinned) _service.ReleasePinnedStream(entry.Camera.Id, q);
         else _service.ReleaseStream(entry.Camera.Id, q);
     }

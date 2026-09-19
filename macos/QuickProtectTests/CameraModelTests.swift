@@ -237,7 +237,7 @@ final class CameraModelTests: XCTestCase {
 
         // Re-encode — featureFlags should not appear in output
         let encoded = try JSONEncoder().encode(camera)
-        let dict = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         XCTAssertNil(dict["featureFlags"], "featureFlags should not be encoded")
         XCTAssertEqual(dict["id"] as? String, "enc1")
     }

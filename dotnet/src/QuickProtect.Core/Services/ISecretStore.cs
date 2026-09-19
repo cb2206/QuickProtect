@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
@@ -41,8 +42,15 @@ public sealed class DpapiSecretStore : ISecretStore
     public DpapiSecretStore(string? path = null)
         => _path = path ?? Path.Combine(AppPaths.ConfigDirectory, "secrets.dat");
 
-    private Dictionary<string, string> Load()
+    /// <summary>
+    /// Loads the map. <paramref name="unreadable"/> is true when a file exists
+    /// but could not be decrypted or parsed — the caller must not overwrite it
+    /// blindly, since a transient DPAPI failure would otherwise wipe every
+    /// credential on the next write.
+    /// </summary>
+    private Dictionary<string, string> Load(out bool unreadable)
     {
+        unreadable = false;
         if (!File.Exists(_path)) return new();
         try
         {
@@ -55,7 +63,8 @@ public sealed class DpapiSecretStore : ISecretStore
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[Secrets] load failed: {ex.Message}");
+            Log.Line($"[Secrets] load failed: {ex.Message}");
+            unreadable = true;
             return new();
         }
     }
@@ -73,14 +82,22 @@ public sealed class DpapiSecretStore : ISecretStore
 
     public string? Get(string account)
     {
-        lock (_gate) return Load().TryGetValue(account, out var v) ? v : null;
+        lock (_gate) return Load(out _).TryGetValue(account, out var v) ? v : null;
     }
 
     public void Set(string account, string? value)
     {
         lock (_gate)
         {
-            var map = Load();
+            var map = Load(out var unreadable);
+            if (unreadable)
+            {
+                // Keep the undecryptable blob around rather than silently
+                // replacing it with a one-entry file.
+                var backup = _path + ".unreadable";
+                try { File.Copy(_path, backup, overwrite: true); } catch { /* best effort */ }
+                Log.Line($"[Secrets] previous store was unreadable; kept a copy at {backup}");
+            }
             if (string.IsNullOrEmpty(value)) map.Remove(account);
             else map[account] = value;
             Save(map);
@@ -93,57 +110,93 @@ public sealed class DpapiSecretStore : ISecretStore
 /// <summary>
 /// Linux secret store backed by the Secret Service (GNOME Keyring / KWallet) via
 /// the <c>secret-tool</c> CLI from libsecret-tools — encrypted at rest like the
-/// macOS Keychain. Used when <c>secret-tool</c> is on PATH; otherwise the app
-/// falls back to <see cref="FileSecretStore"/>.
+/// macOS Keychain. Used when <c>secret-tool</c> is on PATH.
+///
+/// The daemon can be absent, locked, or unreachable (no session bus, a
+/// headless login), in which case <c>secret-tool</c> fails or blocks on an
+/// unlock prompt. Every call is therefore bounded by a timeout (the child is
+/// killed on expiry) and a failed <c>store</c> falls back to the owner-only
+/// <see cref="FileSecretStore"/> — with a log line — so the API key the user
+/// just typed is never silently dropped.
 /// </summary>
 [SupportedOSPlatform("linux")]
 public sealed class LibSecretStore : ISecretStore
 {
     private const string Service = "com.cb.quickprotect";
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
+    private readonly FileSecretStore _fallback = new();
 
     public static bool IsAvailable()
     {
-        try { return RunSecretTool("--version", null, out _) >= 0; }
+        try { return RunSecretTool("--version", null, TimeSpan.FromSeconds(2), out _) >= 0; }
         catch { return false; }
     }
 
     public string? Get(string account)
     {
-        var code = RunSecretTool($"lookup service {Service} account {Quote(account)}", null, out var stdout);
-        return code == 0 && stdout.Length > 0 ? stdout.TrimEnd('\n') : null;
+        var code = RunSecretTool($"lookup service {Service} account {Quote(account)}", null, Timeout, out var stdout);
+        if (code == 0 && stdout.Length > 0) return stdout.TrimEnd('\n');
+        // Not in the keyring (or the keyring is unavailable): honour a value the
+        // fallback captured while the keyring was unreachable.
+        return _fallback.Get(account);
     }
 
     public void Set(string account, string? value)
     {
         if (string.IsNullOrEmpty(value)) { Remove(account); return; }
-        RunSecretTool($"store --label={Quote("QuickProtect")} service {Service} account {Quote(account)}",
-            stdin: value, out _);
+        var code = RunSecretTool($"store --label={Quote("QuickProtect")} service {Service} account {Quote(account)}",
+            stdin: value, Timeout, out _);
+        if (code == 0)
+        {
+            _fallback.Remove(account);
+            return;
+        }
+        Log.Line($"[Secrets] secret-tool store failed (exit {code}); keeping '{account}' in the owner-only file store instead");
+        _fallback.Set(account, value);
     }
 
     public void Remove(string account)
-        => RunSecretTool($"clear service {Service} account {Quote(account)}", null, out _);
+    {
+        RunSecretTool($"clear service {Service} account {Quote(account)}", null, Timeout, out _);
+        _fallback.Remove(account);
+    }
 
     private static string Quote(string s) => "\"" + s.Replace("\"", "\\\"") + "\"";
 
-    /// <summary>Runs secret-tool, returning its exit code (or −1 if it couldn't start).</summary>
-    private static int RunSecretTool(string args, string? stdin, out string stdout)
+    /// <summary>
+    /// Runs secret-tool, returning its exit code (−1 if it couldn't start or
+    /// didn't finish within <paramref name="timeout"/>, in which case it is
+    /// killed). The secret travels over stdin, never the command line.
+    /// </summary>
+    private static int RunSecretTool(string args, string? stdin, TimeSpan timeout, out string stdout)
     {
         stdout = "";
         try
         {
-            var psi = new System.Diagnostics.ProcessStartInfo("secret-tool", args)
+            var psi = new ProcessStartInfo("secret-tool", args)
             {
                 RedirectStandardInput = stdin != null,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false
             };
-            using var p = System.Diagnostics.Process.Start(psi);
+            using var p = Process.Start(psi);
             if (p == null) return -1;
             if (stdin != null) { p.StandardInput.Write(stdin); p.StandardInput.Close(); }
-            stdout = p.StandardOutput.ReadToEnd();
-            p.WaitForExit(5000);
-            return p.HasExited ? p.ExitCode : -1;
+            // Drain both pipes concurrently so a chatty child can't block on a
+            // full stderr buffer, and bound the whole thing by the timeout.
+            var outTask = p.StandardOutput.ReadToEndAsync();
+            var errTask = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit((int)timeout.TotalMilliseconds))
+            {
+                try { p.Kill(entireProcessTree: true); } catch { /* already gone */ }
+                Log.Line("[Secrets] secret-tool timed out (keyring locked or unavailable?)");
+                return -1;
+            }
+            p.WaitForExit(); // flush async output handlers
+            stdout = outTask.GetAwaiter().GetResult();
+            _ = errTask.GetAwaiter().GetResult();
+            return p.ExitCode;
         }
         catch { return -1; }
     }
@@ -151,9 +204,10 @@ public sealed class LibSecretStore : ISecretStore
 
 /// <summary>
 /// Linux/fallback secret store: a JSON file with owner-only permissions (0600)
-/// under the user config dir. Not encrypted at rest — a follow-up can swap in
-/// libsecret (GNOME Keyring) via a P/Invoke or the <c>SecretService</c> D-Bus
-/// API for parity with the Keychain. Documented as a known gap.
+/// under the user config dir. Not encrypted at rest — used when no Secret
+/// Service is available (documented in the privacy policy). The file is created
+/// with its final mode so plaintext is never, even briefly, readable by other
+/// local users.
 /// </summary>
 public sealed class FileSecretStore : ISecretStore
 {
@@ -176,7 +230,21 @@ public sealed class FileSecretStore : ISecretStore
     private void Save(Dictionary<string, string> map)
     {
         var tmp = _path + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(map));
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Create,
+            Access = FileAccess.Write,
+            Share = FileShare.None
+        };
+        if (!OperatingSystem.IsWindows())
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using (var stream = new FileStream(tmp, options))
+        using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+        {
+            writer.Write(JsonSerializer.Serialize(map));
+        }
+        // A pre-existing file created by an older version may still be 0644;
+        // the rename keeps the temp file's mode, so this covers both cases.
         File.Move(tmp, _path, overwrite: true);
         if (!OperatingSystem.IsWindows())
         {

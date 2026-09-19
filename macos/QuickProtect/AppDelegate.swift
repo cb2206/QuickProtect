@@ -6,6 +6,7 @@ extension Notification.Name {
     static let closeCameraPanel = Notification.Name("closeCameraPanel")
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var statusItem: NSStatusItem?
@@ -15,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var promoWindow: NSWindow?
     private var updateSubscription: AnyCancellable?
     private var connectionSettingsSubscription: AnyCancellable?
+    private var connectionRefetchSubscription: AnyCancellable?
+    private var appearanceSubscription: AnyCancellable?
     /// Pending deferred stream teardown while the keep-alive grace period runs
     /// (see `scheduleStreamTeardown`). Cancelled when the panel reopens in time.
     private var streamTeardownWork: DispatchWorkItem?
@@ -22,7 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var appSwitchObserver: NSObjectProtocol?
     private var savedPanelFrame: NSRect?
     private var savedPanelLevel: NSWindow.Level?
-    private(set) var isInTrueFullscreen = false
+    /// State shared with the SwiftUI views (fullscreen flag, pinned windows).
+    let appState = AppState()
+    var isInTrueFullscreen: Bool { appState.isInTrueFullscreen }
 
     let service = ProtectService()
     let updateChecker = UpdateChecker()
@@ -44,32 +49,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // password/one-time-code autofill, so disable the heuristic wholesale.
         // Undocumented but established key (used by Ghostty among others).
         UserDefaults.standard.register(defaults: ["NSAutoFillHeuristicControllerEnabled": false])
+        // Video streams pin under the configured controller identity — the
+        // same key the HTTPS API uses (see CertificateTrust).
+        // The Design setting for everything AppKit draws itself (alerts, open
+        // panels, menus); SwiftUI windows inherit it from the app. Emits the
+        // stored value right away, so it applies before any window opens.
+        appearanceSubscription = AppSettings.shared.$appearance
+            .removeDuplicates()
+            .sink { NSApp.appearance = $0.nsAppearance }
         setupStatusBar()
         setupGlobalHotkey()
+        // Observers are delivered on the main queue (`queue: .main`), which the
+        // compiler cannot see — hence assumeIsolated in each body.
         NotificationCenter.default.addObserver(forName: .closeCameraPanel, object: nil, queue: .main) { [weak self] _ in
-            self?.closePanel()
+            MainActor.assumeIsolated { self?.closePanel() }
         }
         NotificationCenter.default.addObserver(forName: .enterTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
-            self?.enterPanelFullscreen()
+            MainActor.assumeIsolated { self?.enterPanelFullscreen() }
         }
         NotificationCenter.default.addObserver(forName: .exitTrueFullscreen, object: nil, queue: .main) { [weak self] _ in
-            self?.exitPanelFullscreen()
+            MainActor.assumeIsolated { self?.exitPanelFullscreen() }
         }
         NotificationCenter.default.addObserver(forName: .layoutProfileChanged, object: nil, queue: .main) { [weak self] _ in
-            self?.applyProfilePanelSize()
+            MainActor.assumeIsolated { self?.applyProfilePanelSize() }
         }
+        #if DEBUG
+        // Testing affordance: pretend the controller's certificate changed by
+        // pinning a key it can't present, so the next connection is rejected
+        // and the certificate card / review flow can be exercised. Trusting
+        // the "new" (real) key from the card restores a working pin.
+        if CommandLine.arguments.contains("--simulate-certificate-change"),
+           let pinKey = service.controllerAddress?.pinKey {
+            let store = CertificateTrust.Store()
+            store.setPending(nil, host: pinKey)
+            store.setPinned(String(repeating: "0", count: 64), host: pinKey)
+        }
+        #endif
         // Instantiate before the first fetch so the manager's camera-list
         // subscription is in place to restore persisted pins when cameras load.
-        _ = pinnedWindows
+        appState.pinnedWindows = pinnedWindows
         let s = AppSettings.shared
         if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
             Task { await service.fetchCameras() }
+        } else {
+            RTSPClient.log("[API] no initial fetch: address \(s.ipAddress.isEmpty ? "missing" : "set"), API key \(s.apiKey.isEmpty ? "missing" : "set")")
         }
         // A controller/API-key change invalidates live streams and any pending
         // keep-alive grace — stale clients would keep talking to the old host.
-        connectionSettingsSubscription = s.$ipAddress.dropFirst().removeDuplicates()
+        // @Published emits before the new value is stored, so the teardown
+        // still addresses the old controller and its allocations are released
+        // there. The fields update on every keystroke; the refetch against the
+        // new connection waits until typing settles.
+        let connectionChanges = s.$ipAddress.dropFirst().removeDuplicates()
             .merge(with: s.$apiKey.dropFirst().removeDuplicates())
-            .sink { [weak self] _ in self?.teardownStreamsNow() }
+            .map { _ in () }
+            .share()
+        connectionSettingsSubscription = connectionChanges
+            .sink { [weak self] in
+                self?.teardownStreamsNow()
+                self?.pinnedWindows.suspendForConnectionChange()
+            }
+        connectionRefetchSubscription = connectionChanges
+            .debounce(for: .milliseconds(800), scheduler: RunLoop.main)
+            .sink { [weak self] in
+                guard let self else { return }
+                Task {
+                    await self.service.refetchForNewConnection()
+                    self.pinnedWindows.resumeAfterConnectionChange()
+                }
+            }
         if !s.hasCompletedOnboarding {
             showOnboarding()
         } else {
@@ -78,6 +126,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         updateChecker.startPeriodicChecks()
         observeUpdatesForAppStorePromo()
+        // Debug/testing affordance (parity with the .NET port's --open-panel):
+        // open the camera panel right after launch so a scripted run streams
+        // without anyone clicking the menu bar item.
+        if CommandLine.arguments.contains("--open-panel") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.showPanel() }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -89,9 +143,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Pinned windows hold their own streams — tear them down too. Their
         // persistence is kept so they reopen on next launch.
         pinnedWindows.closeAll()
-        // Those requests are dispatched asynchronously; give them a brief
-        // window to reach the controller before the process exits.
-        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        // The DELETEs run asynchronously; wait a bounded moment for them to
+        // reach the controller before the process exits (returns early once
+        // they're all done).
+        service.waitForStreamReleases(timeout: 1.0)
     }
 
     private func promptAutoStartIfNeeded() {
@@ -240,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let content = PopoverContentView(service: service, clientManager: clientManager) { [weak self] in
                 self?.openSettings()
             }
-            let hostingController = NSHostingController(rootView: content)
+            let hostingController = NSHostingController(rootView: content.environment(\.appState, appState))
 
             let p = NSPanel(
                 contentRect: NSRect(origin: .zero, size: size),
@@ -297,7 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             ) { [weak self] note in
                 guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                       app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
-                self?.closePanel()
+                MainActor.assumeIsolated { self?.closePanel() }
             }
         }
 
@@ -447,7 +502,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         savedPanelFrame = panel.frame
         savedPanelLevel = panel.level
-        isInTrueFullscreen = true
+        appState.isInTrueFullscreen = true
 
         // Remove title bar and go borderless fullscreen
         panel.styleMask = [.borderless, .nonactivatingPanel]
@@ -470,7 +525,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func exitPanelFullscreen() {
         guard let panel = panel, isInTrueFullscreen else { return }
-        isInTrueFullscreen = false
+        appState.isInTrueFullscreen = false
 
         // Restore original panel style
         panel.styleMask = [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView]
@@ -505,8 +560,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             object: win,
             queue: .main
         ) { [weak self] _ in
-            self?.onboardingWindow = nil
-            NSApp.setActivationPolicy(.accessory)
+            MainActor.assumeIsolated {
+                self?.onboardingWindow = nil
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
         NSApp.setActivationPolicy(.regular)
         win.makeKeyAndOrderFront(nil)
@@ -568,8 +625,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             object: win,
             queue: .main
         ) { [weak self] _ in
-            self?.promoWindow = nil
-            NSApp.setActivationPolicy(.accessory)
+            MainActor.assumeIsolated {
+                self?.promoWindow = nil
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
         NSApp.setActivationPolicy(.regular)
         // Activating mid-launch is racy for an agent app and can leave the window
@@ -597,12 +656,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 forName: NSWindow.willCloseNotification,
                 object: win,
                 queue: .main
-            ) { [weak self] note in
-                // Same stale-ViewBridge-observer concern as closePanel(): end
-                // editing before the window goes away.
-                (note.object as? NSWindow)?.makeFirstResponder(nil)
-                self?.settingsWindow = nil
-                NSApp.setActivationPolicy(.accessory)
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    // Same stale-ViewBridge-observer concern as closePanel(): end
+                    // editing before the window goes away. The observer is
+                    // registered for this window only, so it is settingsWindow.
+                    self?.settingsWindow?.makeFirstResponder(nil)
+                    self?.settingsWindow = nil
+                    NSApp.setActivationPolicy(.accessory)
+                }
             }
         }
         NSApp.setActivationPolicy(.regular)
