@@ -34,7 +34,7 @@
     <!-- Used directly by PortalGlobalHotkey (XDG portal over D-Bus). Referenced
          explicitly rather than relied on as Avalonia's transitive dependency,
          so an Avalonia bump can't silently remove it. -->
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.1" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.1" />
   </ItemGroup>
 
   <!-- FFmpeg 9.0 native libraries (LGPL shared, see scripts/get-ffmpeg.ps1).
