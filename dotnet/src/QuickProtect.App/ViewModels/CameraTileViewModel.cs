@@ -169,6 +169,8 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     {
         _stateHandler = state => Dispatcher.UIThread.Post(() =>
         {
+            // Queued before Stop() or a swap: the tile shows another client now.
+            if (!ReferenceEquals(Client, client)) return;
             IsPlaying = state == VideoState.Playing;
             if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
             StreamFailure = state == VideoState.Failed && client.LastError is { } reason
@@ -392,11 +394,16 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             // exits), and a stopping grid tile must not silence a focused one.
             if (IsFocused || _pinned) c.SetAudioActive(false);
             UnsubscribeClient(c);
+            // Unbind the surface too: the shared client may be stopped (or keep
+            // running for another view), and either way its last frame is not
+            // this tile's picture any more. StartAsync binds the live client again.
+            Client = null;
         }
         _handle?.Dispose();
         _handle = null;
         IsPlaying = false;
         IsLoading = false;
+        StreamFailure = null;
     }
 
     public void Dispose() => Stop();

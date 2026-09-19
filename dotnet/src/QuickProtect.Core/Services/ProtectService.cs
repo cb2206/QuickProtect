@@ -177,8 +177,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     // toggle, refresh buttons, Settings). Guarded by _fetchLock.
     private readonly object _fetchLock = new();
     private Task? _fetchTask;
-    // The controller address and API key the in-flight fetch was started with.
+    // The controller address and API key the in-flight fetch was started with,
+    // and the ones the current camera list was fetched with.
     private string? _fetchConnection;
+    private string? _camerasConnection;
     private CancellationTokenSource? _fetchCts;
     private DateTime? _lastFetchSucceededAt;
     private ControllerRequestPolicy.PtzEnrichRecord? _lastPtzEnrich;
@@ -234,7 +236,14 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             }
         }
         ErrorMessage = null;
+        // Checked after the stale fetch ends: it may still have applied the old
+        // controller's cameras just before it saw the cancellation.
         if (stale != null) await stale.ConfigureAwait(false);
+        bool camerasAreStale;
+        lock (_fetchLock) camerasAreStale = _camerasConnection != Connection;
+        // The old controller's cameras must not stay on screen under the new
+        // address's result: they aren't there, and their streams are gone.
+        if (camerasAreStale && Cameras.Count > 0) Cameras = Array.Empty<Camera>();
         await FetchCamerasAsync(forced: true).ConfigureAwait(false);
     }
 
@@ -257,13 +266,18 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     private async Task PerformFetchAsync(bool forced, CancellationToken ct)
     {
         Log.Line("[API] fetchCameras called");
+        var connection = Connection;
         if (!Validate()) { Log.Line("[API] validate failed"); return; }
         IsLoading = true;
 
         try
         {
             var cameras = await RequestCameraListAsync(ct).ConfigureAwait(false);
-            lock (_fetchLock) _lastFetchSucceededAt = DateTime.UtcNow;
+            lock (_fetchLock)
+            {
+                _lastFetchSucceededAt = DateTime.UtcNow;
+                _camerasConnection = connection;
+            }
             ApplySuccess(cameras);
 
             // If classic API credentials are configured, enrich PTZ flags —

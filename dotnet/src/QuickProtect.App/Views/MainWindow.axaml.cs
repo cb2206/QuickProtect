@@ -36,8 +36,13 @@ public partial class MainWindow : Window
             if (Vm is { } vm)
                 vm.PropertyChanged += (_, e) =>
                 {
-                    if (e.PropertyName == nameof(MainViewModel.IsFocusMode) && vm.IsFocusMode)
+                    if (e.PropertyName != nameof(MainViewModel.IsFocusMode)) return;
+                    if (vm.IsFocusMode)
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => FocusRoot.Focus());
+                    // Focus can also end from the view model (the focused camera
+                    // left the list); fullscreen belongs to focus mode.
+                    else if (WindowState == WindowState.FullScreen)
+                        WindowState = WindowState.Normal;
                 };
         };
         // Restore the per-profile panel size (macOS persists panel geometry).

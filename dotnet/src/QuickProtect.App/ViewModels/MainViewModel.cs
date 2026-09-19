@@ -283,9 +283,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnSearchQueryChanged(SearchQuery); // re-apply filter to any new tiles
 
         // The focus tile isn't in Tiles — refresh it too so the PTZ overlay
-        // appears once capability enrichment lands mid-focus.
-        if (FocusTile is { } ft && _service.Cameras.FirstOrDefault(c => c.Id == ft.Camera.Id) is { } focused)
-            ft.UpdateFrom(focused);
+        // appears once capability enrichment lands mid-focus. A focused camera
+        // that left the list (removed, or another controller configured) ends focus.
+        if (FocusTile is { } ft)
+        {
+            if (_service.Cameras.FirstOrDefault(c => c.Id == ft.Camera.Id) is { } focused)
+                ft.UpdateFrom(focused);
+            else
+                ExitFocus();
+        }
     }
 
     [RelayCommand]
