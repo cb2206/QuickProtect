@@ -2,10 +2,11 @@
 #
 # AUR package for the GitHub-release Linux tarball (built by
 # .github/workflows/release.yml). To publish a new version: bump pkgver, set
-# sha256sums to the release asset's digest (`gh api .../releases/latest` shows
-# it, or run `updpkgsums`), `makepkg --printsrcinfo > .SRCINFO`, then push to
-# the AUR repo. Both architectures come from the same release (arm64 since 1.4). FFmpeg is bundled in the tarball (LGPL shared,
-# BtbN builds), so no ffmpeg dependency here; ALSA is optional (video-only
+# sha256sums_<arch> to the release assets' digests (SHA256SUMS on the release,
+# or run `updpkgsums`), `makepkg --printsrcinfo > .SRCINFO`, then push to the
+# AUR repo. Both architectures come from the same release (arm64 since 1.4).
+# FFmpeg is bundled in the tarball (LGPL shared, BtbN builds), so no ffmpeg
+# dependency here; ALSA is optional (video-only
 # without it), the global hotkey uses the XDG Desktop Portal.
 
 pkgname=quickprotect-bin
