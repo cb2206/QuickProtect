@@ -175,7 +175,8 @@ final class ProtectServiceTests: XCTestCase {
         await service.fetchCameras(forced: true)
 
         XCTAssertEqual(service.cameras.map(\.id), ["a"], "a failed refresh must not blank the grid")
-        XCTAssertEqual(service.errorMessage?.hasPrefix("HTTP 401"), true)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.apiKeyRejected,
+                       "a catalog message, not the raw status and JSON body")
         XCTAssertFalse(service.isLoading)
     }
 
@@ -369,7 +370,7 @@ final class ProtectServiceTests: XCTestCase {
         await service.refetchForNewConnection()
 
         XCTAssertTrue(service.cameras.isEmpty, "the old controller's cameras are not at the new address")
-        XCTAssertNotNil(service.errorMessage)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.hostNotFound)
         XCTAssertEqual(StubController.requests.last?.url?.host, "qp-test.invalid")
 
         StubController.reset()
@@ -398,7 +399,7 @@ final class ProtectServiceTests: XCTestCase {
         await service.refetchForNewConnection()
 
         XCTAssertEqual(service.cameras.map(\.id), ["a1", "a2"], "same controller: a failed refetch keeps the list")
-        XCTAssertNotNil(service.errorMessage)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.timedOut)
     }
 
     func testAPIKeyChangeCountsAsANewConnection() async {
@@ -410,7 +411,7 @@ final class ProtectServiceTests: XCTestCase {
         await service.refetchForNewConnection()
 
         XCTAssertTrue(service.cameras.isEmpty)
-        XCTAssertNotNil(service.errorMessage)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.apiKeyRejected)
         XCTAssertEqual(StubController.requests.last?.value(forHTTPHeaderField: "X-API-Key"), "other-key")
     }
 

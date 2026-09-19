@@ -262,7 +262,7 @@ final class ProtectService: NSObject, ObservableObject {
             case .certificateChanged:
                 await applyErrorMessage(Self.certificateChangedMessage, logging: error)
             case .failed:
-                await applyErrorMessage(error.localizedDescription, logging: error)
+                await applyErrorMessage(ControllerErrors.describe(error), logging: error)
             }
         }
     }
@@ -291,7 +291,7 @@ final class ProtectService: NSObject, ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await tlsSession.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw APIError.invalidURL }
+        guard let http = response as? HTTPURLResponse else { throw APIError.notHTTP }
         guard (200...299).contains(http.statusCode) else {
             throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
         }
@@ -941,11 +941,18 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     private func applyErrorMessage(_ message: String, logging error: Error) async {
-        RTSPClient.log("[API] applyError: \(error.localizedDescription)")
+        RTSPClient.log("[API] applyError: \(Self.logDescription(of: error))")
         await MainActor.run {
             self.errorMessage = message
             self.isLoading = false
         }
+    }
+
+    /// The raw failure for the debug log, including the controller's reply to
+    /// a failed request (the UI only gets the catalog message).
+    private nonisolated static func logDescription(of error: Error) -> String {
+        if case APIError.http(let status, let body) = error { return "HTTP \(status) – \(body.prefix(200))" }
+        return String(describing: error)
     }
 
     private func setLoading(_ value: Bool) async {
@@ -1002,14 +1009,11 @@ final class ProtectService: NSObject, ObservableObject {
 
     enum APIError: LocalizedError {
         case invalidURL
+        case notHTTP
+        /// Status and body; the body is for the debug log, never the UI.
         case http(Int, String)
 
-        var errorDescription: String? {
-            switch self {
-            case .invalidURL:            return String(localized: "Invalid IP address or URL.")
-            case .http(let c, let body): return "HTTP \(c) – \(body.prefix(200))"
-            }
-        }
+        var errorDescription: String? { ControllerErrors.describe(self) }
     }
 }
 
