@@ -218,34 +218,12 @@ extension CameraCell {
 
     // MARK: - Name badge (Aurora hairline pill)
 
+    /// One line on any tile width: a narrow tile first drops the word "PTZ"
+    /// (the icon still says it), and only then truncates the camera name.
     var nameBadge: some View {
-        HStack(spacing: 6) {
-            if camera.isOnline && appearsLive {
-                AuroraRecDot(size: 5)
-            } else if !camera.isOnline {
-                Circle().fill(AuroraTokens.statusOrange).frame(width: 5, height: 5)
-            }
-            Text(camera.name)
-                .font(.system(size: span >= 4 ? 12 : 11, weight: .medium))
-                .foregroundColor(.white)
-                .tracking(-0.1)
-                .lineLimit(1)
-            if camera.isPtz {
-                HStack(spacing: 3) {
-                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-                        .font(.system(size: 9, weight: .medium))
-                    Text("PTZ").font(.system(size: 10, weight: .medium))
-                }
-                .foregroundColor(.white.opacity(0.75))
-                .padding(.leading, 4)
-                .overlay(
-                    Rectangle()
-                        .fill(Color.white.opacity(0.18))
-                        .frame(width: 0.5)
-                        .padding(.vertical, 2),
-                    alignment: .leading
-                )
-            }
+        ViewThatFits(in: .horizontal) {
+            nameBadgeRow(showsPtzWord: true)
+            nameBadgeRow(showsPtzWord: false)
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
         // Plain fill, deliberately not a blur: a withinWindow blur whose
@@ -257,5 +235,42 @@ extension CameraCell {
         )
         .clipShape(RoundedRectangle(cornerRadius: 5))
         .padding(8)
+    }
+
+    private func nameBadgeRow(showsPtzWord: Bool) -> some View {
+        HStack(spacing: 6) {
+            if camera.isOnline && appearsLive {
+                AuroraRecDot(size: 5)
+            } else if !camera.isOnline {
+                Circle().fill(AuroraTokens.statusOrange).frame(width: 5, height: 5)
+            }
+            Text(camera.name)
+                .font(.system(size: span >= 4 ? 12 : 11, weight: .medium))
+                .foregroundColor(.white)
+                .tracking(-0.1)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if camera.isPtz {
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                        .font(.system(size: 9, weight: .medium))
+                    if showsPtzWord {
+                        Text("PTZ").font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .foregroundColor(.white.opacity(0.75))
+                .padding(.leading, 4)
+                .overlay(
+                    Rectangle()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(width: 0.5)
+                        .padding(.vertical, 2),
+                    alignment: .leading
+                )
+                .fixedSize()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("PTZ"))
+            }
+        }
     }
 }
