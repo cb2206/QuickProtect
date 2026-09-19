@@ -1,1 +1,8 @@
-• Il cambio di qualità del flusso ora è fluido: ingrandire una telecamera o passare a schermo intero non blocca più il video per un istante.
+• Se il certificato del tuo controller cambia (dopo una reinstallazione o una sostituzione), QuickProtect ora te lo segnala, mostra entrambe le chiavi da confrontare e ti permette di fidarti di quella nuova dal pannello delle telecamere, da una finestra mobile o dalle impostazioni.
+• Se cambi l'indirizzo del controller o la chiave API, la connessione si ristabilisce da sola: niente più telecamere obsolete o vecchi messaggi di errore finché non premi Aggiorna.
+• Gli errori di connessione sono più chiari, tradotti e ti dicono cosa controllare.
+• Le finestre mobili si spostano di nuovo trascinandole e si riconnettono da sole quando un flusso si interrompe.
+• La griglia e la vista ingrandita si adattano alle traduzioni lunghe e ai pannelli stretti senza andare a capo.
+• L'impostazione Chiaro/Scuro ora vale anche per le finestre di dialogo.
+• Quando una telecamera non invia video, QuickProtect ne indica la causa invece di restare in caricamento.
+• Le sessioni di streaming sul controller vengono rilasciate in modo più affidabile, e la connessione al controller è più sicura.

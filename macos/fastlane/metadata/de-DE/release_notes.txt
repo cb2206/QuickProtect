@@ -1,1 +1,8 @@
-• Qualitätswechsel sind jetzt nahtlos – wenn du eine Kamera vergrößerst oder in den Vollbildmodus wechselst, friert das Video nicht mehr kurz ein.
+• Wenn sich das Zertifikat deines Controllers ändert (etwa nach einer Neuinstallation oder einem Austausch), sagt QuickProtect dir das jetzt, zeigt beide Schlüssel zum Vergleich und lässt dich dem neuen in der Kameraübersicht, in einem schwebenden Fenster oder in den Einstellungen vertrauen.
+• Wenn du die Adresse des Controllers oder den API-Schlüssel änderst, verbindet sich QuickProtect von selbst neu – keine veralteten Kameras oder alten Fehlermeldungen mehr, bis du auf „Aktualisieren“ klickst.
+• Verbindungsfehler sind verständlicher, übersetzt und sagen dir, was du prüfen kannst.
+• Schwebende Fenster lassen sich wieder durch Ziehen verschieben und verbinden sich von selbst neu, wenn ein Stream abbricht.
+• Raster und Großansicht passen sich langen Übersetzungen und schmalen Fenstern an, ohne umzubrechen.
+• Die Einstellung Hell/Dunkel gilt jetzt auch für Dialoge.
+• Sendet eine Kamera kein Video, nennt QuickProtect die Ursache, statt endlos zu laden.
+• Stream-Sitzungen auf dem Controller werden zuverlässiger freigegeben, und die Verbindung zum Controller ist besser abgesichert.

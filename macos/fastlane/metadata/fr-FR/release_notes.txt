@@ -1,1 +1,8 @@
-• Le changement de qualité du flux est désormais fluide : agrandir une caméra ou passer en plein écran ne fige plus la vidéo un instant.
+• Si le certificat de votre contrôleur change (après une réinstallation ou un remplacement), QuickProtect vous le signale désormais, affiche les deux clés à comparer et vous permet d'approuver la nouvelle depuis le panneau des caméras, une fenêtre flottante ou les réglages.
+• Modifier l'adresse du contrôleur ou la clé API rétablit la connexion automatiquement — fini les caméras obsolètes et les anciens messages d'erreur jusqu'à ce que vous cliquiez sur Actualiser.
+• Les erreurs de connexion sont plus claires, traduites, et indiquent quoi vérifier.
+• Les fenêtres flottantes se déplacent de nouveau par glisser et se reconnectent d'elles-mêmes quand un flux s'interrompt.
+• La grille et la vue agrandie s'adaptent aux traductions longues et aux panneaux étroits sans passer à la ligne.
+• Le réglage Clair/Sombre s'applique désormais aussi aux boîtes de dialogue.
+• Quand une caméra n'envoie pas de vidéo, QuickProtect en indique la cause au lieu de charger indéfiniment.
+• Les sessions de flux sur le contrôleur sont libérées de façon plus fiable, et la connexion au contrôleur est mieux sécurisée.
