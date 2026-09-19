@@ -240,6 +240,9 @@ private struct HeaderIconButton: View {
         .buttonStyle(.plain)
         .onHover { hover = $0 }
         .help(help)
+        // .help is only the tooltip; without a label VoiceOver reads the
+        // symbol's name ("gear", "power").
+        .accessibilityLabel(Text(help))
     }
 }
 

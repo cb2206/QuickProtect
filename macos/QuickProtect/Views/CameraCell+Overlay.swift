@@ -107,10 +107,17 @@ extension CameraCell {
 
             HStack(alignment: .bottom) {
                 if showOverlayControls {
-                    AuroraFocusHints(showPtzHint: camera.isPtz,
-                                     showZoomHint: camera.canZoom,
-                                     showAudioHint: rtspClient.hasAudio)
-                        .padding(.leading, 12).padding(.bottom, 12)
+                    // The hint strip never wraps; where it doesn't fit beside the
+                    // d-pad (a narrow panel, long translations) it is left out
+                    // rather than widening the whole overlay — which would push
+                    // the top bar past both edges of the panel.
+                    ViewThatFits(in: .horizontal) {
+                        AuroraFocusHints(showPtzHint: camera.isPtz,
+                                         showZoomHint: camera.canZoom,
+                                         showAudioHint: rtspClient.hasAudio)
+                            .padding(.leading, 12).padding(.bottom, 12)
+                        Color.clear.frame(width: 0, height: 0)
+                    }
                 }
                 Spacer()
                 if showOverlayControls && (camera.isPtz || camera.canZoom)

@@ -20,18 +20,56 @@ struct AuroraFocusTopBar: View {
         return f
     }()
 
+    /// Width a truncating camera name is planned with before the labels drop to icons.
+    private static let nameMinWidth: CGFloat = 90
+
+    /// Long translations ("PTZ · TECLAS DE FLECHA") or a long camera name must
+    /// not wrap the bar onto two lines or push the buttons out of the panel.
+    /// The first layout that fits wins, shedding in this order: the clock
+    /// (the video carries its own timestamp), then the camera name's full
+    /// width (it truncates, down to `nameMinWidth`, full name in its tooltip),
+    /// and only then the "Grid" and PTZ labels, which drop to their icons.
+    /// The name goes before the labels because it is the one part whose length
+    /// is unbounded; the labels are short, fixed affordances.
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            bar(showsClock: true, truncatesName: false, compactLabels: false)
+            bar(showsClock: false, truncatesName: false, compactLabels: false)
+            bar(showsClock: false, truncatesName: true, compactLabels: false)
+            bar(showsClock: false, truncatesName: true, compactLabels: true)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 7)
+        // Plain fill, deliberately not a blur: a withinWindow blur whose
+        // backdrop is live video forces a re-blur on every frame.
+        .background(Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.9))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func bar(showsClock: Bool, truncatesName: Bool, compactLabels: Bool) -> some View {
         HStack(spacing: 10) {
             Button(action: onBack) {
                 HStack(spacing: 5) {
+                    if compactLabels {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
                     AuroraEscKey()
-                    Text("Grid")
-                        .font(.system(size: 12, weight: .medium))
+                    if !compactLabels {
+                        Text("Grid")
+                            .font(.system(size: 12, weight: .medium))
+                            .lineLimit(1)
+                    }
                 }
                 .foregroundStyle(.white)
             }
             .buttonStyle(.plain)
+            .fixedSize()
             .help("Back to grid (Esc)")
+            .accessibilityLabel(Text("Back to grid (Esc)"))
 
             AuroraFocusBarDivider()
 
@@ -41,26 +79,44 @@ struct AuroraFocusTopBar: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
                 .tracking(-0.1)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                // Measured at this width when choosing a layout, so a layout
+                // that truncates still leaves the name readable; laid out, a
+                // short name keeps its natural width.
+                .frame(idealWidth: truncatesName ? Self.nameMinWidth : nil, alignment: .leading)
+                .help(cameraName)
 
             if isPtz {
                 HStack(spacing: 3) {
                     Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
                         .font(.system(size: 9, weight: .semibold))
-                    Text("PTZ · ARROW KEYS")
-                        .font(.system(size: 9.5, weight: .semibold))
-                        .tracking(0.4)
+                    if !compactLabels {
+                        Text("PTZ · ARROW KEYS")
+                            .font(.system(size: 9.5, weight: .semibold))
+                            .tracking(0.4)
+                            .lineLimit(1)
+                    }
                 }
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(Capsule().fill(Color.white.opacity(0.10)))
+                .fixedSize()
+                .help(String(localized: "PTZ · ARROW KEYS"))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("PTZ · ARROW KEYS"))
             }
 
             Spacer(minLength: 6)
 
-            Text(Self.timestampFormatter.string(from: now))
-                .font(.system(size: 11))
-                .monospacedDigit()
-                .foregroundStyle(.white.opacity(0.55))
+            if showsClock {
+                Text(Self.timestampFormatter.string(from: now))
+                    .font(.system(size: 11))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.55))
+                    .lineLimit(1)
+                    .fixedSize()
+            }
 
             if hasAudio {
                 AuroraFocusIconButton(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
@@ -76,15 +132,6 @@ struct AuroraFocusTopBar: View {
                                    help: String(localized: "Fullscreen (F)"),
                                    action: onToggleFullscreen)
         }
-        .padding(.horizontal, 12).padding(.vertical, 7)
-        // Plain fill, deliberately not a blur: a withinWindow blur whose
-        // backdrop is live video forces a re-blur on every frame.
-        .background(Color(red: 20/255, green: 20/255, blue: 22/255).opacity(0.9))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -133,8 +180,12 @@ struct AuroraFocusIconButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .fixedSize()
         .onHover { hover = $0 }
         .help(help)
+        // .help is only the tooltip (AXHelp); without a label VoiceOver
+        // announces the symbol's name.
+        .accessibilityLabel(Text(help))
     }
 }
 
