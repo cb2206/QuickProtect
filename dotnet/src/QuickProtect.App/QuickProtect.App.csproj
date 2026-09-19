@@ -22,7 +22,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
     <!-- MVVM helpers (ObservableObject, RelayCommand) -->
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- FFmpeg bindings for the custom video engine (demux + decode). The
          DynamicallyLoaded variant lets us point at per-RID native libraries. -->
     <PackageReference Include="FFmpeg.AutoGen.Abstractions" Version="9.0.1.1" />
