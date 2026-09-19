@@ -242,6 +242,10 @@ public sealed partial class SettingsViewModel : ObservableObject
                 or nameof(ProtectService.Cameras)
                 or nameof(ProtectService.IsClassicLoggedIn))
                 Avalonia.Threading.Dispatcher.UIThread.Post(RefreshBadge);
+            // A certificate trusted from the panel or a pinned window (or a new
+            // rejection) must not leave this section stale while Settings is open.
+            else if (e.PropertyName is nameof(ProtectService.CertificateChange))
+                Avalonia.Threading.Dispatcher.UIThread.Post(RefreshCertState);
         };
     }
 
@@ -372,8 +376,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             var pinned = _trust.Pinned(host);
             PendingCertificates.Add(new PendingCertificate(
                 host,
-                pinned == null ? null : CertificateTrust.DisplayFingerprint(pinned),
-                CertificateTrust.DisplayFingerprint(fingerprint)));
+                pinned == null ? null : CertificateTrust.DisplayFingerprint(pinned, bytesPerLine: 16),
+                CertificateTrust.DisplayFingerprint(fingerprint, bytesPerLine: 16)));
         }
         HasPendingCert = PendingCertificates.Count > 0;
     }
