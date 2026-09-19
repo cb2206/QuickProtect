@@ -1,1 +1,8 @@
-• Wisselen van streamkwaliteit gaat nu naadloos — een camera vergroten of naar volledig scherm gaan bevriest het beeld niet meer even.
+• Als het certificaat van je controller verandert (na een herinstallatie of vervanging), meldt QuickProtect dat nu, toont het beide sleutels om te vergelijken en kun je de nieuwe vertrouwen vanuit het camerapaneel, een zwevend venster of de instellingen.
+• Als je het adres van de controller of de API-sleutel wijzigt, maakt QuickProtect zelf opnieuw verbinding — geen verouderde camera's of oude foutmeldingen meer tot je op Vernieuw klikt.
+• Verbindingsfouten zijn duidelijker, vertaald en vertellen je wat je kunt controleren.
+• Zwevende vensters zijn weer te verplaatsen door te slepen en maken zelf opnieuw verbinding als een stream wegvalt.
+• Het raster en de vergrote weergave passen zich aan lange vertalingen en smalle panelen aan zonder af te breken.
+• De instelling Licht/Donker geldt nu ook voor dialoogvensters.
+• Als een camera geen beeld stuurt, noemt QuickProtect de oorzaak in plaats van eindeloos te laden.
+• Streamsessies op de controller worden betrouwbaarder vrijgegeven, en de verbinding met de controller is beter beveiligd.

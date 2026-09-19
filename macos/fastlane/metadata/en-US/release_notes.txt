@@ -1,1 +1,8 @@
-• Switching stream quality is now seamless — focusing a camera or going fullscreen no longer freezes the video for a moment.
+• If your controller's certificate changes (after a reinstall or replacement), QuickProtect now tells you, shows both keys to compare, and lets you trust the new one from the camera panel, a floating window or Settings.
+• Changing the controller address or API key reconnects on its own — no more stale cameras or old error messages until you press Refresh.
+• Connection errors are clearer, translated, and tell you what to check.
+• Floating windows move when dragged again, and reconnect by themselves when a stream drops.
+• The grid and the focus view fit long translations and narrow panels without wrapping.
+• The Light/Dark setting now applies to dialogs too.
+• When a camera sends no video, QuickProtect names the cause instead of loading forever.
+• Stream sessions on the controller are released more reliably, and the connection to the controller is better secured.

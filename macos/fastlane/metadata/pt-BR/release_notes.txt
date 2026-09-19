@@ -1,1 +1,8 @@
-• A troca de qualidade da transmissão agora é perfeita — ampliar uma câmera ou entrar em tela cheia não congela mais o vídeo por um instante.
+• Se o certificado do seu controlador mudar (após uma reinstalação ou substituição), o QuickProtect agora avisa, mostra as duas chaves para comparação e permite confiar na nova pelo painel de câmeras, por uma janela flutuante ou pelos ajustes.
+• Ao mudar o endereço do controlador ou a chave de API, a conexão é refeita automaticamente — sem câmeras desatualizadas nem mensagens de erro antigas até você clicar em Atualizar.
+• Os erros de conexão estão mais claros, traduzidos e dizem o que verificar.
+• As janelas flutuantes voltam a se mover ao arrastar e se reconectam sozinhas quando uma transmissão cai.
+• A grade e a visualização ampliada se ajustam a traduções longas e painéis estreitos sem quebrar linhas.
+• A opção Claro/Escuro agora também vale para as caixas de diálogo.
+• Quando uma câmera não envia vídeo, o QuickProtect indica a causa em vez de ficar carregando.
+• As sessões de transmissão no controlador são liberadas com mais confiabilidade, e a conexão com o controlador está mais segura.
