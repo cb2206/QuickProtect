@@ -1318,6 +1318,86 @@ _appstore = {
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _appstore.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
+# ---------------------------------------------------------------------------
+# Controller connection errors (ControllerErrors.swift). The English keys and
+# all translations are shared with the .NET port (ControllerErrors.cs and its
+# Resources.*.resx) — change both together. Columns: de, fr, es, nl, it, pt-BR.
+# ---------------------------------------------------------------------------
+_errors = {
+    "Can't find the controller. Check the IP address or hostname in Settings.": (
+        "Controller nicht gefunden. Prüfe die IP-Adresse oder den Hostnamen in den Einstellungen.",
+        "Contrôleur introuvable. Vérifiez l'adresse IP ou le nom d'hôte dans les réglages.",
+        "No se encuentra el controlador. Revisa la dirección IP o el nombre de host en los ajustes.",
+        "Controller niet gevonden. Controleer het IP-adres of de hostnaam in de instellingen.",
+        "Controller non trovato. Controlla l'indirizzo IP o il nome host nelle impostazioni.",
+        "Controlador não encontrado. Verifique o endereço IP ou o nome do host nos ajustes."),
+    "The controller refused the connection. Check the IP address in Settings.": (
+        "Der Controller hat die Verbindung abgelehnt. Prüfe die IP-Adresse in den Einstellungen.",
+        "Le contrôleur a refusé la connexion. Vérifiez l'adresse IP dans les réglages.",
+        "El controlador rechazó la conexión. Revisa la dirección IP en los ajustes.",
+        "De controller heeft de verbinding geweigerd. Controleer het IP-adres in de instellingen.",
+        "Il controller ha rifiutato la connessione. Controlla l'indirizzo IP nelle impostazioni.",
+        "O controlador recusou a conexão. Verifique o endereço IP nos ajustes."),
+    "Can't reach the controller. Check that it's online and on the same network.": (
+        "Controller nicht erreichbar. Prüfe, ob er eingeschaltet und im selben Netzwerk ist.",
+        "Contrôleur injoignable. Vérifiez qu'il est allumé et sur le même réseau.",
+        "No se puede conectar con el controlador. Comprueba que esté encendido y en la misma red.",
+        "Controller niet bereikbaar. Controleer of hij aan staat en in hetzelfde netwerk zit.",
+        "Controller non raggiungibile. Verifica che sia acceso e sulla stessa rete.",
+        "Não foi possível conectar ao controlador. Verifique se ele está ligado e na mesma rede."),
+    "The controller didn't respond in time. Check that it's online and on the same network.": (
+        "Der Controller hat nicht rechtzeitig geantwortet. Prüfe, ob er eingeschaltet und im selben Netzwerk ist.",
+        "Le contrôleur n'a pas répondu à temps. Vérifiez qu'il est allumé et sur le même réseau.",
+        "El controlador no respondió a tiempo. Comprueba que esté encendido y en la misma red.",
+        "De controller reageerde niet op tijd. Controleer of hij aan staat en in hetzelfde netwerk zit.",
+        "Il controller non ha risposto in tempo. Verifica che sia acceso e sulla stessa rete.",
+        "O controlador não respondeu a tempo. Verifique se ele está ligado e na mesma rede."),
+    "A secure connection to the controller couldn't be established.": (
+        "Es konnte keine sichere Verbindung zum Controller hergestellt werden.",
+        "Impossible d'établir une connexion sécurisée avec le contrôleur.",
+        "No se pudo establecer una conexión segura con el controlador.",
+        "Er kon geen beveiligde verbinding met de controller worden gemaakt.",
+        "Impossibile stabilire una connessione sicura con il controller.",
+        "Não foi possível estabelecer uma conexão segura com o controlador."),
+    "The controller rejected the API key. Check it in Settings.": (
+        "Der Controller hat den API-Schlüssel abgelehnt. Prüfe ihn in den Einstellungen.",
+        "Le contrôleur a refusé la clé API. Vérifiez-la dans les réglages.",
+        "El controlador rechazó la clave API. Revísala en los ajustes.",
+        "De controller heeft de API-sleutel geweigerd. Controleer hem in de instellingen.",
+        "Il controller ha rifiutato la chiave API. Controllala nelle impostazioni.",
+        "O controlador recusou a chave de API. Verifique-a nos ajustes."),
+    "The controller is busy. Try again in a moment.": (
+        "Der Controller ist gerade ausgelastet. Versuche es gleich noch einmal.",
+        "Le contrôleur est occupé. Réessayez dans un instant.",
+        "El controlador está ocupado. Vuelve a intentarlo en un momento.",
+        "De controller is bezet. Probeer het zo meteen opnieuw.",
+        "Il controller è occupato. Riprova tra un momento.",
+        "O controlador está ocupado. Tente novamente em instantes."),
+    "The controller reported an internal error. Try again later.": (
+        "Der Controller hat einen internen Fehler gemeldet. Versuche es später noch einmal.",
+        "Le contrôleur a signalé une erreur interne. Réessayez plus tard.",
+        "El controlador informó de un error interno. Vuelve a intentarlo más tarde.",
+        "De controller meldde een interne fout. Probeer het later opnieuw.",
+        "Il controller ha segnalato un errore interno. Riprova più tardi.",
+        "O controlador relatou um erro interno. Tente novamente mais tarde."),
+    "The controller returned an unexpected response.": (
+        "Der Controller hat eine unerwartete Antwort gesendet.",
+        "Le contrôleur a renvoyé une réponse inattendue.",
+        "El controlador devolvió una respuesta inesperada.",
+        "De controller gaf een onverwacht antwoord.",
+        "Il controller ha restituito una risposta inattesa.",
+        "O controlador retornou uma resposta inesperada."),
+    "The controller sent a response QuickProtect couldn't read.": (
+        "Der Controller hat eine Antwort gesendet, die QuickProtect nicht lesen kann.",
+        "Le contrôleur a envoyé une réponse que QuickProtect ne peut pas lire.",
+        "El controlador envió una respuesta que QuickProtect no puede leer.",
+        "De controller stuurde een antwoord dat QuickProtect niet kan lezen.",
+        "Il controller ha inviato una risposta che QuickProtect non riesce a leggere.",
+        "O controlador enviou uma resposta que o QuickProtect não consegue ler."),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _errors.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 
 # ---------------------------------------------------------------------------
