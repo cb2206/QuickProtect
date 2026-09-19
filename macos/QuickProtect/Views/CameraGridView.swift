@@ -53,6 +53,15 @@ struct CameraGridView: View {
             }
         }
         .preferredColorScheme(.dark)
+        // A focused camera that left the list (removed, hidden, or another
+        // controller configured) ends focus — otherwise every tile stays
+        // collapsed around a cell that no longer exists — and fullscreen with it.
+        .onChange(of: orderedCameras.map(\.id)) { ids in
+            guard let focused = focusedCameraId, !ids.contains(focused) else { return }
+            NotificationCenter.default.post(name: .exitTrueFullscreen, object: nil)
+            focusedCameraId = nil
+            service.lastFocusedCameraId = nil
+        }
     }
 
     var loadingView: some View {
@@ -181,6 +190,9 @@ struct CameraGridView: View {
             .scrollDisabled(hasFocus)
         }
         .onAppear { restoreFocus(); service.isFocusMode = focusedCameraId != nil }
+        // A state card (loading, error, certificate) replacing the grid has no
+        // focus top bar, so the panel header must come back while it shows.
+        .onDisappear { service.isFocusMode = false }
         .onChange(of: focusedCameraId) { newId in
             service.lastFocusedCameraId = newId
             service.isFocusMode = newId != nil

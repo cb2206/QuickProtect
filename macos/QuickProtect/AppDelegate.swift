@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var promoWindow: NSWindow?
     private var updateSubscription: AnyCancellable?
     private var connectionSettingsSubscription: AnyCancellable?
+    private var connectionRefetchSubscription: AnyCancellable?
     /// Pending deferred stream teardown while the keep-alive grace period runs
     /// (see `scheduleStreamTeardown`). Cancelled when the panel reopens in time.
     private var streamTeardownWork: DispatchWorkItem?
@@ -88,12 +89,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         // A controller/API-key change invalidates live streams and any pending
         // keep-alive grace — stale clients would keep talking to the old host.
-        connectionSettingsSubscription = s.$ipAddress.dropFirst().removeDuplicates()
+        // @Published emits before the new value is stored, so the teardown
+        // still addresses the old controller and its allocations are released
+        // there. The fields update on every keystroke; the refetch against the
+        // new connection waits until typing settles.
+        let connectionChanges = s.$ipAddress.dropFirst().removeDuplicates()
             .merge(with: s.$apiKey.dropFirst().removeDuplicates())
-            .sink { [weak self] _ in
+            .map { _ in () }
+            .share()
+        connectionSettingsSubscription = connectionChanges
+            .sink { [weak self] in
                 self?.teardownStreamsNow()
-                // The certificate pin is keyed by the controller identity.
-                self?.service.refreshCertificateChange()
+                self?.pinnedWindows.suspendForConnectionChange()
+            }
+        connectionRefetchSubscription = connectionChanges
+            .debounce(for: .milliseconds(800), scheduler: RunLoop.main)
+            .sink { [weak self] in
+                guard let self else { return }
+                Task {
+                    await self.service.refetchForNewConnection()
+                    self.pinnedWindows.resumeAfterConnectionChange()
+                }
             }
         if !s.hasCompletedOnboarding {
             showOnboarding()

@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 import AppKit
 
@@ -40,6 +41,25 @@ final class AppSettingsTests: XCTestCase {
 
     private func makeSettings() -> AppSettings {
         AppSettings(defaults: defaults, secrets: secrets)
+    }
+
+    // MARK: - Connection change notifications
+
+    /// AppDelegate tears streams down from these publishers and relies on the
+    /// old address and key still being stored then, so the DELETEs release
+    /// the allocations on the controller that holds them.
+    func testConnectionPublishersFireBeforeTheNewValueIsStored() {
+        let settings = makeSettings()
+        settings.ipAddress = "10.0.0.1"
+        settings.apiKey = "old-key"
+        var seen: [String] = []
+        let address = settings.$ipAddress.dropFirst().sink { _ in seen.append(settings.ipAddress) }
+        let key = settings.$apiKey.dropFirst().sink { _ in seen.append(settings.apiKey) }
+        settings.ipAddress = "10.0.0.2"
+        settings.apiKey = "new-key"
+        address.cancel()
+        key.cancel()
+        XCTAssertEqual(seen, ["10.0.0.1", "old-key"])
     }
 
     // MARK: - Persistence and secrets

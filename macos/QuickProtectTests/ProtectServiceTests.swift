@@ -345,6 +345,117 @@ final class ProtectServiceTests: XCTestCase {
         XCTAssertEqual(Self.deletes.count, 1, "nobody holds cam1:high any more")
     }
 
+    // MARK: - Connection change
+
+    nonisolated private static let camerasA = Data(#"[{"id":"a1","name":"A1"},{"id":"a2","name":"A2"}]"#.utf8)
+    nonisolated private static let camerasB = Data(#"[{"id":"b1","name":"B1"}]"#.utf8)
+
+    /// Answers the camera list per controller host; anything else is a 404.
+    /// Nonisolated: the stub calls the handler on URLSession's loading thread.
+    nonisolated private static func respondPerHost(_ lists: [String: Data]) {
+        StubController.respond { request in
+            guard let body = request.url?.host.flatMap({ lists[$0] }) else { return (404, Data()) }
+            return (200, body)
+        }
+    }
+
+    func testConnectionChangeReplacesTheOldErrorAndCameras() async {
+        StubController.respond { _ in (200, Self.camerasA) }
+        await service.fetchCameras(forced: true)
+        XCTAssertEqual(service.cameras.map(\.id), ["a1", "a2"])
+
+        credentials.ipAddress = "qp-test.invalid"
+        StubController.fail(with: URLError(.cannotFindHost))
+        await service.refetchForNewConnection()
+
+        XCTAssertTrue(service.cameras.isEmpty, "the old controller's cameras are not at the new address")
+        XCTAssertNotNil(service.errorMessage)
+        XCTAssertEqual(StubController.requests.last?.url?.host, "qp-test.invalid")
+
+        StubController.reset()
+        credentials.ipAddress = "192.168.1.10"
+        StubController.respond { _ in (200, Self.camerasA) }
+        await service.refetchForNewConnection()
+
+        XCTAssertNil(service.errorMessage, "switching back clears the error without Refresh")
+        XCTAssertEqual(service.cameras.map(\.id), ["a1", "a2"])
+    }
+
+    func testConnectionChangeToAnotherControllerShowsItsCameras() async {
+        Self.respondPerHost(["192.168.1.10": Self.camerasA, "10.0.0.5": Self.camerasB])
+        await service.fetchCameras(forced: true)
+        credentials.ipAddress = "10.0.0.5"
+        await service.refetchForNewConnection()
+        XCTAssertEqual(service.cameras.map(\.id), ["b1"])
+    }
+
+    func testReapplyingTheSameConnectionKeepsTheCameras() async {
+        StubController.respond { _ in (200, Self.camerasA) }
+        await service.fetchCameras(forced: true)
+
+        // Edited and reverted before the debounced refetch ran.
+        StubController.fail(with: URLError(.timedOut))
+        await service.refetchForNewConnection()
+
+        XCTAssertEqual(service.cameras.map(\.id), ["a1", "a2"], "same controller: a failed refetch keeps the list")
+        XCTAssertNotNil(service.errorMessage)
+    }
+
+    func testAPIKeyChangeCountsAsANewConnection() async {
+        StubController.respond { _ in (200, Self.camerasA) }
+        await service.fetchCameras(forced: true)
+
+        credentials.apiKey = "other-key"
+        StubController.respond { _ in (401, Data(#"{"error":"unauthorized"}"#.utf8)) }
+        await service.refetchForNewConnection()
+
+        XCTAssertTrue(service.cameras.isEmpty)
+        XCTAssertNotNil(service.errorMessage)
+        XCTAssertEqual(StubController.requests.last?.value(forHTTPHeaderField: "X-API-Key"), "other-key")
+    }
+
+    /// A fetch still talking to the old controller is cancelled and can't
+    /// re-apply its cameras once the new controller's list is in.
+    func testConnectionChangeCancelsAFetchForTheOldController() async throws {
+        Self.respondPerHost(["192.168.1.10": Self.camerasA, "10.0.0.5": Self.camerasB])
+        StubController.delay(0.3)
+        let oldFetch = Task { await service.fetchCameras(forced: true) }
+        try await Self.waitForRequests(1)
+
+        credentials.ipAddress = "10.0.0.5"
+        await service.refetchForNewConnection()
+        await oldFetch.value
+
+        XCTAssertEqual(service.cameras.map(\.id), ["b1"])
+        XCTAssertNil(service.errorMessage)
+        XCTAssertFalse(service.isLoading)
+        XCTAssertEqual(StubController.requests.map { $0.url?.host }, ["192.168.1.10", "10.0.0.5"])
+    }
+
+    /// Test Connection already fetching for the new address is joined, so its
+    /// caller sees the real result and the controller isn't asked twice.
+    func testConnectionChangeJoinsAFetchForTheNewConnection() async throws {
+        credentials.ipAddress = "10.0.0.5"
+        Self.respondPerHost(["10.0.0.5": Self.camerasB])
+        StubController.delay(0.3)
+        let testConnection = Task { await service.fetchCameras(forced: true) }
+        try await Self.waitForRequests(1)
+
+        await service.refetchForNewConnection()
+        await testConnection.value
+
+        XCTAssertEqual(StubController.requests.count, 1)
+        XCTAssertEqual(service.cameras.map(\.id), ["b1"])
+    }
+
+    func testConnectionChangeBypassesTheFetchThrottle() async {
+        StubController.respond { _ in (200, Self.camerasA) }
+        await service.fetchCameras(forced: true)
+        await service.refetchForNewConnection()
+        await service.fetchCameras()   // automatic refresh right after
+        XCTAssertEqual(StubController.requests.count, 2, "the refetch itself is forced; the throttle then holds")
+    }
+
     // MARK: - Helpers
 
     private static var deletes: [URLRequest] {
@@ -358,6 +469,15 @@ final class ProtectServiceTests: XCTestCase {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTFail("expected \(count) POSTs")
+    }
+
+    /// Yields until the stub has seen `count` requests (bounded at ~5 s).
+    private static func waitForRequests(_ count: Int) async throws {
+        for _ in 0..<500 {
+            if StubController.requests.count >= count { return }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("expected \(count) requests")
     }
 
     private static func camera(_ id: String) -> Camera {
@@ -395,6 +515,7 @@ private class StubController: URLProtocol {
     nonisolated(unsafe) private static var _handler: Handler?   // guarded by `lock`
     nonisolated(unsafe) private static var _requests: [URLRequest] = []
     nonisolated(unsafe) private static var _failure: URLError?
+    nonisolated(unsafe) private static var _delay: TimeInterval = 0
 
     static var requests: [URLRequest] {
         lock.lock(); defer { lock.unlock() }
@@ -412,11 +533,19 @@ private class StubController: URLProtocol {
         _failure = error
     }
 
+    /// Answer every request only after `seconds`, so a test can act while a
+    /// request is in flight.
+    static func delay(_ seconds: TimeInterval) {
+        lock.lock(); defer { lock.unlock() }
+        _delay = seconds
+    }
+
     static func reset() {
         lock.lock(); defer { lock.unlock() }
         _handler = nil
         _requests = []
         _failure = nil
+        _delay = 0
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -427,6 +556,19 @@ private class StubController: URLProtocol {
         Self._requests.append(request)
         let handler = Self._handler
         let failure = Self._failure
+        let delay = Self._delay
+        Self.lock.unlock()
+
+        guard delay == 0 else {
+            DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [self] in answer(failure: failure) }
+            return
+        }
+        answer(failure: failure)
+    }
+
+    private func answer(failure: URLError?) {
+        Self.lock.lock()
+        let handler = Self._handler
         Self.lock.unlock()
 
         if let failure {

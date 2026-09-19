@@ -123,8 +123,21 @@ final class ProtectService: NSObject, ObservableObject {
     /// caller contexts (status-bar toggle, refresh buttons, Settings).
     private let fetchLock = NSLock()
     private var _fetchTask: Task<Void, Never>?
+    /// The controller address and API key the in-flight fetch was started
+    /// with, and the ones the current camera list came from.
+    private var _fetchConnection: Connection?
+    private var _camerasConnection: Connection?
     private var _lastFetchSucceededAt: Date?
     private var _lastPtzEnrich: ControllerRequestPolicy.PtzEnrichRecord?
+
+    /// What identifies "the controller" for a fetch: a different address or
+    /// API key may answer with different cameras (or not at all).
+    private struct Connection: Equatable {
+        let address: String
+        let apiKey: String
+    }
+
+    private var connection: Connection { Connection(address: settings.ipAddress, apiKey: settings.apiKey) }
 
     /// Fetches the camera list, coalescing concurrent calls into one request
     /// chain (rapid panel toggles must not stack fetches against the
@@ -134,7 +147,55 @@ final class ProtectService: NSObject, ObservableObject {
     func fetchCameras(forced: Bool = false) async {
         guard let (task, started) = joinOrStartFetch(forced: forced) else { return }
         await task.value
-        if started { clearFetchTask() }
+        if started { clearFetchTask(task) }
+    }
+
+    /// The controller address or API key changed. Clears the old controller's
+    /// error, cancels a fetch still talking to it and fetches again; a fetch
+    /// already running for the new connection (Test Connection) is joined, not
+    /// restarted. The old controller's cameras are dropped rather than left on
+    /// screen under the new address's result — re-applying the same
+    /// connection keeps them.
+    func refetchForNewConnection() async {
+        let stale = forgetOldConnection()
+
+        // The classic-API session belongs to the old controller; its cookie
+        // must never be sent to another host.
+        csrfToken = nil
+        tokenCookie = nil
+        isClassicLoggedIn = false
+        errorMessage = nil
+        // Settings are read after the change here (the change notification
+        // itself arrives before the new value is stored), so this pin lookup
+        // is for the new controller.
+        refreshCertificateChange()
+
+        // Checked after the stale fetch ends: it may still have applied the old
+        // controller's cameras just before it saw the cancellation.
+        await stale?.value
+        if camerasConnection != connection, !cameras.isEmpty {
+            cameras = []
+        }
+        await fetchCameras(forced: true)
+    }
+
+    /// Resets the throttles (their last successes were for the old
+    /// controller) and cancels a fetch still running against it, returning
+    /// that fetch so the caller can wait for it to end. Synchronous so the
+    /// lock never spans a suspension point.
+    private func forgetOldConnection() -> Task<Void, Never>? {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        _lastFetchSucceededAt = nil
+        _lastPtzEnrich = nil
+        guard let inFlight = _fetchTask, _fetchConnection != connection else { return nil }
+        inFlight.cancel()
+        _fetchTask = nil
+        return inFlight
+    }
+
+    private var camerasConnection: Connection? {
+        fetchLock.lock(); defer { fetchLock.unlock() }
+        return _camerasConnection
     }
 
     /// Atomically joins the in-flight fetch or starts a new one; `nil` when the
@@ -149,12 +210,15 @@ final class ProtectService: NSObject, ObservableObject {
         }
         let task = Task { await self.performFetch(forced: forced) }
         _fetchTask = task
+        _fetchConnection = connection
         return (task, true)
     }
 
-    private func clearFetchTask() {
+    /// Clears the in-flight slot if it still holds `task` — a connection
+    /// change may already have replaced it with a fetch for the new controller.
+    private func clearFetchTask(_ task: Task<Void, Never>) {
         fetchLock.lock(); defer { fetchLock.unlock() }
-        _fetchTask = nil
+        if _fetchTask == task { _fetchTask = nil }
     }
 
     /// Cancels an in-flight camera fetch. Called by the deferred stream
@@ -167,12 +231,13 @@ final class ProtectService: NSObject, ObservableObject {
 
     private func performFetch(forced: Bool) async {
         RTSPClient.log("[API] fetchCameras called")
+        let connection = self.connection
         guard await validate() else { RTSPClient.log("[API] validate failed"); return }
         await setLoading(true)
 
         do {
             let cameras = try await requestCameraList()
-            markFetchSucceeded()
+            markFetchSucceeded(connection: connection)
             await applySuccess(cameras)
 
             // If classic API credentials are configured, enrich PTZ flags.
@@ -239,9 +304,10 @@ final class ProtectService: NSObject, ObservableObject {
         return try JSONDecoder().decode([Camera].self, from: data)
     }
 
-    private func markFetchSucceeded() {
+    private func markFetchSucceeded(connection: Connection) {
         fetchLock.lock(); defer { fetchLock.unlock() }
         _lastFetchSucceededAt = Date()
+        _camerasConnection = connection
     }
 
     private func shouldSkipPtzEnrich() -> Bool {

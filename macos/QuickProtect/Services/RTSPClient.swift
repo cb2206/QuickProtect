@@ -325,9 +325,13 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
         }
     }
 
-    func disconnect() {
+    /// `clearingPicture` also removes the frame on screen (a plain flush keeps
+    /// painting the last one) — for a feed that is gone rather than paused,
+    /// e.g. after the controller address changed.
+    func disconnect(clearingPicture: Bool = false) {
         queue.async { [self] in
             disconnectOnQueue()
+            if clearingPicture { displayLayer.flushAndRemoveImage() }
         }
     }
 

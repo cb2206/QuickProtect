@@ -74,6 +74,19 @@ final class PinnedWindowManager {
         }
     }
 
+    /// The controller address or API key is changing: stop every window's
+    /// stream while the old connection is still configured, so its allocation
+    /// is released on the controller that holds it.
+    func suspendForConnectionChange() {
+        for controller in controllers.values { controller.suspendForConnectionChange() }
+    }
+
+    /// The camera list was fetched for the new connection: reconnect every
+    /// window against it (a camera the new controller lacks fails and backs off).
+    func resumeAfterConnectionChange() {
+        for controller in controllers.values { controller.resumeAfterConnectionChange() }
+    }
+
     /// Tear down every window (app termination). Persistence is left intact so
     /// the windows reopen on next launch; the server-side allocations are freed.
     func closeAll() {
@@ -266,6 +279,31 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             self.client.setAudioActive(true)
             self.client.setCaptureActive(true)
         }
+    }
+
+    // MARK: Connection change
+
+    /// Stops the stream and frees its allocation (see the manager). Idempotent:
+    /// called on every keystroke of an address or API-key edit.
+    func suspendForConnectionChange() {
+        retryTask?.cancel()
+        retryTask = nil
+        streamTask?.cancel()
+        streamTask = nil
+        guard connectedQuality != nil else { return }
+        // The camera may not exist at the new address; don't leave its last
+        // frame on screen as if it were still live.
+        client.disconnect(clearingPicture: true)
+        releaseAllocation()
+        streamState.isFailed = false
+        streamState.reason = nil
+    }
+
+    /// Starts over against the new connection, without the backoff the old
+    /// one may have built up.
+    func resumeAfterConnectionChange() {
+        recovery.recovered()
+        reconnect()
     }
 
     // MARK: Recovery
