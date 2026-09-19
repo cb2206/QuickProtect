@@ -8,7 +8,7 @@ namespace QuickProtect.App.Platform;
 /// Hands Avalonia the desktop's display scale on Wayland sessions, so the UI
 /// is the size the compositor's HiDPI setting asks for.
 ///
-/// Avalonia 11 has no Wayland backend, so on Hyprland, sway and friends the
+/// Avalonia (12.x here) has no Wayland backend, so on Hyprland, sway and friends the
 /// app is an X11 client running through XWayland. Those compositors hand
 /// XWayland an unscaled surface (Hyprland's <c>xwayland:force_zero_scaling</c>,
 /// on by default in Omarchy) and tell toolkits to scale themselves through

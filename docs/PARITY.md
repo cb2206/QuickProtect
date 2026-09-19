@@ -37,7 +37,20 @@ port (`dotnet/`).
   derived from the pin store (`ProtectService.CertificateChange`), shown as a
   "Controller certificate changed" card in the panel and an overlay on pinned
   windows, each opening the review dialog (both keys, Cancel is the default);
-  trusting restarts failed streams at once.
+  trusting restarts failed streams at once. Settings' certificate section
+  refreshes on every pin-store change, so a trust or rejection elsewhere shows
+  up there while it is open; fingerprints wrap at 16 bytes per line.
+- **Controller change** — editing the controller address or API key refetches
+  on its own (macOS debounces the typing): the old error clears, a fetch still
+  talking to the old controller is cancelled (a Test Connection fetch for the
+  new one is joined), a camera list from another connection is dropped rather
+  than left on screen, and pinned windows reconnect against the new
+  controller. A focused camera that leaves the list ends focus and fullscreen.
+- **Connection errors** — a failed fetch maps to a catalog message
+  (`ControllerErrors` on both sides, same English keys and translations): host
+  not found, refused, unreachable, timed out, TLS failure, invalid address,
+  API key rejected (401/403), busy (429), server error (5xx), unexpected or
+  unreadable response. Anything else falls back to the error's own text.
 - **Settings window** — sidebar-sectioned like the macOS `SettingsView`
   (General / Connection / PTZ / Cameras / Shortcuts / Updates) with the Aurora
   card look (caption + label/control rows + hairlines) and a live
@@ -130,7 +143,7 @@ port (`dotnet/`).
   instantly; covers the secondary (package-lens) PiP stream too.
   `App.PanelClosed` / `PanelOpened` / `TeardownStreamsNow` mirror the macOS
   `scheduleStreamTeardown` / `teardownStreamsNow`; the grace is flushed
-  immediately on quit and on IP/API-key changes.
+  immediately on quit and on IP/API-key changes (see Controller change).
 - **Decode pause during the grace** — kept-alive streams stop feeding packets
   to the FFmpeg decoder while hidden and buffer the compressed GOP since the
   latest keyframe (`PausedGopBuffer` in Core, unit-tested, 8 MB/camera cap);
@@ -156,7 +169,6 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 |---|---|---|---|
 | Profile rename/delete in header menu | header profile menu | Settings → Cameras | header has switcher + save-as-new; full management lives in Settings |
 | About tab | separate sidebar tab | About card on the Updates section | six sections fit the window; split it out if it grows |
-| Stream-protocol toggle | `usePlainRtsp` setting exists in the UI | omitted | The macOS setting is vestigial — nothing consumes it (the stream token is only valid on the rtsps endpoint, `ProtectService.swift:455`) |
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
 | Lost stream URL (allocation deleted by another client) | a tile shows the failure with a Reconnect button and does not retry on its own; a pinned window retries: on any client error (connection failed, RTSP 404, receive error) or failed POST it releases its allocation, shows the failure with Reconnect, and POSTs a fresh URL after 5 s doubling to 60 s (reset once a frame paints; first retry waits 5 s) | after 3 consecutive open failures the coordinator re-POSTs the same quality immediately, then 5 s doubling to 60 s (reset once playing), for tiles and pinned windows alike | the FFmpeg client retries its URL on its own, so it needs the re-POST to escape a deleted URL; macOS `RTSPClient` never retries a URL, so the first error is the failure signal. Tiles stay manual because every popover reopen, quality switch or Reconnect already POSTs a fresh URL |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
@@ -238,7 +250,7 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 - **Release artifacts** are built by `.github/workflows/release.yml` on a
   `v<version>` tag push: after both test suites pass, DMG (ad-hoc signed,
   universal, macos-15 with Xcode 16.4) + Inno Setup exe (windows-latest) +
-  Linux tarball (ubuntu-latest) plus a `SHA256SUMS` file, attached to a
+  Linux x64 and arm64 tarballs (ubuntu-latest) plus a `SHA256SUMS` file, attached to a
   **draft** release after checking the tag matches both version sources.
   Publishing the draft is manual — that's the moment existing installs get
   update-notified. `workflow_dispatch` builds the same artifacts from any

@@ -83,7 +83,14 @@ QuickProtect is an independent app and is not affiliated with or endorsed by Ubi
 
 **What's New**
 ```
-• Switching stream quality is now seamless — focusing a camera or going fullscreen no longer freezes the video for a moment.
+• If your controller's certificate changes (after a reinstall or replacement), QuickProtect now tells you, shows both keys to compare, and lets you trust the new one from the camera panel, a floating window or Settings.
+• Changing the controller address or API key reconnects on its own — no more stale cameras or old error messages until you press Refresh.
+• Connection errors are clearer, translated, and tell you what to check.
+• Floating windows move when dragged again, and reconnect by themselves when a stream drops.
+• The grid and the focus view fit long translations and narrow panels without wrapping.
+• The Light/Dark setting now applies to dialogs too.
+• When a camera sends no video, QuickProtect names the cause instead of loading forever.
+• Stream sessions on the controller are released more reliably, and the connection to the controller is better secured.
 ```
 
 ---
@@ -140,7 +147,14 @@ QuickProtect ist eine unabhängige App und steht in keiner Verbindung zu Ubiquit
 
 **What's New**
 ```
-• Qualitätswechsel sind jetzt nahtlos – wenn du eine Kamera vergrößerst oder in den Vollbildmodus wechselst, friert das Video nicht mehr kurz ein.
+• Wenn sich das Zertifikat deines Controllers ändert (etwa nach einer Neuinstallation oder einem Austausch), sagt QuickProtect dir das jetzt, zeigt beide Schlüssel zum Vergleich und lässt dich dem neuen in der Kameraübersicht, in einem schwebenden Fenster oder in den Einstellungen vertrauen.
+• Wenn du die Adresse des Controllers oder den API-Schlüssel änderst, verbindet sich QuickProtect von selbst neu – keine veralteten Kameras oder alten Fehlermeldungen mehr, bis du auf „Aktualisieren“ klickst.
+• Verbindungsfehler sind verständlicher, übersetzt und sagen dir, was du prüfen kannst.
+• Schwebende Fenster lassen sich wieder durch Ziehen verschieben und verbinden sich von selbst neu, wenn ein Stream abbricht.
+• Raster und Großansicht passen sich langen Übersetzungen und schmalen Fenstern an, ohne umzubrechen.
+• Die Einstellung Hell/Dunkel gilt jetzt auch für Dialoge.
+• Sendet eine Kamera kein Video, nennt QuickProtect die Ursache, statt endlos zu laden.
+• Stream-Sitzungen auf dem Controller werden zuverlässiger freigegeben, und die Verbindung zum Controller ist besser abgesichert.
 ```
 
 ---
@@ -197,7 +211,14 @@ QuickProtect est une app indépendante, non affiliée à Ubiquiti Inc. ni approu
 
 **What's New**
 ```
-• Le changement de qualité du flux est désormais fluide : agrandir une caméra ou passer en plein écran ne fige plus la vidéo un instant.
+• Si le certificat de votre contrôleur change (après une réinstallation ou un remplacement), QuickProtect vous le signale désormais, affiche les deux clés à comparer et vous permet d'approuver la nouvelle depuis le panneau des caméras, une fenêtre flottante ou les réglages.
+• Modifier l'adresse du contrôleur ou la clé API rétablit la connexion automatiquement — fini les caméras obsolètes et les anciens messages d'erreur jusqu'à ce que vous cliquiez sur Actualiser.
+• Les erreurs de connexion sont plus claires, traduites, et indiquent quoi vérifier.
+• Les fenêtres flottantes se déplacent de nouveau par glisser et se reconnectent d'elles-mêmes quand un flux s'interrompt.
+• La grille et la vue agrandie s'adaptent aux traductions longues et aux panneaux étroits sans passer à la ligne.
+• Le réglage Clair/Sombre s'applique désormais aussi aux boîtes de dialogue.
+• Quand une caméra n'envoie pas de vidéo, QuickProtect en indique la cause au lieu de charger indéfiniment.
+• Les sessions de flux sur le contrôleur sont libérées de façon plus fiable, et la connexion au contrôleur est mieux sécurisée.
 ```
 
 ---
@@ -254,7 +275,14 @@ QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni res
 
 **What's New**
 ```
-• El cambio de calidad de la transmisión ahora es fluido: ampliar una cámara o pasar a pantalla completa ya no congela el vídeo por un momento.
+• Si cambia el certificado de tu controlador (tras reinstalarlo o sustituirlo), QuickProtect ahora te lo indica, muestra ambas claves para compararlas y te permite confiar en la nueva desde el panel de cámaras, una ventana flotante o los ajustes.
+• Al cambiar la dirección del controlador o la clave API, la conexión se restablece sola: se acabaron las cámaras desactualizadas y los mensajes de error antiguos hasta pulsar Actualizar.
+• Los errores de conexión son más claros, están traducidos y te dicen qué revisar.
+• Las ventanas flotantes vuelven a moverse al arrastrarlas y se reconectan solas cuando se corta una transmisión.
+• La cuadrícula y la vista ampliada se adaptan a traducciones largas y paneles estrechos sin partir el texto.
+• El ajuste Claro/Oscuro ahora también se aplica a los cuadros de diálogo.
+• Cuando una cámara no envía vídeo, QuickProtect indica la causa en lugar de quedarse cargando.
+• Las sesiones de transmisión en el controlador se liberan de forma más fiable, y la conexión con el controlador es más segura.
 ```
 
 ---
@@ -311,7 +339,14 @@ QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd d
 
 **What's New**
 ```
-• Wisselen van streamkwaliteit gaat nu naadloos — een camera vergroten of naar volledig scherm gaan bevriest het beeld niet meer even.
+• Als het certificaat van je controller verandert (na een herinstallatie of vervanging), meldt QuickProtect dat nu, toont het beide sleutels om te vergelijken en kun je de nieuwe vertrouwen vanuit het camerapaneel, een zwevend venster of de instellingen.
+• Als je het adres van de controller of de API-sleutel wijzigt, maakt QuickProtect zelf opnieuw verbinding — geen verouderde camera's of oude foutmeldingen meer tot je op Vernieuw klikt.
+• Verbindingsfouten zijn duidelijker, vertaald en vertellen je wat je kunt controleren.
+• Zwevende vensters zijn weer te verplaatsen door te slepen en maken zelf opnieuw verbinding als een stream wegvalt.
+• Het raster en de vergrote weergave passen zich aan lange vertalingen en smalle panelen aan zonder af te breken.
+• De instelling Licht/Donker geldt nu ook voor dialoogvensters.
+• Als een camera geen beeld stuurt, noemt QuickProtect de oorzaak in plaats van eindeloos te laden.
+• Streamsessies op de controller worden betrouwbaarder vrijgegeven, en de verbinding met de controller is beter beveiligd.
 ```
 
 ---
@@ -368,7 +403,14 @@ QuickProtect è un'app indipendente e non è affiliata a Ubiquiti Inc. né appro
 
 **What's New**
 ```
-• Il cambio di qualità del flusso ora è fluido: ingrandire una telecamera o passare a schermo intero non blocca più il video per un istante.
+• Se il certificato del tuo controller cambia (dopo una reinstallazione o una sostituzione), QuickProtect ora te lo segnala, mostra entrambe le chiavi da confrontare e ti permette di fidarti di quella nuova dal pannello delle telecamere, da una finestra mobile o dalle impostazioni.
+• Se cambi l'indirizzo del controller o la chiave API, la connessione si ristabilisce da sola: niente più telecamere obsolete o vecchi messaggi di errore finché non premi Aggiorna.
+• Gli errori di connessione sono più chiari, tradotti e ti dicono cosa controllare.
+• Le finestre mobili si spostano di nuovo trascinandole e si riconnettono da sole quando un flusso si interrompe.
+• La griglia e la vista ingrandita si adattano alle traduzioni lunghe e ai pannelli stretti senza andare a capo.
+• L'impostazione Chiaro/Scuro ora vale anche per le finestre di dialogo.
+• Quando una telecamera non invia video, QuickProtect ne indica la causa invece di restare in caricamento.
+• Le sessioni di streaming sul controller vengono rilasciate in modo più affidabile, e la connessione al controller è più sicura.
 ```
 
 ---
@@ -425,7 +467,14 @@ O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiq
 
 **What's New**
 ```
-• A troca de qualidade da transmissão agora é perfeita — ampliar uma câmera ou entrar em tela cheia não congela mais o vídeo por um instante.
+• Se o certificado do seu controlador mudar (após uma reinstalação ou substituição), o QuickProtect agora avisa, mostra as duas chaves para comparação e permite confiar na nova pelo painel de câmeras, por uma janela flutuante ou pelos ajustes.
+• Ao mudar o endereço do controlador ou a chave de API, a conexão é refeita automaticamente — sem câmeras desatualizadas nem mensagens de erro antigas até você clicar em Atualizar.
+• Os erros de conexão estão mais claros, traduzidos e dizem o que verificar.
+• As janelas flutuantes voltam a se mover ao arrastar e se reconectam sozinhas quando uma transmissão cai.
+• A grade e a visualização ampliada se ajustam a traduções longas e painéis estreitos sem quebrar linhas.
+• A opção Claro/Escuro agora também vale para as caixas de diálogo.
+• Quando uma câmera não envia vídeo, o QuickProtect indica a causa em vez de ficar carregando.
+• As sessões de transmissão no controlador são liberadas com mais confiabilidade, e a conexão com o controlador está mais segura.
 ```
 
 ---
@@ -543,8 +592,14 @@ PTZ
 
 **What's New**
 ```
-• Switching stream quality is now seamless — focusing a camera or going fullscreen no longer freezes the video for a moment.
-• The focus view now shows its keyboard shortcuts as key hints.
+• If your controller's certificate changes (after a reinstall or replacement), QuickProtect now tells you, shows both keys to compare, and lets you trust the new one from the camera panel, a floating window or Settings.
+• Changing the controller address or API key reconnects on its own — no more stale cameras or old error messages until you press Refresh.
+• Connection errors are clearer, translated, and tell you what to check.
+• Floating windows keep the camera's shape when resized, resize from any edge, and move when you drag the video.
+• The camera panel closes when you click anywhere outside it.
+• Dialogs have a visible edge in dark mode, and the focus view fits long translations.
+• When a camera sends no video, QuickProtect names the cause instead of loading forever.
+• Smoother video with less CPU use, more reliable stream sessions, and a better-secured connection to the controller.
 ```
 
 ---
@@ -603,8 +658,14 @@ PTZ
 
 **What's New**
 ```
-• Qualitätswechsel sind jetzt nahtlos – wenn du eine Kamera vergrößerst oder in den Vollbildmodus wechselst, friert das Video nicht mehr kurz ein.
-• Die Großansicht zeigt jetzt ihre Tastaturkürzel als Tastenhinweise an.
+• Wenn sich das Zertifikat deines Controllers ändert (etwa nach einer Neuinstallation oder einem Austausch), sagt QuickProtect dir das jetzt, zeigt beide Schlüssel zum Vergleich und lässt dich dem neuen in der Kameraübersicht, in einem schwebenden Fenster oder in den Einstellungen vertrauen.
+• Wenn du die Adresse des Controllers oder den API-Schlüssel änderst, verbindet sich QuickProtect von selbst neu – keine veralteten Kameras oder alten Fehlermeldungen mehr, bis du auf „Aktualisieren“ klickst.
+• Verbindungsfehler sind verständlicher, übersetzt und sagen dir, was du prüfen kannst.
+• Schwebende Fenster behalten beim Vergrößern die Form der Kamera, lassen sich an jeder Kante ziehen und durch Ziehen am Video verschieben.
+• Die Kameraübersicht schließt sich, sobald du irgendwo daneben klickst.
+• Dialoge haben im dunklen Design einen sichtbaren Rand, und die Großansicht passt sich langen Übersetzungen an.
+• Sendet eine Kamera kein Video, nennt QuickProtect die Ursache, statt endlos zu laden.
+• Flüssigeres Video bei weniger CPU-Last, zuverlässigere Stream-Sitzungen und eine besser abgesicherte Verbindung zum Controller.
 ```
 
 ---
@@ -663,8 +724,14 @@ PTZ
 
 **What's New**
 ```
-• Le changement de qualité du flux est désormais fluide : agrandir une caméra ou passer en plein écran ne fige plus la vidéo un instant.
-• La vue agrandie affiche désormais ses raccourcis clavier sous forme de touches.
+• Si le certificat de votre contrôleur change (après une réinstallation ou un remplacement), QuickProtect vous le signale désormais, affiche les deux clés à comparer et vous permet d'approuver la nouvelle depuis le panneau des caméras, une fenêtre flottante ou les réglages.
+• Modifier l'adresse du contrôleur ou la clé API rétablit la connexion automatiquement — fini les caméras obsolètes et les anciens messages d'erreur jusqu'à ce que vous cliquiez sur Actualiser.
+• Les erreurs de connexion sont plus claires, traduites, et indiquent quoi vérifier.
+• Les fenêtres flottantes gardent les proportions de la caméra quand vous les redimensionnez, se redimensionnent par n'importe quel bord et se déplacent en faisant glisser la vidéo.
+• Le panneau des caméras se ferme dès que vous cliquez en dehors.
+• Les boîtes de dialogue ont un contour visible en mode sombre, et la vue agrandie s'adapte aux traductions longues.
+• Quand une caméra n'envoie pas de vidéo, QuickProtect en indique la cause au lieu de charger indéfiniment.
+• Une vidéo plus fluide et moins gourmande en processeur, des sessions de flux plus fiables et une connexion au contrôleur mieux sécurisée.
 ```
 
 ---
@@ -723,8 +790,14 @@ PTZ
 
 **What's New**
 ```
-• El cambio de calidad de la transmisión ahora es fluido: ampliar una cámara o pasar a pantalla completa ya no congela el vídeo por un momento.
-• La vista ampliada ahora muestra sus atajos de teclado como indicaciones de teclas.
+• Si cambia el certificado de tu controlador (tras reinstalarlo o sustituirlo), QuickProtect ahora te lo indica, muestra ambas claves para compararlas y te permite confiar en la nueva desde el panel de cámaras, una ventana flotante o los ajustes.
+• Al cambiar la dirección del controlador o la clave API, la conexión se restablece sola: se acabaron las cámaras desactualizadas y los mensajes de error antiguos hasta pulsar Actualizar.
+• Los errores de conexión son más claros, están traducidos y te dicen qué revisar.
+• Las ventanas flotantes conservan la forma de la cámara al cambiar de tamaño, se redimensionan desde cualquier borde y se mueven arrastrando el vídeo.
+• El panel de cámaras se cierra al hacer clic en cualquier lugar fuera de él.
+• Los cuadros de diálogo tienen un borde visible en modo oscuro, y la vista ampliada se adapta a traducciones largas.
+• Cuando una cámara no envía vídeo, QuickProtect indica la causa en lugar de quedarse cargando.
+• Vídeo más fluido con menos uso de CPU, sesiones de transmisión más fiables y una conexión con el controlador más segura.
 ```
 
 ---
@@ -783,8 +856,14 @@ PTZ
 
 **What's New**
 ```
-• Wisselen van streamkwaliteit gaat nu naadloos — een camera vergroten of naar volledig scherm gaan bevriest het beeld niet meer even.
-• De vergrote weergave toont nu de sneltoetsen als toetshints.
+• Als het certificaat van je controller verandert (na een herinstallatie of vervanging), meldt QuickProtect dat nu, toont het beide sleutels om te vergelijken en kun je de nieuwe vertrouwen vanuit het camerapaneel, een zwevend venster of de instellingen.
+• Als je het adres van de controller of de API-sleutel wijzigt, maakt QuickProtect zelf opnieuw verbinding — geen verouderde camera's of oude foutmeldingen meer tot je op Vernieuw klikt.
+• Verbindingsfouten zijn duidelijker, vertaald en vertellen je wat je kunt controleren.
+• Zwevende vensters houden bij het vergroten de vorm van de camera, zijn vanaf elke rand te vergroten en verplaats je door aan het beeld te slepen.
+• Het camerapaneel sluit zodra je ergens buiten klikt.
+• Dialoogvensters hebben in de donkere modus een zichtbare rand, en de vergrote weergave past zich aan lange vertalingen aan.
+• Als een camera geen beeld stuurt, noemt QuickProtect de oorzaak in plaats van eindeloos te laden.
+• Vloeiender beeld met minder CPU-gebruik, betrouwbaardere streamsessies en een beter beveiligde verbinding met de controller.
 ```
 
 ---
@@ -843,8 +922,14 @@ PTZ
 
 **What's New**
 ```
-• Il cambio di qualità del flusso ora è fluido: ingrandire una telecamera o passare a schermo intero non blocca più il video per un istante.
-• La vista ingrandita ora mostra le scorciatoie da tastiera come suggerimenti dei tasti.
+• Se il certificato del tuo controller cambia (dopo una reinstallazione o una sostituzione), QuickProtect ora te lo segnala, mostra entrambe le chiavi da confrontare e ti permette di fidarti di quella nuova dal pannello delle telecamere, da una finestra mobile o dalle impostazioni.
+• Se cambi l'indirizzo del controller o la chiave API, la connessione si ristabilisce da sola: niente più telecamere obsolete o vecchi messaggi di errore finché non premi Aggiorna.
+• Gli errori di connessione sono più chiari, tradotti e ti dicono cosa controllare.
+• Le finestre mobili mantengono le proporzioni della telecamera quando le ridimensioni, si ridimensionano da qualsiasi bordo e si spostano trascinando il video.
+• Il pannello delle telecamere si chiude quando fai clic in qualsiasi punto al di fuori.
+• Le finestre di dialogo hanno un bordo visibile in modalità scura e la vista ingrandita si adatta alle traduzioni lunghe.
+• Quando una telecamera non invia video, QuickProtect ne indica la causa invece di restare in caricamento.
+• Video più fluido con meno uso della CPU, sessioni di streaming più affidabili e una connessione al controller più sicura.
 ```
 
 ---
@@ -903,6 +988,12 @@ PTZ
 
 **What's New**
 ```
-• A troca de qualidade da transmissão agora é perfeita — ampliar uma câmera ou entrar em tela cheia não congela mais o vídeo por um instante.
-• A visualização ampliada agora mostra os atalhos de teclado como dicas de teclas.
+• Se o certificado do seu controlador mudar (após uma reinstalação ou substituição), o QuickProtect agora avisa, mostra as duas chaves para comparação e permite confiar na nova pelo painel de câmeras, por uma janela flutuante ou pelos ajustes.
+• Ao mudar o endereço do controlador ou a chave de API, a conexão é refeita automaticamente — sem câmeras desatualizadas nem mensagens de erro antigas até você clicar em Atualizar.
+• Os erros de conexão estão mais claros, traduzidos e dizem o que verificar.
+• As janelas flutuantes mantêm o formato da câmera ao redimensionar, podem ser redimensionadas por qualquer borda e se movem ao arrastar o vídeo.
+• O painel de câmeras fecha quando você clica em qualquer lugar fora dele.
+• As caixas de diálogo têm uma borda visível no modo escuro, e a visualização ampliada se ajusta a traduções longas.
+• Quando uma câmera não envia vídeo, o QuickProtect indica a causa em vez de ficar carregando.
+• Vídeo mais fluido com menos uso de CPU, sessões de transmissão mais confiáveis e uma conexão com o controlador mais segura.
 ```

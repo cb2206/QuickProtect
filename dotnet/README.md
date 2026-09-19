@@ -13,7 +13,8 @@ The Windows build ships on the
 [**Microsoft Store**](https://apps.microsoft.com/detail/9n7q858g3tk5) (signed,
 auto-updating) and as a free installer (not code-signed) on
 [GitHub Releases](https://github.com/cb2206/QuickProtect/releases); the Linux
-build ships (since 1.3.1) as a self-contained x64 tarball on the same releases
+build ships (since 1.3.1) as self-contained tarballs on the same releases — x64,
+plus arm64 from 1.4
 (see [`PARITY.md`](../docs/PARITY.md) → Distribution for the channel details).
 
 ## Why this stack
@@ -21,7 +22,7 @@ build ships (since 1.3.1) as a self-contained x64 tarball on the same releases
 | Concern | macOS (Swift) | This port |
 |---|---|---|
 | Language / runtime | Swift | C# / .NET 10 (cross-platform, supersedes Mono) |
-| UI | SwiftUI + AppKit | Avalonia 11 (Windows + Linux + macOS) |
+| UI | SwiftUI + AppKit | Avalonia 12 (Windows + Linux + macOS) |
 | Tray / menu-bar | `NSStatusItem` | Avalonia `TrayIcon` |
 | Video (RTSP→decode→render) | hand-written RTSP/RTP + VideoToolbox + `AVSampleBufferDisplayLayer` | **FFmpeg** (via FFmpeg.AutoGen) demux + decode, frames composited by Avalonia `VideoSurface` |
 | RTSPS (RTSP-over-TLS) | own TLS socket with TOFU trust | loopback `RtspTlsTunnel` with the same TOFU trust (FFmpeg's TLS can't do the app's TOFU pinning) |
@@ -52,7 +53,8 @@ dotnet/
       Models/      Camera, StreamQuality, PtzMapping, PtzBurstTimer,
                    SnapshotNaming, PinnedWindowGeometry
       Services/    ProtectService (dual UniFi API client), RtspTlsTunnel,
-                   CertificateTrust (TOFU), AppSettings, IPreferences,
+                   CertificateTrust (TOFU), ControllerErrors, ControllerRequestPolicy,
+                   StreamAllocationLedger, AppSettings, IPreferences,
                    ISecretStore, ILaunchAtLogin, UpdateChecker, AppPaths, Log
     QuickProtect.App/              # Avalonia desktop app
       Program.cs, App.axaml(.cs)   # tray agent shell (≈ AppDelegate)
@@ -68,6 +70,7 @@ dotnet/
                                    # Catalog (kept in sync by hand; a parity test
                                    # fails on drift between the .resx files)
   tests/QuickProtect.Core.Tests/   # unit tests for the Core layer
+  tests/QuickProtect.App.Tests/    # video engine, view/layout and platform tests
   installer/QuickProtect.iss       # Inno Setup script (free GitHub build)
   installer/msix/                  # MSIX manifest + tile assets (Store build)
   installer/aur/PKGBUILD           # AUR package consuming the Linux tarball
@@ -100,7 +103,7 @@ still runs, just with video disabled.
 
 ```bash
 dotnet build QuickProtect.sln
-dotnet test tests/QuickProtect.Core.Tests
+dotnet test QuickProtect.sln                       # both test projects
 dotnet run --project src/QuickProtect.App          # host-arch build
 dotnet publish src/QuickProtect.App -c Release -r win-x64 --self-contained
 ```
@@ -118,7 +121,7 @@ Diagnostics: fatal errors land in `%APPDATA%\QuickProtect\crash.log`
 (`~/.config/QuickProtect/` on Linux), FFmpeg warnings/errors in `video.log`
 next to it.
 
-Display scaling on Wayland: Avalonia 11 has no Wayland backend, so the app runs
+Display scaling on Wayland: Avalonia (12.x here) has no Wayland backend, so the app runs
 through XWayland on an unscaled surface and takes its scale from the desktop's
 `GDK_SCALE` (see `Platform/LinuxDisplayScaling.cs`) — the same signal GTK and
 Electron apps follow. Set `AVALONIA_GLOBAL_SCALE_FACTOR` to override it, e.g. to

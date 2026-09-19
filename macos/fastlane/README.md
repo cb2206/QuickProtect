@@ -55,22 +55,6 @@ Read-only: dump the App Review contact + notes for every version
 
 Remove the current version from App Store review (frees the slot to ship a new version)
 
-### mac submit_v11
-
-```sh
-[bundle exec] fastlane mac submit_v11
-```
-
-Ship 1.1: set version to 1.1, push all localized metadata, attach build 2, and submit for review
-
-### mac submit_v12
-
-```sh
-[bundle exec] fastlane mac submit_v12
-```
-
-Ship 1.2: set version to 1.2, push metadata, attach build 3, set review notes, submit
-
 ### mac delete_stray_ios
 
 ```sh

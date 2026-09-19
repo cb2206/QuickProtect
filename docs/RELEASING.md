@@ -12,13 +12,18 @@ from ad-hoc signing to a Developer ID-signed, notarized build.
 2. Merge `dev` into `main` (`git merge --no-ff dev`), tag `main` as `vX.Y.Z`
    and push `main` and the tag.
 3. The tag runs `.github/workflows/release.yml`: both test suites, then the
-   macOS DMG, the Windows installer and the Linux tarball, then a **draft**
-   GitHub release with the three assets and `SHA256SUMS`.
+   macOS DMG, the Windows installer and the Linux x64 and arm64 tarballs, then
+   a **draft** GitHub release with those assets and `SHA256SUMS`. The draft's
+   body is GitHub's generated commit list; replace it with the release notes
+   (highlights, then the downloads table — see earlier releases).
 4. Review the draft and publish it. Publishing is what the in-app update
    checks see, so the asset names are a de facto API (see the workflow header).
 5. Store builds are separate: Mac App Store via fastlane
    (`macos/fastlane/PIPELINE.md`), Microsoft Store via
-   `dotnet/scripts/package-msix.ps1` and Partner Center.
+   `dotnet/scripts/package-msix.ps1` and Partner Center. Both stores' "What's
+   New" text, in all seven languages, lives in `docs/APP_STORE_LISTINGS.md`:
+   update it before submitting (fastlane uploads the App Store one; paste the
+   Microsoft Store one into Partner Center).
 
 `workflow_dispatch` on any branch builds the same artifacts without creating a
 release. Use it to exercise a change to the workflow or the packaging scripts

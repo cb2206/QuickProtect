@@ -25,3 +25,11 @@ read the panel frame with
 click tiles/buttons by screen point, and verify with
 `screencapture -x -R x,y,w,h out.png` plus the log. Keystrokes reach the
 panel because it is key without activating the app; keep the mouse on it.
+
+Clicking a tile to focus it, or opening Settings, alerts or the status-item
+menu, activates QuickProtect — from then on pass
+`UIPROBE_EXPECT_FRONT=QuickProtect`. `--simulate-certificate-change` (Debug)
+fakes a changed controller certificate for the review flow, and
+`-AppleLanguages '(de)'` / `-NSRequiresAquaSystemAppearance YES` on the
+command line check another language or the Light appearance without touching
+system settings.

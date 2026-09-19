@@ -11,8 +11,8 @@ Shipping on all three channels:
 - **Windows** since 1.3 (2026-08): Microsoft Store (paid MSIX, Store-signed
   and auto-updated) and the Inno Setup installer on GitHub releases (not
   code-signed, notify-only update check).
-- **Linux** since 1.3.1 (2026-08): self-contained x64 tarball on GitHub
-  releases, with an AUR package (`quickprotect-bin`, `dotnet/installer/aur/`)
+- **Linux** since 1.3.1 (2026-08): self-contained tarballs on GitHub
+  releases (x64; arm64 from 1.4), with an AUR package (`quickprotect-bin`, `dotnet/installer/aur/`)
   prepared but not yet published to the AUR.
 
 Feature parity with the macOS app is complete; the intentional differences and
@@ -57,9 +57,24 @@ shown when the stream actually has audio.
 System trust first (a publicly valid certificate for the host is accepted
 without pinning), then trust-on-first-use pinning of the controller's
 SubjectPublicKeyInfo SHA-256, keyed by `ControllerAddress.PinKey`. A changed
-key is rejected and listed in Settings → Connection with both fingerprints;
-"Trust new certificate" re-pins. The same policy, hash and key layout are used
-by the macOS app.
+key is rejected and becomes a pending change (`ProtectService.CertificateChange`,
+derived from the pin store): the panel shows a "Controller certificate changed"
+card, pinned windows an overlay, and Settings → Connection lists it with both
+fingerprints; each opens the review dialog, and "Trust new certificate" re-pins
+and restarts the failed streams. Settings refreshes on every pin-store change.
+The same policy, hash, key layout and flow are used by the macOS app.
+
+## Connection changes and errors
+
+Changing the controller address or API key calls
+`ProtectService.RefetchForNewConnectionAsync`: it clears the old error, cancels
+a fetch still talking to the old controller (a Test Connection fetch for the
+new one is joined), drops a camera list that came from another connection and
+fetches again. Failures are shown through `ControllerErrors` — catalog
+messages (host not found, refused, unreachable, timed out, TLS, API key
+rejected, busy, server error, unexpected/unreadable response) whose English
+text is also the macOS catalog key, so both apps share the translations.
+Unrecognised failures fall back to the exception text.
 
 ## Dev environment
 
@@ -104,6 +119,10 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   `scripts/get-ffmpeg.*`, the package versions, THIRD-PARTY-NOTICES.txt) and
   run `dotnet test tests/QuickProtect.App.Tests` with an `ffmpeg` binary on
   PATH — it decodes a live RTSP test pattern through the engine.
-- No App-level test project yet: `VideoStreamCoordinator` and the view models
-  are only covered indirectly. `ProtectService`'s HTTP paths need a fake
-  `HttpMessageHandler`.
+- Test coverage: `tests/QuickProtect.App.Tests` covers the stream coordinator
+  and client (with live-decode smoke tests), tile stop, the focus header
+  layout, Settings' certificate section, catalog coverage and the Linux
+  platform glue; `ConnectionChangeTests` drives `ProtectService` against a
+  local fake controller. The view models beyond those, and most of
+  `ProtectService`'s classic-API (PTZ) paths, are still only covered
+  indirectly.
