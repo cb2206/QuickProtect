@@ -194,6 +194,17 @@ extension AppSettings.Appearance {
         case .dark:  return .dark
         }
     }
+
+    /// The app-wide AppKit appearance, so windows SwiftUI doesn't draw
+    /// (NSAlert, NSOpenPanel, menus) follow the setting too. Nil for `.auto`:
+    /// follow the system.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .auto:  return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark:  return NSAppearance(named: .darkAqua)
+        }
+    }
 }
 
 // MARK: - Hairline divider

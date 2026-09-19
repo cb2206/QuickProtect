@@ -23,6 +23,9 @@ struct PopoverContentView: View {
         }
         .background(palette.popoverBg)
         .accentColor(Color(hex: settings.accentColorHex))
+        // Still needed despite NSApp.appearance: the grid asks for .dark, and
+        // a color-scheme preference applies to the whole window, so without
+        // this the header would turn dark in the Light setting too.
         .preferredColorScheme(settings.appearance.preferredColorScheme)
     }
 

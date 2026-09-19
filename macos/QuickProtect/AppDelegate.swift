@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var updateSubscription: AnyCancellable?
     private var connectionSettingsSubscription: AnyCancellable?
     private var connectionRefetchSubscription: AnyCancellable?
+    private var appearanceSubscription: AnyCancellable?
     /// Pending deferred stream teardown while the keep-alive grace period runs
     /// (see `scheduleStreamTeardown`). Cancelled when the panel reopens in time.
     private var streamTeardownWork: DispatchWorkItem?
@@ -50,6 +51,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         UserDefaults.standard.register(defaults: ["NSAutoFillHeuristicControllerEnabled": false])
         // Video streams pin under the configured controller identity — the
         // same key the HTTPS API uses (see CertificateTrust).
+        // The Design setting for everything AppKit draws itself (alerts, open
+        // panels, menus); SwiftUI windows inherit it from the app. Emits the
+        // stored value right away, so it applies before any window opens.
+        appearanceSubscription = AppSettings.shared.$appearance
+            .removeDuplicates()
+            .sink { NSApp.appearance = $0.nsAppearance }
         setupStatusBar()
         setupGlobalHotkey()
         // Observers are delivered on the main queue (`queue: .main`), which the

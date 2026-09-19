@@ -29,7 +29,6 @@ struct OnboardingView: View {
         .frame(width: 720, height: 540)
         .background(palette.popoverBg)
         .accentColor(Color(hex: settings.accentColorHex))
-        .preferredColorScheme(settings.appearance.preferredColorScheme)
     }
 
     // MARK: - Left rail

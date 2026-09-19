@@ -84,7 +84,6 @@ struct SettingsView: View {
         .onChange(of: tab) { SettingsView.sessionTab = $0 }
         .background(palette.popoverBg)
         .accentColor(Color(hex: settings.accentColorHex))
-        .preferredColorScheme(settings.appearance.preferredColorScheme)
         .background(hotkeyRecorderOverlay)
     }
 

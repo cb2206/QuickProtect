@@ -39,7 +39,6 @@ struct AppStorePromoView: View {
         .frame(width: 460)
         .background(palette.popoverBg)
         .accentColor(accent)
-        .preferredColorScheme(AppSettings.shared.appearance.preferredColorScheme)
     }
 
     private var header: some View {
