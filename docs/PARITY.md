@@ -198,6 +198,41 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   there, matching Windows.
 - Wayland ignores absolute window positioning: the popover anchor and pinned
   window restore degrade to compositor placement; X11 behaves.
+- **Hyprland / Omarchy: overlay mode** (`Platform/Hyprland.cs`, verified on
+  Hyprland 0.56 / Omarchy 2026-09-26). With `follow_mouse = 1` the pointer
+  crossing a tiled window on its way from the bar focuses that window, so the
+  focus-loss dismissal hid the panel before it could be clicked — and neither
+  the app nor Hyprland's event socket can tell hover focus from a click. When
+  `HYPRLAND_INSTANCE_SIGNATURE` is set, the panel is instead an overlay, the
+  way Omarchy presents 1Password:
+  - floats (X11 utility window type — no user window rule needed), centered on
+    the focused monitor below the bar, and takes keyboard focus via IPC
+    (Hyprland ignores X11 activation requests);
+  - no focus-loss dismissal; closes via tray icon, hotkey, Escape, a header ✕
+    shown only in this mode, SUPER+W, or switching workspace (`workspacev2`);
+  - Settings floats centered too; pinned camera windows float and are pinned
+    to all workspaces (macOS `canJoinAllSpaces` parity), titled with the camera
+    name so they can be told apart from the panel.
+  - popups (menus, dropdowns) render inside their window
+    (`X11PlatformOptions.OverlayPopups`): a separate popup window reaching
+    past the panel lost focus to the window beneath once the pointer crossed
+    onto it, which dismissed the menu and ended with Hyprland closing the panel.
+  - position: the panel reopens where it was last left (screen pixels, pulled
+    back onto its screen, centered if that monitor is gone).
+  - resizing: Hyprland ignores an XWayland client's `_NET_WM_MOVERESIZE`, so
+    the edge grips run the drag themselves — pointer from Hyprland's
+    `cursorpos`, frame applied as ordinary size/position requests (which it
+    honors for floating windows). SUPER + right-drag works too.
+  - global hotkey: Hyprland registers portal shortcuts but never assigns keys,
+    so the app writes the bind itself (`Platform/HyprlandShortcutConfig.cs`):
+    it owns `~/.config/hypr/quickprotect.lua` (`quickprotect.conf` for a
+    hyprlang config), rewritten on every hotkey change and binding the
+    recorded combo to `quickprotect:toggle-panel`; the user's `hyprland.lua`
+    gets one `pcall(dofile, …)` line (`source = …` in `hyprland.conf`), added
+    once. Hyprland reloads only when the file's content changed.
+  Omarchy's bar tucks new tray items behind its drawer chevron; pin the
+  `QuickProtect` item (tray settings, or `"pinned": ["QuickProtect"]` on the
+  `omarchy.tray` entry in `~/.config/omarchy/shell.json`) to keep it visible.
 - Global hotkey (implemented 2026-08-10, verified on Ubuntu 26.04 GNOME
   Wayland): `PortalGlobalHotkey` binds through the XDG Desktop Portal
   `org.freedesktop.portal.GlobalShortcuts` interface (GNOME 45+ and KDE

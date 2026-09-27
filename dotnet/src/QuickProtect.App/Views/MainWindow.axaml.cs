@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using QuickProtect.App.Platform;
 using QuickProtect.App.ViewModels;
 using QuickProtect.Core.Models;
 
@@ -17,6 +18,13 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Icon = ApertureIcon.Create(64);
+        // Hyprland: a floating overlay instead of a focus-dismissed popover
+        // (see Platform/Hyprland.cs for why focus loss can't be trusted there).
+        if (IsOverlay)
+        {
+            Hyprland.FloatWindow(this);
+            CloseButton.IsVisible = true;
+        }
         // Tile drag-reorder needs tunnel handlers: the footer Button swallows
         // bubbled pointer events before they reach the tile.
         AddHandler(PointerPressedEvent, Tile_DragPressed, RoutingStrategies.Tunnel);
@@ -55,7 +63,18 @@ public partial class MainWindow : Window
         // macOS tray popover. Focus moving to one of our own windows or popups
         // (dropdowns, Settings) doesn't count as "outside". --no-dismiss keeps
         // the panel up for automated UI testing.
-        if (!Program.LaunchArgs.Contains("--no-dismiss"))
+        if (IsOverlay)
+        {
+            // Switching workspace leaves the overlay behind, out of sight with
+            // its streams still running; treat it as the dismissal a click
+            // outside is elsewhere.
+            _hyprlandEvents = Hyprland.Subscribe((name, _) =>
+            {
+                if (name == "workspacev2") Avalonia.Threading.Dispatcher.UIThread.Post(AutoHide);
+            });
+            Closed += (_, _) => _hyprlandEvents?.Dispose();
+        }
+        else if (!Program.LaunchArgs.Contains("--no-dismiss"))
         {
             Deactivated += (_, _) =>
             {
@@ -68,6 +87,11 @@ public partial class MainWindow : Window
             if (OperatingSystem.IsWindows()) WatchForeground();
         }
     }
+
+    /// <summary>Hyprland overlay mode; fixed for the process's lifetime.</summary>
+    private static bool IsOverlay => Hyprland.IsRunning;
+
+    private IDisposable? _hyprlandEvents;
 
     private void AutoHide()
     {
@@ -145,6 +169,74 @@ public partial class MainWindow : Window
         Position = new PixelPoint(wa.X + wa.Width - w - 12, wa.Y + wa.Height - h - 12);
     }
 
+    /// <summary>
+    /// Center the overlay on the monitor Hyprland has focused, clear of the bar.
+    /// XWayland's screens don't know about the bar's reserved strip, so it comes
+    /// from Hyprland (in logical pixels) and is scaled into the screen's own.
+    /// </summary>
+    private void PositionAsOverlay()
+    {
+        if (WindowState == WindowState.FullScreen) return;
+        // Reopen where the user left it, as long as that spot is still on a screen.
+        var size = new PixelSize((int)Math.Round(Width * RenderScaling), (int)Math.Round(Height * RenderScaling));
+        if (QuickProtect.Core.Services.AppSettings.Shared.PanelPosition() is { } saved
+            && RestorablePosition(new PixelPoint(saved.X, saved.Y), size, Screens.All.Select(s => s.Bounds))
+                is { } restored)
+        {
+            Position = restored;
+            return;
+        }
+        var monitor = Hyprland.FocusedMonitor();
+        var screen = Screens.All.FirstOrDefault(s => monitor != null && s.DisplayName == monitor.Name)
+                     ?? Screens.Primary ?? Screens.All.FirstOrDefault();
+        if (screen == null) return;
+        var area = screen.Bounds;
+        if (monitor != null)
+        {
+            var k = Hyprland.PixelsPerLogical(area, monitor);
+            area = new PixelRect(
+                area.X + (int)(monitor.ReservedLeft * k), area.Y + (int)(monitor.ReservedTop * k),
+                area.Width - (int)((monitor.ReservedLeft + monitor.ReservedRight) * k),
+                area.Height - (int)((monitor.ReservedTop + monitor.ReservedBottom) * k));
+        }
+        var w = (int)Math.Round(Width * screen.Scaling);
+        var h = (int)Math.Round(Height * screen.Scaling);
+        Position = new PixelPoint(area.X + (area.Width - w) / 2, area.Y + (area.Height - h) / 2);
+    }
+
+    /// <summary>
+    /// Asks Hyprland to focus the overlay once it has mapped the window, which
+    /// happens asynchronously after Show — so poll briefly rather than once.
+    /// </summary>
+    private void FocusOnceMapped()
+    {
+        var attempts = 0;
+        Avalonia.Threading.DispatcherTimer.Run(() =>
+            IsVisible && !Hyprland.FocusWindow(Title ?? "") && ++attempts < 20,
+            TimeSpan.FromMilliseconds(25));
+    }
+
+    /// <summary>
+    /// A saved panel position that still makes sense: the screen holding the
+    /// panel's center, with the panel pulled fully onto it (a monitor may have
+    /// shrunk or moved since). Null when the center lands on no screen at all —
+    /// that monitor is gone, so the caller centers the panel instead.
+    /// </summary>
+    internal static PixelPoint? RestorablePosition(PixelPoint saved, PixelSize size, IEnumerable<PixelRect> screens)
+    {
+        var center = new PixelPoint(saved.X + size.Width / 2, saved.Y + size.Height / 2);
+        foreach (var b in screens)
+        {
+            if (!b.Contains(center)) continue;
+            return new PixelPoint(
+                Math.Clamp(saved.X, b.X, Math.Max(b.X, b.Right - size.Width)),
+                Math.Clamp(saved.Y, b.Y, Math.Max(b.Y, b.Bottom - size.Height)));
+        }
+        return null;
+    }
+
+    private void Header_Close(object? sender, RoutedEventArgs e) => Hide();
+
     private void Header_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         // The chrome header doubles as the drag handle for the borderless panel,
@@ -166,12 +258,19 @@ public partial class MainWindow : Window
             if (change.GetNewValue<bool>())
             {
                 App.Instance.PanelOpened();
-                PositionNearTray();
+                if (IsOverlay)
+                {
+                    PositionAsOverlay();
+                    FocusOnceMapped();
+                }
+                else PositionNearTray();
                 vm.StartAll();
             }
             else
             {
                 QuickProtect.Core.Services.AppSettings.Shared.SetPanelSize(Width, Height);
+                if (IsOverlay && WindowState == WindowState.Normal)
+                    QuickProtect.Core.Services.AppSettings.Shared.SetPanelPosition(Position.X, Position.Y);
                 App.Instance.PanelClosed(vm);
             }
         }

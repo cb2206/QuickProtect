@@ -203,6 +203,7 @@ public partial class App : Application
             {
                 // Hide instead of destroy so streams can be torn down on hide.
                 e.Cancel = true;
+                if (!e.IsProgrammatic) Log.Line("[Panel] close requested by the window manager; hiding");
                 _mainWindow!.Hide();
             };
         }
@@ -285,6 +286,8 @@ public partial class App : Application
     {
         var hk = Settings.GlobalHotkey();
         var ok = _hotkey?.Update(hk?.keyCode, hk?.modifiers) ?? true;
+        // Hyprland registers the portal shortcut but never gives it a key.
+        if (OperatingSystem.IsLinux() && Hyprland.IsRunning) HyprlandShortcutConfig.Apply(hk?.keyCode, hk?.modifiers);
         HotkeyApplied?.Invoke(ok);
     }
 

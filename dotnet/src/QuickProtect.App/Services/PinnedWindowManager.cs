@@ -84,6 +84,9 @@ public sealed class PinnedWindowManager
 
         var window = new PinnedCameraWindow(camera.Id)
         {
+            // The camera's name, not "QuickProtect": tiling WMs match window
+            // rules on title, and pins must not get the panel's centering rule.
+            Title = camera.Name,
             DataContext = tile,
             Width = size.Width,
             Height = size.Height,
@@ -91,6 +94,14 @@ public sealed class PinnedWindowManager
         };
         if (X is { } x && Y is { } y)
             window.Position = new PixelPoint((int)x, (int)y);
+        // Hyprland: float instead of tile, and follow the user across
+        // workspaces like the macOS pins do across Spaces.
+        if (Platform.Hyprland.IsRunning)
+        {
+            Platform.Hyprland.FloatWindow(window);
+            window.Opened += (_, _) => Dispatcher.UIThread.Post(() => Platform.Hyprland.PinWindow(camera.Name),
+                DispatcherPriority.Background);
+        }
 
         window.Unpinned += Unpin;
         window.FrameChanged += PersistFrame;

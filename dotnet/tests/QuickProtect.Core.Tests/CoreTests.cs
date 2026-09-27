@@ -371,6 +371,15 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void Panel_position_round_trips_and_starts_unset()
+    {
+        var s = New();
+        Assert.Null(s.PanelPosition());
+        s.SetPanelPosition(-1200, 64);
+        Assert.Equal((-1200, 64), s.PanelPosition());
+    }
+
+    [Fact]
     public void Per_camera_quality_override_falls_back_to_default()
     {
         var s = New();

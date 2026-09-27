@@ -203,6 +203,19 @@ public sealed class AppSettings : INotifyPropertyChanged
         _prefs.SetJson(Keys.PanelSize, dict);
     }
 
+    /// <summary>
+    /// Where the user last left the camera panel, in screen pixels — used where
+    /// the panel is a movable overlay rather than anchored to the tray (Hyprland).
+    /// </summary>
+    public (int X, int Y)? PanelPosition()
+    {
+        var p = _prefs.GetJson<Dictionary<string, int>>(Keys.PanelPosition);
+        return p != null && p.TryGetValue("x", out var x) && p.TryGetValue("y", out var y) ? (x, y) : null;
+    }
+
+    public void SetPanelPosition(int x, int y)
+        => _prefs.SetJson(Keys.PanelPosition, new Dictionary<string, int> { ["x"] = x, ["y"] = y });
+
     // MARK: - Stream quality (global + per-camera)
 
     private StreamQuality _defaultStreamQuality;
@@ -566,6 +579,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         public const string Password = "unifi.password";
         public const string AutoStartPromptShown = "unifi.autoStartPromptShown";
         public const string PanelSize = "unifi.panelSize";
+        public const string PanelPosition = "unifi.panelPosition";
         public const string Appearance = "unifi.appearance";
         public const string AccentColorHex = "unifi.accentColorHex";
         public const string Language = "unifi.language";
