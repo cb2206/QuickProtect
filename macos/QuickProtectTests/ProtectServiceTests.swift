@@ -180,6 +180,18 @@ final class ProtectServiceTests: XCTestCase {
         XCTAssertFalse(service.isLoading)
     }
 
+    func testFetchCamerasFromACameraWebServerAsksForTheConsoleAddress() async {
+        let page = Data(#"<?xml version="1.0" encoding="iso-8859-1"?><html><title>404 Not Found</title></html>"#.utf8)
+        StubController.respond { _ in (404, page) }
+        await service.fetchCameras(forced: true)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.notAConsole)
+
+        StubController.respond { _ in (200, Data("<html><body>Login</body></html>".utf8)) }
+        await service.fetchCameras(forced: true)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.notAConsole,
+                       "an HTML page with 200 is a web UI, not the Integration API")
+    }
+
     func testFetchCamerasWithoutAPIKeyFailsBeforeAnyRequest() async {
         credentials.apiKey = ""
         StubController.respond { _ in (200, Data("[]".utf8)) }

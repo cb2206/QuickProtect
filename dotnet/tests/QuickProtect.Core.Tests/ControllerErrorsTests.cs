@@ -35,9 +35,36 @@ public class ControllerErrorsTests
     [InlineData(429, ControllerErrors.Busy)]
     [InlineData(500, ControllerErrors.ServerError)]
     [InlineData(503, ControllerErrors.ServerError)]
-    [InlineData(404, ControllerErrors.UnexpectedResponse)]
+    [InlineData(404, ControllerErrors.NotAConsole)]
+    [InlineData(400, ControllerErrors.UnexpectedResponse)]
     public void Http_statuses_map_to_messages(int status, string expected)
         => Assert.Equal(expected, ControllerErrors.Describe(new ProtectService.ApiException(status, "body")));
+
+    private const string CameraErrorPage =
+        "\n<?xml version=\"1.0\"?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0\"><html>404</html>";
+
+    /// <summary>
+    /// A camera's own web server (lighttpd) answers the Integration API path
+    /// with an HTML 404 — the user entered the camera's IP, not the console's.
+    /// </summary>
+    [Fact]
+    public void Camera_web_server_replies_point_at_the_console_address()
+    {
+        Assert.Equal(ControllerErrors.NotAConsole,
+            ControllerErrors.Describe(new ProtectService.ApiException(404, CameraErrorPage)));
+        Assert.Equal(ControllerErrors.NotAConsole,
+            ControllerErrors.Describe(new ProtectService.ApiException(405, CameraErrorPage)));
+        Assert.Equal(ControllerErrors.NotAConsole,
+            ControllerErrors.Describe(new ProtectService.NotJsonException(CameraErrorPage)));
+    }
+
+    [Theory]
+    [InlineData("  \r\n<html>", true)]
+    [InlineData("{\"data\":[]}", false)]
+    [InlineData("[]", false)]
+    [InlineData("", false)]
+    public void Html_detection_ignores_leading_whitespace_only(string body, bool expected)
+        => Assert.Equal(expected, ControllerErrors.LooksLikeHtml(body));
 
     [Fact]
     public void Other_failures_map_to_messages()

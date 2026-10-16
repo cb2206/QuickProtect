@@ -8734,6 +8734,47 @@
         }
       }
     },
+    "This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Adresse sieht nicht nach einer UniFi-Konsole aus. Gib die IP deiner UniFi-OS-Konsole ein (z. B. UDM, UNVR, Cloud Key), nicht die einer Kamera."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette adresse ne semble pas être celle d'une console UniFi. Saisissez l'IP de votre console UniFi OS (p. ex. UDM, UNVR, Cloud Key), et non celle d'une caméra."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta dirección no parece ser de una consola UniFi. Introduce la IP de tu consola UniFi OS (p. ej., UDM, UNVR, Cloud Key), no la de una cámara."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dit adres lijkt niet op een UniFi-console. Voer het IP-adres van je UniFi OS-console in (bijv. UDM, UNVR, Cloud Key), niet dat van een camera."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo indirizzo non sembra quello di una console UniFi. Inserisci l'IP della tua console UniFi OS (ad es. UDM, UNVR, Cloud Key), non quello di una telecamera."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este endereço não parece ser de um console UniFi. Insira o IP do seu console UniFi OS (ex.: UDM, UNVR, Cloud Key), não o de uma câmera."
+          }
+        }
+      }
+    },
     "Tilt down": {
       "extractionState": "manual",
       "localizations": {

@@ -295,6 +295,8 @@ final class ProtectService: NSObject, ObservableObject {
         guard (200...299).contains(http.statusCode) else {
             throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
         }
+        let text = String(data: data, encoding: .utf8) ?? ""
+        if ControllerErrors.looksLikeHTML(text) { throw APIError.notJSON(text) }
 
         // Integration API wraps the array: { "data": [...] }
         struct Wrapped: Decodable { let data: [Camera] }
@@ -952,6 +954,7 @@ final class ProtectService: NSObject, ObservableObject {
     /// a failed request (the UI only gets the catalog message).
     private nonisolated static func logDescription(of error: Error) -> String {
         if case APIError.http(let status, let body) = error { return "HTTP \(status) – \(body.prefix(200))" }
+        if case APIError.notJSON(let body) = error { return "non-JSON reply – \(body.prefix(200))" }
         return String(describing: error)
     }
 
@@ -1012,6 +1015,8 @@ final class ProtectService: NSObject, ObservableObject {
         case notHTTP
         /// Status and body; the body is for the debug log, never the UI.
         case http(Int, String)
+        /// A 2xx reply that isn't JSON (an HTML page); the body is for the debug log.
+        case notJSON(String)
 
         var errorDescription: String? { ControllerErrors.describe(self) }
     }

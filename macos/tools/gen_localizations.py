@@ -1394,6 +1394,13 @@ _errors = {
         "De controller stuurde een antwoord dat QuickProtect niet kan lezen.",
         "Il controller ha inviato una risposta che QuickProtect non riesce a leggere.",
         "O controlador enviou uma resposta que o QuickProtect não consegue ler."),
+    "This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's.": (
+        "Diese Adresse sieht nicht nach einer UniFi-Konsole aus. Gib die IP deiner UniFi-OS-Konsole ein (z. B. UDM, UNVR, Cloud Key), nicht die einer Kamera.",
+        "Cette adresse ne semble pas être celle d'une console UniFi. Saisissez l'IP de votre console UniFi OS (p. ex. UDM, UNVR, Cloud Key), et non celle d'une caméra.",
+        "Esta dirección no parece ser de una consola UniFi. Introduce la IP de tu consola UniFi OS (p. ej., UDM, UNVR, Cloud Key), no la de una cámara.",
+        "Dit adres lijkt niet op een UniFi-console. Voer het IP-adres van je UniFi OS-console in (bijv. UDM, UNVR, Cloud Key), niet dat van een camera.",
+        "Questo indirizzo non sembra quello di una console UniFi. Inserisci l'IP della tua console UniFi OS (ad es. UDM, UNVR, Cloud Key), non quello di una telecamera.",
+        "Este endereço não parece ser de um console UniFi. Insira o IP do seu console UniFi OS (ex.: UDM, UNVR, Cloud Key), não o de uma câmera."),
 }
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _errors.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt

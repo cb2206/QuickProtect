@@ -17,7 +17,10 @@ public class ConnectionChangeTests
 {
     private const string OneCamera = """{"data":[{"id":"cam1","name":"Front","state":"CONNECTED"}]}""";
 
-    /// <summary>A minimal HTTPS "controller" answering every request with <paramref name="body"/>.</summary>
+    /// <summary>
+    /// A minimal HTTPS "controller" answering every request with <paramref name="body"/>
+    /// (or a camera's web server, given a status and an HTML page).
+    /// </summary>
     private sealed class FakeController : IAsyncDisposable
     {
         private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
@@ -25,8 +28,13 @@ public class ConnectionChangeTests
         private readonly CancellationTokenSource _stop = new();
         private readonly Task _loop;
 
-        public FakeController(string body)
+        private readonly string _status;
+        private readonly string _contentType;
+
+        public FakeController(string body, string status = "200 OK", string contentType = "application/json")
         {
+            _status = status;
+            _contentType = contentType;
             _listener.Start();
             _loop = Task.Run(() => ServeAsync(body));
         }
@@ -59,7 +67,7 @@ public class ConnectionChangeTests
                 head.Append(Encoding.ASCII.GetString(buffer, 0, n));
             }
             var payload = Encoding.UTF8.GetBytes(body);
-            var response = $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n";
+            var response = $"HTTP/1.1 {_status}\r\nContent-Type: {_contentType}\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n";
             await tls.WriteAsync(Encoding.ASCII.GetBytes(response));
             await tls.WriteAsync(payload);
             await tls.FlushAsync();
@@ -101,6 +109,21 @@ public class ConnectionChangeTests
         var port = ((IPEndPoint)probe.LocalEndpoint).Port;
         probe.Stop();
         return port;
+    }
+
+    private const string CameraErrorPage =
+        """<?xml version="1.0" encoding="iso-8859-1"?><html><title>404 Not Found</title></html>""";
+
+    [Theory]
+    [InlineData("404 Not Found")]
+    [InlineData("200 OK")]
+    public async Task A_camera_web_server_asks_for_the_console_address(string status)
+    {
+        await using var camera = new FakeController(CameraErrorPage, status, "text/html");
+        var (service, _) = NewService(camera.Address);
+        using var disposeService = service;
+        await service.FetchCamerasAsync(forced: true);
+        Assert.Equal(ControllerErrors.NotAConsole, service.ErrorMessage);
     }
 
     [Fact]

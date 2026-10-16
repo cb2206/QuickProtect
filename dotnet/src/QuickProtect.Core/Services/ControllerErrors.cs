@@ -25,12 +25,13 @@ public static class ControllerErrors
     public const string ServerError = "The controller reported an internal error. Try again later.";
     public const string UnexpectedResponse = "The controller returned an unexpected response.";
     public const string UnreadableResponse = "The controller sent a response QuickProtect couldn't read.";
+    public const string NotAConsole = "This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's.";
 
     /// <summary>Every message <see cref="Describe"/> can return besides the raw fallback.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
         HostNotFound, ConnectionRefused, Unreachable, TimedOut, SecureConnectionFailed, InvalidAddress,
-        ApiKeyRejected, Busy, ServerError, UnexpectedResponse, UnreadableResponse
+        ApiKeyRejected, Busy, ServerError, UnexpectedResponse, UnreadableResponse, NotAConsole
     };
 
     public static string Describe(Exception ex)
@@ -41,10 +42,13 @@ public static class ControllerErrors
                 return api.StatusCode switch
                 {
                     401 or 403 => ApiKeyRejected,
+                    404 => NotAConsole,
                     429 => Busy,
                     >= 500 => ServerError,
-                    _ => UnexpectedResponse
+                    _ => LooksLikeHtml(api.Body) ? NotAConsole : UnexpectedResponse
                 };
+            case ProtectService.NotJsonException:
+                return NotAConsole;
             case UriFormatException:
                 return InvalidAddress;
             case JsonException:
@@ -67,6 +71,12 @@ public static class ControllerErrors
         if (ex is HttpRequestException) return Unreachable;
         return ex.Message;
     }
+
+    /// <summary>
+    /// A web page instead of the Integration API's JSON — typically a camera's
+    /// own web server, reached because its IP was entered instead of the console's.
+    /// </summary>
+    public static bool LooksLikeHtml(string body) => body.TrimStart().StartsWith('<');
 
     private static T? Find<T>(Exception ex) where T : Exception
     {

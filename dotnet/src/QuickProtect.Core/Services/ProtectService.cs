@@ -343,6 +343,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!resp.IsSuccessStatusCode)
             throw new ApiException((int)resp.StatusCode, body);
+        if (ControllerErrors.LooksLikeHtml(body))
+            throw new NotJsonException(body);
 
         return ParseCameraList(body);
     }
@@ -840,7 +842,20 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     public sealed class ApiException : Exception
     {
         public int StatusCode { get; }
+        /// <summary>The controller's reply; for the debug log, never the UI.</summary>
+        public string Body { get; }
         public ApiException(int status, string body)
-            : base($"HTTP {status} – {(body.Length > 200 ? body[..200] : body)}") => StatusCode = status;
+            : base($"HTTP {status} – {(body.Length > 200 ? body[..200] : body)}")
+        {
+            StatusCode = status;
+            Body = body;
+        }
+    }
+
+    /// <summary>A 2xx reply that isn't JSON (an HTML page); the body is for the debug log.</summary>
+    public sealed class NotJsonException : Exception
+    {
+        public NotJsonException(string body)
+            : base($"non-JSON reply – {(body.Length > 200 ? body[..200] : body)}") { }
     }
 }

@@ -313,4 +313,5 @@ QuickProtect.</value></data>
   <data name="The controller reported an internal error. Try again later." xml:space="preserve"><value>The controller reported an internal error. Try again later.</value></data>
   <data name="The controller returned an unexpected response." xml:space="preserve"><value>The controller returned an unexpected response.</value></data>
   <data name="The controller sent a response QuickProtect couldn't read." xml:space="preserve"><value>The controller sent a response QuickProtect couldn't read.</value></data>
+  <data name="This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's." xml:space="preserve"><value>This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's.</value></data>
 </root>
