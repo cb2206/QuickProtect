@@ -158,6 +158,19 @@ port (`dotnet/`).
   abort on 429/5xx, one silent camera-list retry after a 429, and a stream
   POST that completes after the panel closed releases its allocation instead
   of leaking it server-side.
+- **Stream startup** — the controller often starts a fresh RTSP session just
+  after a keyframe, so a tile waits up to a whole GOP before it can paint
+  (~1 s at 30 fps, ~2 s on a 15 fps G6 180). A tile still dark 400 ms after
+  its stream request fetches an Integration API snapshot
+  (`ProtectService.FetchCameraSnapshotAsync`, one attempt, no retry so the
+  open burst keeps its limiter budget) and shows it dimmed with a corner
+  spinner until the first decoded frame; fast tiles never ask. The snapshot
+  also replaces a stale last frame on a reopen after the keep-alive expired.
+  A refresh in flight never tears down tiles already on screen: .NET always
+  diffed them in place (`MainViewModel.RebuildTiles`, header progress bar
+  only); macOS gained it in 1.5, where every panel open used to swap in the
+  loading card and restart every stream. Each client logs
+  `first frame — playing` per camera for startup timing.
 
 - **Multiple sites** — `ControllerSite` (Core) per console with per-site
   secret-store accounts (the first site keeps the legacy `unifi.apiKey` …

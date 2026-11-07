@@ -132,6 +132,17 @@ Electron apps follow. Set `AVALONIA_GLOBAL_SCALE_FACTOR` to override it, e.g. to
 get the fractional value behind an integer `GDK_SCALE`. The scale is read once
 at startup, so restart the agent after changing the desktop's scaling.
 
+Hyprland (e.g. Omarchy): when `HYPRLAND_INSTANCE_SIGNATURE` is set, the panel
+opens as a floating overlay centered below the bar instead of a tray popover,
+because a popover that hides on focus loss closes as soon as the pointer
+crosses another window. It stays open until you close it with the tray icon,
+the hotkey, Escape, the header's close button, SUPER+W or a workspace switch.
+It reopens where you left it and resizes from its edges. Hyprland never binds
+portal shortcuts, so the app writes the global hotkey to
+`~/.config/hypr/quickprotect.lua` (`.conf` for hyprlang configs) and adds one
+guarded line to your main config that loads it. Details are in `PARITY.md`
+under Platform notes (Linux).
+
 ## Packaging (Windows)
 
 Two artifacts, matching the two distribution channels (see
