@@ -134,3 +134,29 @@ struct HotkeyRecorderView: NSViewRepresentable {
         }
     }
 }
+
+// MARK: - Credential help
+
+/// Where on the console the user creates each credential, shown as the
+/// tooltip of a small "?" beside the field (Settings and onboarding).
+enum CredentialHelp {
+    // swiftlint:disable line_length
+    static let apiKey = String(localized: "Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key.")
+    static let ptzAccount = String(localized: "Use a local account on this console: in UniFi OS open Admins & Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras.")
+    // swiftlint:enable line_length
+}
+
+/// A "?" whose tooltip explains where a credential comes from.
+struct CredentialHelpIcon: View {
+    let text: String
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Image(systemName: "questionmark.circle")
+            .font(.system(size: 13))
+            .foregroundColor(AuroraTokens.palette(for: colorScheme).subtext)
+            .help(text)
+            .accessibilityLabel(Text(text))
+    }
+}

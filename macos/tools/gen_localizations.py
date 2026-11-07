@@ -1450,6 +1450,20 @@ _sites = {
          "Credenciales de la API clásica · %@", "Inloggegevens klassieke API · %@",
          "Credenziali API classica · %@", "Credenciais da API clássica · %@"),
     "Streams": ("Streams", "Flux", "Transmisiones", "Streams", "Stream", "Transmissões"),
+    "Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key.":
+        ("Erstelle den Schlüssel auf dieser Konsole, nicht auf unifi.ui.com: Öffne UniFi Network → Integrations → Create New API Key (bei Network 9: Settings → Control Plane → Integrations). Jede Konsole braucht ihren eigenen Schlüssel.",
+         "Créez la clé sur cette console, pas sur unifi.ui.com : ouvrez UniFi Network → Integrations → Create New API Key (sous Network 9 : Settings → Control Plane → Integrations). Chaque console a besoin de sa propre clé.",
+         "Crea la clave en esta consola, no en unifi.ui.com: abre UniFi Network → Integrations → Create New API Key (en Network 9: Settings → Control Plane → Integrations). Cada consola necesita su propia clave.",
+         "Maak de sleutel aan op deze console, niet op unifi.ui.com: open UniFi Network → Integrations → Create New API Key (in Network 9: Settings → Control Plane → Integrations). Elke console heeft een eigen sleutel nodig.",
+         "Crea la chiave su questa console, non su unifi.ui.com: apri UniFi Network → Integrations → Create New API Key (in Network 9: Settings → Control Plane → Integrations). Ogni console ha bisogno della propria chiave.",
+         "Crie a chave neste console, não em unifi.ui.com: abra UniFi Network → Integrations → Create New API Key (no Network 9: Settings → Control Plane → Integrations). Cada console precisa da sua própria chave."),
+    "Use a local account on this console: in UniFi OS open Admins & Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras.":
+        ("Verwende ein lokales Konto auf dieser Konsole: Öffne in UniFi OS Admins & Users → Create New, aktiviere „Restrict to Local Access Only“ und gib ihm eine Protect-Rolle, die Kameras steuern darf.",
+         "Utilisez un compte local sur cette console : dans UniFi OS, ouvrez Admins & Users → Create New, cochez « Restrict to Local Access Only » et attribuez-lui un rôle Protect qui peut contrôler les caméras.",
+         "Usa una cuenta local en esta consola: en UniFi OS abre Admins & Users → Create New, marca «Restrict to Local Access Only» y asígnale un rol de Protect que pueda controlar cámaras.",
+         "Gebruik een lokaal account op deze console: open in UniFi OS Admins & Users → Create New, vink ‘Restrict to Local Access Only' aan en geef het een Protect-rol die camera's mag bedienen.",
+         "Usa un account locale su questa console: in UniFi OS apri Admins & Users → Create New, spunta «Restrict to Local Access Only» e assegnagli un ruolo Protect che possa controllare le telecamere.",
+         "Use uma conta local neste console: no UniFi OS, abra Admins & Users → Create New, marque “Restrict to Local Access Only” e atribua a ela uma função do Protect que possa controlar câmeras."),
 }
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _sites.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt

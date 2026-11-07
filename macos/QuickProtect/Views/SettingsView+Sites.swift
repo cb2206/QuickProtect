@@ -169,6 +169,7 @@ struct SiteConnectionSection: View {
                     }
                     .buttonStyle(.plain)
                     .help(showApiKey ? "Hide API key" : "Show API key")
+                    CredentialHelpIcon(text: CredentialHelp.apiKey)
                 }
             }
             AuroraSettingsRow(isLast: true) {
@@ -258,8 +259,11 @@ struct SitePTZSection: View {
                 String(localized: "Username"),
                 hint: String(localized: "Local admin account on the Protect controller.")
             ) {
-                PastableTextField(text: $site.username, placeholder: "")
-                    .frame(width: 260)
+                HStack(spacing: 6) {
+                    PastableTextField(text: $site.username, placeholder: "")
+                        .frame(width: 260)
+                    CredentialHelpIcon(text: CredentialHelp.ptzAccount)
+                }
             }
             AuroraSettingsRow(String(localized: "Password")) {
                 HStack(spacing: 6) {
@@ -278,6 +282,7 @@ struct SitePTZSection: View {
                     }
                     .buttonStyle(.plain)
                     .help(showPassword ? "Hide password" : "Show password")
+                    CredentialHelpIcon(text: CredentialHelp.ptzAccount)
                 }
             }
             AuroraSettingsRow(isLast: true) {
