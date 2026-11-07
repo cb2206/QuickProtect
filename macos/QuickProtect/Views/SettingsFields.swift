@@ -146,17 +146,31 @@ enum CredentialHelp {
     // swiftlint:enable line_length
 }
 
-/// A "?" whose tooltip explains where a credential comes from.
+/// A "?" that explains where a credential comes from. Click opens a popover,
+/// because hover tooltips (`.help`) didn't show in the Settings and
+/// onboarding windows; the tooltip is kept for where it does.
 struct CredentialHelpIcon: View {
     let text: String
 
+    @State private var isShown = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        Image(systemName: "questionmark.circle")
-            .font(.system(size: 13))
-            .foregroundColor(AuroraTokens.palette(for: colorScheme).subtext)
-            .help(text)
-            .accessibilityLabel(Text(text))
+        Button { isShown.toggle() } label: {
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 13))
+                .foregroundColor(AuroraTokens.palette(for: colorScheme).subtext)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(text)
+        .accessibilityLabel(Text(text))
+        .popover(isPresented: $isShown, arrowEdge: .bottom) {
+            Text(text)
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 300, alignment: .leading)
+                .padding(12)
+        }
     }
 }
