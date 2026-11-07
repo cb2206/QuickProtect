@@ -1,8 +1,6 @@
-• Wenn sich das Zertifikat deines Controllers ändert (etwa nach einer Neuinstallation oder einem Austausch), sagt QuickProtect dir das jetzt, zeigt beide Schlüssel zum Vergleich und lässt dich dem neuen in der Kameraübersicht, in einem schwebenden Fenster oder in den Einstellungen vertrauen.
-• Wenn du die Adresse des Controllers oder den API-Schlüssel änderst, verbindet sich QuickProtect von selbst neu – keine veralteten Kameras oder alten Fehlermeldungen mehr, bis du auf „Aktualisieren“ klickst.
-• Verbindungsfehler sind verständlicher, übersetzt und sagen dir, was du prüfen kannst.
-• Schwebende Fenster lassen sich wieder durch Ziehen verschieben und verbinden sich von selbst neu, wenn ein Stream abbricht.
-• Raster und Großansicht passen sich langen Übersetzungen und schmalen Fenstern an, ohne umzubrechen.
-• Die Einstellung Hell/Dunkel gilt jetzt auch für Dialoge.
-• Sendet eine Kamera kein Video, nennt QuickProtect die Ursache, statt endlos zu laden.
-• Stream-Sitzungen auf dem Controller werden zuverlässiger freigegeben, und die Verbindung zum Controller ist besser abgesichert.
+• Mehrere Standorte: Füge mehrere UniFi-Konsolen hinzu (etwa zu Hause und in einem zweiten Haus) und sieh alle ihre Kameras in einem Raster und einem Layoutprofil. Jede Kachel zeigt ihren Standort, und ein Standort, der offline ist, erscheint als Hinweis, während die anderen weiterstreamen.
+• Während ein Livestream startet, zeigt seine Kachel einen aktuellen Schnappschuss, statt dunkel zu bleiben.
+• Beim erneuten Öffnen der Kameraübersicht bleibt das Raster stehen, statt jeden Stream neu zu laden.
+• Das „?“ neben den Feldern für API-Schlüssel und PTZ-Konto zeigt, wo du sie auf deiner Konsole anlegst.
+• Gibst du statt der Adresse deiner UniFi-Konsole die einer Kamera ein, sagt QuickProtect dir das jetzt.
+• API-Schlüssel, die mit einem Leerzeichen oder Zeilenumbruch am Ende eingefügt wurden, funktionieren jetzt.

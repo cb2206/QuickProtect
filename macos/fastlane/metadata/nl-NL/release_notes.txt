@@ -1,8 +1,6 @@
-• Als het certificaat van je controller verandert (na een herinstallatie of vervanging), meldt QuickProtect dat nu, toont het beide sleutels om te vergelijken en kun je de nieuwe vertrouwen vanuit het camerapaneel, een zwevend venster of de instellingen.
-• Als je het adres van de controller of de API-sleutel wijzigt, maakt QuickProtect zelf opnieuw verbinding — geen verouderde camera's of oude foutmeldingen meer tot je op Vernieuw klikt.
-• Verbindingsfouten zijn duidelijker, vertaald en vertellen je wat je kunt controleren.
-• Zwevende vensters zijn weer te verplaatsen door te slepen en maken zelf opnieuw verbinding als een stream wegvalt.
-• Het raster en de vergrote weergave passen zich aan lange vertalingen en smalle panelen aan zonder af te breken.
-• De instelling Licht/Donker geldt nu ook voor dialoogvensters.
-• Als een camera geen beeld stuurt, noemt QuickProtect de oorzaak in plaats van eindeloos te laden.
-• Streamsessies op de controller worden betrouwbaarder vrijgegeven, en de verbinding met de controller is beter beveiligd.
+• Meerdere locaties: voeg meerdere UniFi-consoles toe (bijvoorbeeld thuis en een tweede huis) en zie al hun camera's in één raster en één indelingsprofiel. Elke tegel toont zijn locatie, en een locatie die offline is verschijnt als melding terwijl de andere gewoon doorstreamen.
+• Terwijl een livestream start, toont de tegel een recente momentopname in plaats van donker te blijven.
+• Als je het camerapaneel opnieuw opent, blijft het raster staan in plaats van elke stream opnieuw te laden.
+• Het ‘?’ naast de velden voor de API-sleutel en het PTZ-account laat zien waar je ze op je console aanmaakt.
+• Voer je het adres van een camera in in plaats van dat van je UniFi-console, dan meldt QuickProtect dat nu.
+• API-sleutels die met een spatie of regeleinde aan het eind zijn geplakt, werken nu.

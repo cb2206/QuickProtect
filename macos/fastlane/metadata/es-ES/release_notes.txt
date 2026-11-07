@@ -1,8 +1,6 @@
-• Si cambia el certificado de tu controlador (tras reinstalarlo o sustituirlo), QuickProtect ahora te lo indica, muestra ambas claves para compararlas y te permite confiar en la nueva desde el panel de cámaras, una ventana flotante o los ajustes.
-• Al cambiar la dirección del controlador o la clave API, la conexión se restablece sola: se acabaron las cámaras desactualizadas y los mensajes de error antiguos hasta pulsar Actualizar.
-• Los errores de conexión son más claros, están traducidos y te dicen qué revisar.
-• Las ventanas flotantes vuelven a moverse al arrastrarlas y se reconectan solas cuando se corta una transmisión.
-• La cuadrícula y la vista ampliada se adaptan a traducciones largas y paneles estrechos sin partir el texto.
-• El ajuste Claro/Oscuro ahora también se aplica a los cuadros de diálogo.
-• Cuando una cámara no envía vídeo, QuickProtect indica la causa en lugar de quedarse cargando.
-• Las sesiones de transmisión en el controlador se liberan de forma más fiable, y la conexión con el controlador es más segura.
+• Varios sitios: añade varias consolas UniFi (por ejemplo, tu casa y una segunda vivienda) y ve todas sus cámaras en una sola cuadrícula y un solo perfil de diseño. Cada mosaico muestra su sitio, y un sitio sin conexión aparece como aviso mientras los demás siguen transmitiendo.
+• Mientras arranca una transmisión en directo, su mosaico muestra una instantánea reciente en lugar de quedarse oscuro.
+• Al volver a abrir el panel de cámaras, la cuadrícula se mantiene en pantalla en lugar de recargar cada transmisión.
+• El «?» junto a los campos de la clave API y la cuenta PTZ indica dónde crearlas en tu consola.
+• Si introduces la dirección de una cámara en lugar de la de tu consola UniFi, QuickProtect ahora te lo indica.
+• Las claves API pegadas con un espacio o un salto de línea al final ya funcionan.
