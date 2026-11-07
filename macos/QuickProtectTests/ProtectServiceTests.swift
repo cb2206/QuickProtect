@@ -150,6 +150,15 @@ final class ProtectServiceTests: XCTestCase {
         XCTAssertFalse(service.isLoading)
     }
 
+    /// A key pasted with a trailing newline/space must not read as a wrong key.
+    func testAPIKeyIsSentWithoutSurroundingWhitespace() async {
+        credentials.apiKey = "  test-api-key\n"
+        StubController.respond { _ in (200, Data("[]".utf8)) }
+        await service.fetchCameras(forced: true)
+        XCTAssertEqual(StubController.requests.first?.value(forHTTPHeaderField: "X-API-Key"), "test-api-key")
+        XCTAssertNil(service.errorMessage)
+    }
+
     func testFetchCamerasUsesConfiguredPort() async {
         credentials.ipAddress = "protect.local:8443"
         StubController.respond { _ in (200, Data("[]".utf8)) }

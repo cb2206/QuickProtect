@@ -52,6 +52,9 @@ struct PastableTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context: Context) {
+        // The view can be handed a different binding (another site's field);
+        // edits must go to the one shown now, not the one it was created with.
+        context.coordinator.text = $text
         if nsView.stringValue != text { nsView.stringValue = text }
     }
 
@@ -83,6 +86,7 @@ struct PastableSecureField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSSecureTextField, context: Context) {
+        context.coordinator.text = $text
         if nsView.stringValue != text { nsView.stringValue = text }
     }
 
