@@ -49,14 +49,12 @@ public class CertificateChangeTests
         Assert.All(rows, row => Assert.Equal(16, row.Split(':').Length));
     }
 
-    private static (ProtectService Service, CertificateTrust Trust, AppSettings Settings) NewService(string address)
+    private static (ProtectService Service, CertificateTrust Trust, ControllerSite Settings) NewService(string address)
     {
         var trust = new CertificateTrust(new InMemoryPreferences());
-        var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore())
-        {
-            IpAddress = address,
-            ApiKey = "test-api-key"
-        };
+        var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore()).Sites[0];
+        settings.IpAddress = address;
+        settings.ApiKey = "test-api-key";
         return (new ProtectService(settings, trust), trust, settings);
     }
 

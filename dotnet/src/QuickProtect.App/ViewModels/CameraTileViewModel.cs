@@ -14,7 +14,7 @@ namespace QuickProtect.App.ViewModels;
 /// </summary>
 public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 {
-    private readonly ProtectService _service;
+    private readonly ProtectHub _service;
     private readonly AppSettings _settings;
 
     public Camera Camera { get; private set; }
@@ -115,7 +115,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     /// When set (e.g. "package"), the tile streams exactly this quality instead of
     /// resolving from settings — used for the secondary-lens picture-in-picture.
     /// </param>
-    public CameraTileViewModel(Camera camera, ProtectService service, AppSettings settings,
+    public CameraTileViewModel(Camera camera, ProtectHub service, AppSettings settings,
                                bool pinned = false, string? fixedQuality = null)
     {
         _service = service;
@@ -237,11 +237,26 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         ApplyTileSize(_lastGridWidth);
         OnPropertyChanged(nameof(IsPtz));
         OnPropertyChanged(nameof(CanZoom));
+        OnPropertyChanged(nameof(SiteBadge));
+        OnPropertyChanged(nameof(HasSiteBadge));
+        OnPropertyChanged(nameof(DisplayTitle));
         RefreshGridPip(); // secondary lens or online state may have changed
     }
 
     public bool IsPtz => Camera.IsPtz;
     public bool CanZoom => Camera.CanZoom;
+
+    /// <summary>The camera's site label on its tile; null while only one site exists.</summary>
+    public string? SiteBadge => _service.SiteBadge(Camera) is { } badge
+        ? (badge.Length > 0 ? badge : Localization.Loc.Get("New Site"))
+        : null;
+
+    public bool HasSiteBadge => SiteBadge != null;
+
+    /// <summary>"Front Door · BC285" in the focus header and pinned windows while several sites exist.</summary>
+    public string DisplayTitle => SiteBadge is { } site ? $"{Name} · {site}" : Name;
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayTitle));
 
     public void SetFocused(bool focused) => IsFocused = focused;
 

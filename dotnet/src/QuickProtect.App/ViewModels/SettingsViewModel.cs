@@ -23,7 +23,7 @@ public sealed record PendingCertificate(string Host, string? TrustedFingerprint,
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
-    private readonly ProtectService _service;
+    private readonly ProtectHub _service;
     private readonly AppSettings _settings;
     private readonly CertificateTrust _trust;
     private readonly UpdateChecker _updater;
@@ -68,6 +68,41 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _badgeConnected;
     [ObservableProperty] private string _badgeText = "";
 
+    // MARK: Sites — the Connection and PTZ sections edit the selected site.
+
+    public ObservableCollection<SiteRowViewModel> SiteRows { get; } = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PtzSectionCaption))]
+    private int _selectedSiteIndex;
+
+    /// <summary>More than one site: the PTZ section shows a site picker, Remove is offered.</summary>
+    public bool HasMultipleSites => _settings.HasMultipleSites;
+
+    private ControllerSite SelectedSite
+        => SelectedSiteIndex >= 0 && SelectedSiteIndex < _settings.Sites.Count
+            ? _settings.Sites[SelectedSiteIndex]
+            : _settings.Sites[0];
+
+    private ProtectService? SelectedService => _service.ServiceForSite(SelectedSite.Id);
+
+    public string PtzSectionCaption => HasMultipleSites
+        ? string.Format(Localization.Loc.Get("Classic API credentials · {0}"), SiteRows.ElementAtOrDefault(SelectedSiteIndex)?.DisplayName)
+        : Localization.Loc.Get("Classic API credentials");
+
+    /// <summary>Where on the console to create the API key / PTZ account (the "?" flyouts).</summary>
+    public string ApiKeyHelp => Localization.Loc.Get("Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key.");
+    public string PtzAccountHelp => Localization.Loc.Get("Use a local account on this console: in UniFi OS open Admins & Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras.");
+
+    /// <summary>Set by the window so removing a site can ask first.</summary>
+    public Func<string, string, string, Task<bool>>? ConfirmAsync { get; set; }
+
+    // Set while the fields are being loaded from another site, so the change
+    // handlers don't write them into it.
+    private bool _loadingSite;
+    private ProtectService? _watchedService;
+
+    [ObservableProperty] private string _siteName = "";
     [ObservableProperty] private string _ipAddress;
     [ObservableProperty] private string _apiKey;
     [ObservableProperty] private string _username;
@@ -192,7 +227,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>The "Cameras &amp; Layout" tab's view model.</summary>
     public LayoutViewModel Layout { get; }
 
-    public SettingsViewModel(ProtectService service, AppSettings settings, CertificateTrust trust, UpdateChecker updater)
+    public SettingsViewModel(ProtectHub service, AppSettings settings, CertificateTrust trust, UpdateChecker updater)
     {
         _service = service;
         _settings = settings;
@@ -215,10 +250,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         // inline in the Shortcuts section.
         if (Avalonia.Application.Current is App app) app.HotkeyApplied += OnHotkeyApplied;
 
-        _ipAddress = settings.IpAddress;
-        _apiKey = settings.ApiKey;
-        _username = settings.Username;
-        _password = settings.Password;
+        var first = settings.Sites[0];
+        _siteName = first.Name;
+        _ipAddress = first.IpAddress;
+        _apiKey = first.ApiKey;
+        _username = first.Username;
+        _password = first.Password;
+        RebuildSiteRows();
+        WatchSelectedService();
+        settings.SitesChanged += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(RebuildSiteRows);
         _launchAtLogin = settings.LaunchAtLogin;
         IsLaunchAtLoginConfigurable = !settings.LaunchManager.IsManagedByOS;
         _defaultQualityIndex = (int)settings.DefaultStreamQuality;
@@ -238,15 +278,98 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         service.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(ProtectService.ErrorMessage)
-                or nameof(ProtectService.Cameras)
-                or nameof(ProtectService.IsClassicLoggedIn))
-                Avalonia.Threading.Dispatcher.UIThread.Post(RefreshBadge);
+            if (e.PropertyName is nameof(ProtectHub.SiteIssues) or nameof(ProtectHub.Cameras))
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => { RefreshSiteRows(); RefreshBadge(); });
             // A certificate trusted from the panel or a pinned window (or a new
             // rejection) must not leave this section stale while Settings is open.
-            else if (e.PropertyName is nameof(ProtectService.CertificateChange))
+            else if (e.PropertyName is nameof(ProtectHub.PendingCertificateChange))
                 Avalonia.Threading.Dispatcher.UIThread.Post(RefreshCertState);
         };
+    }
+
+    // MARK: - Sites
+
+    private void RebuildSiteRows()
+    {
+        var keep = SelectedSite.Id;
+        SiteRows.Clear();
+        foreach (var site in _settings.Sites) SiteRows.Add(new SiteRowViewModel(site));
+        RefreshSiteRows();
+        OnPropertyChanged(nameof(HasMultipleSites));
+        var idx = _settings.Sites.ToList().FindIndex(s => s.Id == keep);
+        // Clamp: the selection index moves when a site before it is removed.
+        SelectedSiteIndex = idx < 0 ? 0 : idx;
+        OnPropertyChanged(nameof(PtzSectionCaption));
+    }
+
+    private void RefreshSiteRows()
+    {
+        foreach (var row in SiteRows) row.Refresh(_service.ServiceForSite(row.Site.Id));
+        OnPropertyChanged(nameof(PtzSectionCaption));
+    }
+
+    partial void OnSelectedSiteIndexChanged(int value)
+    {
+        if (value < 0) return;
+        var site = SelectedSite;
+        _loadingSite = true;
+        SiteName = site.Name;
+        IpAddress = site.IpAddress;
+        ApiKey = site.ApiKey;
+        Username = site.Username;
+        Password = site.Password;
+        _loadingSite = false;
+        // The last test result was for another console.
+        StatusMessage = "";
+        PtzStatusMessage = "";
+        WatchSelectedService();
+        RefreshBadge();
+    }
+
+    /// <summary>The header badge follows the selected site's own service (login state isn't merged).</summary>
+    private void WatchSelectedService()
+    {
+        if (_watchedService != null) _watchedService.PropertyChanged -= OnSelectedServiceChanged;
+        _watchedService = SelectedService;
+        if (_watchedService != null) _watchedService.PropertyChanged += OnSelectedServiceChanged;
+    }
+
+    private void OnSelectedServiceChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ProtectService.ErrorMessage) or nameof(ProtectService.Cameras)
+            or nameof(ProtectService.IsClassicLoggedIn))
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { RefreshSiteRows(); RefreshBadge(); });
+    }
+
+    [RelayCommand]
+    private void AddSite()
+    {
+        var site = _settings.AddSite();
+        RebuildSiteRows();
+        SelectedSiteIndex = _settings.Sites.ToList().FindIndex(s => s.Id == site.Id);
+    }
+
+    [RelayCommand]
+    private async Task RemoveSite()
+    {
+        if (!_settings.HasMultipleSites) return;
+        var site = SelectedSite;
+        var label = site.DisplayName.Length > 0 ? site.DisplayName : Localization.Loc.Get("New Site");
+        if (ConfirmAsync != null && !await ConfirmAsync(
+                string.Format(Localization.Loc.Get("Remove “{0}”?"), label),
+                Localization.Loc.Get("Its cameras disappear from every profile, and its API key and login are deleted from this computer."),
+                Localization.Loc.Get("Remove")))
+            return;
+        _settings.RemoveSite(site.Id);
+        RebuildSiteRows();
+        SelectedSiteIndex = 0;
+    }
+
+    partial void OnSiteNameChanged(string value)
+    {
+        if (_loadingSite) return;
+        SelectedSite.Name = value.Trim();
+        RefreshSiteRows();
     }
 
     partial void OnSelectedSectionIndexChanged(int value) => RefreshBadge();
@@ -256,17 +379,28 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (SelectedSectionIndex == SectionPtz)
         {
             var configured = !string.IsNullOrEmpty(Username) && !string.IsNullOrEmpty(Password);
-            BadgeConnected = _service.IsClassicLoggedIn;
-            BadgeText = _service.IsClassicLoggedIn
+            var loggedIn = SelectedService?.IsClassicLoggedIn ?? false;
+            BadgeConnected = loggedIn;
+            BadgeText = loggedIn
                 ? Localization.Loc.Get("Connected")
                 : configured ? Localization.Loc.Get("Not verified") : Localization.Loc.Get("Not configured");
         }
+        else if (SelectedSectionIndex == SectionConnection)
+        {
+            // The selected site on the Connection section.
+            var service = SelectedService;
+            var healthy = service is { ErrorMessage: null, CertificateChange: null };
+            BadgeConnected = healthy && service!.Cameras.Count > 0;
+            BadgeText = !SelectedSite.IsConfigured
+                ? Localization.Loc.Get("Not configured")
+                : Localization.Loc.Get(healthy ? "Connected" : "Disconnected");
+        }
         else
         {
-            BadgeConnected = _service.ErrorMessage == null && _service.Cameras.Count > 0;
-            BadgeText = _service.ErrorMessage == null
-                ? Localization.Loc.Get("Connected")
-                : Localization.Loc.Get("Disconnected");
+            // Everywhere else: all sites.
+            var healthy = _service.SiteIssues.Count == 0;
+            BadgeConnected = healthy && _service.Cameras.Count > 0;
+            BadgeText = Localization.Loc.Get(healthy ? "Connected" : "Disconnected");
         }
     }
 
@@ -274,13 +408,15 @@ public sealed partial class SettingsViewModel : ObservableObject
     // the live-apply behavior of every other control in this window.
     partial void OnIpAddressChanged(string value)
     {
-        _settings.IpAddress = value.Trim();
+        if (_loadingSite) return;
+        SelectedSite.IpAddress = value.Trim();
+        RefreshSiteRows();
         RefreshCertState();
     }
 
-    partial void OnApiKeyChanged(string value) => _settings.ApiKey = value.Trim();
-    partial void OnUsernameChanged(string value) { _settings.Username = value.Trim(); RefreshBadge(); }
-    partial void OnPasswordChanged(string value) { _settings.Password = value; RefreshBadge(); }
+    partial void OnApiKeyChanged(string value) { if (!_loadingSite) SelectedSite.ApiKey = value.Trim(); }
+    partial void OnUsernameChanged(string value) { if (_loadingSite) return; SelectedSite.Username = value.Trim(); RefreshBadge(); }
+    partial void OnPasswordChanged(string value) { if (_loadingSite) return; SelectedSite.Password = value; RefreshBadge(); }
 
     partial void OnShowFocusOverlayControlsChanged(bool value) => _settings.ShowFocusOverlayControls = value;
 
@@ -387,15 +523,29 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         // Store the address in its canonical form (scheme, path and whitespace
         // dropped) so what the user sees is exactly what gets pinned and dialled.
-        _settings.IpAddress = ControllerAddress.Parse(IpAddress)?.Authority ?? IpAddress.Trim();
-        IpAddress = _settings.IpAddress;
-        _settings.ApiKey = ApiKey.Trim();
-        await _service.FetchCamerasAsync(forced: true);
+        var site = SelectedSite;
+        site.IpAddress = ControllerAddress.Parse(IpAddress)?.Authority ?? IpAddress.Trim();
+        IpAddress = site.IpAddress;
+        site.ApiKey = ApiKey.Trim();
+        // Another site already points at this console: its cameras would
+        // collide with this one's and show once.
+        var mine = ControllerAddress.Parse(site.IpAddress)?.Authority;
+        if (mine != null && _settings.Sites.FirstOrDefault(o => o.Id != site.Id
+                && ControllerAddress.Parse(o.IpAddress)?.Authority == mine) is { } duplicate)
+        {
+            StatusMessage = string.Format(Localization.Loc.Get("This console is already added as “{0}”."), duplicate.DisplayName);
+            return;
+        }
+        var service = _service.ServiceForSite(site.Id);
+        if (service != null) await service.FetchCamerasAsync(forced: true);
+        _service.Recompute();
         RefreshCertState();
-        StatusMessage = _service.ErrorMessage is { } err
+        RefreshSiteRows();
+        RefreshBadge();
+        StatusMessage = service?.ErrorMessage is { } err
             ? string.Format(Localization.Loc.Get("Error: {0}"), Localization.Loc.Get(err))
             : Localization.Loc.Get("Connected — %lld cameras found")
-                .Replace("%lld", _service.Cameras.Count.ToString());
+                .Replace("%lld", (service?.Cameras.Count ?? 0).ToString());
     }
 
     /// <summary>Classic-API login check for the PTZ section (macOS runPtzTest).</summary>
@@ -403,7 +553,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private async Task TestPtz()
     {
         PtzStatusMessage = Localization.Loc.Get("Signing in…");
-        var ok = await _service.ClassicLoginAsync();
+        var ok = SelectedService is { } service && await service.ClassicLoginAsync();
         PtzStatusMessage = ok
             ? Localization.Loc.Get("Signed in · PTZ control ready")
             : Localization.Loc.Get("Login failed — check the username and password");

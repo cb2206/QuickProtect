@@ -81,13 +81,11 @@ public class ControllerErrorsTests
     public void Unknown_failures_keep_their_own_message()
         => Assert.Equal("something else", ControllerErrors.Describe(new InvalidOperationException("something else")));
 
-    private static (ProtectService Service, AppSettings Settings) NewService(string address)
+    private static (ProtectService Service, ControllerSite Settings) NewService(string address)
     {
-        var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore())
-        {
-            IpAddress = address,
-            ApiKey = "test-api-key"
-        };
+        var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore()).Sites[0];
+        settings.IpAddress = address;
+        settings.ApiKey = "test-api-key";
         return (new ProtectService(settings, new CertificateTrust(new InMemoryPreferences())), settings);
     }
 

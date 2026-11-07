@@ -22,7 +22,10 @@ public partial class SettingsWindow : Window
         DataContextChanged += (_, _) =>
         {
             if (DataContext is SettingsViewModel vm)
+            {
                 vm.PickFolderAsync = PickFolderAsync;
+                vm.ConfirmAsync = (title, message, confirm) => ConfirmWindow.ShowAsync(this, title, message, confirm);
+            }
         };
     }
 

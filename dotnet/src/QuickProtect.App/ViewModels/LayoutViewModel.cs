@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using QuickProtect.Core.Models;
 using QuickProtect.Core.Services;
 
 namespace QuickProtect.App.ViewModels;
@@ -14,7 +15,7 @@ namespace QuickProtect.App.ViewModels;
 /// </summary>
 public sealed partial class LayoutViewModel : ObservableObject
 {
-    private readonly ProtectService _service;
+    private readonly ProtectHub _service;
     private readonly AppSettings _settings;
     private bool _suppressProfileSwitch;
 
@@ -24,7 +25,7 @@ public sealed partial class LayoutViewModel : ObservableObject
     [ObservableProperty] private int _selectedProfileIndex;
     [ObservableProperty] private string _newProfileName = "";
 
-    public LayoutViewModel(ProtectService service, AppSettings settings)
+    public LayoutViewModel(ProtectHub service, AppSettings settings)
     {
         _service = service;
         _settings = settings;
@@ -37,7 +38,7 @@ public sealed partial class LayoutViewModel : ObservableObject
 
     private void OnServiceChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ProtectService.Cameras))
+        if (e.PropertyName == nameof(ProtectHub.Cameras))
             Dispatcher.UIThread.Post(RebuildRows);
     }
 
@@ -70,8 +71,13 @@ public sealed partial class LayoutViewModel : ObservableObject
         Rows.Clear();
         // All cameras (incl. hidden) in profile order, so the user can re-show them.
         foreach (var cam in _settings.OrderedCameras(_service.Cameras))
-            Rows.Add(new CameraRowViewModel(cam, _settings, this));
+            Rows.Add(new CameraRowViewModel(cam, _settings, this, SiteLabel(cam)));
     }
+
+    private string? SiteLabel(Camera camera)
+        => _service.SiteBadge(camera) is { } badge
+            ? (badge.Length > 0 ? badge : Localization.Loc.Get("New Site"))
+            : null;
 
     partial void OnSelectedProfileIndexChanged(int value)
     {

@@ -26,8 +26,8 @@ public class CameraTileStopTests
         try
         {
             var settings = new AppSettings(new JsonFilePreferences(Path.Combine(dir, "prefs.json")), new NoSecrets());
-            using var service = new ProtectService(settings,
-                new CertificateTrust(new JsonFilePreferences(Path.Combine(dir, "trust.json"))));
+            var trust = new CertificateTrust(new JsonFilePreferences(Path.Combine(dir, "trust.json")));
+            using var service = new ProtectHub(settings, site => new ProtectService(site, trust));
             using var client = new VideoStreamClient();
             var tile = new CameraTileViewModel(new Camera { Id = "cam1", Name = "Front", State = "CONNECTED" },
                 service, settings)

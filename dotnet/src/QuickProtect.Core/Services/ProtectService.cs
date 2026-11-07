@@ -24,7 +24,7 @@ namespace QuickProtect.Core.Services;
 /// </summary>
 public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStreamAllocator
 {
-    private readonly AppSettings _settings;
+    private readonly ControllerSite _settings;
     private readonly CertificateTrust _trust;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -117,9 +117,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     private readonly HttpClient _integration;
     private readonly HttpClient _classic;
 
-    public ProtectService(AppSettings settings, CertificateTrust trust)
+    /// <param name="site">The console this service talks to; one service per site (see <see cref="ProtectHub"/>).</param>
+    public ProtectService(ControllerSite site, CertificateTrust trust)
     {
-        _settings = settings;
+        _settings = site;
         _trust = trust;
 
         _integration = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
@@ -130,7 +131,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         _trust.Changed += RefreshCertificateChange;
         _settings.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(AppSettings.IpAddress)) RefreshCertificateChange();
+            if (e.PropertyName == nameof(ControllerSite.IpAddress)) RefreshCertificateChange();
         };
         RefreshCertificateChange();
     }
@@ -161,6 +162,16 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         };
         return handler;
     }
+
+    /// <summary>The <see cref="ControllerSite"/> id stamped on every camera this service returns.</summary>
+    public string SiteId => _settings.Id;
+
+    /// <summary>
+    /// The API key as sent: surrounding whitespace dropped — a key pasted from a
+    /// browser or password manager often carries a trailing newline, which the
+    /// console rejects with 401 just like a wrong key.
+    /// </summary>
+    private string ApiKeyHeader => _settings.ApiKey.Trim();
 
     /// <summary>The configured controller, normalised (host, optional port, pin identity).</summary>
     public ControllerAddress? ControllerAddress => ControllerAddress.Parse(_settings.IpAddress);
@@ -336,7 +347,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     {
         var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new UriFormatException("invalid URL");
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
-        req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
+        req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
         req.Headers.TryAddWithoutValidation("Accept", "application/json");
 
         using var resp = await _integration.SendAsync(req, ct).ConfigureAwait(false);
@@ -424,7 +435,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
-            req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
+            req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
             req.Headers.TryAddWithoutValidation("Accept", "application/json");
             req.Content = new StringContent(
                 JsonSerializer.Serialize(new { qualities = new[] { quality } }), Encoding.UTF8, "application/json");
@@ -514,7 +525,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             try
             {
                 using var req = new HttpRequestMessage(HttpMethod.Delete, url);
-                req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
+                req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
                 using var _ = await _integration.SendAsync(req).ConfigureAwait(false);
             }
             catch (Exception ex) { Log.Line($"[Stream] release failed: {ex.Message}"); }
@@ -786,7 +797,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private void ApplySuccess(IReadOnlyList<Camera> cameras)
     {
-        Log.Line($"[API] applySuccess: {cameras.Count} cameras");
+        Log.Line($"[API] applySuccess ({ControllerAddress?.Host ?? "no address"}): {cameras.Count} cameras");
+        foreach (var cam in cameras) cam.SiteId = SiteId;
         Cameras = PreserveEnrichmentFlags(Cameras, cameras);
         IsLoading = false;
         ErrorMessage = null;
@@ -818,7 +830,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private void ApplyError(Exception ex)
     {
-        Log.Line($"[API] applyError: {ex.Message}");
+        Log.Line($"[API] applyError ({ControllerAddress?.Host ?? "no address"}): {ex.Message}");
         RefreshCertificateChange();
         // A catalog key the UI translates, not the (English-only) exception text.
         ErrorMessage = CertificateChange != null ? CertificateChangedMessage : ControllerErrors.Describe(ex);
@@ -828,7 +840,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     private bool Validate()
     {
         if (ControllerAddress is null) { ErrorMessage = "No IP address configured. Open Settings."; return false; }
-        if (string.IsNullOrEmpty(_settings.ApiKey)) { ErrorMessage = "No API key configured. Open Settings."; return false; }
+        if (string.IsNullOrEmpty(ApiKeyHeader)) { ErrorMessage = "No API key configured. Open Settings."; return false; }
         return true;
     }
 

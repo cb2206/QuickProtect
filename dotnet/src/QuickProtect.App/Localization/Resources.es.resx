@@ -314,4 +314,20 @@ QuickProtect.</value></data>
   <data name="The controller returned an unexpected response." xml:space="preserve"><value>El controlador devolvió una respuesta inesperada.</value></data>
   <data name="The controller sent a response QuickProtect couldn't read." xml:space="preserve"><value>El controlador envió una respuesta que QuickProtect no puede leer.</value></data>
   <data name="This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's." xml:space="preserve"><value>Esta dirección no parece ser de una consola UniFi. Introduce la IP de tu consola UniFi OS (p. ej., UDM, UNVR, Cloud Key), no la de una cámara.</value></data>
+  <data name="New Site" xml:space="preserve"><value>Nuevo sitio</value></data>
+  <data name="Sites" xml:space="preserve"><value>Sitios</value></data>
+  <data name="Site" xml:space="preserve"><value>Sitio</value></data>
+  <data name="Add Site" xml:space="preserve"><value>Añadir sitio</value></data>
+  <data name="Remove Site…" xml:space="preserve"><value>Eliminar sitio…</value></data>
+  <data name="Remove" xml:space="preserve"><value>Eliminar</value></data>
+  <data name="Remove “{0}”?" xml:space="preserve"><value>¿Eliminar «{0}»?</value></data>
+  <data name="Cameras from all sites share the grid and layout profiles." xml:space="preserve"><value>Las cámaras de todos los sitios comparten la cuadrícula y los perfiles de diseño.</value></data>
+  <data name="Site Name" xml:space="preserve"><value>Nombre del sitio</value></data>
+  <data name="Shown on camera tiles when you have more than one site" xml:space="preserve"><value>Se muestra en las miniaturas de las cámaras cuando tienes más de un sitio</value></data>
+  <data name="This console is already added as “{0}”." xml:space="preserve"><value>Esta consola ya está añadida como «{0}».</value></data>
+  <data name="Classic API credentials · {0}" xml:space="preserve"><value>Credenciales de la API clásica · {0}</value></data>
+  <data name="Streams" xml:space="preserve"><value>Transmisiones</value></data>
+  <data name="Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key." xml:space="preserve"><value>Crea la clave en esta consola, no en unifi.ui.com: abre UniFi Network → Integrations → Create New API Key (en Network 9: Settings → Control Plane → Integrations). Cada consola necesita su propia clave.</value></data>
+  <data name="Use a local account on this console: in UniFi OS open Admins &amp; Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras." xml:space="preserve"><value>Usa una cuenta local en esta consola: en UniFi OS abre Admins &amp; Users → Create New, marca «Restrict to Local Access Only» y asígnale un rol de Protect que pueda controlar cámaras.</value></data>
+  <data name="Its cameras disappear from every profile, and its API key and login are deleted from this computer." xml:space="preserve"><value>Sus cámaras desaparecen de todos los perfiles, y su clave API y su inicio de sesión se eliminan de este equipo.</value></data>
 </root>

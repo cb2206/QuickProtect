@@ -17,6 +17,10 @@ public sealed partial class CameraRowViewModel : ObservableObject
     public Camera Camera { get; }
     public string Name => Camera.Name;
 
+    /// <summary>The camera's site label; null while only one site exists.</summary>
+    public string? SiteBadge { get; }
+    public bool HasSiteBadge => SiteBadge != null;
+
     [ObservableProperty] private bool _isVisible;
     [ObservableProperty] private int _sizeIndex; // 0 small, 1 medium, 2 large
 
@@ -30,9 +34,10 @@ public sealed partial class CameraRowViewModel : ObservableObject
     public string[] SizeOptions { get; } =
         { Localization.Loc.Get("Small"), Localization.Loc.Get("Medium"), Localization.Loc.Get("Large") };
 
-    public CameraRowViewModel(Camera camera, AppSettings settings, LayoutViewModel parent)
+    public CameraRowViewModel(Camera camera, AppSettings settings, LayoutViewModel parent, string? siteBadge = null)
     {
         Camera = camera;
+        SiteBadge = siteBadge;
         _settings = settings;
         _parent = parent;
         _isVisible = !settings.IsHidden(camera.Id);

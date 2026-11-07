@@ -418,12 +418,21 @@ public partial class MainWindow : Window
         if (hidden.Count > 0)
         {
             var addMenu = new MenuItem { Header = Localization.Loc.Get("Add Camera") };
-            foreach (var cam in hidden)
+            // With several sites, one labelled group per site (in site order).
+            foreach (var group in vm.HiddenCamerasBySite())
             {
-                var item = new MenuItem { Header = cam.Name };
-                var id = cam.Id;
-                item.Click += (_, _) => vm.UnhideCamera(id);
-                addMenu.Items.Add(item);
+                if (group.SiteName is { } siteName)
+                {
+                    if (addMenu.Items.Count > 0) addMenu.Items.Add(new Separator());
+                    addMenu.Items.Add(new MenuItem { Header = siteName, IsEnabled = false });
+                }
+                foreach (var cam in group.Cameras)
+                {
+                    var item = new MenuItem { Header = cam.Name };
+                    var id = cam.Id;
+                    item.Click += (_, _) => vm.UnhideCamera(id);
+                    addMenu.Items.Add(item);
+                }
             }
             items.Add(addMenu);
         }

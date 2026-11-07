@@ -22,6 +22,16 @@ public class CatalogCoverageTests
         foreach (var message in ControllerErrors.All) keys.Add(message);
         // Stream-quality menu (MainWindow.QualityName, "Use default" + " (name)").
         foreach (var key in new[] { "Use default", "Auto", "High", "Medium", "Low" }) keys.Add(key);
+        // Multi-site strings built in view models (site placeholder, removal
+        // confirmation, duplicate console, PTZ caption, credential help).
+        foreach (var key in new[]
+        {
+            "New Site", "Remove", "Remove “{0}”?",
+            "Its cameras disappear from every profile, and its API key and login are deleted from this computer.",
+            "This console is already added as “{0}”.", "Classic API credentials · {0}",
+            "Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key.",
+            "Use a local account on this console: in UniFi OS open Admins & Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras."
+        }) keys.Add(key);
         return keys;
     }
 

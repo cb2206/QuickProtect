@@ -148,6 +148,12 @@
                         <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
                                    IsVisible="{Binding IsOnline}" />
                         <TextBlock Text="{Binding Name}" FontSize="12" Foreground="{DynamicResource QpTextPrimary}" />
+                        <!-- Site badge, only while several sites are configured -->
+                        <Border IsVisible="{Binding HasSiteBadge}" Background="{DynamicResource QpAccentSurface}"
+                                CornerRadius="7" Padding="5,1" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding SiteBadge}" FontSize="9.5" FontWeight="SemiBold"
+                                     Foreground="{DynamicResource QpTextSecondary}" />
+                        </Border>
                         <TextBlock Text="PTZ" FontSize="9" Foreground="{DynamicResource QpAccentText}"
                                    VerticalAlignment="Center" IsVisible="{Binding IsPtz}" />
                       </StackPanel>
@@ -216,7 +222,7 @@
                       IsVisible="{Binding IsPtz}" Background="{DynamicResource QpAccentSurface}" CornerRadius="9" Padding="7,2">
                 <TextBlock Text="{loc:Loc 'PTZ · ARROW KEYS'}" Foreground="{DynamicResource QpTextSecondary}" FontSize="9" />
               </Border>
-              <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Name}" TextTrimming="CharacterEllipsis"
+              <TextBlock Text="{Binding DisplayTitle}" ToolTip.Tip="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis"
                          Foreground="{DynamicResource QpTextPrimary}" FontWeight="SemiBold" FontSize="13"
                          VerticalAlignment="Center" />
             </DockPanel>

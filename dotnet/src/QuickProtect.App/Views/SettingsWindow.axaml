@@ -214,10 +214,55 @@
           <!-- ============ CONNECTION ============ -->
           <StackPanel Spacing="18" IsVisible="{Binding IsConnectionSection}">
 
+            <!-- Sites: the consoles QuickProtect streams from. The fields
+                 below (and the PTZ section) edit the selected one. -->
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Sites'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <ListBox ItemsSource="{Binding SiteRows}" SelectedIndex="{Binding SelectedSiteIndex}"
+                           Background="Transparent" Margin="6,6,6,0">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:SiteRowViewModel">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel Grid.Column="0" Spacing="1">
+                            <TextBlock Text="{Binding DisplayName}" Classes="rowLabel" />
+                            <TextBlock Text="{Binding Address}" Classes="rowHint"
+                                       IsVisible="{Binding Address, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Ellipse Width="6" Height="6" Fill="{DynamicResource QpStatusGreen}" IsVisible="{Binding Connected}" />
+                            <TextBlock Text="{Binding StatusText}" Classes="rowHint" />
+                          </StackPanel>
+                        </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                  <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="Auto,Auto,*">
+                    <Button Grid.Column="0" Content="{loc:Loc 'Add Site'}" Command="{Binding AddSiteCommand}" />
+                    <Button Grid.Column="1" Content="{loc:Loc 'Remove Site…'}" Command="{Binding RemoveSiteCommand}"
+                            Margin="8,0,0,0" IsVisible="{Binding HasMultipleSites}" />
+                    <TextBlock Grid.Column="2" Text="{loc:Loc 'Cameras from all sites share the grid and layout profiles.'}"
+                               Classes="rowHint" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
             <StackPanel Spacing="6">
               <TextBlock Text="{loc:Loc 'Controller'}" Classes="cardCaption" />
               <Border Classes="card">
                 <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Site Name'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Shown on camera tiles when you have more than one site'}" Classes="rowHint" />
+                    </StackPanel>
+                    <TextBox Grid.Column="1" Text="{Binding SiteName, UpdateSourceTrigger=LostFocus}"
+                             Width="240" VerticalAlignment="Center" />
+                  </Grid>
+                  <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
                       <TextBlock Text="{loc:Loc 'IP address or hostname'}" Classes="rowLabel" />
@@ -232,10 +277,34 @@
                       <TextBlock Text="{loc:Loc 'Integration API key'}" Classes="rowLabel" />
                       <TextBlock Text="{loc:Loc 'Integration API key from controller settings'}" Classes="rowHint" />
                     </StackPanel>
-                    <TextBox Grid.Column="1" Text="{Binding ApiKey, UpdateSourceTrigger=LostFocus}"
-                             PasswordChar="•" Classes="revealPasswordButton" Width="240" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBox Text="{Binding ApiKey, UpdateSourceTrigger=LostFocus}"
+                               PasswordChar="•" Classes="revealPasswordButton" Width="240" VerticalAlignment="Center" />
+                      <Button Content="?" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                              ToolTip.Tip="{Binding ApiKeyHelp}" AutomationProperties.Name="{Binding ApiKeyHelp}">
+                        <Button.Flyout>
+                          <Flyout Placement="Bottom">
+                            <TextBlock Text="{Binding ApiKeyHelp}" TextWrapping="Wrap" MaxWidth="320" />
+                          </Flyout>
+                        </Button.Flyout>
+                      </Button>
+                    </StackPanel>
                   </Grid>
                   <Border Classes="hairline" />
+                  <Grid Classes="row" ColumnDefinitions="Auto,*">
+                    <Button Grid.Column="0" Content="{loc:Loc 'Test Connection'}"
+                            Command="{Binding TestConnectionCommand}" />
+                    <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Classes="rowHint"
+                               VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc 'Streams'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,12,0">
                       <TextBlock Text="{loc:Loc 'Keep streams alive'}" Classes="rowLabel" />
@@ -254,13 +323,6 @@
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding PauseDecodeWhileClosed}"
                                   OnContent="{x:Null}" OffContent="{x:Null}" />
-                  </Grid>
-                  <Border Classes="hairline" />
-                  <Grid Classes="row" ColumnDefinitions="Auto,*">
-                    <Button Grid.Column="0" Content="{loc:Loc 'Test Connection'}"
-                            Command="{Binding TestConnectionCommand}" />
-                    <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Classes="rowHint"
-                               VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
                   </Grid>
                 </StackPanel>
               </Border>
@@ -306,8 +368,26 @@
           <!-- ============ PTZ ============ -->
           <StackPanel Spacing="18" IsVisible="{Binding IsPtzSection}">
 
+            <!-- Each console has its own local account. -->
+            <StackPanel Spacing="6" IsVisible="{Binding HasMultipleSites}">
+              <TextBlock Text="{loc:Loc 'Site'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <Grid Classes="row" ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{loc:Loc 'Site'}" Classes="rowLabel" VerticalAlignment="Center" />
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding SiteRows}" SelectedIndex="{Binding SelectedSiteIndex}"
+                            Width="240" VerticalAlignment="Center">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:SiteRowViewModel">
+                        <TextBlock Text="{Binding DisplayName}" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+              </Border>
+            </StackPanel>
+
             <StackPanel Spacing="6">
-              <TextBlock Text="{loc:Loc 'Classic API credentials'}" Classes="cardCaption" />
+              <TextBlock Text="{Binding PtzSectionCaption}" Classes="cardCaption" />
               <Border Classes="card">
                 <StackPanel>
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
@@ -315,14 +395,34 @@
                       <TextBlock Text="{loc:Loc 'Username'}" Classes="rowLabel" />
                       <TextBlock Text="{loc:Loc 'Local admin account on the Protect controller.'}" Classes="rowHint" />
                     </StackPanel>
-                    <TextBox Grid.Column="1" Text="{Binding Username, UpdateSourceTrigger=LostFocus}"
-                             Width="240" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBox Text="{Binding Username, UpdateSourceTrigger=LostFocus}"
+                               Width="240" VerticalAlignment="Center" />
+                      <Button Content="?" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                              ToolTip.Tip="{Binding PtzAccountHelp}" AutomationProperties.Name="{Binding PtzAccountHelp}">
+                        <Button.Flyout>
+                          <Flyout Placement="Bottom">
+                            <TextBlock Text="{Binding PtzAccountHelp}" TextWrapping="Wrap" MaxWidth="320" />
+                          </Flyout>
+                        </Button.Flyout>
+                      </Button>
+                    </StackPanel>
                   </Grid>
                   <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="{loc:Loc 'Password'}" Classes="rowLabel" VerticalAlignment="Center" />
-                    <TextBox Grid.Column="1" Text="{Binding Password, UpdateSourceTrigger=LostFocus}"
-                             PasswordChar="•" Classes="revealPasswordButton" Width="240" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBox Text="{Binding Password, UpdateSourceTrigger=LostFocus}"
+                               PasswordChar="•" Classes="revealPasswordButton" Width="240" VerticalAlignment="Center" />
+                      <Button Content="?" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                              ToolTip.Tip="{Binding PtzAccountHelp}" AutomationProperties.Name="{Binding PtzAccountHelp}">
+                        <Button.Flyout>
+                          <Flyout Placement="Bottom">
+                            <TextBlock Text="{Binding PtzAccountHelp}" TextWrapping="Wrap" MaxWidth="320" />
+                          </Flyout>
+                        </Button.Flyout>
+                      </Button>
+                    </StackPanel>
                   </Grid>
                   <Border Classes="hairline" />
                   <Grid Classes="row" ColumnDefinitions="Auto,*">
@@ -380,8 +480,16 @@
                       <StackPanel>
                         <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                           <CheckBox Grid.Column="0" IsChecked="{Binding IsVisible}" VerticalAlignment="Center" />
-                          <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}"
-                                     VerticalAlignment="Center" Margin="6,0" />
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="6,0"
+                                      VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}"
+                                       VerticalAlignment="Center" />
+                            <Border IsVisible="{Binding HasSiteBadge}" Background="{DynamicResource QpChip}"
+                                    CornerRadius="8" Padding="6,1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding SiteBadge}" FontSize="10"
+                                         Foreground="{DynamicResource QpTextSecondary}" />
+                            </Border>
+                          </StackPanel>
                           <ComboBox Grid.Column="2" ItemsSource="{Binding SizeOptions}"
                                     SelectedIndex="{Binding SizeIndex}" Width="110" Margin="0,0,8,0" />
                           <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">

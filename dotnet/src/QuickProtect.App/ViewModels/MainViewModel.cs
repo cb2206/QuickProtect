@@ -15,7 +15,7 @@ namespace QuickProtect.App.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
-    private readonly ProtectService _service;
+    private readonly ProtectHub _service;
     private readonly AppSettings _settings;
 
     public ObservableCollection<CameraTileViewModel> Tiles { get; } = new();
@@ -118,7 +118,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Current grid viewport width; tiles are sized as column spans of it.</summary>
     private double _gridWidth;
 
-    public MainViewModel(ProtectService service, AppSettings settings)
+    public MainViewModel(ProtectHub service, AppSettings settings)
     {
         _service = service;
         _settings = settings;
@@ -126,8 +126,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _gridWidth = settings.PanelSize()?.Width ?? 760;
         _service.PropertyChanged += OnServiceChanged;
         _settings.PropertyChanged += OnSettingsChanged;
-        ErrorMessage = Localize(_service.ErrorMessage);
-        CertificateChange = _service.CertificateChange;
+        ErrorMessage = IssuesText();
+        CertificateChange = _service.BlockingCertificateChange;
         RebuildProfiles();
         RebuildTiles();
     }
@@ -163,10 +163,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var q = value.Trim();
         foreach (var tile in Tiles)
             tile.MatchesSearch = q.Length == 0
-                || tile.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
+                || tile.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || (tile.SiteBadge?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     private static string? Localize(string? message) => message is null ? null : Localization.Loc.Get(message);
+
+    /// <summary>
+    /// The error banner: with one site its message as before; with several, one
+    /// "Site: message" line per site that currently contributes no cameras —
+    /// the other sites' tiles keep streaming below it.
+    /// </summary>
+    private string? IssuesText()
+    {
+        var issues = _service.SiteIssues;
+        if (issues.Count == 0) return null;
+        if (_service.Sites.Count == 1) return Localize(issues[0].Message);
+        return string.Join("\n", issues.Select(i =>
+            $"{(i.SiteName.Length > 0 ? i.SiteName : Localization.Loc.Get("New Site"))}: {Localize(i.Message)}"));
+    }
 
     private void OnServiceChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -174,11 +189,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             switch (e.PropertyName)
             {
-                case nameof(ProtectService.Cameras): RebuildTiles(); break;
-                case nameof(ProtectService.IsLoading): IsLoading = _service.IsLoading; break;
-                case nameof(ProtectService.ErrorMessage): ErrorMessage = Localize(_service.ErrorMessage); break;
-                case nameof(ProtectService.CertificateChange): CertificateChange = _service.CertificateChange; break;
-                case nameof(ProtectService.PtzErrorMessage):
+                case nameof(ProtectHub.Cameras): RebuildTiles(); break;
+                case nameof(ProtectHub.IsLoading): IsLoading = _service.IsLoading; break;
+                case nameof(ProtectHub.SiteIssues): ErrorMessage = IssuesText(); break;
+                case nameof(ProtectHub.BlockingCertificateChange): CertificateChange = _service.BlockingCertificateChange; break;
+                case nameof(ProtectHub.PtzErrorMessage):
                     // PTZ problems are per-camera feedback, never the grid's error card.
                     if (_service.PtzErrorMessage is { } ptzError)
                     {
@@ -303,6 +318,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public IReadOnlyList<Camera> HiddenCameras()
         => _service.Cameras.Where(c => _settings.IsHidden(c.Id)).ToList();
 
+    /// <summary>
+    /// Hidden cameras grouped by site for the "Add Camera" submenu: one group
+    /// without a name while only one site exists, otherwise one per site.
+    /// </summary>
+    public IReadOnlyList<(string? SiteName, IReadOnlyList<Camera> Cameras)> HiddenCamerasBySite()
+    {
+        var hidden = HiddenCameras();
+        if (!_settings.HasMultipleSites) return new[] { ((string?)null, hidden) };
+        return _service.Sites
+            .Select(site => (Name: (string?)(site.DisplayName.Length > 0 ? site.DisplayName : Localization.Loc.Get("New Site")),
+                             Cameras: (IReadOnlyList<Camera>)hidden.Where(c => _service.SiteFor(c)?.Id == site.Id).ToList()))
+            .Where(g => g.Cameras.Count > 0)
+            .Select(g => (g.Name, g.Cameras))
+            .ToList();
+    }
+
     public void HideCamera(CameraTileViewModel tile)
     {
         _settings.SetHidden(true, tile.Camera.Id);
@@ -336,7 +367,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Open the camera in the controller's web UI (macOS "Open in Protect").</summary>
     public void OpenInProtect(CameraTileViewModel tile)
     {
-        if (ControllerAddress.Parse(_settings.IpAddress) is not { } address) return;
+        // The console this camera belongs to.
+        if (_service.ControllerAddressFor(tile.Camera) is not { } address) return;
         Platform.UrlOpener.Open($"{address.HttpsBase}/protect/dashboard/all/sidepanel/device/{Uri.EscapeDataString(tile.Camera.Id)}");
     }
 

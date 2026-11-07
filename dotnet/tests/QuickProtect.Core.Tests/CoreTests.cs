@@ -365,7 +365,7 @@ public class AppSettingsTests
     {
         var prefs = new InMemoryPreferences();
         var secrets = new InMemorySecretStore();
-        _ = new AppSettings(prefs, secrets) { ApiKey = "supersecret" };
+        new AppSettings(prefs, secrets).Sites[0].ApiKey = "supersecret";
         Assert.Equal("supersecret", secrets.Get("unifi.apiKey"));
         Assert.Null(prefs.GetString("unifi.apiKey"));
     }
@@ -470,7 +470,7 @@ public class AppSettingsTests
         var secrets = new InMemorySecretStore();
         prefs.SetString("unifi.apiKey", "legacyKey"); // simulate pre-upgrade plaintext
         var s = new AppSettings(prefs, secrets);
-        Assert.Equal("legacyKey", s.ApiKey);
+        Assert.Equal("legacyKey", s.Sites[0].ApiKey);
         Assert.Equal("legacyKey", secrets.Get("unifi.apiKey"));
         Assert.Null(prefs.GetString("unifi.apiKey")); // old copy cleared
     }
