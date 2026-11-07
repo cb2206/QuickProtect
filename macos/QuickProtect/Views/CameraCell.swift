@@ -6,7 +6,7 @@ import AppKit
 
 struct CameraCell: View {
     let camera: Camera
-    let service: ProtectService
+    let service: ProtectHub
     let span: Int
     let loadOrder: Int
     @Binding var focusedCameraId: String?
@@ -69,7 +69,7 @@ struct CameraCell: View {
     /// a high damping fraction keeps it from overshooting (no bounce on video).
     static let focusAnimation: Animation = .spring(response: 0.40, dampingFraction: 0.86)
 
-    init(camera: Camera, service: ProtectService, span: Int,
+    init(camera: Camera, service: ProtectHub, span: Int,
          focusedCameraId: Binding<String?>, clientManager: RTSPClientManager, loadOrder: Int) {
         self.camera = camera
         self.service = service
@@ -208,7 +208,7 @@ struct CameraCell: View {
             if isFocused {
                 if isTrueFullscreen {
                     AuroraFullscreenHUD(
-                        cameraName: camera.name,
+                        cameraName: focusTitle,
                         isPtz: camera.isPtz,
                         now: clockTick,
                         visible: hudVisible,

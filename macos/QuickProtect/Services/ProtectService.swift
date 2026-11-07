@@ -1,7 +1,9 @@
 import Foundation
 import AppKit
 
-/// Handles all communication with the UniFi Protect Integration API.
+/// Handles all communication with one console's UniFi Protect Integration
+/// API — one instance per `ControllerSite`, owned by `ProtectHub`, which
+/// merges them for the UI.
 /// Main-actor isolated: its published state feeds SwiftUI, and the network
 /// calls are `async` so awaiting URLSession never blocks the actor. Anything
 /// that must run off the actor (the TLS challenge, fire-and-forget releases)
@@ -23,14 +25,8 @@ final class ProtectService: NSObject, ObservableObject {
     /// first), so it survives restarts and can't be lost to a race; the grid
     /// shows a dedicated card while it is set.
     @Published private(set) var certificateChange: CertificateTrust.Change?
-    /// Set by AppDelegate when the popover opens/closes so cells can pause players.
-    @Published var isPopoverOpen = false
-    /// Remembers which camera was focused so it can be restored when the panel reopens.
-    var lastFocusedCameraId: String?
-    /// True while a camera is focused (single-camera view). Drives the popover
-    /// header swap so the camera's own top bar replaces the grid header.
-    @Published var isFocusMode = false
-
+    /// The `ControllerSite` id stamped on every camera this service returns.
+    let siteID: String
     private let settings: ProtectCredentialSource
     /// Extra `URLProtocol` classes registered on both sessions — tests install
     /// a stub controller here; the app passes none.
@@ -40,11 +36,12 @@ final class ProtectService: NSObject, ObservableObject {
     /// Where `certificateChange` is read from. Tests pass a scratch store.
     private let certificateStore: CertificateTrust.Store
 
-    /// `settings` defaults to the app's shared store; tests pass their own so
-    /// the service never reads UserDefaults or the Keychain.
-    init(settings: ProtectCredentialSource = AppSettings.shared, urlProtocolClasses: [AnyClass] = [],
+    /// `settings` is the site's credentials; tests pass plain values so the
+    /// service never reads UserDefaults or the Keychain.
+    init(settings: ProtectCredentialSource, siteID: String = "", urlProtocolClasses: [AnyClass] = [],
          certificateStore: CertificateTrust.Store = CertificateTrust.Store()) {
         self.settings = settings
+        self.siteID = siteID
         self.urlProtocolClasses = urlProtocolClasses
         self.certificateStore = certificateStore
         super.init()
@@ -914,7 +911,12 @@ final class ProtectService: NSObject, ObservableObject {
             // Integration-API payloads carry no PTZ flags; keep what the
             // classic-API enrichment already established (it may be throttled
             // and not run again for minutes).
-            self.cameras = Camera.preservingEnrichmentFlags(from: self.cameras, into: cameras)
+            let stamped = cameras.map { cam -> Camera in
+                var c = cam
+                c.siteID = self.siteID
+                return c
+            }
+            self.cameras = Camera.preservingEnrichmentFlags(from: self.cameras, into: stamped)
             self.isLoading = false
             self.errorMessage = nil
         }
@@ -1062,8 +1064,8 @@ final class PinningSessionDelegate: NSObject, URLSessionDelegate, @unchecked Sen
     }
 }
 
-/// The credentials `ProtectService` needs — the subset of `AppSettings` it
-/// reads, so tests can hand it plain values.
+/// The credentials `ProtectService` needs — what a `ControllerSite` holds,
+/// so tests can hand it plain values.
 @MainActor
 protocol ProtectCredentialSource: AnyObject {
     var ipAddress: String { get }
@@ -1071,5 +1073,3 @@ protocol ProtectCredentialSource: AnyObject {
     var username: String { get }
     var password: String { get }
 }
-
-extension AppSettings: ProtectCredentialSource {}

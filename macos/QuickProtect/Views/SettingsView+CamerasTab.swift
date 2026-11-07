@@ -19,16 +19,32 @@ extension SettingsView {
         }
     }
 
+    /// One section for a single site; one per site (in site order) otherwise.
+    @ViewBuilder
     var cameraListSection: some View {
-        AuroraSettingsSection {
-            if service.cameras.isEmpty {
+        if service.cameras.isEmpty {
+            AuroraSettingsSection {
                 AuroraSettingsRow(isLast: true) {
                     Text("No cameras discovered yet. Run Test Connection on the Connection tab.")
                         .font(.system(size: 12))
                         .foregroundColor(palette.subtext)
                 }
-            } else {
-                let cams = settings.orderedCameras(service.cameras)
+            }
+        } else if settings.hasMultipleSites {
+            ForEach(settings.sites) { site in
+                let cams = settings.orderedCameras(service.cameras.filter { service.site(for: $0)?.id == site.id })
+                if !cams.isEmpty {
+                    cameraSection(title: site.displayName, cams: cams)
+                }
+            }
+        } else {
+            cameraSection(title: nil, cams: settings.orderedCameras(service.cameras))
+        }
+    }
+
+    func cameraSection(title: String?, cams: [Camera]) -> some View {
+        AuroraSettingsSection(title) {
+            Group {
                 ForEach(Array(cams.enumerated()), id: \.element.id) { idx, cam in
                     CameraRow(
                         camera: cam,
