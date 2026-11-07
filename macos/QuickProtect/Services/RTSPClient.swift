@@ -112,6 +112,13 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
 
     var pendingNALs: [[UInt8]] = []
     var hasFrameSignalled = false   // queue-only: gates the one-shot hasFrame publish
+    var firstVideoRTPLogged = false // queue-only: one-shot startup-timing log line
+    var nalsDroppedBeforeFormat = 0 // queue-only: startup-timing diagnostics
+    var keyframesDroppedBeforeFormat = 0
+
+    /// Identifies this client's lines in the debug log (camera name, plus the
+    /// lens for a secondary stream), so concurrent startups can be told apart.
+    let logTag: String
 
     // Render pause (stream keep-alive grace) — all queue-only. While paused,
     // access units are buffered instead of enqueued so the display layer does
@@ -158,7 +165,8 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
 
     // MARK: - Init
 
-    init() {
+    init(logTag: String = "") {
+        self.logTag = logTag
         queue = DispatchQueue(label: "com.quickprotect.rtsp", qos: .userInitiated)
         displayLayer.videoGravity = .resizeAspectFill
         var tb: CMTimebase?
@@ -180,6 +188,7 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
         queue = owner.queue
         displayLayer = owner.displayLayer
         handoverOwner = owner
+        logTag = owner.logTag.isEmpty ? "" : owner.logTag + "/switch"
     }
 
     deinit {
@@ -209,6 +218,11 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
     static let maxLogBytes: UInt64 = 1_048_576  // 1 MB, truncated on rollover
 
     static func log(_ msg: String) { dbg(msg) }
+
+    /// Instance variant: suffixes the line with this client's `logTag`.
+    func dbg(_ msg: String) {
+        Self.dbg(logTag.isEmpty ? msg : "\(msg) {\(logTag)}")
+    }
 
     /// Scheme, host and port only. The path of a stream URL is a bearer token
     /// for live video and must never reach the log.
@@ -249,7 +263,7 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
     /// `ControllerAddress.pinKey`). Nil pins by the URL's host, which is what
     /// tests against a local server want.
     func connect(to url: URL, pinKey: String? = nil, keepLastFrame: Bool = false) {
-        Self.dbg("[RTSP] connect called: \(Self.redactedDescription(of: url))")
+        self.dbg("[RTSP] connect called: \(Self.redactedDescription(of: url))")
         DispatchQueue.main.async { self.hasFrame = false }
         queue.async { [self] in
             disconnectOnQueue(flushDisplay: !keepLastFrame)
@@ -277,6 +291,9 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
             sequenceNumber   = 0
             formatDescription = nil
             hasFrameSignalled = false
+            firstVideoRTPLogged = false
+            nalsDroppedBeforeFormat = 0
+            keyframesDroppedBeforeFormat = 0
             renderPaused     = false
             pausedGOP        = PausedGOPBuffer()
             awaitingKeyframeAfterResume = false
@@ -344,12 +361,12 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
             guard let self else { return }
             self.queue.async {
                 guard conn === self.connection else { return }
-                Self.dbg("[RTSP] NWConnection state: \(state)")
+                self.dbg("[RTSP] NWConnection state: \(state)")
                 switch state {
                 case .ready:
                     self.sendOptions()
                 case .failed(let e):
-                    Self.dbg("[RTSP] Connection FAILED: \(e.localizedDescription)")
+                    self.dbg("[RTSP] Connection FAILED: \(e.localizedDescription)")
                     // A certificate rejection already published its own message.
                     if !self.certificateRejected {
                         DispatchQueue.main.async { self.error = e.localizedDescription }
@@ -425,7 +442,7 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
         aacDepacketizer = RTPParser.AACDepacketizer(
             sizeLength: audio.sizeLength, indexLength: audio.indexLength,
             indexDeltaLength: audio.indexDeltaLength)
-        Self.dbg("[RTSP] audio renderer \(audioRenderer == nil ? "FAILED" : "started") muted=\(audioMuted)")
+        self.dbg("[RTSP] audio renderer \(audioRenderer == nil ? "FAILED" : "started") muted=\(audioMuted)")
     }
 
     // MARK: - Internal disconnect (must be called on queue)
@@ -497,7 +514,7 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
                 owner.completeHandover(adopting: self)
             }
             if let e = err {
-                Self.dbg("[RTSP] Receive error: \(e.localizedDescription)")
+                self.dbg("[RTSP] Receive error: \(e.localizedDescription)")
                 DispatchQueue.main.async { self.error = e.localizedDescription }
             } else if !isComplete {
                 (self.adoptedBy ?? self).scheduleReceive(conn: conn)
@@ -526,7 +543,7 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
 
     /// Tear down the connection with an error. Must be called on `queue`.
     func failConnection(_ message: String) {
-        Self.dbg("[RTSP] failConnection: \(message)")
+        self.dbg("[RTSP] failConnection: \(message)")
         // Disconnect first: its main-queue hop clears `error`, and the message
         // must land after that so the user actually sees why the stream ended.
         disconnectOnQueue()

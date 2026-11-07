@@ -20,6 +20,9 @@ struct CameraCell: View {
     @State var streamTask: Task<Void, Never>?
     @State var secondaryStreamTask: Task<Void, Never>?
     @State var packageSnapshotTask: Task<Void, Never>?
+    /// Deferred main-lens snapshot shown while the stream waits for its first
+    /// keyframe (see `scheduleStreamPlaceholder`).
+    @State var streamPlaceholderTask: Task<Void, Never>?
     /// Concrete quality the primary client is currently connected (or connecting)
     /// at. Tracks the resolved substream so a quality change can release the old
     /// server allocation instead of leaking it until cleanup.
@@ -76,10 +79,10 @@ struct CameraCell: View {
         self.span = span
         self.loadOrder = loadOrder
         self._focusedCameraId = focusedCameraId
-        self._rtspClient = ObservedObject(wrappedValue: clientManager.client(for: camera.id))
+        self._rtspClient = ObservedObject(wrappedValue: clientManager.client(for: camera.id, name: camera.name))
         if let lens = camera.secondaryLens {
             self._secondaryClient = ObservedObject(
-                wrappedValue: clientManager.client(for: camera.id, lens: lens.quality))
+                wrappedValue: clientManager.client(for: camera.id, lens: lens.quality, name: camera.name))
         } else {
             // Single-lens camera: bind a shared, never-connected client so the
             // view struct can be cheaply recreated without allocating per render.
@@ -109,6 +112,12 @@ struct CameraCell: View {
     }
 
     var showsPip: Bool { showsFocusPip || showsGridPip }
+
+    /// A controller snapshot stands in for the viewport's stream until its
+    /// first frame (see `scheduleStreamPlaceholder`).
+    var showsStreamPlaceholder: Bool {
+        !primaryClient.hasFrame && primaryClient.placeholderImage != nil
+    }
 
     /// Whether the secondary stream should currently be connected — either the
     /// grid PiP is on (runs whenever the tile is visible) or the camera is
@@ -181,11 +190,10 @@ struct CameraCell: View {
             }
             .background(Color(white: 0.05))
 
-            // Package lens swapped into the main viewport before its first
-            // keyframe: show the controller snapshot until real frames arrive.
-            // Main-lens clients never carry a placeholder, so this is inert
-            // for ordinary tiles.
-            if !primaryClient.hasFrame, let placeholder = primaryClient.placeholderImage {
+            // Controller snapshot until the stream's first keyframe paints:
+            // the main lens gets one when it is still dark shortly after
+            // connecting, the package lens (swapped in) always has one.
+            if showsStreamPlaceholder, let placeholder = primaryClient.placeholderImage {
                 Image(decorative: placeholder, scale: 1)
                     .resizable()
                     .aspectRatio(contentMode: isFocused && !focusFillMode ? .fit : .fill)
@@ -196,7 +204,10 @@ struct CameraCell: View {
             // During a quality switch the previous frame is held on the display
             // layer (keepLastFrame), so suppress the connecting spinner — the held
             // frame shows through until the new feed replaces it.
-            if mode != .playing && !preservingFrame {
+            if showsStreamPlaceholder && mode == .connecting {
+                placeholderLoadingOverlay
+                    .transition(.opacity)
+            } else if mode != .playing && !preservingFrame {
                 stateOverlay
                     .transition(.opacity)
             }
@@ -272,6 +283,8 @@ struct CameraCell: View {
         .onDisappear {
             streamTask?.cancel()
             streamTask = nil
+            streamPlaceholderTask?.cancel()
+            streamPlaceholderTask = nil
             downSwitchWork?.cancel()
             downSwitchWork = nil
             preservingFrame = false
@@ -289,6 +302,8 @@ struct CameraCell: View {
             } else {
                 streamTask?.cancel()
                 streamTask = nil
+                streamPlaceholderTask?.cancel()
+                streamPlaceholderTask = nil
                 downSwitchWork?.cancel()
                 downSwitchWork = nil
                 preservingFrame = false
@@ -301,6 +316,11 @@ struct CameraCell: View {
             // connecting overlay out so video doesn't pop in over black.
             if ready {
                 withAnimation(.easeOut(duration: 0.25)) { mode = .playing }
+                // Live video replaced it; a later reconnect must not flash
+                // this (by then stale) still.
+                streamPlaceholderTask?.cancel()
+                streamPlaceholderTask = nil
+                rtspClient.placeholderImage = nil
                 // New feed is up — stop holding the previous frame.
                 preservingFrame = false
             }

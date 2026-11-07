@@ -252,7 +252,22 @@ final class ProtectServiceTests: XCTestCase {
         StubController.respond { _ in (429, Data()) }
         let result = await service.createRtspStreamURL(for: Self.camera("cam1"), quality: "high")
         XCTAssertNil(result)
-        XCTAssertEqual(StubController.requests.count, 1, "429 must not multiply requests against the limiter")
+        // One retry of the same tier after the limiter window, never the other
+        // tiers: 429 must not multiply requests against the limiter.
+        XCTAssertEqual(StubController.requests.count, 2)
+        let tiers = StubController.requests.map { ($0.bodyJSON as? [String: [String]])?["qualities"]?.first }
+        XCTAssertEqual(tiers, ["high", "high"])
+    }
+
+    func testCreateStreamRetriesOnceAfter429() async {
+        StubController.respond { _ in
+            StubController.requests.count == 1
+                ? (429, Data())
+                : (200, Data(#"{"medium":"rtsps://192.168.1.10:7441/med"}"#.utf8))
+        }
+        let result = await service.createRtspStreamURL(for: Self.camera("cam1"), quality: "medium")
+        XCTAssertEqual(result?.quality, "medium")
+        XCTAssertEqual(StubController.requests.count, 2)
     }
 
     func testSecondaryLensQualityIsNeverSubstituted() async {

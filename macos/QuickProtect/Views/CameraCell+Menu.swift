@@ -162,6 +162,19 @@ extension CameraCell {
         }
     }
 
+    /// Over a snapshot placeholder: a light dim and a small spinner, so the
+    /// still reads as "loading", never as live video, without hiding it.
+    var placeholderLoadingOverlay: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.opacity(0.25)
+            ProgressView()
+                .controlSize(.small)
+                .tint(.white)
+                .padding(8)
+        }
+        .allowsHitTesting(false)
+    }
+
     var offlinePlaceholder: some View {
         VStack(spacing: 6) {
             Image(systemName: "wifi.slash")

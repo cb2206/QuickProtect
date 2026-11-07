@@ -410,7 +410,17 @@ final class ProtectService: NSObject, ObservableObject {
         let owner: StreamAllocationLedger.Owner = pinned ? .pinned : .popover
 
         allocations.beginCreate(key)
-        let (outcome, allocated) = await postRtspStream(for: camera, quality: quality)
+        let first = await postRtspStream(for: camera, quality: quality)
+        var (outcome, allocated) = (first.outcome, first.allocated)
+        // The panel-open burst (camera list, one POST per tile, placeholder
+        // snapshots) can brush the controller's 10 req/s limit. A tile whose
+        // POST loses that race would show "Stream unavailable", so retry the
+        // same tier once after the limiter window — never the ladder.
+        if first.rateLimited, await Self.waitOutRateLimitWindow() {
+            RTSPClient.log("[Stream] retrying \(quality) for \(camera.name) after 429")
+            let retry = await postRtspStream(for: camera, quality: quality)
+            (outcome, allocated) = (retry.outcome, retry.allocated)
+        }
         // Every exit of the POST lands here, so the in-flight mark always ends.
         // A release that arrived meanwhile was held back; it is due now if the
         // POST failed and nobody else holds the allocation.
@@ -430,11 +440,11 @@ final class ProtectService: NSObject, ObservableObject {
 
     /// The POST itself. `allocated` is true when the controller answered with
     /// a URL for `quality`, i.e. an allocation now exists server-side.
-    private func postRtspStream(for camera: Camera,
-                                quality: String) async -> (outcome: StreamRequestOutcome, allocated: Bool) {
+    private func postRtspStream(for camera: Camera, quality: String) async
+        -> (outcome: StreamRequestOutcome, allocated: Bool, rateLimited: Bool) {
         guard let url = makeURL(
             path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(camera.id))/rtsps-stream"
-        ) else { RTSPClient.log("[Stream] makeURL failed"); return (.failed, false) }
+        ) else { RTSPClient.log("[Stream] makeURL failed"); return (.failed, false, false) }
 
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.httpMethod = "POST"
@@ -447,23 +457,34 @@ final class ProtectService: NSObject, ObservableObject {
 
         guard let (data, resp) = try? await tlsSession.data(for: request) else {
             RTSPClient.log("[Stream] HTTP request failed (no response)")
-            return (.failed, false)
+            return (.failed, false, false)
         }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         guard status == 200 else {
             RTSPClient.log("[Stream] HTTP \(status): \(String(data: data, encoding: .utf8) ?? "")")
             return (ControllerRequestPolicy.abortsQualityLadder(httpStatus: status)
-                ? .failed : .qualityUnavailable, false)
+                ? .failed : .qualityUnavailable, false, status == 429)
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rtspsString = json[quality] as? String else { return (.qualityUnavailable, false) }
+              let rtspsString = json[quality] as? String else { return (.qualityUnavailable, false, false) }
 
         let playable = toPlayableURL(rtspsString)
         RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable.map(RTSPClient.redactedDescription(of:)) ?? "nil")")
         // An unusable URL still allocated server-side: keep it owned so cleanup frees it.
-        guard let playable else { return (.qualityUnavailable, true) }
-        return (.success(playable), true)
+        guard let playable else { return (.qualityUnavailable, true, false) }
+        return (.success(playable), true, false)
+    }
+
+    /// Sleeps past the controller's 1-second limiter window. False when the
+    /// requester went away meanwhile (task cancelled) — then don't retry.
+    private static func waitOutRateLimitWindow() async -> Bool {
+        do {
+            try await Task.sleep(nanoseconds: 1_100_000_000)
+            return true
+        } catch {
+            return false
+        }
     }
 
     // MARK: - RTSP stream cleanup
@@ -769,6 +790,43 @@ final class ProtectService: NSObject, ObservableObject {
             return (nil, false)
         }
         return (image, false)
+    }
+
+    // MARK: - Camera snapshot (Integration API)
+
+    /// Fetches a current JPEG of a camera's main lens. Bridges the wait for a
+    /// stream's first keyframe: the controller often starts a fresh RTSP
+    /// session just after a keyframe, so a tile sits for a whole GOP (2 s at
+    /// 15 fps) before it can paint. One attempt, no retry — the caller only
+    /// asks for tiles still dark after the panel-open burst, and a 429 here
+    /// must not cost the stream requests their limiter budget.
+    func fetchCameraSnapshot(for camera: Camera) async -> CGImage? {
+        guard let url = makeURL(
+            path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(camera.id))/snapshot"
+        ) else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 5)
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
+        request.setValue("image/jpeg", forHTTPHeaderField: "Accept")
+        let data: Data
+        let status: Int
+        do {
+            let (body, resp) = try await tlsSession.data(for: request)
+            status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            data = body
+        } catch {
+            RTSPClient.log("[Snapshot] camera snapshot request failed: \(error.localizedDescription)")
+            return nil
+        }
+        guard (200...299).contains(status) else {
+            RTSPClient.log("[Snapshot] camera snapshot HTTP \(status) for \(camera.name)")
+            return nil
+        }
+        guard let image = NSBitmapImageRep(data: data)?.cgImage else {
+            RTSPClient.log("[Snapshot] camera snapshot undecodable (\(data.count) bytes)")
+            return nil
+        }
+        RTSPClient.log("[Snapshot] camera snapshot \(image.width)x\(image.height) for \(camera.name)")
+        return image
     }
 
     // MARK: - PTZ control (classic API — continuous velocity moves)

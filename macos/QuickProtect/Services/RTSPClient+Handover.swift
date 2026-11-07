@@ -42,7 +42,7 @@ extension RTSPClient {
             child.connect(to: url, pinKey: pinKey, keepLastFrame: true)
             queue.asyncAfter(deadline: .now() + Self.handoverGrace) { [weak self] in
                 guard let self, self.handoverGen == gen, self.handoverChild != nil else { return }
-                Self.dbg("[RTSP] handover timed out — keeping the current stream")
+                self.dbg("[RTSP] handover timed out — keeping the current stream")
                 self.cancelHandoverOnQueue()
             }
         }
@@ -85,7 +85,7 @@ extension RTSPClient {
             isConnected = true
             error = nil
         }
-        Self.dbg("[RTSP] handover complete: \(currentURL.map(Self.redactedDescription(of:)) ?? "?")")
+        self.dbg("[RTSP] handover complete: \(currentURL.map(Self.redactedDescription(of:)) ?? "?")")
         finishHandover(success: true)
     }
 

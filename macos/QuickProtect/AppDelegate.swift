@@ -138,6 +138,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if CommandLine.arguments.contains("--open-panel") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.showPanel() }
         }
+        #if DEBUG
+        if CommandLine.arguments.contains("--bench-cycle") { runBenchCycle() }
+        #endif
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -286,6 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func showPanel() {
         guard statusItem?.button != nil else { return }
+        RTSPClient.log("[Panel] open (keep-alive pending=\(streamTeardownWork != nil))")
 
         // Reopening within the keep-alive grace reuses the still-connected
         // streams: cancel their pending teardown, and the fresh tiles attach to
@@ -406,6 +410,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func closePanel() {
+        if panel != nil { RTSPClient.log("[Panel] close") }
         // End any editing session first, so system views attached to the field
         // editor (AutoFill completion list, input-method candidates) detach
         // while their XPC service is still alive instead of leaving a stale
@@ -469,6 +474,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// and the server-side allocations (DELETE per stream). Runs on grace
     /// expiry, app quit, and connection-settings changes.
     private func teardownStreamsNow() {
+        RTSPClient.log("[Panel] keep-alive expired — tearing streams down")
         streamTeardownWork?.cancel()
         streamTeardownWork = nil
         service.cancelFetch()
@@ -679,3 +685,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 }
+
+#if DEBUG
+// MARK: - Startup-timing bench (Debug only)
+
+extension AppDelegate {
+    /// `--bench-cycle`: opens the panel, keeps it open 15 s, closes it, and
+    /// reopens after each gap in QUICKPROTECT_BENCH_GAPS (seconds, comma-
+    /// separated), then quits. Pair with QUICKPROTECT_DEBUG_LOG=1 to time cold
+    /// start, reopen inside the keep-alive grace, and reopen after teardown.
+    fileprivate func runBenchCycle() {
+        let raw = ProcessInfo.processInfo.environment["QUICKPROTECT_BENCH_GAPS"] ?? "5,20,45,90,180"
+        let gaps = raw.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+        let openSeconds = 15
+        var at = 1
+        for (index, gap) in ([0] + gaps).enumerated() {
+            at += gap
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(at)) { [weak self] in
+                RTSPClient.log("[Bench] run \(index) open after \(gap)s closed")
+                self?.showPanel()
+            }
+            at += openSeconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(at)) { [weak self] in
+                self?.closePanel()
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(at + 2)) {
+            RTSPClient.log("[Bench] done")
+            NSApp.terminate(nil)
+        }
+    }
+}
+#endif
