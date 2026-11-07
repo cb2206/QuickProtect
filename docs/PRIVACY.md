@@ -1,10 +1,10 @@
 # Privacy Policy for QuickProtect
 
-_Last updated: September 19, 2026_
+_Last updated: November 7, 2026_
 
 QuickProtect ("the app") is a menu-bar (macOS) and system-tray (Windows, Linux)
 application for viewing live camera feeds from your own UniFi Protect
-controller. Your privacy matters, and this policy explains exactly what the app
+controllers. Your privacy matters, and this policy explains exactly what the app
 does and does not do with your data.
 
 ## Summary
@@ -12,27 +12,27 @@ does and does not do with your data.
 **QuickProtect does not collect, store, transmit, or share any personal data.**
 There are no analytics, no tracking, no advertising, no user accounts, and no
 servers operated by the developer. The app talks only to the UniFi Protect
-controller you configure, on your own network.
+controllers you configure, on your own network.
 
 ## Information stored on your device
 
 The app stores the following locally on your device, solely so it can function.
 None of it is ever sent to the developer or any third party:
 
-- **Controller connection details** — the IP address and API key for your UniFi
-  Protect controller, and (optionally) a local admin username and password used
-  for PTZ camera control. These credentials are stored securely on your
+- **Controller connection details** — for each UniFi Protect controller you
+  add, its name, IP address and API key, and (optionally) a local admin
+  username and password used for PTZ camera control. These credentials are stored securely on your
   device — in the **macOS Keychain** on Mac, **encrypted with your Windows
   account (DPAPI)** on Windows, or in your **desktop's secret service** (GNOME
   Keyring or KWallet) on Linux, falling back to a file readable only by your
-  user account — and are used only to connect to your controller.
+  user account — and are used only to connect to that controller.
 - **App preferences** — settings such as themes, camera order, layouts, and
   your keyboard shortcut, stored in standard macOS preferences or in a local
   settings file on Windows and Linux.
 
 ## Network connections
 
-QuickProtect connects **only to the UniFi Protect controller you specify**, over
+QuickProtect connects **only to the UniFi Protect controllers you specify**, over
 HTTPS and RTSP/RTSPS, to list cameras and stream video. This connection is made
 on your local network (or through a VPN you set up yourself). The app does not
 connect to any developer-operated servers and does not transmit your data

@@ -1,6 +1,6 @@
 # QuickProtect
 
-A lightweight macOS status bar app for viewing live camera feeds from a UniFi Protect controller.
+A lightweight macOS status bar app for viewing live camera feeds from one or more UniFi Protect controllers.
 
 Click the camera icon in your menu bar to instantly see all your cameras in a resizable popover — no browser or UniFi Protect app needed.
 
@@ -17,6 +17,7 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 ## Features
 
 - **Live RTSP streaming** via a custom RTSP/RTP client built on Network.framework (no AVFoundation RTSP dependency)
+- **Multiple sites** — add several UniFi consoles in Settings → Connection and show cameras from all of them in one grid and one layout profile; tiles carry a small site badge once more than one site exists, and a site that fails shows as a banner while the others keep streaming
 - **H.265 (HEVC) and H.264** codec support, including multi-slice encoding (e.g. G4 Doorbell Pro)
 - **Automatic aspect ratio detection** — wide cameras like the G6 180 display at their native ratio
 - **Single-click focus** — click any camera to view it fullscreen within the popover
@@ -42,16 +43,16 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **Update notifications** — checks for updates on launch and daily, then points you to the latest GitHub release to download (it never auto-installs)
 - **Launch at login** — optional, with a first-run prompt; toggle in Settings
 - **Self-signed TLS support** — connects to controllers using self-signed certificates without system-wide trust changes; the controller's key is pinned on first use, and if it later changes the app stops, shows both keys, and lets you trust the new one after comparing
-- **Credentials in the Keychain** — your API key and PTZ admin login are stored in the macOS Keychain, not in plaintext preferences
+- **Credentials in the Keychain** — each site's API key and PTZ admin login are stored in the macOS Keychain, not in plaintext preferences
 - **Remembers focused camera** — reopen the popover and it picks up where you left off
 - **Closes on outside click** — click anywhere outside the popover to dismiss it
 
 ## Requirements
 
 - macOS 13.0 or later (universal: Apple Silicon and Intel)
-- A UniFi Protect controller with the [Integration API](https://developers.ui.com/protect-api/) enabled
-- An API key generated from the controller's settings
-- *(Optional, for PTZ)* A local admin account on the controller
+- One or more UniFi Protect controllers with the [Integration API](https://developers.ui.com/protect-api/) enabled
+- An API key for each controller, created on that console (see [Setup](#setup))
+- *(Optional, for PTZ)* A local admin account on each controller
 
 ## Install
 
@@ -65,13 +66,25 @@ Download the latest DMG from [GitHub Releases](https://github.com/cb2206/QuickPr
 4. Click **Test Connection** to verify
 5. Close settings — your cameras will appear in the popover
 
+**Creating the API key.** Create it on the console itself, not at unifi.ui.com: open **UniFi Network → Integrations → Create New API Key** (on Network 9: Settings → Control Plane → Integrations) and copy the key right away — it's shown once. Keys from the unifi.ui.com cloud portal are rejected by the console with "API key rejected". The **?** next to the field in Settings shows the same path.
+
+### More than one site
+
+Settings → **Connection** lists your sites. Click **Add Site**, give it a name (shown on its tiles, e.g. "BC285"), and enter that console's address and its own API key — every console issues its own keys, so one console's key doesn't work on another. The fields below the list (and the **PTZ** tab) edit the selected site.
+
+- Cameras from all sites share the grid, the layout profiles, pinned windows and per-camera settings.
+- A newly added site's cameras appear in the profile you're in when they first load; your other profiles get them hidden, so curated layouts don't grow. Add them there from a tile's right-click **Add Camera** menu.
+- If one site is unreachable, a banner above the grid names it while the other sites keep streaming.
+- **Remove Site…** deletes that site's API key and login from the Keychain.
+
 ### PTZ Setup (optional)
 
 To control PTZ cameras (e.g. G6 PTZ) with arrow keys:
 
-1. Open **Settings** → **PTZ**
-2. Enter a **local admin username** and **password** for your controller
-3. PTZ-capable cameras will show a directional icon (↔) on their name badge
+1. Create a local account on the console: in UniFi OS open **Admins & Users → Create New**, tick **Restrict to Local Access Only**, and give it a Protect role that can control cameras
+2. Open **Settings** → **PTZ** (with several sites, pick the site first)
+3. Enter that account's **username** and **password**
+4. PTZ-capable cameras will show a directional icon (↔) on their name badge
 
 > **Why separate credentials?** The Integration API (API key) handles streaming but does not support PTZ control. PTZ requires the classic Protect API which uses session-based authentication with a local admin account.
 
@@ -148,7 +161,7 @@ xcodebuild test -scheme QuickProtect -destination 'platform=macOS'
 swiftlint lint --strict
 ```
 
-The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), certificate pinning (policy state machine, SPKI fingerprints against openssl vectors, legacy-pin migration), controller address normalisation, `ProtectService` against a stubbed controller (camera list, 429 retry, quality ladder, stream release, connection changes), connection-error messages and their translations, the stream-allocation ledger and recovery backoff, `AppSettings` persistence and migrations, version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings. `RTSPClientIntegrationTests` plays a real RTSPS stream from a local mediamtx + ffmpeg (`brew install mediamtx ffmpeg`) and is skipped when those tools are missing.
+The XCTest target covers RTP/RTSP parsing, H.264/H.265 NAL handling, AVCC conversion, SDP parsing, Camera model decoding (including PTZ feature flags), certificate pinning (policy state machine, SPKI fingerprints against openssl vectors, legacy-pin migration), controller address normalisation, `ProtectService` against a stubbed controller (camera list, 429 retry, quality ladder, stream release, connection changes, API-key whitespace), `ProtectHub` over two stubbed consoles (merging, per-site failures, routing, site removal), the site list and its migration from the single-controller settings, connection-error messages and their translations, the stream-allocation ledger and recovery backoff, `AppSettings` persistence and migrations, version comparison, grid layout, pinned-window geometry, hotkey management, and Aurora accent-color parsing and appearance settings. `RTSPClientIntegrationTests` plays a real RTSPS stream from a local mediamtx + ffmpeg (`brew install mediamtx ffmpeg`) and is skipped when those tools are missing.
 
 ## Diagnostics
 
@@ -220,7 +233,7 @@ Any VPN solution that gives you access to your home LAN will work — WireGuard,
 
 ## How It Works
 
-QuickProtect connects to your UniFi Protect controller using the Integration API (`/proxy/protect/integration/v1/`). It authenticates with an API key and creates on-demand RTSP sessions for each camera. For PTZ control, it additionally authenticates with the classic Protect API using local admin credentials and sends continuous-velocity move commands via the `/cameras/{id}/move` endpoint (all zeros stops). The API key and PTZ admin credentials are stored in the macOS Keychain (an existing plaintext copy from an older version is migrated automatically on first launch).
+QuickProtect connects to each configured UniFi Protect controller using the Integration API (`/proxy/protect/integration/v1/`), with one `ProtectService` per site; `ProtectHub` merges their camera lists and routes each stream, PTZ move and snapshot to the camera's own console. It authenticates with an API key and creates on-demand RTSP sessions for each camera. For PTZ control, it additionally authenticates with the classic Protect API using local admin credentials and sends continuous-velocity move commands via the `/cameras/{id}/move` endpoint (all zeros stops). The API key and PTZ admin credentials are stored in the macOS Keychain (an existing plaintext copy from an older version is migrated automatically on first launch).
 
 Since macOS 13+ dropped AVFoundation support for RTSP URLs, QuickProtect includes a custom RTSP/RTP client that:
 

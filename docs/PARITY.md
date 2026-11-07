@@ -159,6 +159,22 @@ port (`dotnet/`).
   POST that completes after the panel closed releases its allocation instead
   of leaking it server-side.
 
+- **Multiple sites** — `ControllerSite` (Core) per console with per-site
+  secret-store accounts (the first site keeps the legacy `unifi.apiKey` …
+  names and mirrors its address to `unifi.ipAddress`, so a downgrade still
+  finds it); one `ProtectService` per site, merged by `ProtectHub`
+  (`IStreamAllocator` too, so the stream coordinator routes by camera).
+  Camera ids stay the layout key. A new site's first cameras are hidden in
+  every profile but the active one; a failing site is a line in the panel's
+  error banner (with the site name) while the others stream, and the
+  certificate card only blocks when no site delivers cameras. Site badge on
+  tiles and "Name · Site" in the focus header / pinned windows when 2+ sites
+  exist; Add Camera menu grouped by site; search matches site names; the
+  RTSPS tunnel pins each stream under its own site's identity. Settings:
+  site list with Add/Remove (confirmation), per-site name/address/key and
+  PTZ login, credential "?" help (flyout on click, tooltip on hover), and a
+  duplicate-console check on Test Connection.
+
 ## Pending (macOS ahead)
 
 Nothing at the moment — the port is in sync with the macOS feature set.
@@ -172,6 +188,8 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
 | Lost stream URL (allocation deleted by another client) | a tile shows the failure with a Reconnect button and does not retry on its own; a pinned window retries: on any client error (connection failed, RTSP 404, receive error) or failed POST it releases its allocation, shows the failure with Reconnect, and POSTs a fresh URL after 5 s doubling to 60 s (reset once a frame paints; first retry waits 5 s) | after 3 consecutive open failures the coordinator re-POSTs the same quality immediately, then 5 s doubling to 60 s (reset once playing), for tiles and pinned windows alike | the FFmpeg client retries its URL on its own, so it needs the re-POST to escape a deleted URL; macOS `RTSPClient` never retries a URL, so the first error is the failure signal. Tiles stay manual because every popover reopen, quality switch or Reconnect already POSTs a fresh URL |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
+| Cameras tab with several sites | one section per site | one list, each row labelled with its site | the list's ▲/▼ reorder works on the whole profile order; sections would split it |
+| Site connection change | refetch after typing settles (800 ms debounce) | refetch when the field loses focus | fields commit on focus loss here, as for every other setting |
 
 ## Platform notes (Linux)
 
