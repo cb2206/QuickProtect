@@ -21,10 +21,16 @@ public class ConnectionChangeTests
     /// A minimal HTTPS "controller" answering every request with <paramref name="body"/>
     /// (or a camera's web server, given a status and an HTML page).
     /// </summary>
-    private sealed class FakeController : IAsyncDisposable
+    internal sealed class FakeController : IAsyncDisposable
     {
         private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
-        private readonly X509Certificate2 _cert = MakeSelfSigned();
+        // One key for every fake: they all listen on 127.0.0.1, and the pin is
+        // keyed by host, so fakes on different ports must present the same key.
+        private static readonly X509Certificate2 SharedCert = MakeSelfSigned();
+        private readonly X509Certificate2 _cert = SharedCert;
+
+        /// <summary>Request heads received so far (method line and headers).</summary>
+        public System.Collections.Concurrent.ConcurrentQueue<string> Heads { get; } = new();
         private readonly CancellationTokenSource _stop = new();
         private readonly Task _loop;
 
@@ -66,6 +72,7 @@ public class ConnectionChangeTests
                 if (n == 0) return;
                 head.Append(Encoding.ASCII.GetString(buffer, 0, n));
             }
+            Heads.Enqueue(head.ToString());
             var payload = Encoding.UTF8.GetBytes(body);
             var response = $"HTTP/1.1 {_status}\r\nContent-Type: {_contentType}\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n";
             await tls.WriteAsync(Encoding.ASCII.GetBytes(response));
@@ -78,7 +85,6 @@ public class ConnectionChangeTests
             _stop.Cancel();
             _listener.Stop();
             await _loop;
-            _cert.Dispose();
             _stop.Dispose();
         }
 
@@ -91,13 +97,11 @@ public class ConnectionChangeTests
         }
     }
 
-    private static (ProtectService Service, AppSettings Settings) NewService(string address)
+    private static (ProtectService Service, ControllerSite Settings) NewService(string address)
     {
-        var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore())
-        {
-            IpAddress = address,
-            ApiKey = "test-api-key"
-        };
+        var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore()).Sites[0];
+        settings.IpAddress = address;
+        settings.ApiKey = "test-api-key";
         // Empty trust store: the fake controller's key is pinned on first use.
         return (new ProtectService(settings, new CertificateTrust(new InMemoryPreferences())), settings);
     }

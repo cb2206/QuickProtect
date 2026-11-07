@@ -29,12 +29,8 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         _prefs = prefs;
         _secrets = secrets;
-        _ipAddress = _prefs.GetString(Keys.IpAddress) ?? "";
-        _apiKey = LoadSecret(Keys.ApiKey);
         _streamKeepAliveSeconds = ClampStreamKeepAlive(_prefs.GetInt(Keys.StreamKeepAliveSeconds) ?? StreamKeepAliveDefault);
         _pauseDecodeWhileClosed = _prefs.GetBool(Keys.PauseDecodeWhileClosed) ?? true;
-        _username = LoadSecret(Keys.Username);
-        _password = LoadSecret(Keys.Password);
         _defaultStreamQuality = StreamQualityExtensions.FromRawValue(_prefs.GetString(Keys.DefaultStreamQuality)) ?? StreamQuality.Auto;
         _appearance = (AppearanceMode)(_prefs.GetInt(Keys.Appearance) ?? 0);
         _accentColorHex = _prefs.GetString(Keys.AccentColorHex) ?? "0a84ff";
@@ -45,36 +41,136 @@ public sealed class AppSettings : INotifyPropertyChanged
         _snapshotFolder = _prefs.GetString(Keys.SnapshotFolder);
         _activeProfileId = _prefs.GetString(Keys.ActiveProfileId) ?? DefaultProfileId;
         MigrateLayoutProfilesIfNeeded();
+        _sites = LoadSites();
     }
 
-    // MARK: - Connection
+    // MARK: - Sites (the UniFi consoles QuickProtect streams from)
 
-    private string _ipAddress;
-    public string IpAddress
+    /// <summary>Secret-store account names (the legacy site's; others get a ".&lt;siteId&gt;" suffix).</summary>
+    public static class SecretKeys
     {
-        get => _ipAddress;
-        set { _ipAddress = value; _prefs.SetString(Keys.IpAddress, value); Raise(); }
+        public const string ApiKey = Keys.ApiKey;
+        public const string Username = Keys.Username;
+        public const string Password = Keys.Password;
     }
 
-    private string _apiKey;
-    public string ApiKey
+    private List<ControllerSite> _sites;
+
+    /// <summary>
+    /// Every configured console, in display order. Cameras from all of them
+    /// share one grid and one set of layout profiles. Never empty: a fresh
+    /// install gets one blank site so onboarding has something to fill in.
+    /// </summary>
+    public IReadOnlyList<ControllerSite> Sites => _sites;
+
+    /// <summary>A site was added or removed (<see cref="Sites"/> is already updated).</summary>
+    public event EventHandler? SitesChanged;
+
+    /// <summary>More than one console is configured, so the UI labels cameras by site.</summary>
+    public bool HasMultipleSites => _sites.Count > 1;
+
+    public ControllerSite? Site(string id) => _sites.FirstOrDefault(s => s.Id == id);
+
+    /// <summary>Adds an empty site at the end of the list and returns it.</summary>
+    public ControllerSite AddSite(string name = "")
     {
-        get => _apiKey;
-        set { _apiKey = value; _secrets.Set(Keys.ApiKey, value); Raise(); }
+        var site = MakeSite(Guid.NewGuid().ToString(), name, "");
+        _sites = _sites.Append(site).ToList();
+        PersistSites();
+        SitesChanged?.Invoke(this, EventArgs.Empty);
+        Raise(nameof(Sites));
+        return site;
     }
 
-    private string _username;
-    public string Username
+    /// <summary>Removes a site and its secrets. The last site can't be removed.</summary>
+    public void RemoveSite(string id)
     {
-        get => _username;
-        set { _username = value; _secrets.Set(Keys.Username, value); Raise(); }
+        if (_sites.Count <= 1 || Site(id) is not { } site) return;
+        _sites = _sites.Where(s => s.Id != id).ToList();
+        site.OnListChange = null;
+        site.RemoveSecrets();
+        PersistSites();
+        var seeded = SeededSiteIds();
+        if (seeded.Remove(id)) _prefs.SetJson(Keys.SeededSites, seeded.OrderBy(x => x).ToList());
+        SitesChanged?.Invoke(this, EventArgs.Empty);
+        Raise(nameof(Sites));
     }
 
-    private string _password;
-    public string Password
+    private List<ControllerSite> LoadSites()
     {
-        get => _password;
-        set { _password = value; _secrets.Set(Keys.Password, value); Raise(); }
+        var stored = _prefs.GetJson<List<Dictionary<string, string>>>(Keys.Sites) ?? new();
+        var list = stored
+            .Where(e => e.ContainsKey("id"))
+            .Select(e => MakeSite(e["id"], e.GetValueOrDefault("name") ?? "", e.GetValueOrDefault("address") ?? ""))
+            .ToList();
+        if (list.Count == 0)
+        {
+            // Pre-multi-site install (or a fresh one): the configured controller
+            // becomes the legacy site, which keeps its secret accounts. Its
+            // cameras already sit in every profile, so it counts as seeded.
+            list.Add(MakeSite(ControllerSite.LegacyId, "", _prefs.GetString(Keys.IpAddress) ?? ""));
+            MarkSiteSeeded(ControllerSite.LegacyId);
+            _sites = list;
+            PersistSites();
+        }
+        return list;
+    }
+
+    private ControllerSite MakeSite(string id, string name, string address)
+    {
+        var site = new ControllerSite(id, name, address, _secrets,
+            LoadSecret(ControllerSite.Account(Keys.ApiKey, id)),
+            LoadSecret(ControllerSite.Account(Keys.Username, id)),
+            LoadSecret(ControllerSite.Account(Keys.Password, id)));
+        site.OnListChange = PersistSites;
+        return site;
+    }
+
+    /// <summary>
+    /// Writes the site list (no secrets). The legacy site's address is also
+    /// mirrored to the pre-multi-site key, so a downgrade keeps that console.
+    /// </summary>
+    private void PersistSites()
+    {
+        _prefs.SetJson(Keys.Sites, _sites.Select(s => s.ListEntry()).ToList());
+        if (_sites.FirstOrDefault(s => s.Id == ControllerSite.LegacyId) is { } legacy)
+            _prefs.SetString(Keys.IpAddress, legacy.IpAddress);
+    }
+
+    // MARK: Profile seeding for a newly added site
+
+    public HashSet<string> SeededSiteIds()
+        => (_prefs.GetJson<List<string>>(Keys.SeededSites) ?? new()).ToHashSet();
+
+    public void MarkSiteSeeded(string id)
+    {
+        var seeded = SeededSiteIds();
+        if (!seeded.Add(id)) return;
+        _prefs.SetJson(Keys.SeededSites, seeded.OrderBy(x => x).ToList());
+    }
+
+    /// <summary>
+    /// The first time a newly added site's cameras arrive, they stay visible in
+    /// the active profile only: every other profile gets them hidden, so a
+    /// curated layout doesn't suddenly grow by a whole site. Cameras the site
+    /// gains later behave like any new camera (visible everywhere). Returns
+    /// true when it seeded.
+    /// </summary>
+    public bool SeedSiteCamerasIfNeeded(string siteId, IReadOnlyCollection<string> cameraIds)
+    {
+        if (cameraIds.Count == 0 || SeededSiteIds().Contains(siteId)) return false;
+        var all = AllLayouts();
+        foreach (var profile in Profiles().Where(p => p.Id != ActiveProfile.Id))
+        {
+            var content = all.TryGetValue(profile.Id, out var c) ? c : new ProfileContent();
+            foreach (var id in cameraIds)
+                if (!content.hidden.Contains(id)) content.hidden.Add(id);
+            all[profile.Id] = content;
+        }
+        _prefs.SetJson(Keys.ProfileLayout, all);
+        MarkSiteSeeded(siteId);
+        Raise(nameof(IsHidden));
+        return true;
     }
 
     /// <summary>Bounds and default (seconds) for <see cref="StreamKeepAliveSeconds"/>.</summary>
@@ -594,5 +690,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         public const string SecondaryLensPip = "unifi.secondaryLensPip";
         public const string SecondaryLensPipGrid = "unifi.secondaryLensPipGrid";
         public const string PinnedCameras = "unifi.pinnedCameras";
+        public const string Sites = "unifi.sites";
+        public const string SeededSites = "unifi.seededSites";
     }
 }

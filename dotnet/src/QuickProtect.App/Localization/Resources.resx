@@ -314,4 +314,20 @@ QuickProtect.</value></data>
   <data name="The controller returned an unexpected response." xml:space="preserve"><value>The controller returned an unexpected response.</value></data>
   <data name="The controller sent a response QuickProtect couldn't read." xml:space="preserve"><value>The controller sent a response QuickProtect couldn't read.</value></data>
   <data name="This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's." xml:space="preserve"><value>This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's.</value></data>
+  <data name="New Site" xml:space="preserve"><value>New Site</value></data>
+  <data name="Sites" xml:space="preserve"><value>Sites</value></data>
+  <data name="Site" xml:space="preserve"><value>Site</value></data>
+  <data name="Add Site" xml:space="preserve"><value>Add Site</value></data>
+  <data name="Remove Site…" xml:space="preserve"><value>Remove Site…</value></data>
+  <data name="Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="Remove “{0}”?" xml:space="preserve"><value>Remove “{0}”?</value></data>
+  <data name="Cameras from all sites share the grid and layout profiles." xml:space="preserve"><value>Cameras from all sites share the grid and layout profiles.</value></data>
+  <data name="Site Name" xml:space="preserve"><value>Site Name</value></data>
+  <data name="Shown on camera tiles when you have more than one site" xml:space="preserve"><value>Shown on camera tiles when you have more than one site</value></data>
+  <data name="This console is already added as “{0}”." xml:space="preserve"><value>This console is already added as “{0}”.</value></data>
+  <data name="Classic API credentials · {0}" xml:space="preserve"><value>Classic API credentials · {0}</value></data>
+  <data name="Streams" xml:space="preserve"><value>Streams</value></data>
+  <data name="Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key." xml:space="preserve"><value>Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key.</value></data>
+  <data name="Use a local account on this console: in UniFi OS open Admins &amp; Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras." xml:space="preserve"><value>Use a local account on this console: in UniFi OS open Admins &amp; Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras.</value></data>
+  <data name="Its cameras disappear from every profile, and its API key and login are deleted from this computer." xml:space="preserve"><value>Its cameras disappear from every profile, and its API key and login are deleted from this computer.</value></data>
 </root>

@@ -16,7 +16,7 @@ namespace QuickProtect.App.Services;
 /// </summary>
 public sealed class PinnedWindowManager
 {
-    private readonly ProtectService _service;
+    private readonly ProtectHub _service;
     private readonly AppSettings _settings;
     private readonly Dictionary<string, (PinnedCameraWindow window, CameraTileViewModel tile)> _open = new();
 
@@ -25,7 +25,7 @@ public sealed class PinnedWindowManager
     private readonly HashSet<PinnedCameraWindow> _dirtyFrames = new();
     private readonly DispatcherTimer _persistTimer;
 
-    public PinnedWindowManager(ProtectService service, AppSettings settings)
+    public PinnedWindowManager(ProtectHub service, AppSettings settings)
     {
         _service = service;
         _settings = settings;
@@ -39,9 +39,11 @@ public sealed class PinnedWindowManager
         // Restore persisted pins once the camera list is available.
         _service.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(ProtectService.Cameras))
+            if (e.PropertyName == nameof(ProtectHub.Cameras))
                 Dispatcher.UIThread.Post(RestoreFromSettings);
         };
+        // A removed site's windows have no console left to stream from.
+        _service.SiteRemoved += (_, siteId) => Dispatcher.UIThread.Post(() => UnpinAll(siteId));
     }
 
     public bool IsPinned(string cameraId) => _open.ContainsKey(cameraId) || _settings.IsPinned(cameraId);
@@ -149,6 +151,29 @@ public sealed class PinnedWindowManager
         // still-live client.
         entry.window.Close();
         entry.tile.Dispose();
+    }
+
+    private IEnumerable<string> OpenFor(string siteId)
+        => _open.Where(kv => kv.Value.tile.Camera.SiteId == siteId).Select(kv => kv.Key).ToList();
+
+    private void UnpinAll(string siteId)
+    {
+        foreach (var id in OpenFor(siteId)) Unpin(id);
+    }
+
+    /// <summary>
+    /// The site's address or API key is changing: stop its windows' streams so
+    /// nothing keeps talking to the old controller.
+    /// </summary>
+    public void SuspendForConnectionChange(string siteId)
+    {
+        foreach (var id in OpenFor(siteId)) _open[id].tile.Stop();
+    }
+
+    /// <summary>The site's camera list was fetched again: reconnect its windows.</summary>
+    public void ResumeAfterConnectionChange(string siteId)
+    {
+        foreach (var id in OpenFor(siteId)) _ = _open[id].tile.StartAsync();
     }
 
     /// <summary>Tear down all pinned windows (app exit). Persistence is kept.</summary>

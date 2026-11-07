@@ -24,7 +24,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
               <TextBlock Text="●" Foreground="{DynamicResource QpStatusRed}" FontSize="8" VerticalAlignment="Center"
                          IsVisible="{Binding IsOnline}" />
-              <TextBlock Text="{Binding Name}" Foreground="{DynamicResource QpTextPrimary}" FontSize="11" />
+              <TextBlock Text="{Binding DisplayTitle}" Foreground="{DynamicResource QpTextPrimary}" FontSize="11" />
             </StackPanel>
             <!-- Window-local mute (starts muted; does not touch the global speaker setting) -->
             <Button Grid.Column="1" Click="Mute_Click" IsVisible="{Binding HasAudio}"

@@ -19,7 +19,8 @@ public partial class App : Application
     public static App Instance => (App)Current!;
 
     public AppSettings Settings { get; private set; } = null!;
-    public ProtectService Service { get; private set; } = null!;
+    /// <summary>Every configured site's service, merged for the panel (see <see cref="ProtectHub"/>).</summary>
+    public ProtectHub Hub { get; private set; } = null!;
     public CertificateTrust Trust { get; private set; } = null!;
     public PinnedWindowManager PinnedWindows { get; private set; } = null!;
     public UpdateChecker Updater { get; private set; } = null!;
@@ -50,28 +51,27 @@ public partial class App : Application
         ApplyAccent(Settings.AccentColorHex);
         ApplyAppearance(Settings.Appearance);
         Trust = new CertificateTrust(prefs);
-        Service = new ProtectService(Settings, Trust);
+        Hub = new ProtectHub(Settings, site => new ProtectService(site, Trust));
         // Custom FFmpeg video engine; rtsps rides the local TLS bridge with the
         // same TOFU trust as the API.
         Video.FfmpegEngine.Initialize();
-        // The tunnel pins under the configured controller identity, not under
-        // whatever host the stream URL names, so video and API share one pin.
-        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust,
-            connectHost => ControllerAddress.Parse(Settings.IpAddress)?.PinKey ?? connectHost);
-        Streams = new Video.VideoStreamCoordinator(Service);
+        // The tunnel pins under the identity of the site the stream comes
+        // from, not whatever host the URL names, so video and API share one pin.
+        Video.FfmpegEngine.Tunnel = new RtspTlsTunnel(Trust, connectHost => Hub.PinKeyFor(connectHost));
+        Streams = new Video.VideoStreamCoordinator(Hub);
         // A rejected certificate (API or RTSPS tunnel) shows as the panel's
-        // certificate card via Service.CertificateChange. Once the user trusts
+        // certificate card via Hub.PendingCertificateChange. Once the user trusts
         // the new key, every stream failure so far was the rejection — restart
         // them now rather than after their accumulated backoff.
-        var hadCertificateChange = Service.CertificateChange != null;
-        Service.PropertyChanged += (_, e) =>
+        var hadCertificateChange = Hub.PendingCertificateChange != null;
+        Hub.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName != nameof(ProtectService.CertificateChange)) return;
-            var hasChange = Service.CertificateChange != null;
+            if (e.PropertyName != nameof(ProtectHub.PendingCertificateChange)) return;
+            var hasChange = Hub.PendingCertificateChange != null;
             if (hadCertificateChange && !hasChange) Dispatcher.UIThread.Post(Streams.RetryFailedNow);
             hadCertificateChange = hasChange;
         };
-        PinnedWindows = new PinnedWindowManager(Service, Settings);
+        PinnedWindows = new PinnedWindowManager(Hub, Settings);
         Updater = new UpdateChecker(CurrentVersion());
         Updater.StartPeriodicChecks();
 
@@ -99,32 +99,20 @@ public partial class App : Application
         // Global hotkey toggles the panel; re-applied whenever the binding changes.
         _hotkey = GlobalHotkeyFactory.Create(ToggleMainWindow);
         ApplyHotkey();
-        // A controller/API-key change invalidates live streams and any pending
-        // keep-alive grace — stale clients would keep talking to the old host.
-        // The setters raise on every write (Settings re-applies unchanged text
-        // on focus loss), so only an actual value change reconnects.
-        var lastIp = Settings.IpAddress;
-        var lastApiKey = Settings.ApiKey;
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == "GlobalHotkey") Dispatcher.UIThread.Post(ApplyHotkey);
             if (e.PropertyName == nameof(AppSettings.Appearance))
                 Dispatcher.UIThread.Post(() => ApplyAppearance(Settings.Appearance));
-            if (e.PropertyName == nameof(AppSettings.IpAddress) && Settings.IpAddress != lastIp)
-            {
-                lastIp = Settings.IpAddress;
-                Dispatcher.UIThread.Post(ReconnectController);
-            }
-            if (e.PropertyName == nameof(AppSettings.ApiKey) && Settings.ApiKey != lastApiKey)
-            {
-                lastApiKey = Settings.ApiKey;
-                Dispatcher.UIThread.Post(ReconnectController);
-            }
         };
+        // A site's controller/API-key change invalidates live streams and any
+        // pending keep-alive grace — stale clients would keep talking to the
+        // old host. The site raises only on an actual value change.
+        Hub.ConnectionChanged += (_, siteId) => Dispatcher.UIThread.Post(() => ReconnectController(siteId));
 
-        // Kick off an initial fetch when credentials already exist.
-        if (!string.IsNullOrEmpty(Settings.IpAddress) && !string.IsNullOrEmpty(Settings.ApiKey))
-            _ = Service.FetchCamerasAsync();
+        // Kick off an initial fetch when any site has credentials.
+        if (Settings.Sites.Any(s => s.IsConfigured))
+            _ = Hub.FetchCamerasAsync();
 
         // A second app launch signals this instead of starting (see Program).
         StartShowPanelListener();
@@ -198,7 +186,7 @@ public partial class App : Application
             return;
         if (_mainWindow == null)
         {
-            _mainWindow = new MainWindow { DataContext = new MainViewModel(Service, Settings) };
+            _mainWindow = new MainWindow { DataContext = new MainViewModel(Hub, Settings) };
             _mainWindow.Closing += (_, e) =>
             {
                 // Hide instead of destroy so streams can be torn down on hide.
@@ -209,12 +197,12 @@ public partial class App : Application
         }
         _mainWindow.Show();
         _mainWindow.Activate();
-        _ = Service.FetchCamerasAsync();
+        _ = Hub.FetchCamerasAsync();
     }
 
     private void ShowOnboarding()
     {
-        var vm = new OnboardingViewModel(Service, Settings);
+        var vm = new OnboardingViewModel(Hub, Settings);
         var window = new OnboardingWindow { DataContext = vm };
         vm.Finished += (_, _) =>
         {
@@ -229,7 +217,7 @@ public partial class App : Application
     {
         if (_settingsWindow == null)
         {
-            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(Service, Settings, Trust, Updater) };
+            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(Hub, Settings, Trust, Updater) };
             _settingsWindow.Closing += (_, e) => { e.Cancel = true; _settingsWindow!.Hide(); };
         }
         _settingsWindow.Show();
@@ -340,22 +328,32 @@ public partial class App : Application
     /// </summary>
     public async Task ReviewCertificateAsync(Window owner)
     {
-        if (Service.CertificateChange is not { } change) return;
+        await ReviewCertificateAsync(owner, Hub.PendingCertificateChange);
+    }
+
+    /// <summary>Reviews one site's pending change (a pinned window passes its camera's).</summary>
+    public async Task ReviewCertificateAsync(Window owner, CertificateChange? change)
+    {
+        if (change is null) return;
         if (await Views.CertificateReviewWindow.ShowAsync(owner, change))
-            Service.TrustPendingCertificate(change.Host);
+            Hub.TrustPendingCertificate(change.Host);
     }
 
     /// <summary>
-    /// The controller address or API key changed: drop the old controller's
-    /// streams, fetch from the new one (clearing the old error banner), and
-    /// restart the tiles if the panel is showing.
+    /// A site's address or API key changed: drop the panel's streams (they may
+    /// address the old controller), fetch that site again (clearing its old
+    /// error), reconnect its pinned windows, and restart the tiles if the
+    /// panel is showing.
     /// </summary>
-    private async void ReconnectController()
+    private async void ReconnectController(string siteId)
     {
         // The service decides which in-flight fetch is stale (see RefetchForNewConnectionAsync).
         TeardownStreamsNow(cancelFetch: false);
-        await Service.RefetchForNewConnectionAsync();
-        if (_mainWindow is { IsVisible: true, DataContext: MainViewModel vm } && Service.ErrorMessage == null)
+        PinnedWindows.SuspendForConnectionChange(siteId);
+        await Hub.RefetchForNewConnectionAsync(siteId);
+        PinnedWindows.ResumeAfterConnectionChange(siteId);
+        if (_mainWindow is { IsVisible: true, DataContext: MainViewModel vm }
+            && Hub.ServiceForSite(siteId)?.ErrorMessage == null)
             vm.StartAll();
     }
 
@@ -370,7 +368,7 @@ public partial class App : Application
     private void TeardownStreamsNow(bool cancelFetch)
     {
         CancelStreamTeardown();
-        if (cancelFetch) Service.CancelFetch();
+        if (cancelFetch) Hub.CancelFetch();
         // Reset the pause flag so a client that restarts later decodes again.
         Streams.SetRenderPaused(false);
         if (_mainWindow?.DataContext is MainViewModel vm)
@@ -380,7 +378,7 @@ public partial class App : Application
         else
         {
             Streams.ReleaseAllExceptPinned();
-            Service.CleanupStreams();
+            Hub.CleanupStreams();
         }
     }
 
@@ -404,7 +402,7 @@ public partial class App : Application
         // Release server-side stream allocations before the process dies. The
         // keep-alive grace doesn't apply on quit — flush it immediately.
         CancelStreamTeardown();
-        Service.CancelFetch();
+        Hub.CancelFetch();
         _hotkey?.Dispose();
         Updater.Dispose();
         PinnedWindows.CloseAll();
@@ -414,11 +412,11 @@ public partial class App : Application
         // the pinned windows and disposing the coordinator above already sent
         // most of them fire-and-forget, so wait on everything in flight, not
         // just what the cleanup calls still found.
-        Service.CleanupStreams();
-        Service.CleanupPinnedStreams();
-        var released = Service.ReleasesSettled();
+        Hub.CleanupStreams();
+        Hub.CleanupPinnedStreams();
+        var released = Hub.ReleasesSettled();
         try { released.Wait(TimeSpan.FromSeconds(2)); } catch { /* best effort on exit */ }
-        Service.Dispose();
+        Hub.Dispose();
         Video.FfmpegEngine.Tunnel?.Dispose();
         // Last: the quit these handlers exist to run is this one. From here the
         // renderer is already stopped, so a further signal has nothing left to
