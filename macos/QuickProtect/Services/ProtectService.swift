@@ -74,6 +74,11 @@ final class ProtectService: NSObject, ObservableObject {
         Task { await fetchCameras(forced: true) }
     }
 
+    /// The API key as sent: surrounding whitespace dropped, since a key pasted
+    /// from a browser or password manager often carries a trailing newline or
+    /// space, which the console rejects as 401 like a wrong key.
+    var apiKeyHeader: String { settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines) }
+
     /// The configured controller, normalised (host, optional port, pin identity).
     var controllerAddress: ControllerAddress? { ControllerAddress.parse(settings.ipAddress) }
 
@@ -284,7 +289,7 @@ final class ProtectService: NSObject, ObservableObject {
             throw APIError.invalidURL
         }
         var request = URLRequest(url: url, timeoutInterval: 10)
-        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await tlsSession.data(for: request)
@@ -433,7 +438,7 @@ final class ProtectService: NSObject, ObservableObject {
 
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.httpMethod = "POST"
-        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try? JSONSerialization.data(
@@ -522,7 +527,7 @@ final class ProtectService: NSObject, ObservableObject {
 
         var request = URLRequest(url: url, timeoutInterval: 5)
         request.httpMethod = "DELETE"
-        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
 
         RTSPClient.log("[Stream] DELETE \(quality) for camera \(cameraId)")
         releaseGroup.enter()
@@ -906,7 +911,7 @@ final class ProtectService: NSObject, ObservableObject {
     // MARK: - Private helpers
 
     private func applySuccess(_ cameras: [Camera]) async {
-        RTSPClient.log("[API] applySuccess: \(cameras.count) cameras")
+        RTSPClient.log("[API] applySuccess (\(controllerAddress?.host ?? "no address")): \(cameras.count) cameras")
         await MainActor.run {
             // Integration-API payloads carry no PTZ flags; keep what the
             // classic-API enrichment already established (it may be throttled
@@ -945,7 +950,7 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     private func applyErrorMessage(_ message: String, logging error: Error) async {
-        RTSPClient.log("[API] applyError: \(Self.logDescription(of: error))")
+        RTSPClient.log("[API] applyError (\(controllerAddress?.host ?? "no address")): \(Self.logDescription(of: error))")
         await MainActor.run {
             self.errorMessage = message
             self.isLoading = false
@@ -978,7 +983,7 @@ final class ProtectService: NSObject, ObservableObject {
         let problem: String?
         if settings.ipAddress.isEmpty {
             problem = String(localized: "No IP address configured. Open Settings.")
-        } else if settings.apiKey.isEmpty {
+        } else if apiKeyHeader.isEmpty {
             problem = String(localized: "No API key configured. Open Settings.")
         } else {
             problem = nil
