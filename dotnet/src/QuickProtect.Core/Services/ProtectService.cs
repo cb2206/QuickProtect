@@ -628,6 +628,41 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         return (await RequestPackageSnapshotAsync(camera).ConfigureAwait(false)).bytes;
     }
 
+    /// <summary>
+    /// A current JPEG of a camera's main lens (Integration API, API key). Bridges
+    /// the wait for a stream's first keyframe: the controller often starts a
+    /// fresh RTSP session just after a keyframe, so a tile sits a whole GOP
+    /// (2 s at 15 fps) before it can paint. One attempt, no retry — callers
+    /// only ask for tiles still dark after the panel-open burst, and a 429 here
+    /// must not cost the stream allocations their limiter budget.
+    /// </summary>
+    public async Task<byte[]?> FetchCameraSnapshotAsync(Camera camera)
+    {
+        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(camera.Id)}/snapshot");
+        if (url == null) return null;
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
+            req.Headers.TryAddWithoutValidation("Accept", "image/jpeg");
+            using var resp = await _integration.SendAsync(req, cts.Token).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                Log.Line($"[Snapshot] camera snapshot HTTP {(int)resp.StatusCode} for {camera.Name}");
+                return null;
+            }
+            var bytes = await resp.Content.ReadAsByteArrayAsync(cts.Token).ConfigureAwait(false);
+            Log.Line($"[Snapshot] camera snapshot {bytes.Length} bytes for {camera.Name}");
+            return bytes.Length > 0 ? bytes : null;
+        }
+        catch (Exception ex)
+        {
+            Log.Line($"[Snapshot] camera snapshot request failed: {ex.Message}");
+            return null;
+        }
+    }
+
     private async Task<(byte[]? bytes, bool unauthorized)> RequestPackageSnapshotAsync(Camera camera)
     {
         var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // cache-buster: always a fresh capture
