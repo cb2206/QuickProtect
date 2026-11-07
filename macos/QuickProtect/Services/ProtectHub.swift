@@ -202,8 +202,12 @@ final class ProtectHub: ObservableObject {
     /// What the grid shows. With one site this is exactly the old
     /// single-controller behaviour; with several, a failing site only shows
     /// as a banner while another still delivers cameras.
+    /// Cameras already on screen outrank a refresh in flight (every panel open
+    /// refetches): swapping in the loading card would tear down every tile —
+    /// cancelling stream requests mid-POST and fully stopping kept-alive
+    /// secondary streams — only to rebuild them a moment later. The header's
+    /// refresh spinner shows the refetch instead.
     var gridState: GridState {
-        if isLoadingAll { return .loading }
         if !cameras.isEmpty { return .cameras }
         if isLoading { return .loading }
         if siteIssues.contains(where: \.isCertificateChange) { return .certificateChanged }
@@ -294,6 +298,10 @@ final class ProtectHub: ObservableObject {
 
     func fetchPackageSnapshot(for camera: Camera) async -> CGImage? {
         await service(for: camera)?.fetchPackageSnapshot(for: camera)
+    }
+
+    func fetchCameraSnapshot(for camera: Camera) async -> CGImage? {
+        await service(for: camera)?.fetchCameraSnapshot(for: camera)
     }
 
     func ptzSetAxes(cameraId: String, pan: Double? = nil, tilt: Double? = nil, zoom: Double? = nil) {

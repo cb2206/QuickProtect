@@ -29,7 +29,7 @@ extension RTSPClient {
         if let transport = head.headers["transport"], let ch = RTPParser.interleavedRTPChannel(transport) {
             if awaiting == .setupVideo { videoRTPChannel = ch }
             if awaiting == .setupAudio { audioRTPChannel = ch }
-            Self.dbg("[RTSP] \(awaiting) transport channel=\(ch)")
+            self.dbg("[RTSP] \(awaiting) transport channel=\(ch)")
         }
 
         let contentLength = head.contentLength
@@ -44,13 +44,13 @@ extension RTSPClient {
 
         let statusCode = response.statusCode
         let body = response.body
-        Self.dbg("[RTSP] \(awaiting) reply \(statusCode) (body \(contentLength) bytes)")
+        self.dbg("[RTSP] \(awaiting) reply \(statusCode) (body \(contentLength) bytes)")
 
         guard (200...299).contains(statusCode) else {
             // Audio is best-effort: if the server rejects the second SETUP, drop
             // the audio track and still PLAY video rather than failing the stream.
             if awaiting == .setupAudio {
-                Self.dbg("[RTSP] audio SETUP rejected (\(statusCode)); continuing video-only")
+                self.dbg("[RTSP] audio SETUP rejected (\(statusCode)); continuing video-only")
                 audioInfo = nil
                 sendPlay()
                 if bufferCount > 0 { processRTSPResponses() }
@@ -76,7 +76,7 @@ extension RTSPClient {
             guard hasVideo else {
                 describesWithoutVideo += 1
                 if describesWithoutVideo < Self.maxDescribesWithoutVideo {
-                    Self.dbg("[RTSP] no video track (attempt \(describesWithoutVideo)) — re-DESCRIBE in \(Self.describeRetryDelay)s")
+                    self.dbg("[RTSP] no video track (attempt \(describesWithoutVideo)) — re-DESCRIBE in \(Self.describeRetryDelay)s")
                     let conn = connection
                     queue.asyncAfter(deadline: .now() + Self.describeRetryDelay) { [weak self] in
                         guard let self, conn === self.connection else { return }
@@ -145,16 +145,16 @@ extension RTSPClient {
                 .filter { $0.hasPrefix("m=") || $0.hasPrefix("a=rtpmap") || $0.hasPrefix("a=control") || $0.hasPrefix("a=fmtp") }
                 .map { $0.replacingOccurrences(of: #"rtsps?://[^/\s]+/\S*"#, with: "<url>", options: .regularExpression) }
                 .map { $0.count > 120 ? String($0.prefix(120)) + "…" : $0 }
-            Self.dbg("[RTSP] SDP media: " + media.joined(separator: " | "))
+            self.dbg("[RTSP] SDP media: " + media.joined(separator: " | "))
         }
 
         audioInfo = RTPParser.parseAudioTrack(sdp: sdp)
         if let a = audioInfo {
-            Self.dbg("[RTSP] audio track: AAC \(a.sampleRate)Hz/\(a.channels)ch control=\(a.trackControl)")
+            self.dbg("[RTSP] audio track: AAC \(a.sampleRate)Hz/\(a.channels)ch control=\(a.trackControl)")
         }
 
         guard let video = RTPParser.parseVideoTrack(sdp: sdp) else {
-            Self.dbg("[RTSP] SDP has no video track")
+            self.dbg("[RTSP] SDP has no video track")
             return nil
         }
         codec = video.codec
@@ -176,7 +176,7 @@ extension RTSPClient {
     func sendSetupVideo() {
         awaiting = .setupVideo
         let seq = nextCSeq()
-        Self.dbg("[RTSP] SETUP video control=\(trackControl.isEmpty ? "<none>" : trackControl) codec=\(codec)")
+        self.dbg("[RTSP] SETUP video control=\(trackControl.isEmpty ? "<none>" : trackControl) codec=\(codec)")
         // Video RTP/RTCP on interleaved channels 0/1.
         send("SETUP \(trackURL(for: trackControl)) RTSP/1.0\r\nCSeq: \(seq)\r\n" +
              "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n\r\n")

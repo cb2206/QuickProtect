@@ -31,6 +31,8 @@ extension CameraCell {
         // delay so large grids don't leave the last tiles waiting too long.
         let stagger = UInt64(min(loadOrder, 12)) * 90_000_000
 
+        if !keepLastFrame { scheduleStreamPlaceholder(after: stagger) }
+
         streamTask = Task {
             try? await Task.sleep(nanoseconds: stagger)
             guard !Task.isCancelled else { return }
@@ -54,11 +56,43 @@ extension CameraCell {
     func stopStream() {
         streamTask?.cancel()
         streamTask = nil
+        streamPlaceholderTask?.cancel()
+        streamPlaceholderTask = nil
         downSwitchWork?.cancel()
         downSwitchWork = nil
         preservingFrame = false
         rtspClient.disconnect()
         mode = .connecting
+    }
+
+    /// How long a connecting tile may stay dark before it asks the controller
+    /// for a snapshot. Tiles whose stream starts at a keyframe paint within
+    /// ~250 ms of their request and never ask; the ones that joined just past
+    /// a keyframe (a whole GOP to wait) do, which keeps the extra requests out
+    /// of the panel-open burst the controller's 10 req/s limiter already sees.
+    static let placeholderDelayNanos: UInt64 = 400_000_000
+
+    /// Bridge the wait for the main lens's first keyframe with a controller
+    /// snapshot, if the tile is still dark `placeholderDelayNanos` after its
+    /// (staggered) stream request starts. Any older still is dropped first so
+    /// a reconnect never shows a stale scene.
+    func scheduleStreamPlaceholder(after stagger: UInt64) {
+        streamPlaceholderTask?.cancel()
+        rtspClient.placeholderImage = nil
+        streamPlaceholderTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: stagger + Self.placeholderDelayNanos)
+            } catch {
+                return   // cancelled: the stream stopped or the tile went away
+            }
+            guard !rtspClient.hasFrame else { return }
+            let image = await service.fetchCameraSnapshot(for: camera)
+            // A cancelled task may already have been replaced by a newer one.
+            guard !Task.isCancelled else { return }
+            streamPlaceholderTask = nil
+            guard let image, !rtspClient.hasFrame else { return }
+            withAnimation(.easeOut(duration: 0.15)) { rtspClient.placeholderImage = image }
+        }
     }
 
     /// Reconnect the primary stream when its effective quality no longer matches

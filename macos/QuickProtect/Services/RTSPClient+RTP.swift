@@ -38,6 +38,10 @@ extension RTSPClient {
         guard let (marker, payloadStart, end) = RTPParser.rtpPayloadRange(buffer, offset: offset, length: length)
         else { return }
         let payloadLen = end - payloadStart
+        if !firstVideoRTPLogged {
+            firstVideoRTPLogged = true
+            dbg("[RTSP] first video RTP packet")
+        }
         if codec == "H265" {
             handleH265RTP(payloadStart, length: payloadLen)
         } else {
@@ -65,7 +69,7 @@ extension RTSPClient {
         let aus = aacDepacketizer?.receive(payload, marker: marker) ?? []
         if !aus.isEmpty, !audioLoggedFirstAU {
             audioLoggedFirstAU = true
-            Self.dbg("[RTSP] first audio AU enqueued (\(aus[0].count) bytes)")
+            self.dbg("[RTSP] first audio AU enqueued (\(aus[0].count) bytes)")
         }
         for au in aus { renderer.enqueue(au) }
     }
@@ -129,7 +133,7 @@ extension RTSPClient {
     /// resyncs at the next fragment start).
     func dropFragmentIfOversized() {
         if let count = fuBuffer?.count, count > maxReassemblyBytes {
-            Self.dbg("[RTSP] dropping fragmented NAL over \(maxReassemblyBytes) bytes")
+            self.dbg("[RTSP] dropping fragmented NAL over \(maxReassemblyBytes) bytes")
             fuBuffer = nil
         }
     }
@@ -168,12 +172,16 @@ extension RTSPClient {
             }
         }
 
-        guard formatDescription != nil else { return }
+        guard formatDescription != nil else {
+            nalsDroppedBeforeFormat += 1
+            if RTPParser.accessUnitContainsKeyframe([nal], hevc: codec == "H265") { keyframesDroppedBeforeFormat += 1 }
+            return
+        }
         pendingNALs.append(nal)
         // An access unit whose marker bit never arrives would otherwise pile up
         // forever; a real AU is a handful of NALs and well under the cap.
         if pendingNALs.count > 512 || pendingNALs.reduce(0, { $0 + $1.count }) > maxReassemblyBytes {
-            Self.dbg("[RTSP] dropping oversized access unit (\(pendingNALs.count) NALs)")
+            self.dbg("[RTSP] dropping oversized access unit (\(pendingNALs.count) NALs)")
             pendingNALs.removeAll(keepingCapacity: true)
         }
     }

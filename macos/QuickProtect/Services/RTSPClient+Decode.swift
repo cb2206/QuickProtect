@@ -77,10 +77,10 @@ extension RTSPClient {
             // shown yet reports not-ready too, and the first picture must land.
             if hasFrameSignalled, !displayLayer.isReadyForMoreMediaData {
                 if isKeyframe {
-                    Self.dbg("[RTSP] display layer not draining — flushed at keyframe")
+                    self.dbg("[RTSP] display layer not draining — flushed at keyframe")
                     displayLayer.flush()
                 } else {
-                    if !awaitingKeyframeAfterResume { Self.dbg("[RTSP] display layer not draining — waiting for keyframe") }
+                    if !awaitingKeyframeAfterResume { self.dbg("[RTSP] display layer not draining — waiting for keyframe") }
                     awaitingKeyframeAfterResume = true
                     return
                 }
@@ -92,7 +92,7 @@ extension RTSPClient {
             displayLayer.enqueue(sb)
             if !hasFrameSignalled {
                 hasFrameSignalled = true
-                Self.dbg("[RTSP] first frame on screen (\(codec), keyframe=\(isKeyframe), \(nals.count) NALs)")
+                self.dbg("[RTSP] first frame on screen (\(codec), keyframe=\(isKeyframe), \(nals.count) NALs, dropped before params: \(nalsDroppedBeforeFormat) NALs / \(keyframesDroppedBeforeFormat) keyframe NALs)")
                 if handoverOwner != nil {
                     // Warm-up child: its first frame just replaced the picture —
                     // flag for adoption at the receive-completion tail.

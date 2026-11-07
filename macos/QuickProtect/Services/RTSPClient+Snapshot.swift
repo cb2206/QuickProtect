@@ -18,7 +18,7 @@ extension RTSPClient {
         queue.async { [self] in
             guard captureActive != active else { return }
             captureActive = active
-            Self.dbg("[Snapshot] capture active=\(active)")
+            self.dbg("[Snapshot] capture active=\(active)")
             if !active { teardownCaptureSession() }
         }
     }
@@ -56,14 +56,14 @@ extension RTSPClient {
                 outputCallback: nil,
                 decompressionSessionOut: &session)
             guard status == noErr, let session else {
-                Self.dbg("[Snapshot] VTDecompressionSessionCreate failed: \(status)")
+                self.dbg("[Snapshot] VTDecompressionSessionCreate failed: \(status)")
                 return
             }
             decompressionSession = session
             decompressionFormat = format
             captureLoggedFirstFrame = false
             captureSeenKeyframe = false
-            Self.dbg("[Snapshot] capture session created")
+            self.dbg("[Snapshot] capture session created")
         }
         // Wait for the first keyframe before feeding the decoder; once it has a
         // reference, subsequent P-frames decode normally.
@@ -78,7 +78,7 @@ extension RTSPClient {
         ) { [weak self] status, _, imageBuffer, _, _ in
             guard let self else { return }
             guard status == noErr, let imageBuffer else {
-                if !self.captureLoggedFirstFrame { Self.dbg("[Snapshot] decode status=\(status)") }
+                if !self.captureLoggedFirstFrame { self.dbg("[Snapshot] decode status=\(status)") }
                 return
             }
             self.latestFrameLock.lock()
@@ -86,7 +86,7 @@ extension RTSPClient {
             self.latestFrameLock.unlock()
             if !self.captureLoggedFirstFrame {
                 self.captureLoggedFirstFrame = true
-                Self.dbg("[Snapshot] first capture frame \(CVPixelBufferGetWidth(imageBuffer))x\(CVPixelBufferGetHeight(imageBuffer))")
+                self.dbg("[Snapshot] first capture frame \(CVPixelBufferGetWidth(imageBuffer))x\(CVPixelBufferGetHeight(imageBuffer))")
             }
         }
     }

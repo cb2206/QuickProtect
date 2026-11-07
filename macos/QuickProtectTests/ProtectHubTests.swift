@@ -59,6 +59,29 @@ final class ProtectHubTests: XCTestCase {
         return .ok(Data(#"{"data":[\#(items.joined(separator: ","))]}"#.utf8))
     }
 
+    func testRefreshWithCamerasOnScreenKeepsTheGrid() async throws {
+        let (hub, inca, bc) = try makeHub()
+        HubStub.replies = ["10.0.0.1": Self.list("i1"), "10.0.0.2": Self.list("b1")]
+        await hub.fetchCameras(forced: true)
+
+        // Every site refetching at once (each panel open) must not replace the
+        // live tiles with the loading card.
+        hub.service(forSite: inca.id)?.isLoading = true
+        hub.service(forSite: bc.id)?.isLoading = true
+        hub.recompute()
+
+        XCTAssertTrue(hub.isLoadingAll)
+        XCTAssertEqual(hub.gridState, .cameras)
+    }
+
+    func testFirstLoadWithoutCamerasShowsLoading() async throws {
+        let (hub, inca, _) = try makeHub()
+        hub.service(forSite: inca.id)?.isLoading = true
+        hub.recompute()
+
+        XCTAssertEqual(hub.gridState, .loading)
+    }
+
     func testMergesBothSitesAndStampsEachCameraWithItsSite() async throws {
         let (hub, inca, bc) = try makeHub()
         HubStub.replies = ["10.0.0.1": Self.list("i1", "i2"), "10.0.0.2": Self.list("b1")]
