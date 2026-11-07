@@ -158,6 +158,7 @@ struct OnboardingView: View {
                             .foregroundColor(palette.subtext)
                     }
                     .buttonStyle(.plain)
+                    CredentialHelpIcon(text: CredentialHelp.apiKey)
                 }
             }
             HStack(spacing: 10) {
@@ -190,8 +191,11 @@ struct OnboardingView: View {
                 .lineSpacing(3)
                 .padding(.bottom, 20)
             onField(String(localized: "Username")) {
-                PastableTextField(text: $site.username, placeholder: "")
-                    .frame(width: 300)
+                HStack(spacing: 6) {
+                    PastableTextField(text: $site.username, placeholder: "")
+                        .frame(width: 300)
+                    CredentialHelpIcon(text: CredentialHelp.ptzAccount)
+                }
             }
             onField(String(localized: "Password")) {
                 HStack(spacing: 6) {
@@ -208,6 +212,7 @@ struct OnboardingView: View {
                             .foregroundColor(palette.subtext)
                     }
                     .buttonStyle(.plain)
+                    CredentialHelpIcon(text: CredentialHelp.ptzAccount)
                 }
             }
             HStack(spacing: 10) {
