@@ -24,6 +24,7 @@ Click the camera icon in your menu bar to instantly see all your cameras in a re
 - **Display fullscreen** — press **F** or the expand button to fill your entire screen with a camera feed; press **F** or **Escape** to return
 - **PTZ camera control** — pan and tilt PTZ cameras (e.g. G6 PTZ) with the arrow keys or the on-screen pad, and zoom with **I** / **O**; hold to move continuously, release to stop
 - **Pinned windows** — float any camera in a compact always-on-top window that keeps streaming while the popover is closed and reconnects on its own if its stream drops
+- **Quick start** — a tile still waiting for its stream's first keyframe shows a fresh snapshot from the console (dimmed, with a small spinner) until live video arrives; reopening the panel keeps the grid and streams instead of reloading them
 - **Snapshots** — press **S** on a focused feed to copy a still to the clipboard or save it to a folder
 - **Audio** — hear the focused camera (muted by default, **M** toggles)
 - **Package camera** — doorbells with a second lens show it picture-in-picture; **C** swaps the two

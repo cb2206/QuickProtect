@@ -1,8 +1,6 @@
-• Se il certificato del tuo controller cambia (dopo una reinstallazione o una sostituzione), QuickProtect ora te lo segnala, mostra entrambe le chiavi da confrontare e ti permette di fidarti di quella nuova dal pannello delle telecamere, da una finestra mobile o dalle impostazioni.
-• Se cambi l'indirizzo del controller o la chiave API, la connessione si ristabilisce da sola: niente più telecamere obsolete o vecchi messaggi di errore finché non premi Aggiorna.
-• Gli errori di connessione sono più chiari, tradotti e ti dicono cosa controllare.
-• Le finestre mobili si spostano di nuovo trascinandole e si riconnettono da sole quando un flusso si interrompe.
-• La griglia e la vista ingrandita si adattano alle traduzioni lunghe e ai pannelli stretti senza andare a capo.
-• L'impostazione Chiaro/Scuro ora vale anche per le finestre di dialogo.
-• Quando una telecamera non invia video, QuickProtect ne indica la causa invece di restare in caricamento.
-• Le sessioni di streaming sul controller vengono rilasciate in modo più affidabile, e la connessione al controller è più sicura.
+• Più siti: aggiungi più console UniFi (per esempio casa e una seconda casa) e vedi tutte le loro telecamere in un'unica griglia e un unico profilo di layout. Ogni riquadro mostra il suo sito, e un sito offline appare come avviso mentre gli altri continuano a trasmettere.
+• Mentre un flusso live si avvia, il suo riquadro mostra un'istantanea recente invece di restare scuro.
+• Riaprendo il pannello delle telecamere, la griglia resta sullo schermo invece di ricaricare ogni flusso.
+• Il «?» accanto ai campi della chiave API e dell'account PTZ indica dove crearli sulla tua console.
+• Se inserisci l'indirizzo di una telecamera invece di quello della tua console UniFi, ora QuickProtect te lo segnala.
+• Le chiavi API incollate con uno spazio o un a capo finale ora funzionano.

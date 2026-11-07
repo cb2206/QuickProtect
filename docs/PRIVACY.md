@@ -33,7 +33,8 @@ None of it is ever sent to the developer or any third party:
 ## Network connections
 
 QuickProtect connects **only to the UniFi Protect controllers you specify**, over
-HTTPS and RTSP/RTSPS, to list cameras and stream video. This connection is made
+HTTPS and RTSP/RTSPS, to list cameras, stream video, and fetch the still images a tile shows
+while its stream starts (held in memory only, never saved). This connection is made
 on your local network (or through a VPN you set up yourself). The app does not
 connect to any developer-operated servers and does not transmit your data
 anywhere else.
