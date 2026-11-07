@@ -17,26 +17,11 @@ extension Notification.Name {
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
-    @Published var ipAddress: String {
-        didSet { defaults.set(ipAddress, forKey: Keys.ipAddress) }
-    }
-
-    /// Integration API key. Sensitive — stored in the Keychain, not UserDefaults.
-    @Published var apiKey: String {
-        didSet { secrets.set(apiKey, account: Keys.apiKey) }
-    }
-
-    /// Username for classic API auth (required for PTZ control).
-    /// Sensitive — stored in the Keychain, not UserDefaults.
-    @Published var username: String {
-        didSet { secrets.set(username, account: Keys.username) }
-    }
-
-    /// Password for classic API auth (required for PTZ control).
-    /// Sensitive — stored in the Keychain, not UserDefaults.
-    @Published var password: String {
-        didSet { secrets.set(password, account: Keys.password) }
-    }
+    /// Every configured UniFi console, in display order. Cameras from all of
+    /// them share one grid and one set of layout profiles. Managed through
+    /// `AppSettings+Sites`; never empty after init (a fresh install gets one
+    /// blank site so onboarding has something to fill in).
+    @Published var sites: [ControllerSite] = []
 
     /// Where a captured snapshot goes: the clipboard, or a user-picked folder.
     enum SnapshotDestination: Int { case clipboard = 0, folder = 1 }
@@ -200,6 +185,10 @@ final class AppSettings: ObservableObject {
         static let defaultStreamQuality = "unifi.defaultStreamQuality"
         static let cameraStreamQualities = "unifi.cameraStreamQualities"
         static let pinnedCameras  = "unifi.pinnedCameras"
+        static let sites          = "unifi.sites"
+        /// Sites whose cameras were already distributed over the existing
+        /// layout profiles (see `seedSiteCamerasIfNeeded`).
+        static let seededSites    = "unifi.seededSites"
         static let appStorePromoShown = "unifi.appStorePromoShown"
         static let streamKeepAliveSeconds = "unifi.streamKeepAliveSeconds"
         static let pauseDecodeWhileClosed = "unifi.pauseDecodeWhileClosed"
@@ -227,10 +216,6 @@ final class AppSettings: ObservableObject {
     init(defaults: UserDefaults = .standard, secrets: any SecretStoring = KeychainSecretStore()) {
         self.defaults = defaults
         self.secrets = secrets
-        ipAddress    = defaults.string(forKey: Keys.ipAddress) ?? ""
-        apiKey       = Self.loadSecret(Keys.apiKey, defaults: defaults, secrets: secrets)
-        username     = Self.loadSecret(Keys.username, defaults: defaults, secrets: secrets)
-        password     = Self.loadSecret(Keys.password, defaults: defaults, secrets: secrets)
         launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
         let raw = defaults.object(forKey: Keys.appearance) as? Int
         appearance = Appearance(rawValue: raw ?? 0) ?? .auto
@@ -254,6 +239,7 @@ final class AppSettings: ObservableObject {
             : true
         activeProfileID = defaults.string(forKey: Keys.activeProfileID) ?? Self.defaultProfileID
         migrateLayoutProfilesIfNeeded()
+        sites = loadSites()
     }
 
     /// One-time migration of the pre-profiles layout into a built-in "Default"

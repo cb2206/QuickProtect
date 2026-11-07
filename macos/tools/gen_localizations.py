@@ -1405,6 +1405,55 @@ _errors = {
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _errors.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
+# Multi-site support (several UniFi consoles in one grid).
+# Each entry: key -> (de, fr, es, nl, it, pt-BR).
+_sites = {
+    "New Site": ("Neuer Standort", "Nouveau site", "Nuevo sitio", "Nieuwe locatie", "Nuovo sito", "Novo site"),
+    "Site %@": ("Standort %@", "Site %@", "Sitio %@", "Locatie %@", "Sito %@", "Site %@"),
+    "Sites": ("Standorte", "Sites", "Sitios", "Locaties", "Siti", "Sites"),
+    "Site": ("Standort", "Site", "Sitio", "Locatie", "Sito", "Site"),
+    "Add Site": ("Standort hinzufügen", "Ajouter un site", "Añadir sitio", "Locatie toevoegen", "Aggiungi sito", "Adicionar site"),
+    "Remove Site…": ("Standort entfernen…", "Supprimer le site…", "Eliminar sitio…", "Locatie verwijderen…", "Rimuovi sito…", "Remover site…"),
+    "Remove": ("Entfernen", "Supprimer", "Eliminar", "Verwijderen", "Rimuovi", "Remover"),
+    "Remove “%@”?": ("„%@“ entfernen?", "Supprimer « %@ » ?", "¿Eliminar «%@»?", "‘%@' verwijderen?", "Rimuovere «%@»?", "Remover “%@”?"),
+    "Its cameras disappear from every profile and its API key and login are deleted from the Keychain.":
+        ("Seine Kameras verschwinden aus allen Profilen, und API-Schlüssel und Anmeldung werden aus dem Schlüsselbund gelöscht.",
+         "Ses caméras disparaissent de tous les profils, et sa clé API et ses identifiants sont supprimés du trousseau.",
+         "Sus cámaras desaparecen de todos los perfiles y su clave API y su inicio de sesión se eliminan del llavero.",
+         "De camera's verdwijnen uit elk profiel en de API-sleutel en login worden uit de sleutelhanger verwijderd.",
+         "Le sue telecamere spariscono da tutti i profili e la chiave API e le credenziali vengono eliminate dal portachiavi.",
+         "As câmeras somem de todos os perfis e a chave de API e o login são apagados das Chaves."),
+    "Cameras from all sites share the grid and layout profiles.":
+        ("Kameras aller Standorte teilen sich Raster und Layout-Profile.",
+         "Les caméras de tous les sites partagent la grille et les profils de disposition.",
+         "Las cámaras de todos los sitios comparten la cuadrícula y los perfiles de diseño.",
+         "Camera's van alle locaties delen het raster en de lay-outprofielen.",
+         "Le telecamere di tutti i siti condividono la griglia e i profili di layout.",
+         "As câmeras de todos os sites compartilham a grade e os perfis de layout."),
+    "Site Name": ("Standortname", "Nom du site", "Nombre del sitio", "Locatienaam", "Nome del sito", "Nome do site"),
+    "Shown on camera tiles when you have more than one site":
+        ("Wird auf den Kamerakacheln angezeigt, wenn du mehr als einen Standort hast",
+         "Affiché sur les vignettes des caméras lorsque vous avez plusieurs sites",
+         "Se muestra en las miniaturas de las cámaras cuando tienes más de un sitio",
+         "Wordt op de camerategels getoond als je meer dan één locatie hebt",
+         "Mostrato sui riquadri delle telecamere quando hai più di un sito",
+         "Exibido nos blocos das câmeras quando você tem mais de um site"),
+    "This console is already added as “%@”.":
+        ("Diese Konsole ist bereits als „%@“ hinzugefügt.",
+         "Cette console est déjà ajoutée sous le nom « %@ ».",
+         "Esta consola ya está añadida como «%@».",
+         "Deze console is al toegevoegd als ‘%@'.",
+         "Questa console è già aggiunta come «%@».",
+         "Este console já foi adicionado como “%@”."),
+    "Classic API credentials · %@":
+        ("Anmeldedaten für klassische API · %@", "Identifiants de l'API classique · %@",
+         "Credenciales de la API clásica · %@", "Inloggegevens klassieke API · %@",
+         "Credenziali API classica · %@", "Credenciais da API clássica · %@"),
+    "Streams": ("Streams", "Flux", "Transmisiones", "Streams", "Stream", "Transmissões"),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _sites.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}
 
 # ---------------------------------------------------------------------------

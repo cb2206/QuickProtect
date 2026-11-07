@@ -90,7 +90,7 @@ extension CameraCell {
     var focusOverlay: some View {
         VStack(spacing: 0) {
             AuroraFocusTopBar(
-                cameraName: camera.name,
+                cameraName: focusTitle,
                 isPtz: camera.isPtz,
                 fillMode: $focusFillMode,
                 now: clockTick,
@@ -121,7 +121,7 @@ extension CameraCell {
                 }
                 Spacer()
                 if showOverlayControls && (camera.isPtz || camera.canZoom)
-                    && !AppSettings.shared.username.isEmpty {
+                    && hasPtzLogin {
                     HStack(alignment: .bottom, spacing: 6) {
                         if camera.isPtz {
                             AuroraPtzDpad(
@@ -222,8 +222,9 @@ extension CameraCell {
     /// (the icon still says it), and only then truncates the camera name.
     var nameBadge: some View {
         ViewThatFits(in: .horizontal) {
-            nameBadgeRow(showsPtzWord: true)
-            nameBadgeRow(showsPtzWord: false)
+            nameBadgeRow(showsPtzWord: true, showsSite: true)
+            nameBadgeRow(showsPtzWord: false, showsSite: true)
+            nameBadgeRow(showsPtzWord: false, showsSite: false)
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
         // Plain fill, deliberately not a blur: a withinWindow blur whose
@@ -237,7 +238,13 @@ extension CameraCell {
         .padding(8)
     }
 
-    private func nameBadgeRow(showsPtzWord: Bool) -> some View {
+    /// "Front Door · BC285" in the focus header while several sites exist.
+    var focusTitle: String {
+        guard let site = service.siteBadge(for: camera) else { return camera.name }
+        return "\(camera.name) · \(site)"
+    }
+
+    private func nameBadgeRow(showsPtzWord: Bool, showsSite: Bool) -> some View {
         HStack(spacing: 6) {
             if camera.isOnline && appearsLive {
                 AuroraRecDot(size: 5)
@@ -250,6 +257,9 @@ extension CameraCell {
                 .tracking(-0.1)
                 .lineLimit(1)
                 .truncationMode(.tail)
+            if showsSite, let site = service.siteBadge(for: camera) {
+                SiteBadge(name: site)
+            }
             if camera.isPtz {
                 HStack(spacing: 3) {
                     Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")

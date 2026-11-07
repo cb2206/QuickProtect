@@ -9,35 +9,16 @@ extension SettingsView {
 
     var connectionTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            AuroraSettingsSection(String(localized: "Controller")) {
-                AuroraSettingsRow(String(localized: "IP Address"), hint: String(localized: "Local IP of your UniFi Protect controller")) {
-                    PastableTextField(text: $settings.ipAddress, placeholder: "10.0.1.1")
-                        .frame(width: 260)
-                }
-                AuroraSettingsRow(String(localized: "API Key"), hint: String(localized: "Integration API key from controller settings")) {
-                    HStack(spacing: 6) {
-                        Group {
-                            if showApiKey {
-                                PastableTextField(text: $settings.apiKey, placeholder: "")
-                            } else {
-                                PastableSecureField(text: $settings.apiKey, placeholder: "")
-                            }
-                        }
-                        .frame(width: 234)
-                        Button {
-                            showApiKey.toggle()
-                        } label: {
-                            Image(systemName: showApiKey ? "eye.slash" : "eye")
-                                .font(.system(size: 13))
-                                .foregroundColor(palette.subtext)
-                        }
-                        .buttonStyle(.plain)
-                        .help(showApiKey ? "Hide API key" : "Show API key")
-                    }
-                }
+            SiteListSection(settings: settings, hub: service, selectedSiteID: selectedSiteBinding)
+            // Re-created per site so field and test state never carry over.
+            SiteConnectionSection(site: selectedSite, settings: settings, hub: service)
+                .id(selectedSite.id)
+
+            AuroraSettingsSection(String(localized: "Streams")) {
                 AuroraSettingsRow(
                     String(localized: "Keep streams alive"),
-                    hint: String(localized: "Streams stay connected for this long after closing, so a quick reopen shows video instantly")
+                    hint: String(localized: "Streams stay connected for this long after closing, so a quick reopen shows video instantly"),
+                    isLast: settings.streamKeepAliveSeconds == 0
                 ) {
                     AuroraSegmented(
                         options: [
@@ -54,32 +35,12 @@ extension SettingsView {
                     AuroraSettingsRow(
                         String(localized: "Pause decoding while closed"),
                         hint: String(localized: "Kept-alive streams stay connected but skip video decoding while the panel is closed, cutting CPU use to nearly nothing. The picture catches up instantly on reopen."),
+                        isLast: true,
                         labelExpands: true
                     ) {
                         Toggle("", isOn: $settings.pauseDecodeWhileClosed)
                             .toggleStyle(.switch)
                             .labelsHidden()
-                    }
-                }
-                AuroraSettingsRow(isLast: true) {
-                    HStack(spacing: 10) {
-                        AuroraPrimaryButton(
-                            title: String(localized: "Test Connection"),
-                            disabled: isTesting || settings.ipAddress.isEmpty || settings.apiKey.isEmpty,
-                            action: runTest
-                        )
-                        if isTesting {
-                            ProgressView().scaleEffect(0.6)
-                        }
-                        if let result = testResult {
-                            HStack(spacing: 5) {
-                                Image(systemName: result.icon)
-                                Text(result.message)
-                                    .font(.system(size: 12))
-                            }
-                            .foregroundColor(result.color)
-                            .transition(.opacity)
-                        }
                     }
                 }
             }
@@ -104,7 +65,6 @@ extension SettingsView {
                                     // pinned windows reconnect along with the test.
                                     // The section itself refreshes on the store's notification.
                                     service.trustPendingCertificate(host: entry.host)
-                                    runTest()
                                 }
                             }
                         }

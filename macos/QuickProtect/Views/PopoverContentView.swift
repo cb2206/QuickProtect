@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Root view shown inside the status-bar popover.
 struct PopoverContentView: View {
-    @ObservedObject var service: ProtectService
+    @ObservedObject var service: ProtectHub
     let clientManager: RTSPClientManager
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.colorScheme) private var colorScheme
@@ -117,7 +117,7 @@ struct PopoverContentView: View {
         return HStack(spacing: 6) {
             Circle().fill(AuroraTokens.statusGreenDark)
                 .frame(width: 5, height: 5)
-            // TODO: expose bitrate from ProtectService; design shows "· 4.2 Mbps" too
+            // TODO: expose bitrate from ProtectHub; design shows "· 4.2 Mbps" too
             Group {
                 if showsWord {
                     Text("\(visibleCount) streams")

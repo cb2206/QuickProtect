@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var updateSubscription: AnyCancellable?
     private var connectionSettingsSubscription: AnyCancellable?
     private var connectionRefetchSubscription: AnyCancellable?
+    /// Sites whose address or API key changed since the last debounced refetch.
+    private var pendingConnectionChanges: Set<String> = []
     private var appearanceSubscription: AnyCancellable?
     /// Pending deferred stream teardown while the keep-alive grace period runs
     /// (see `scheduleStreamTeardown`). Cancelled when the panel reopens in time.
@@ -29,14 +31,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let appState = AppState()
     var isInTrueFullscreen: Bool { appState.isInTrueFullscreen }
 
-    let service = ProtectService()
+    /// Every configured site's service, merged for the panel.
+    let service = ProtectHub()
     let updateChecker = UpdateChecker()
     /// Owned here (not by the SwiftUI tree) so closePanel() can disconnect
     /// streams deterministically before the view hierarchy is destroyed.
     let clientManager = RTSPClientManager()
     /// Owns pinned always-on-top camera windows. Their streams are independent
     /// of the popover's, so they keep running while the popover is closed.
-    private(set) lazy var pinnedWindows = PinnedWindowManager(service: service)
+    private(set) lazy var pinnedWindows = PinnedWindowManager(hub: service)
 
     // MARK: - Lifecycle
 
@@ -79,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // and the certificate card / review flow can be exercised. Trusting
         // the "new" (real) key from the card restores a working pin.
         if CommandLine.arguments.contains("--simulate-certificate-change"),
-           let pinKey = service.controllerAddress?.pinKey {
+           let pinKey = AppSettings.shared.sites.first.flatMap({ ControllerAddress.parse($0.ipAddress) })?.pinKey {
             let store = CertificateTrust.Store()
             store.setPending(nil, host: pinKey)
             store.setPinned(String(repeating: "0", count: 64), host: pinKey)
@@ -89,10 +92,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // subscription is in place to restore persisted pins when cameras load.
         appState.pinnedWindows = pinnedWindows
         let s = AppSettings.shared
-        if !s.ipAddress.isEmpty && !s.apiKey.isEmpty {
+        if s.sites.contains(where: \.isConfigured) {
             Task { await service.fetchCameras() }
         } else {
-            RTSPClient.log("[API] no initial fetch: address \(s.ipAddress.isEmpty ? "missing" : "set"), API key \(s.apiKey.isEmpty ? "missing" : "set")")
+            RTSPClient.log("[API] no initial fetch: no site has both an address and an API key")
         }
         // A controller/API-key change invalidates live streams and any pending
         // keep-alive grace — stale clients would keep talking to the old host.
@@ -100,22 +103,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // still addresses the old controller and its allocations are released
         // there. The fields update on every keystroke; the refetch against the
         // new connection waits until typing settles.
-        let connectionChanges = s.$ipAddress.dropFirst().removeDuplicates()
-            .merge(with: s.$apiKey.dropFirst().removeDuplicates())
-            .map { _ in () }
-            .share()
+        let connectionChanges = service.connectionWillChange.share()
         connectionSettingsSubscription = connectionChanges
-            .sink { [weak self] in
+            .sink { [weak self] siteID in
+                self?.pendingConnectionChanges.insert(siteID)
                 self?.teardownStreamsNow()
-                self?.pinnedWindows.suspendForConnectionChange()
+                self?.pinnedWindows.suspendForConnectionChange(siteID: siteID)
             }
         connectionRefetchSubscription = connectionChanges
             .debounce(for: .milliseconds(800), scheduler: RunLoop.main)
-            .sink { [weak self] in
+            .sink { [weak self] _ in
                 guard let self else { return }
+                // Every site edited during the debounce window, not just the last.
+                let changed = self.pendingConnectionChanges
+                self.pendingConnectionChanges.removeAll()
                 Task {
-                    await self.service.refetchForNewConnection()
-                    self.pinnedWindows.resumeAfterConnectionChange()
+                    for siteID in changed {
+                        await self.service.refetchForNewConnection(siteID: siteID)
+                        self.pinnedWindows.resumeAfterConnectionChange(siteID: siteID)
+                    }
                 }
             }
         if !s.hasCompletedOnboarding {
@@ -541,7 +547,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func showOnboarding() {
         guard onboardingWindow == nil else { return }
-        let view = OnboardingView(service: service) { [weak self] in
+        let view = OnboardingView(service: service, site: AppSettings.shared.sites[0]) { [weak self] in
             AppSettings.shared.hasCompletedOnboarding = true
             AppSettings.shared.hasShownAutoStartPrompt = true  // replace legacy alert
             self?.onboardingWindow?.close()

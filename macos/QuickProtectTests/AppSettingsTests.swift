@@ -45,39 +45,48 @@ final class AppSettingsTests: XCTestCase {
 
     // MARK: - Connection change notifications
 
-    /// AppDelegate tears streams down from these publishers and relies on the
-    /// old address and key still being stored then, so the DELETEs release
-    /// the allocations on the controller that holds them.
+    /// AppDelegate tears streams down from a site's connection publisher and
+    /// relies on the old address and key still being stored then, so the
+    /// DELETEs release the allocations on the controller that holds them.
     func testConnectionPublishersFireBeforeTheNewValueIsStored() {
-        let settings = makeSettings()
-        settings.ipAddress = "10.0.0.1"
-        settings.apiKey = "old-key"
+        let site = makeSettings().sites[0]
+        site.ipAddress = "10.0.0.1"
+        site.apiKey = "old-key"
         var seen: [String] = []
-        let address = settings.$ipAddress.dropFirst().sink { _ in seen.append(settings.ipAddress) }
-        let key = settings.$apiKey.dropFirst().sink { _ in seen.append(settings.apiKey) }
-        settings.ipAddress = "10.0.0.2"
-        settings.apiKey = "new-key"
+        let address = site.$ipAddress.dropFirst().sink { _ in seen.append(site.ipAddress) }
+        let key = site.$apiKey.dropFirst().sink { _ in seen.append(site.apiKey) }
+        var changes = 0
+        let combined = site.connectionChanges.sink { changes += 1 }
+        site.ipAddress = "10.0.0.2"
+        site.apiKey = "new-key"
+        site.name = "Renamed"   // not a connection change
         address.cancel()
         key.cancel()
+        combined.cancel()
         XCTAssertEqual(seen, ["10.0.0.1", "old-key"])
+        XCTAssertEqual(changes, 2)
     }
 
     // MARK: - Persistence and secrets
 
-    func testConnectionSettingsRoundTrip() {
+    func testConnectionSettingsRoundTrip() throws {
         let s = makeSettings()
-        s.ipAddress = "192.168.1.10:8443"
-        s.apiKey = "key-1"
-        s.username = "user"
-        s.password = "pw"
+        let site = s.sites[0]
+        XCTAssertEqual(site.id, ControllerSite.legacyID)
+        site.ipAddress = "192.168.1.10:8443"
+        site.apiKey = "key-1"
+        site.username = "user"
+        site.password = "pw"
 
+        // The first site keeps the pre-multi-site storage, so a downgrade
+        // still finds its controller.
         XCTAssertEqual(defaults.string(forKey: AppSettings.Keys.ipAddress), "192.168.1.10:8443")
         XCTAssertNil(defaults.string(forKey: AppSettings.Keys.apiKey), "secrets never land in UserDefaults")
         XCTAssertEqual(secrets.values[AppSettings.Keys.apiKey], "key-1")
         XCTAssertEqual(secrets.values[AppSettings.Keys.username], "user")
         XCTAssertEqual(secrets.values[AppSettings.Keys.password], "pw")
 
-        let reloaded = makeSettings()
+        let reloaded = try XCTUnwrap(makeSettings().sites.first)
         XCTAssertEqual(reloaded.ipAddress, "192.168.1.10:8443")
         XCTAssertEqual(reloaded.apiKey, "key-1")
         XCTAssertEqual(reloaded.password, "pw")
@@ -86,7 +95,7 @@ final class AppSettingsTests: XCTestCase {
     func testLegacyPlaintextSecretMigratesIntoTheSecretStore() {
         defaults.set("legacy-key", forKey: AppSettings.Keys.apiKey)
         let s = makeSettings()
-        XCTAssertEqual(s.apiKey, "legacy-key")
+        XCTAssertEqual(s.sites[0].apiKey, "legacy-key")
         XCTAssertEqual(secrets.values[AppSettings.Keys.apiKey], "legacy-key")
         XCTAssertNil(defaults.string(forKey: AppSettings.Keys.apiKey), "plaintext copy is removed after a successful write")
     }
@@ -95,9 +104,103 @@ final class AppSettingsTests: XCTestCase {
         defaults.set("legacy-key", forKey: AppSettings.Keys.apiKey)
         secrets.failWrites = true
         let s = makeSettings()
-        XCTAssertEqual(s.apiKey, "legacy-key")
+        XCTAssertEqual(s.sites[0].apiKey, "legacy-key")
         XCTAssertEqual(defaults.string(forKey: AppSettings.Keys.apiKey), "legacy-key",
                        "the only copy must survive a failed Keychain write")
+    }
+
+    // MARK: - Sites
+
+    /// Upgrading from a single-controller install: the configured controller
+    /// becomes the first site, already seeded into every profile.
+    func testSingleControllerConfigurationMigratesIntoTheFirstSite() {
+        defaults.set("10.0.1.1", forKey: AppSettings.Keys.ipAddress)
+        secrets.values[AppSettings.Keys.apiKey] = "key"
+        secrets.values[AppSettings.Keys.username] = "admin"
+
+        let s = makeSettings()
+        XCTAssertEqual(s.sites.count, 1)
+        let site = s.sites[0]
+        XCTAssertEqual(site.id, ControllerSite.legacyID)
+        XCTAssertEqual(site.ipAddress, "10.0.1.1")
+        XCTAssertEqual(site.apiKey, "key")
+        XCTAssertEqual(site.username, "admin")
+        XCTAssertTrue(site.isConfigured)
+        XCTAssertFalse(s.hasMultipleSites)
+        XCTAssertTrue(s.seededSiteIDs.contains(ControllerSite.legacyID))
+        XCTAssertEqual((defaults.array(forKey: AppSettings.Keys.sites) as? [[String: String]])?.first?["address"],
+                       "10.0.1.1")
+    }
+
+    func testAddedSiteStoresItsSecretsUnderItsOwnAccounts() throws {
+        let s = makeSettings()
+        s.sites[0].apiKey = "inca-key"
+        let added = s.addSite(name: "BC285")
+        added.ipAddress = "10.2.0.1"
+        added.apiKey = "bc-key"
+        added.password = "bc-pw"
+
+        XCTAssertTrue(s.hasMultipleSites)
+        XCTAssertEqual(secrets.values["\(AppSettings.Keys.apiKey).\(added.id)"], "bc-key")
+        XCTAssertEqual(secrets.values["\(AppSettings.Keys.password).\(added.id)"], "bc-pw")
+        XCTAssertEqual(secrets.values[AppSettings.Keys.apiKey], "inca-key", "the first site's key is untouched")
+        XCTAssertFalse(s.seededSiteIDs.contains(added.id))
+
+        let reloaded = makeSettings()
+        XCTAssertEqual(reloaded.sites.map(\.id), [ControllerSite.legacyID, added.id])
+        let again = try XCTUnwrap(reloaded.site(id: added.id))
+        XCTAssertEqual(again.name, "BC285")
+        XCTAssertEqual(again.displayName, "BC285")
+        XCTAssertEqual(again.ipAddress, "10.2.0.1")
+        XCTAssertEqual(again.apiKey, "bc-key")
+    }
+
+    func testRemovingASiteDeletesItsSecretsButNeverTheLastSite() {
+        let s = makeSettings()
+        let added = s.addSite()
+        added.apiKey = "bc-key"
+        s.removeSite(id: added.id)
+        XCTAssertEqual(s.sites.map(\.id), [ControllerSite.legacyID])
+        XCTAssertNil(secrets.values["\(AppSettings.Keys.apiKey).\(added.id)"])
+        XCTAssertEqual(makeSettings().sites.count, 1)
+
+        s.removeSite(id: ControllerSite.legacyID)
+        XCTAssertEqual(s.sites.count, 1, "the last site stays")
+    }
+
+    func testDisplayNameFallsBackToTheAddress() {
+        let site = makeSettings().sites[0]
+        site.ipAddress = "10.0.1.1"
+        XCTAssertEqual(site.displayName, "10.0.1.1")
+        site.name = "  Inca "
+        XCTAssertEqual(site.displayName, "Inca")
+    }
+
+    /// A newly added site's cameras stay visible in the active profile only;
+    /// a second delivery (or a seeded site) leaves the profiles alone.
+    func testNewSiteCamerasAreHiddenOutsideTheActiveProfile() {
+        let s = makeSettings()
+        let other = s.createProfile(named: "Driveway only")   // switches to it
+        s.switchProfile(to: AppSettings.defaultProfileID)
+        let added = s.addSite(name: "BC285")
+
+        XCTAssertTrue(s.seedSiteCamerasIfNeeded(siteID: added.id, cameraIDs: ["bc1", "bc2"]))
+        XCTAssertFalse(s.isHidden("bc1"), "visible in the active profile")
+        s.switchProfile(to: other)
+        XCTAssertTrue(s.isHidden("bc1"))
+        XCTAssertTrue(s.isHidden("bc2"))
+
+        XCTAssertFalse(s.seedSiteCamerasIfNeeded(siteID: added.id, cameraIDs: ["bc3"]))
+        XCTAssertFalse(s.isHidden("bc3"), "later cameras behave like any new camera")
+        XCTAssertFalse(s.seedSiteCamerasIfNeeded(siteID: ControllerSite.legacyID, cameraIDs: ["inca1"]))
+        XCTAssertFalse(s.isHidden("inca1"))
+    }
+
+    func testSeedingWaitsForTheFirstNonEmptyCameraList() {
+        let s = makeSettings()
+        let added = s.addSite()
+        XCTAssertFalse(s.seedSiteCamerasIfNeeded(siteID: added.id, cameraIDs: []))
+        XCTAssertFalse(s.seededSiteIDs.contains(added.id))
     }
 
     func testStoredKeepAliveIsClampedOnLoad() {

@@ -78,8 +78,13 @@ extension CameraCell {
     /// Key-down: start PTZ movement on the pressed axis (other axes keep
     /// running, so arrows and I/O combine). Also lights up the matching
     /// arrow on the on-screen d-pad / zoom pill.
+    /// The camera's own site has a classic-API login (PTZ needs it).
+    var hasPtzLogin: Bool {
+        !(service.site(for: camera)?.username.isEmpty ?? true)
+    }
+
     func handlePtzKeyDown(_ keyCode: UInt16) -> Bool {
-        guard !AppSettings.shared.username.isEmpty else { return false }
+        guard hasPtzLogin else { return false }
         switch keyCode {
         case 123: service.ptzSetAxes(cameraId: camera.id, pan: -1); ptzActiveDirection = .left    // Left
         case 124: service.ptzSetAxes(cameraId: camera.id, pan:  1); ptzActiveDirection = .right   // Right
@@ -97,7 +102,7 @@ extension CameraCell {
     /// Key-up: stop the released key's axis and clear its lit control;
     /// other axes keep moving.
     func handlePtzKeyUp(_ keyCode: UInt16) -> Bool {
-        guard !AppSettings.shared.username.isEmpty, isPtzKey(keyCode) else { return false }
+        guard hasPtzLogin, isPtzKey(keyCode) else { return false }
         switch keyCode {
         case 123, 124: service.ptzSetAxes(cameraId: camera.id, pan: 0); ptzActiveDirection = nil
         case 125, 126: service.ptzSetAxes(cameraId: camera.id, tilt: 0); ptzActiveDirection = nil

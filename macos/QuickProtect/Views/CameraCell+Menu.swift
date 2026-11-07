@@ -75,8 +75,22 @@ extension CameraCell {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         if !hiddenCameras.isEmpty {
             Menu {
-                ForEach(hiddenCameras) { cam in
-                    Button { addCamera(cam.id) } label: { Text(cam.name) }
+                if AppSettings.shared.hasMultipleSites {
+                    // One section per site, in site order.
+                    ForEach(AppSettings.shared.sites) { site in
+                        let siteCameras = hiddenCameras.filter { service.site(for: $0)?.id == site.id }
+                        if !siteCameras.isEmpty {
+                            Section(site.displayName) {
+                                ForEach(siteCameras) { cam in
+                                    Button { addCamera(cam.id) } label: { Text(cam.name) }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    ForEach(hiddenCameras) { cam in
+                        Button { addCamera(cam.id) } label: { Text(cam.name) }
+                    }
                 }
             } label: {
                 Label("Add Camera", systemImage: "plus")
@@ -104,7 +118,8 @@ extension CameraCell {
     }
 
     func openInProtect() {
-        let ip = AppSettings.shared.ipAddress
+        // The console this camera belongs to.
+        let ip = service.site(for: camera)?.ipAddress ?? ""
         guard !ip.isEmpty,
               let url = URL(string: "https://\(ip)/protect/dashboard/all/sidepanel/device/\(camera.id)") else { return }
         NotificationCenter.default.post(name: .closeCameraPanel, object: nil)

@@ -51,7 +51,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
 struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
-    @ObservedObject var service: ProtectService
+    @ObservedObject var service: ProtectHub
     @ObservedObject var updateChecker: UpdateChecker
 
     /// Last tab the user viewed, remembered for the lifetime of the app process.
@@ -61,13 +61,10 @@ struct SettingsView: View {
     static var sessionTab: SettingsTab = .general
 
     @State var tab: SettingsTab = SettingsView.sessionTab
-    @State var isTesting = false
-    @State var testResult: TestResult?
-    @State var isTestingPtz = false
-    @State var ptzTestResult: TestResult?
     @State var isRecordingHotkey = false
-    @State var showApiKey = false
-    @State var showPassword = false
+    /// The site the Connection and PTZ tabs edit. Empty or stale (a removed
+    /// site) falls back to the first site.
+    @State var selectedSiteID: String = ""
     /// Toggled to make `pendingCertificates` re-read the pin store.
     @State var certRefresh = false
     @State var hotkeyRegistrationFailed = false
@@ -155,22 +152,27 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Header pill. On the PTZ tab it reflects the classic-API login state;
-    /// everywhere else it reflects the Integration API connection.
+    var selectedSite: ControllerSite {
+        settings.site(id: selectedSiteID) ?? settings.sites[0]
+    }
+
+    var selectedSiteBinding: Binding<String> {
+        Binding(get: { selectedSite.id }, set: { selectedSiteID = $0 })
+    }
+
+    /// Header pill. On the PTZ tab it reflects the selected site's classic-API
+    /// login; everywhere else the Integration API connection — of the selected
+    /// site on the Connection tab, of every site elsewhere.
     @ViewBuilder
     var headerStatusBadge: some View {
-        if tab == .ptz {
-            let configured = !settings.username.isEmpty && !settings.password.isEmpty
-            AuroraStatusBadge(
-                connected: service.isClassicLoggedIn,
-                text: service.isClassicLoggedIn
-                    ? String(localized: "Connected")
-                    : (configured ? String(localized: "Not verified") : String(localized: "Not configured"))
-            )
+        if tab == .ptz || tab == .connection, let siteService = service.service(forSite: selectedSite.id) {
+            SiteStatusBadge(service: siteService, site: selectedSite,
+                            mode: tab == .ptz ? .ptz : .connection)
         } else {
+            let healthy = service.siteIssues.isEmpty
             AuroraStatusBadge(
-                connected: service.errorMessage == nil && !service.cameras.isEmpty,
-                text: service.errorMessage == nil ? String(localized: "Connected") : String(localized: "Disconnected")
+                connected: healthy && !service.cameras.isEmpty,
+                text: healthy ? String(localized: "Connected") : String(localized: "Disconnected")
             )
         }
     }
@@ -205,54 +207,6 @@ struct SettingsView: View {
         } else if revertToClipboardIfCancelled, settings.resolveSnapshotFolder() == nil {
             // Folder mode needs a folder; with none picked, fall back to clipboard.
             settings.snapshotDestination = .clipboard
-        }
-    }
-
-    // MARK: - Test connection
-
-    func runTest() {
-        isTesting = true
-        testResult = nil
-        // Store the address in its canonical form (scheme, path and whitespace
-        // dropped) so what the user sees is exactly what gets pinned and dialled.
-        if let address = ControllerAddress.parse(settings.ipAddress), address.authority != settings.ipAddress {
-            settings.ipAddress = address.authority
-        }
-        Task {
-            await service.fetchCameras(forced: true)
-            isTesting = false
-            if let err = service.errorMessage {
-                testResult = TestResult(message: err, icon: "xmark.circle.fill", color: .red)
-            } else {
-                let n = service.cameras.count
-                testResult = TestResult(
-                    message: String(localized: "Connected · \(n) cameras found"),
-                    icon: "checkmark.circle.fill",
-                    color: AuroraTokens.statusGreenDark
-                )
-            }
-        }
-    }
-
-    func runPtzTest() {
-        isTestingPtz = true
-        ptzTestResult = nil
-        Task {
-            let ok = await service.classicLogin()
-            isTestingPtz = false
-            if ok {
-                ptzTestResult = TestResult(
-                    message: String(localized: "Signed in · PTZ control ready"),
-                    icon: "checkmark.circle.fill",
-                    color: AuroraTokens.statusGreenDark
-                )
-            } else {
-                ptzTestResult = TestResult(
-                    message: String(localized: "Login failed — check the username and password"),
-                    icon: "xmark.circle.fill",
-                    color: .red
-                )
-            }
         }
     }
 

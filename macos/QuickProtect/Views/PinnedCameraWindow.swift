@@ -12,17 +12,25 @@ import Combine
 @MainActor
 final class PinnedWindowManager {
     private var controllers: [String: PinnedCameraController] = [:]
-    private weak var service: ProtectService?
+    private weak var hub: ProtectHub?
     private var camerasCancellable: AnyCancellable?
+    private var siteRemovedCancellable: AnyCancellable?
 
-    init(service: ProtectService) {
-        self.service = service
+    init(hub: ProtectHub) {
+        self.hub = hub
         // Reconcile whenever the camera list changes: this restores persisted
         // pins once their camera is known on launch, and refreshes the camera
         // data (e.g. PTZ enrichment, name changes) for open windows.
-        camerasCancellable = service.$cameras
+        camerasCancellable = hub.$cameras
             .receive(on: RunLoop.main)
             .sink { [weak self] cameras in self?.reconcile(with: cameras) }
+        // A removed site's windows have no console left to stream from.
+        siteRemovedCancellable = hub.siteRemoved
+            .sink { [weak self] siteID in self?.unpinAll(siteID: siteID) }
+    }
+
+    private func unpinAll(siteID: String) {
+        for (id, controller) in controllers where controller.siteID == siteID { unpin(id) }
     }
 
     /// True when a live window exists or the camera is persisted as pinned.
@@ -35,7 +43,7 @@ final class PinnedWindowManager {
     }
 
     func pin(_ camera: Camera) {
-        guard controllers[camera.id] == nil, let service else { return }
+        guard controllers[camera.id] == nil, let service = hub?.service(for: camera) else { return }
         AppSettings.shared.setPinned(camera.id)
         let controller = PinnedCameraController(
             camera: camera, service: service,
@@ -56,13 +64,13 @@ final class PinnedWindowManager {
     /// persistence on a transient empty list — a camera that briefly drops out
     /// of a fetch keeps its pin and re-opens when it returns.
     private func reconcile(with cameras: [Camera]) {
-        guard let service else { return }
+        guard let hub else { return }
         let byId = Dictionary(cameras.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         for state in AppSettings.shared.pinnedCameras() {
             guard let camera = byId[state.cameraId] else { continue }
             if let existing = controllers[state.cameraId] {
                 existing.updateCamera(camera)
-            } else {
+            } else if let service = hub.service(for: camera) {
                 let controller = PinnedCameraController(
                     camera: camera, service: service,
                     cascadeIndex: controllers.count,
@@ -77,14 +85,18 @@ final class PinnedWindowManager {
     /// The controller address or API key is changing: stop every window's
     /// stream while the old connection is still configured, so its allocation
     /// is released on the controller that holds it.
-    func suspendForConnectionChange() {
-        for controller in controllers.values { controller.suspendForConnectionChange() }
+    func suspendForConnectionChange(siteID: String) {
+        for controller in controllers.values where controller.siteID == siteID {
+            controller.suspendForConnectionChange()
+        }
     }
 
     /// The camera list was fetched for the new connection: reconnect every
     /// window against it (a camera the new controller lacks fails and backs off).
-    func resumeAfterConnectionChange() {
-        for controller in controllers.values { controller.resumeAfterConnectionChange() }
+    func resumeAfterConnectionChange(siteID: String) {
+        for controller in controllers.values where controller.siteID == siteID {
+            controller.resumeAfterConnectionChange()
+        }
     }
 
     /// Tear down every window (app termination). Persistence is left intact so
@@ -92,7 +104,7 @@ final class PinnedWindowManager {
     func closeAll() {
         for controller in controllers.values { controller.teardown() }
         controllers.removeAll()
-        service?.cleanupPinnedStreams()
+        hub?.cleanupPinnedStreams()
     }
 }
 
@@ -104,7 +116,10 @@ final class PinnedWindowManager {
 @MainActor
 final class PinnedCameraController: NSObject, NSWindowDelegate {
     let cameraId: String
+    /// The site whose console this window streams from.
+    let siteID: String
     private var camera: Camera
+    /// The camera's own site service — a pinned window never talks to the hub.
     private weak var service: ProtectService?
     private let onClose: (String) -> Void
 
@@ -133,6 +148,7 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
     init(camera: Camera, service: ProtectService, cascadeIndex: Int,
          onClose: @escaping (String) -> Void) {
         self.cameraId = camera.id
+        self.siteID = service.siteID
         self.camera = camera
         self.service = service
         self.onClose = onClose
@@ -195,11 +211,18 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             .sink { [weak self] changed in self?.certificateChanged(changed) }
     }
 
+    /// "Front Door · BC285" while several sites are configured.
+    private var displayName: String {
+        guard AppSettings.shared.hasMultipleSites,
+              let site = AppSettings.shared.site(id: siteID) else { return camera.name }
+        return "\(camera.name) · \(site.displayName)"
+    }
+
     private func makeView() -> PinnedCameraView {
         PinnedCameraView(
             client: client,
             stream: streamState,
-            cameraName: camera.name,
+            cameraName: displayName,
             onReconnect: { [weak self] in self?.reconnect() },
             onReviewCertificate: { [weak self] in
                 guard let service = self?.service else { return }
