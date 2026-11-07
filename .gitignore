@@ -44,3 +44,6 @@ TestResults/
 
 # FFmpeg native libraries (fetched by dotnet/scripts/get-ffmpeg.*)
 dotnet/native/
+
+# Launch-video render output (/brag skill)
+brag-output/
