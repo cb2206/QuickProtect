@@ -105,6 +105,7 @@ public sealed class VideoStreamCoordinator : IDisposable
                 created.Client.StateChanged += state =>
                 {
                     if (state != VideoState.Playing) return;
+                    Log.Line($"[Video] {created.Camera.Name}{(created.Lens is { } l ? $":{l}" : "")}: first frame — playing");
                     lock (_lock)
                     {
                         created.ReallocateDelay = ReallocateInitial;

@@ -323,6 +323,9 @@ public sealed class ProtectHub : INotifyPropertyChanged, IStreamAllocator, IDisp
     public Task<byte[]?> FetchPackageSnapshotAsync(Camera camera)
         => ServiceFor(camera)?.FetchPackageSnapshotAsync(camera) ?? Task.FromResult<byte[]?>(null);
 
+    public Task<byte[]?> FetchCameraSnapshotAsync(Camera camera)
+        => ServiceFor(camera)?.FetchCameraSnapshotAsync(camera) ?? Task.FromResult<byte[]?>(null);
+
     public void PtzSetAxes(string cameraId, double? pan = null, double? tilt = null, double? zoom = null)
         => ServiceForCameraId(cameraId)?.PtzSetAxes(cameraId, pan, tilt, zoom);
 

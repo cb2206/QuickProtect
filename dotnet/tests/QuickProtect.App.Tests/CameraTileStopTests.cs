@@ -33,14 +33,19 @@ public class CameraTileStopTests
                 service, settings)
             {
                 Client = client,
-                StreamFailure = "Connection lost"
+                StreamFailure = "Connection lost",
+                IsLoading = true,
+                ShowsPlaceholder = true
             };
+            Assert.False(tile.ShowsCenterSpinner, "the snapshot's corner spinner replaces the bar");
 
             tile.Stop();
 
             Assert.Null(tile.Client);
             Assert.Null(tile.StreamFailure);
             Assert.False(tile.IsPlaying);
+            Assert.False(tile.ShowsPlaceholder);
+            Assert.False(tile.ShowsCenterSpinner);
         }
         finally
         {
