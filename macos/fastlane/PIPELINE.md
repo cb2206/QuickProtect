@@ -57,6 +57,13 @@ one-off `submit_v11`/`submit_v12` lanes that used to carry them were removed.
 - The **Admin** key requirement above (cloud signing).
 - After `cancel_review`, the version goes to `DEVELOPER_REJECTED` (editable),
   not `PREPARE_FOR_SUBMISSION` — that's normal for a self-withdrawn version.
+- **"appStoreVersions … is not in valid state"** at the submit step means a
+  required field elsewhere is empty; fastlane drops the API's
+  `meta.associatedErrors`, which names it. For 1.5 it was a question Apple
+  added to the age-rating questionnaire (`socialMedia`, on the
+  `ageRatingDeclarations` of the PREPARE_FOR_SUBMISSION `appInfos`), answered
+  `false` via the API. The upload and metadata had already gone through, so
+  `submit_only build:<n>` finished the job.
 - Screenshots aren't automated (the `screenshots/` dir isn't in deliver's
   `metadata/<locale>/` layout). Manage those in App Store Connect.
 - **Building on a beta macOS ⇒ ITMS-90301** ("not currently accepting
