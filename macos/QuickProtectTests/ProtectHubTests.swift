@@ -113,6 +113,21 @@ final class ProtectHubTests: XCTestCase {
         XCTAssertFalse(settings.isHidden("i1"), "the migrated site was already seeded")
     }
 
+    /// The same console added as a second site must not hide the first
+    /// site's cameras in the other profiles.
+    func testAddingTheSameConsoleTwiceDoesNotHideItsCamerasElsewhere() async throws {
+        let other = settings.createProfile(named: "Home only")
+        settings.switchProfile(to: AppSettings.defaultProfileID)
+        let (hub, _, bc) = try makeHub()
+        bc.ipAddress = "10.0.0.1"
+        HubStub.replies = ["10.0.0.1": Self.list("i1")]
+
+        await hub.fetchCameras(forced: true)
+
+        settings.switchProfile(to: other)
+        XCTAssertFalse(settings.isHidden("i1"))
+    }
+
     func testAFailingSiteBecomesAnIssueWhileTheOtherKeepsStreaming() async throws {
         let (hub, _, bc) = try makeHub()
         HubStub.replies = ["10.0.0.1": Self.list("i1"), "10.0.0.2": .status(401)]

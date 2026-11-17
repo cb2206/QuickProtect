@@ -156,6 +156,7 @@ final class ProtectHub: ObservableObject {
         var seen = Set<String>()
         var map: [String: String] = [:]
         var issues: [SiteIssue] = []
+        var toSeed: [(siteID: String, ids: [String])] = []
         var anyLoading = false
         var allLoading = !sites.isEmpty
 
@@ -179,7 +180,14 @@ final class ProtectHub: ObservableObject {
             for cam in service.cameras where seen.insert(cam.id).inserted {
                 merged.append(cam)
             }
-            settings.seedSiteCamerasIfNeeded(siteID: site.id, cameraIDs: service.cameras.map(\.id))
+            // Only the cameras this site owns: the same console added twice
+            // must not hide the first site's cameras in the other profiles.
+            toSeed.append((site.id, service.cameras.map(\.id).filter { map[$0] == site.id }))
+        }
+        // Only once every site has finished loading, so camera ownership is
+        // settled (the next completion recomputes again).
+        if !anyLoading {
+            for (siteID, ids) in toSeed { settings.seedSiteCamerasIfNeeded(siteID: siteID, cameraIDs: ids) }
         }
 
         siteForCamera = map

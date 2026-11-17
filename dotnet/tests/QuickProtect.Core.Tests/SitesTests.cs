@@ -193,6 +193,21 @@ public class SitesTests
     }
 
     [Fact]
+    public async Task Adding_the_same_console_twice_does_not_hide_its_cameras_elsewhere()
+    {
+        await using var console = new FakeController(CameraList("i1"));
+        var (hub, settings, _, _) = NewHub(console.Address, console.Address);
+        using var _ = hub;
+        var other = settings.CreateProfile("Home only");
+        settings.SwitchProfile(AppSettings.DefaultProfileId);
+
+        await hub.FetchCamerasAsync(forced: true);
+
+        settings.SwitchProfile(other);
+        Assert.False(settings.IsHidden("i1"), "the first site owns i1; the duplicate must not seed it");
+    }
+
+    [Fact]
     public async Task A_failing_site_is_an_issue_while_the_other_keeps_its_cameras()
     {
         await using var homeConsole = new FakeController(CameraList("i1"));
