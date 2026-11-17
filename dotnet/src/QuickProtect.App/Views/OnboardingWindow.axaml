@@ -27,7 +27,17 @@
         <TextBlock Text="{loc:Loc 'IP address or hostname'}" Foreground="{DynamicResource QpTextSecondary}" />
         <TextBox Text="{Binding IpAddress}" PlaceholderText="192.168.1.1" />
         <TextBlock Text="{loc:Loc 'Integration API key'}" Foreground="{DynamicResource QpTextSecondary}" />
-        <TextBox Text="{Binding ApiKey}" PasswordChar="•" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Grid.Column="0" Text="{Binding ApiKey}" PasswordChar="•" />
+          <Button Grid.Column="1" Content="?" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                  ToolTip.Tip="{Binding ApiKeyHelp}" AutomationProperties.Name="{Binding ApiKeyHelp}">
+            <Button.Flyout>
+              <Flyout Placement="Bottom">
+                <TextBlock Text="{Binding ApiKeyHelp}" TextWrapping="Wrap" MaxWidth="320" />
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Grid>
         <Button Content="{loc:Loc 'Test Connection'}" Command="{Binding TestConnectionCommand}" />
       </StackPanel>
 
@@ -38,9 +48,29 @@
         <TextBlock Text="{loc:Loc 'To pan and tilt PTZ cameras, QuickProtect needs a local admin account. You can skip this and add it later in Settings.'}"
                    Foreground="{DynamicResource QpTextTertiary}" TextWrapping="Wrap" FontSize="12" />
         <TextBlock Text="{loc:Loc 'Username'}" Foreground="{DynamicResource QpTextSecondary}" />
-        <TextBox Text="{Binding Username}" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Grid.Column="0" Text="{Binding Username}" />
+          <Button Grid.Column="1" Content="?" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                  ToolTip.Tip="{Binding PtzAccountHelp}" AutomationProperties.Name="{Binding PtzAccountHelp}">
+            <Button.Flyout>
+              <Flyout Placement="Bottom">
+                <TextBlock Text="{Binding PtzAccountHelp}" TextWrapping="Wrap" MaxWidth="320" />
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Grid>
         <TextBlock Text="{loc:Loc 'Password'}" Foreground="{DynamicResource QpTextSecondary}" />
-        <TextBox Text="{Binding Password}" PasswordChar="•" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Grid.Column="0" Text="{Binding Password}" PasswordChar="•" />
+          <Button Grid.Column="1" Content="?" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center"
+                  ToolTip.Tip="{Binding PtzAccountHelp}" AutomationProperties.Name="{Binding PtzAccountHelp}">
+            <Button.Flyout>
+              <Flyout Placement="Bottom">
+                <TextBlock Text="{Binding PtzAccountHelp}" TextWrapping="Wrap" MaxWidth="320" />
+              </Flyout>
+            </Button.Flyout>
+          </Button>
+        </Grid>
       </StackPanel>
 
       <!-- Step 3: All set -->

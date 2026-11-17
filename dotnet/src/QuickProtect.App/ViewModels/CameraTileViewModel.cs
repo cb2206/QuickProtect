@@ -14,7 +14,7 @@ namespace QuickProtect.App.ViewModels;
 /// </summary>
 public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 {
-    private readonly ProtectService _service;
+    private readonly ProtectHub _service;
     private readonly AppSettings _settings;
 
     public Camera Camera { get; private set; }
@@ -32,7 +32,18 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private string _name;
     [ObservableProperty] private bool _isOnline;
-    [ObservableProperty] private bool _isLoading;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsCenterSpinner))]
+    private bool _isLoading;
+    /// <summary>
+    /// A controller snapshot stands in for the stream until its first frame
+    /// (the grid dims it and shows a small corner spinner instead of the bar).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsCenterSpinner))]
+    private bool _showsPlaceholder;
+    public bool ShowsCenterSpinner => IsLoading && !ShowsPlaceholder;
+    private CancellationTokenSource? _placeholderCts;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(GridPipVisible))]
     private bool _isPlaying;
@@ -115,7 +126,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     /// When set (e.g. "package"), the tile streams exactly this quality instead of
     /// resolving from settings — used for the secondary-lens picture-in-picture.
     /// </param>
-    public CameraTileViewModel(Camera camera, ProtectService service, AppSettings settings,
+    public CameraTileViewModel(Camera camera, ProtectHub service, AppSettings settings,
                                bool pinned = false, string? fixedQuality = null)
     {
         _service = service;
@@ -173,6 +184,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             if (!ReferenceEquals(Client, client)) return;
             IsPlaying = state == VideoState.Playing;
             if (state is VideoState.Playing or VideoState.Failed) IsLoading = false;
+            if (state == VideoState.Playing) ShowsPlaceholder = false;
             StreamFailure = state == VideoState.Failed && client.LastError is { } reason
                 ? Localization.Loc.Get(reason) : null;
         });
@@ -237,11 +249,26 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         ApplyTileSize(_lastGridWidth);
         OnPropertyChanged(nameof(IsPtz));
         OnPropertyChanged(nameof(CanZoom));
+        OnPropertyChanged(nameof(SiteBadge));
+        OnPropertyChanged(nameof(HasSiteBadge));
+        OnPropertyChanged(nameof(DisplayTitle));
         RefreshGridPip(); // secondary lens or online state may have changed
     }
 
     public bool IsPtz => Camera.IsPtz;
     public bool CanZoom => Camera.CanZoom;
+
+    /// <summary>The camera's site label on its tile; null while only one site exists.</summary>
+    public string? SiteBadge => _service.SiteBadge(Camera) is { } badge
+        ? (badge.Length > 0 ? badge : Localization.Loc.Get("New Site"))
+        : null;
+
+    public bool HasSiteBadge => SiteBadge != null;
+
+    /// <summary>"Front Door · Cabin" in the focus header and pinned windows while several sites exist.</summary>
+    public string DisplayTitle => SiteBadge is { } site ? $"{Name} · {site}" : Name;
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayTitle));
 
     public void SetFocused(bool focused) => IsFocused = focused;
 
@@ -346,6 +373,12 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         // VideoSurface until the first decoded frame replaces it.
         if (_fixedQuality != null && !handle.Client.HasFrame)
             _ = FetchPlaceholderAsync(handle.Client);
+        // Main lens: a stream still dark shortly after starting is waiting on a
+        // keyframe the controller won't send for up to a GOP — show a fresh
+        // snapshot meanwhile (instead of nothing, or an earlier session's
+        // possibly hours-old last frame).
+        else if (_fixedQuality == null && !_pinned && handle.Client.State != VideoState.Playing)
+            ScheduleStreamPlaceholder(handle.Client);
         return Task.CompletedTask;
     }
 
@@ -355,6 +388,44 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
     {
         var jpeg = await _service.FetchPackageSnapshotAsync(Camera).ConfigureAwait(false);
         if (jpeg != null && !client.HasFrame) client.SetPlaceholder(jpeg);
+    }
+
+    /// <summary>
+    /// How long a starting tile may stay without live video before it asks the
+    /// controller for a snapshot. Streams that start at a keyframe paint within
+    /// ~250 ms and never ask; those that joined just past one (a whole GOP to
+    /// wait) do — keeping the extra requests out of the panel-open burst the
+    /// controller's 10 req/s limiter already sees. Same value as macOS.
+    /// </summary>
+    internal static readonly TimeSpan PlaceholderDelay = TimeSpan.FromMilliseconds(400);
+
+    private void ScheduleStreamPlaceholder(VideoStreamClient client)
+    {
+        _placeholderCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _placeholderCts = cts;
+        _ = FetchStreamPlaceholderAsync(client, cts.Token);
+    }
+
+    private async Task FetchStreamPlaceholderAsync(VideoStreamClient client, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(PlaceholderDelay, token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return; // tile stopped or restarted meanwhile
+        }
+        if (client.State == VideoState.Playing) return;
+        var jpeg = await _service.FetchCameraSnapshotAsync(Camera).ConfigureAwait(false);
+        if (jpeg == null || token.IsCancellationRequested) return;
+        if (!client.SetPlaceholder(jpeg)) return; // live video arrived first
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (token.IsCancellationRequested || !ReferenceEquals(Client, client)) return;
+            ShowsPlaceholder = client.State != VideoState.Playing;
+        });
     }
 
     /// <summary>
@@ -401,8 +472,11 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
         }
         _handle?.Dispose();
         _handle = null;
+        _placeholderCts?.Cancel();
+        _placeholderCts = null;
         IsPlaying = false;
         IsLoading = false;
+        ShowsPlaceholder = false;
         StreamFailure = null;
     }
 

@@ -10,13 +10,6 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 
-## Repo layout
-
-- `macos/` — the Swift/AppKit menu-bar app (XcodeGen project, fastlane, SwiftLint, asset tools).
-- `dotnet/` — the .NET 10 + Avalonia reimplementation for Windows and Linux (one codebase for both).
-- `docs/` — cross-platform docs: PARITY.md (feature parity tracking), PRIVACY.md, APP_STORE_LISTINGS.md, screenshots.
-- `scripts/macos|windows|linux/` — per-platform `build` and `run` entry points.
-
 ## Loop protocol
 
 Every **code change** runs as a loop, not a line. Sessions with no code changes
@@ -49,10 +42,3 @@ Hook enforcement (see .claude/settings.json and .claude/hooks/stop-gate.sh):
   dotnet/QuickProtect.sln` (skipped with a warning if no SDK). Any failure blocks
   the stop and is fed back for fixing. A clean (non-code) session stops immediately
   with no checks.
-
-CI (.github/workflows/): `ci-macos.yml` (xcodegen + tests + strict lint on macos-15)
-and `ci-dotnet.yml` (dotnet test on windows-latest + ubuntu-latest), each path-filtered
-to its own subtree, on push to main/dev/feat/** and on PRs.
-
-SwiftLint baseline: macos/.swiftlint.yml disables rules the legacy code still violates.
-Don't add new violations of those rules; re-enable rules as files get cleaned up.

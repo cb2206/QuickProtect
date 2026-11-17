@@ -1394,8 +1394,78 @@ _errors = {
         "De controller stuurde een antwoord dat QuickProtect niet kan lezen.",
         "Il controller ha inviato una risposta che QuickProtect non riesce a leggere.",
         "O controlador enviou uma resposta que o QuickProtect não consegue ler."),
+    "This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's.": (
+        "Diese Adresse sieht nicht nach einer UniFi-Konsole aus. Gib die IP deiner UniFi-OS-Konsole ein (z. B. UDM, UNVR, Cloud Key), nicht die einer Kamera.",
+        "Cette adresse ne semble pas être celle d'une console UniFi. Saisissez l'IP de votre console UniFi OS (p. ex. UDM, UNVR, Cloud Key), et non celle d'une caméra.",
+        "Esta dirección no parece ser de una consola UniFi. Introduce la IP de tu consola UniFi OS (p. ej., UDM, UNVR, Cloud Key), no la de una cámara.",
+        "Dit adres lijkt niet op een UniFi-console. Voer het IP-adres van je UniFi OS-console in (bijv. UDM, UNVR, Cloud Key), niet dat van een camera.",
+        "Questo indirizzo non sembra quello di una console UniFi. Inserisci l'IP della tua console UniFi OS (ad es. UDM, UNVR, Cloud Key), non quello di una telecamera.",
+        "Este endereço não parece ser de um console UniFi. Insira o IP do seu console UniFi OS (ex.: UDM, UNVR, Cloud Key), não o de uma câmera."),
 }
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _errors.items():
+    de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
+
+# Multi-site support (several UniFi consoles in one grid).
+# Each entry: key -> (de, fr, es, nl, it, pt-BR).
+_sites = {
+    "New Site": ("Neuer Standort", "Nouveau site", "Nuevo sitio", "Nieuwe locatie", "Nuovo sito", "Novo site"),
+    "Site %@": ("Standort %@", "Site %@", "Sitio %@", "Locatie %@", "Sito %@", "Site %@"),
+    "Sites": ("Standorte", "Sites", "Sitios", "Locaties", "Siti", "Sites"),
+    "Site": ("Standort", "Site", "Sitio", "Locatie", "Sito", "Site"),
+    "Add Site": ("Standort hinzufügen", "Ajouter un site", "Añadir sitio", "Locatie toevoegen", "Aggiungi sito", "Adicionar site"),
+    "Remove Site…": ("Standort entfernen…", "Supprimer le site…", "Eliminar sitio…", "Locatie verwijderen…", "Rimuovi sito…", "Remover site…"),
+    "Remove": ("Entfernen", "Supprimer", "Eliminar", "Verwijderen", "Rimuovi", "Remover"),
+    "Remove “%@”?": ("„%@“ entfernen?", "Supprimer « %@ » ?", "¿Eliminar «%@»?", "‘%@' verwijderen?", "Rimuovere «%@»?", "Remover “%@”?"),
+    "Its cameras disappear from every profile and its API key and login are deleted from the Keychain.":
+        ("Seine Kameras verschwinden aus allen Profilen, und API-Schlüssel und Anmeldung werden aus dem Schlüsselbund gelöscht.",
+         "Ses caméras disparaissent de tous les profils, et sa clé API et ses identifiants sont supprimés du trousseau.",
+         "Sus cámaras desaparecen de todos los perfiles y su clave API y su inicio de sesión se eliminan del llavero.",
+         "De camera's verdwijnen uit elk profiel en de API-sleutel en login worden uit de sleutelhanger verwijderd.",
+         "Le sue telecamere spariscono da tutti i profili e la chiave API e le credenziali vengono eliminate dal portachiavi.",
+         "As câmeras somem de todos os perfis e a chave de API e o login são apagados das Chaves."),
+    "Cameras from all sites share the grid and layout profiles.":
+        ("Kameras aller Standorte teilen sich Raster und Layout-Profile.",
+         "Les caméras de tous les sites partagent la grille et les profils de disposition.",
+         "Las cámaras de todos los sitios comparten la cuadrícula y los perfiles de diseño.",
+         "Camera's van alle locaties delen het raster en de lay-outprofielen.",
+         "Le telecamere di tutti i siti condividono la griglia e i profili di layout.",
+         "As câmeras de todos os sites compartilham a grade e os perfis de layout."),
+    "Site Name": ("Standortname", "Nom du site", "Nombre del sitio", "Locatienaam", "Nome del sito", "Nome do site"),
+    "Shown on camera tiles when you have more than one site":
+        ("Wird auf den Kamerakacheln angezeigt, wenn du mehr als einen Standort hast",
+         "Affiché sur les vignettes des caméras lorsque vous avez plusieurs sites",
+         "Se muestra en las miniaturas de las cámaras cuando tienes más de un sitio",
+         "Wordt op de camerategels getoond als je meer dan één locatie hebt",
+         "Mostrato sui riquadri delle telecamere quando hai più di un sito",
+         "Exibido nos blocos das câmeras quando você tem mais de um site"),
+    "This console is already added as “%@”.":
+        ("Diese Konsole ist bereits als „%@“ hinzugefügt.",
+         "Cette console est déjà ajoutée sous le nom « %@ ».",
+         "Esta consola ya está añadida como «%@».",
+         "Deze console is al toegevoegd als ‘%@'.",
+         "Questa console è già aggiunta come «%@».",
+         "Este console já foi adicionado como “%@”."),
+    "Classic API credentials · %@":
+        ("Anmeldedaten für klassische API · %@", "Identifiants de l'API classique · %@",
+         "Credenciales de la API clásica · %@", "Inloggegevens klassieke API · %@",
+         "Credenziali API classica · %@", "Credenciais da API clássica · %@"),
+    "Streams": ("Streams", "Flux", "Transmisiones", "Streams", "Stream", "Transmissões"),
+    "Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key.":
+        ("Erstelle den Schlüssel auf dieser Konsole, nicht auf unifi.ui.com: Öffne UniFi Network → Integrations → Create New API Key (bei Network 9: Settings → Control Plane → Integrations). Jede Konsole braucht ihren eigenen Schlüssel.",
+         "Créez la clé sur cette console, pas sur unifi.ui.com : ouvrez UniFi Network → Integrations → Create New API Key (sous Network 9 : Settings → Control Plane → Integrations). Chaque console a besoin de sa propre clé.",
+         "Crea la clave en esta consola, no en unifi.ui.com: abre UniFi Network → Integrations → Create New API Key (en Network 9: Settings → Control Plane → Integrations). Cada consola necesita su propia clave.",
+         "Maak de sleutel aan op deze console, niet op unifi.ui.com: open UniFi Network → Integrations → Create New API Key (in Network 9: Settings → Control Plane → Integrations). Elke console heeft een eigen sleutel nodig.",
+         "Crea la chiave su questa console, non su unifi.ui.com: apri UniFi Network → Integrations → Create New API Key (in Network 9: Settings → Control Plane → Integrations). Ogni console ha bisogno della propria chiave.",
+         "Crie a chave neste console, não em unifi.ui.com: abra UniFi Network → Integrations → Create New API Key (no Network 9: Settings → Control Plane → Integrations). Cada console precisa da sua própria chave."),
+    "Use a local account on this console: in UniFi OS open Admins & Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras.":
+        ("Verwende ein lokales Konto auf dieser Konsole: Öffne in UniFi OS Admins & Users → Create New, aktiviere „Restrict to Local Access Only“ und gib ihm eine Protect-Rolle, die Kameras steuern darf.",
+         "Utilisez un compte local sur cette console : dans UniFi OS, ouvrez Admins & Users → Create New, cochez « Restrict to Local Access Only » et attribuez-lui un rôle Protect qui peut contrôler les caméras.",
+         "Usa una cuenta local en esta consola: en UniFi OS abre Admins & Users → Create New, marca «Restrict to Local Access Only» y asígnale un rol de Protect que pueda controlar cámaras.",
+         "Gebruik een lokaal account op deze console: open in UniFi OS Admins & Users → Create New, vink ‘Restrict to Local Access Only' aan en geef het een Protect-rol die camera's mag bedienen.",
+         "Usa un account locale su questa console: in UniFi OS apri Admins & Users → Create New, spunta «Restrict to Local Access Only» e assegnagli un ruolo Protect che possa controllare le telecamere.",
+         "Use uma conta local neste console: no UniFi OS, abra Admins & Users → Create New, marque “Restrict to Local Access Only” e atribua a ela uma função do Protect que possa controlar câmeras."),
+}
+for _k, (_de, _fr, _es, _nl, _it, _pt) in _sites.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt
 
 LANGS = {"de": de, "fr": fr, "es": es, "nl": nl, "it": it, "pt-BR": pt_br}

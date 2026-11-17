@@ -26,11 +26,9 @@ public class SettingsCertificateTests
         try
         {
             var trust = new CertificateTrust(new JsonFilePreferences(Path.Combine(dir, "trust.json")));
-            var settings = new AppSettings(new JsonFilePreferences(Path.Combine(dir, "prefs.json")), new NoSecrets())
-            {
-                IpAddress = "10.0.0.5"
-            };
-            using var service = new ProtectService(settings, trust);
+            var settings = new AppSettings(new JsonFilePreferences(Path.Combine(dir, "prefs.json")), new NoSecrets());
+            settings.Sites[0].IpAddress = "10.0.0.5";
+            using var service = new ProtectHub(settings, site => new ProtectService(site, trust));
             trust.Evaluate("10.0.0.5", "aa");
 
             var vm = new SettingsViewModel(service, settings, trust, new UpdateChecker("1.0"));

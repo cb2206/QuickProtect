@@ -10,7 +10,7 @@ extension Notification.Name {
 // MARK: - Grid
 
 struct CameraGridView: View {
-    @ObservedObject var service: ProtectService
+    @ObservedObject var service: ProtectHub
     /// Owned by AppDelegate so stream teardown doesn't depend on this view's
     /// lifetime — see AppDelegate.closePanel().
     let clientManager: RTSPClientManager
@@ -38,18 +38,26 @@ struct CameraGridView: View {
     var body: some View {
         ZStack {
             palette.gridBg.ignoresSafeArea()
-            // A changed certificate blocks every request until the user decides,
-            // so it outranks loading and generic errors.
-            if service.certificateChange != nil {
+            // With one site this is the single-controller behaviour: a changed
+            // certificate or an error replaces the grid. With several, a site
+            // that fails only shows in the banner while others have cameras.
+            switch service.gridState {
+            case .certificateChanged:
                 certificateChangedView
-            } else if service.isLoading {
+            case .loading:
                 loadingView
-            } else if let error = service.errorMessage {
-                errorView(error)
-            } else if service.cameras.isEmpty {
+            case .error(let message):
+                errorView(message)
+            case .empty:
                 emptyView
-            } else {
-                cameraGrid
+            case .cameras:
+                VStack(spacing: 0) {
+                    if !service.siteIssues.isEmpty && focusedCameraId == nil {
+                        SiteIssuesBanner(issues: service.siteIssues, hub: service,
+                                         onOpenSettings: onOpenSettings)
+                    }
+                    cameraGrid
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -91,7 +99,11 @@ struct CameraGridView: View {
             title: String(localized: "Controller certificate changed"),
             // swiftlint:disable:next line_length
             message: String(localized: "QuickProtect stopped connecting because the controller presented a different certificate. This is expected after reinstalling, resetting or replacing the controller. If you didn't, someone may be intercepting the connection."),
-            primary: (String(localized: "Review Certificate…"), { CertificateReviewAlert.present(service: service) }),
+            primary: (String(localized: "Review Certificate…"), {
+                if let pending = service.pendingCertificateService {
+                    CertificateReviewAlert.present(service: pending)
+                }
+            }),
             secondary: (String(localized: "Open Settings"), onOpenSettings),
             footer: nil
         )
@@ -112,7 +124,9 @@ struct CameraGridView: View {
     }
 
     func openProtectDashboard() {
-        let ip = AppSettings.shared.ipAddress
+        // The first configured site: with an empty grid there is no camera
+        // to pick a console from.
+        let ip = AppSettings.shared.sites.first { !$0.ipAddress.isEmpty }?.ipAddress ?? ""
         guard !ip.isEmpty, let url = URL(string: "https://\(ip)/protect") else { return }
         NotificationCenter.default.post(name: .closeCameraPanel, object: nil)
         NSWorkspace.shared.open(url)
@@ -134,7 +148,10 @@ struct CameraGridView: View {
         let ordered = AppSettings.shared.orderedCameras(visible)
         let q = searchQuery.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return ordered }
-        return ordered.filter { $0.name.localizedCaseInsensitiveContains(q) }
+        return ordered.filter {
+            $0.name.localizedCaseInsensitiveContains(q)
+                || (service.siteBadge(for: $0)?.localizedCaseInsensitiveContains(q) ?? false)
+        }
     }
 
     var cameraGrid: some View {
@@ -255,7 +272,7 @@ struct CameraDropDelegate: DropDelegate {
     let targetId: String
     let cameras: [Camera]
     @Binding var dragCameraId: String?
-    let service: ProtectService
+    let service: ProtectHub
 
     func performDrop(info: DropInfo) -> Bool {
         dragCameraId = nil

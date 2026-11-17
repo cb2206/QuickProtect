@@ -17,7 +17,9 @@ Shipping on all three channels:
 
 Feature parity with the macOS app is complete; the intentional differences and
 the per-platform caveats (GNOME tray click behaviour, Wayland window placement,
-portal-owned global hotkeys) are in `PARITY.md`.
+portal-owned global hotkeys, the Hyprland overlay mode) are in `PARITY.md`.
+1.5 adds multiple sites (several consoles in one grid) and snapshot
+placeholders for tiles waiting on their first keyframe.
 
 ## Architecture: the video engine (don't regress these)
 

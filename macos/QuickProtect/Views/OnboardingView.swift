@@ -2,7 +2,9 @@ import SwiftUI
 
 struct OnboardingView: View {
     @ObservedObject private var settings = AppSettings.shared
-    @ObservedObject var service: ProtectService
+    @ObservedObject var service: ProtectHub
+    /// The site onboarding configures — the first one.
+    @ObservedObject var site: ControllerSite
     let onFinish: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -138,16 +140,16 @@ struct OnboardingView: View {
                 .lineSpacing(3)
                 .padding(.bottom, 24)
             onField(String(localized: "IP Address")) {
-                PastableTextField(text: $settings.ipAddress, placeholder: "10.0.1.1")
+                PastableTextField(text: $site.ipAddress, placeholder: "10.0.1.1")
                     .frame(width: 300)
             }
             onField(String(localized: "API Key")) {
                 HStack(spacing: 6) {
                     Group {
                         if showApiKey {
-                            PastableTextField(text: $settings.apiKey, placeholder: "")
+                            PastableTextField(text: $site.apiKey, placeholder: "")
                         } else {
-                            PastableSecureField(text: $settings.apiKey, placeholder: "")
+                            PastableSecureField(text: $site.apiKey, placeholder: "")
                         }
                     }.frame(width: 274)
                     Button { showApiKey.toggle() } label: {
@@ -156,11 +158,12 @@ struct OnboardingView: View {
                             .foregroundColor(palette.subtext)
                     }
                     .buttonStyle(.plain)
+                    CredentialHelpIcon(text: CredentialHelp.apiKey)
                 }
             }
             HStack(spacing: 10) {
                 AuroraSecondaryButton(title: String(localized: "Test Connection"), action: runTest)
-                    .disabled(isTesting || settings.ipAddress.isEmpty || settings.apiKey.isEmpty)
+                    .disabled(isTesting || site.ipAddress.isEmpty || site.apiKey.isEmpty)
                 if isTesting { ProgressView().scaleEffect(0.6) }
                 if let result = testResult {
                     HStack(spacing: 5) {
@@ -188,16 +191,19 @@ struct OnboardingView: View {
                 .lineSpacing(3)
                 .padding(.bottom, 20)
             onField(String(localized: "Username")) {
-                PastableTextField(text: $settings.username, placeholder: "")
-                    .frame(width: 300)
+                HStack(spacing: 6) {
+                    PastableTextField(text: $site.username, placeholder: "")
+                        .frame(width: 300)
+                    CredentialHelpIcon(text: CredentialHelp.ptzAccount)
+                }
             }
             onField(String(localized: "Password")) {
                 HStack(spacing: 6) {
                     Group {
                         if showPassword {
-                            PastableTextField(text: $settings.password, placeholder: "")
+                            PastableTextField(text: $site.password, placeholder: "")
                         } else {
-                            PastableSecureField(text: $settings.password, placeholder: "")
+                            PastableSecureField(text: $site.password, placeholder: "")
                         }
                     }.frame(width: 274)
                     Button { showPassword.toggle() } label: {
@@ -206,12 +212,13 @@ struct OnboardingView: View {
                             .foregroundColor(palette.subtext)
                     }
                     .buttonStyle(.plain)
+                    CredentialHelpIcon(text: CredentialHelp.ptzAccount)
                 }
             }
             HStack(spacing: 10) {
                 AuroraSecondaryButton(title: String(localized: "Test Connection"), action: runPtzTest)
-                    .disabled(isTestingPtz || settings.ipAddress.isEmpty
-                              || settings.username.isEmpty || settings.password.isEmpty)
+                    .disabled(isTestingPtz || site.ipAddress.isEmpty
+                              || site.username.isEmpty || site.password.isEmpty)
                 if isTestingPtz { ProgressView().scaleEffect(0.6) }
                 if let result = ptzTestResult {
                     HStack(spacing: 5) {
@@ -300,12 +307,14 @@ struct OnboardingView: View {
         isTesting = true
         testResult = nil
         Task {
-            await service.fetchCameras(forced: true)
+            let siteService = service.service(forSite: site.id)
+            await siteService?.fetchCameras(forced: true)
+            service.recompute()
             isTesting = false
-            if let err = service.errorMessage {
+            if let err = siteService?.errorMessage {
                 testResult = TestResult(connected: false, message: err)
             } else {
-                let n = service.cameras.count
+                let n = siteService?.cameras.count ?? 0
                 testResult = TestResult(connected: true,
                                         message: String(localized: "Connected — \(n) cameras found"))
             }
@@ -316,7 +325,7 @@ struct OnboardingView: View {
         isTestingPtz = true
         ptzTestResult = nil
         Task {
-            let ok = await service.classicLogin()
+            let ok = await service.service(forSite: site.id)?.classicLogin() ?? false
             isTestingPtz = false
             if ok {
                 ptzTestResult = TestResult(connected: true, message: String(localized: "Signed in — PTZ control ready"))

@@ -49,6 +49,11 @@ struct Camera: Identifiable {
     let name: String
     let state: String
     let channels: [Channel]
+    /// Id of the `ControllerSite` this camera was fetched from. Stamped by the
+    /// site's `ProtectService`; empty for a camera decoded on its own. Camera
+    /// ids themselves are controller-generated object ids, unique across
+    /// consoles, so layouts, pins and per-camera preferences key on `id` alone.
+    var siteID: String = ""
     /// True if the camera supports physical pan/tilt/zoom.
     /// Set during classic API enrichment (Integration API doesn't expose this flag).
     var isPtz: Bool = false
@@ -140,6 +145,7 @@ extension Camera: Codable {
         state    = (try? c.decode(String.self, forKey: .state)) ?? "UNKNOWN"
         // channels may be absent in some API responses
         channels = (try? c.decode([Channel].self, forKey: .channels)) ?? []
+        siteID = ""
         // featureFlags with isPtz/canOpticalZoom — only present in classic API responses
         if let flags = try? c.decode(FeatureFlags.self, forKey: .featureFlags) {
             isPtz = flags.isPtz || flags.hasOpticalZoom

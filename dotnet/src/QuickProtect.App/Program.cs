@@ -68,6 +68,12 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            // Hyprland: menus and dropdowns drawn inside their window instead of
+            // as separate X11 popup windows. A popup window reaching past the
+            // panel doesn't hold focus there: the pointer crossing onto it
+            // focuses whatever lies beneath (follow_mouse), which dismisses the
+            // menu and ended with Hyprland closing the panel.
+            .With(new X11PlatformOptions { OverlayPopups = Platform.Hyprland.IsRunning })
             .WithInterFont()
             .LogToTrace();
 }

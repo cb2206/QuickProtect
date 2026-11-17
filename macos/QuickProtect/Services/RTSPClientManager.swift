@@ -8,12 +8,12 @@ final class RTSPClientManager: ObservableObject {
     /// Returns the existing client for a camera, or creates a new one.
     /// `lens` distinguishes a camera's secondary stream (e.g. "package") from
     /// its main feed, so a doorbell can hold two independent clients at once.
-    func client(for cameraId: String, lens: String? = nil) -> RTSPClient {
+    func client(for cameraId: String, lens: String? = nil, name: String = "") -> RTSPClient {
         let key = lens.map { "\(cameraId):\($0)" } ?? cameraId
         if let existing = clients[key] {
             return existing
         }
-        let client = RTSPClient()
+        let client = RTSPClient(logTag: lens.map { "\(name):\($0)" } ?? name)
         clients[key] = client
         return client
     }

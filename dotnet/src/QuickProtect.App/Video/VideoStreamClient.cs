@@ -87,20 +87,34 @@ public sealed class VideoStreamClient : IDisposable
     public bool HasAudio { get; private set; }
 
     /// <summary>
-    /// Controller-provided JPEG shown by <see cref="VideoSurface"/> while no
-    /// frame has been decoded yet. Set for streams whose first keyframe is many
-    /// seconds away (the 2 fps package lens joins mid-GOP and can't paint until
-    /// the next IDR). Raw encoded bytes — the client stays UI-toolkit-free.
+    /// Controller-provided JPEG shown by <see cref="VideoSurface"/> until the
+    /// current session decodes its first frame — over the kept last frame of an
+    /// earlier session too, which may be hours old. Set for streams waiting on
+    /// a keyframe: the 2 fps package lens, and any stream the controller started
+    /// just past a keyframe (a whole GOP away). Cleared by the next decoded
+    /// frame. Raw encoded bytes — the client stays UI-toolkit-free.
     /// </summary>
-    public byte[]? PlaceholderImage { get; private set; }
+    public byte[]? PlaceholderImage => Volatile.Read(ref _placeholder);
+    private byte[]? _placeholder;
 
-    /// <summary>Placeholder set (raised on the setter's thread, marshal in the UI).</summary>
+    /// <summary>Placeholder set or cleared (raised on the changing thread, marshal in the UI).</summary>
     public event Action? PlaceholderChanged;
 
-    public void SetPlaceholder(byte[] jpeg)
+    /// <summary>
+    /// Show <paramref name="jpeg"/> until the next decoded frame. Ignored (false)
+    /// once the stream is playing — a late snapshot must not cover live video.
+    /// </summary>
+    public bool SetPlaceholder(byte[] jpeg)
     {
-        PlaceholderImage = jpeg;
+        if (State == VideoState.Playing) return false;
+        Volatile.Write(ref _placeholder, jpeg);
         PlaceholderChanged?.Invoke();
+        return true;
+    }
+
+    private void ClearPlaceholder()
+    {
+        if (Interlocked.Exchange(ref _placeholder, null) != null) PlaceholderChanged?.Invoke();
     }
 
     // Latest decoded frame (BGRA). Swapped under _frameLock; UI copies under the same lock.
@@ -242,6 +256,7 @@ public sealed class VideoStreamClient : IDisposable
     /// </summary>
     public void Stop()
     {
+        ClearPlaceholder(); // a snapshot belongs to the session it bridged
         lock (_ctrlLock) _stop = true;
         _wake.Set();
         SetState(VideoState.Idle);
@@ -709,6 +724,7 @@ public sealed class VideoStreamClient : IDisposable
 
                     // First frame → Playing immediately (macOS DisplayImmediately parity).
                     LastError = null;
+                    ClearPlaceholder();
                     if (State != VideoState.Playing) SetState(VideoState.Playing);
                     FrameReady?.Invoke();
                 }
