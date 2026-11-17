@@ -45,6 +45,10 @@ public sealed class HyprlandShortcutConfigTests : IDisposable
     }
 
     [Fact]
+    public void LuaIncludePathIsEscaped()
+        => Assert.Equal(@"/home/a\\b/\""q\""/x.lua", HyprlandShortcutConfig.LuaString(@"/home/a\b/""q""/x.lua"));
+
+    [Fact]
     public void LuaConfigGetsTheManagedFileAndOneGuardedInclude()
     {
         const string original = "require(\"hypr.bindings\")\n";
