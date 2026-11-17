@@ -52,6 +52,9 @@ struct PastableTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSTextField, context: Context) {
+        // The view can be handed a different binding (another site's field);
+        // edits must go to the one shown now, not the one it was created with.
+        context.coordinator.text = $text
         if nsView.stringValue != text { nsView.stringValue = text }
     }
 
@@ -83,6 +86,7 @@ struct PastableSecureField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSSecureTextField, context: Context) {
+        context.coordinator.text = $text
         if nsView.stringValue != text { nsView.stringValue = text }
     }
 
@@ -127,6 +131,46 @@ struct HotkeyRecorderView: NSViewRepresentable {
             let mods = event.modifierFlags.intersection([.command, .control, .option, .shift])
             guard !mods.isEmpty else { return }
             onRecord?(event.keyCode, mods)
+        }
+    }
+}
+
+// MARK: - Credential help
+
+/// Where on the console the user creates each credential, shown as the
+/// tooltip of a small "?" beside the field (Settings and onboarding).
+enum CredentialHelp {
+    // swiftlint:disable line_length
+    static let apiKey = String(localized: "Create the key on this console, not at unifi.ui.com: open UniFi Network → Integrations → Create New API Key (on Network 9: Settings → Control Plane → Integrations). Each console needs its own key.")
+    static let ptzAccount = String(localized: "Use a local account on this console: in UniFi OS open Admins & Users → Create New, tick “Restrict to Local Access Only”, and give it a Protect role that can control cameras.")
+    // swiftlint:enable line_length
+}
+
+/// A "?" that explains where a credential comes from. Click opens a popover,
+/// because hover tooltips (`.help`) didn't show in the Settings and
+/// onboarding windows; the tooltip is kept for where it does.
+struct CredentialHelpIcon: View {
+    let text: String
+
+    @State private var isShown = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Button { isShown.toggle() } label: {
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 13))
+                .foregroundColor(AuroraTokens.palette(for: colorScheme).subtext)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(text)
+        .accessibilityLabel(Text(text))
+        .popover(isPresented: $isShown, arrowEdge: .bottom) {
+            Text(text)
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 300, alignment: .leading)
+                .padding(12)
         }
     }
 }

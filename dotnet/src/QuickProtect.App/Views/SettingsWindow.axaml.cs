@@ -11,11 +11,21 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         Icon = ApertureIcon.Create(64);
+        // Hyprland would tile Settings beside the floating panel overlay; float it
+        // centered above, like the panel.
+        if (Platform.Hyprland.IsRunning)
+        {
+            Platform.Hyprland.FloatWindow(this);
+            WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        }
         // Give the view model a way to open a native folder picker.
         DataContextChanged += (_, _) =>
         {
             if (DataContext is SettingsViewModel vm)
+            {
                 vm.PickFolderAsync = PickFolderAsync;
+                vm.ConfirmAsync = (title, message, confirm) => ConfirmWindow.ShowAsync(this, title, message, confirm);
+            }
         };
     }
 

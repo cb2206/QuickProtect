@@ -20,7 +20,11 @@ from ad-hoc signing to a Developer ID-signed, notarized build.
    checks see, so the asset names are a de facto API (see the workflow header).
 5. Store builds are separate: Mac App Store via fastlane
    (`macos/fastlane/PIPELINE.md`), Microsoft Store via
-   `dotnet/scripts/package-msix.ps1` and Partner Center. Both stores' "What's
+   `dotnet/scripts/package-msix.ps1` and Partner Center. The tag run also
+   builds the Store MSIX as the `windows-msix` workflow artifact (never a
+   release asset), so no Windows machine is needed: download it with
+   `gh run download <run-id> -n windows-msix` and upload it to Partner
+   Center. Both stores' "What's
    New" text, in all seven languages, lives in `docs/APP_STORE_LISTINGS.md`:
    update it before submitting (fastlane uploads the App Store one; paste the
    Microsoft Store one into Partner Center).

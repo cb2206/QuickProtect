@@ -60,23 +60,30 @@ public partial class PinnedCameraWindow : Window
         Closed += (_, _) => _aspectRetry.Stop();
 
         // The certificate overlay follows the service (absent in the previewer).
-        if (Avalonia.Application.Current is App { Service: { } service })
+        // The overlay follows this camera's own site (absent in the previewer).
+        if (Avalonia.Application.Current is App { Hub: { } hub })
         {
-            service.PropertyChanged += OnServiceChanged;
-            Closed += (_, _) => service.PropertyChanged -= OnServiceChanged;
-            CertificateOverlay.IsVisible = service.CertificateChange != null;
+            hub.PropertyChanged += OnServiceChanged;
+            Closed += (_, _) => hub.PropertyChanged -= OnServiceChanged;
+            CertificateOverlay.IsVisible = CurrentCertificateChange() != null;
+            // The tile (and with it the camera's site) arrives after construction.
+            DataContextChanged += (_, _) => CertificateOverlay.IsVisible = CurrentCertificateChange() != null;
         }
     }
 
+    private Core.Services.CertificateChange? CurrentCertificateChange()
+        => DataContext is ViewModels.CameraTileViewModel tile
+            ? App.Instance.Hub.CertificateChangeFor(tile.Camera)
+            : null;
+
     private void OnServiceChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(Core.Services.ProtectService.CertificateChange)) return;
-        Dispatcher.UIThread.Post(() =>
-            CertificateOverlay.IsVisible = App.Instance.Service.CertificateChange != null);
+        if (e.PropertyName != nameof(Core.Services.ProtectHub.PendingCertificateChange)) return;
+        Dispatcher.UIThread.Post(() => CertificateOverlay.IsVisible = CurrentCertificateChange() != null);
     }
 
     private async void Certificate_Review(object? sender, RoutedEventArgs e)
-        => await App.Instance.ReviewCertificateAsync(this);
+        => await App.Instance.ReviewCertificateAsync(this, CurrentCertificateChange());
 
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {

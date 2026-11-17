@@ -158,6 +158,35 @@ port (`dotnet/`).
   abort on 429/5xx, one silent camera-list retry after a 429, and a stream
   POST that completes after the panel closed releases its allocation instead
   of leaking it server-side.
+- **Stream startup** — the controller often starts a fresh RTSP session just
+  after a keyframe, so a tile waits up to a whole GOP before it can paint
+  (~1 s at 30 fps, ~2 s on a 15 fps G6 180). A tile still dark 400 ms after
+  its stream request fetches an Integration API snapshot
+  (`ProtectService.FetchCameraSnapshotAsync`, one attempt, no retry so the
+  open burst keeps its limiter budget) and shows it dimmed with a corner
+  spinner until the first decoded frame; fast tiles never ask. The snapshot
+  also replaces a stale last frame on a reopen after the keep-alive expired.
+  A refresh in flight never tears down tiles already on screen: .NET always
+  diffed them in place (`MainViewModel.RebuildTiles`, header progress bar
+  only); macOS gained it in 1.5, where every panel open used to swap in the
+  loading card and restart every stream. Each client logs
+  `first frame — playing` per camera for startup timing.
+
+- **Multiple sites** — `ControllerSite` (Core) per console with per-site
+  secret-store accounts (the first site keeps the legacy `unifi.apiKey` …
+  names and mirrors its address to `unifi.ipAddress`, so a downgrade still
+  finds it); one `ProtectService` per site, merged by `ProtectHub`
+  (`IStreamAllocator` too, so the stream coordinator routes by camera).
+  Camera ids stay the layout key. A new site's first cameras are hidden in
+  every profile but the active one; a failing site is a line in the panel's
+  error banner (with the site name) while the others stream, and the
+  certificate card only blocks when no site delivers cameras. Site badge on
+  tiles and "Name · Site" in the focus header / pinned windows when 2+ sites
+  exist; Add Camera menu grouped by site; search matches site names; the
+  RTSPS tunnel pins each stream under its own site's identity. Settings:
+  site list with Add/Remove (confirmation), per-site name/address/key and
+  PTZ login, credential "?" help (flyout on click, tooltip on hover), and a
+  duplicate-console check on Test Connection.
 
 ## Pending (macOS ahead)
 
@@ -172,6 +201,8 @@ Nothing at the moment — the port is in sync with the macOS feature set.
 | Panel anchor | popover under the menu-bar item (top) | popover at the tray corner (bottom-right) | Windows/Linux tray convention |
 | Lost stream URL (allocation deleted by another client) | a tile shows the failure with a Reconnect button and does not retry on its own; a pinned window retries: on any client error (connection failed, RTSP 404, receive error) or failed POST it releases its allocation, shows the failure with Reconnect, and POSTs a fresh URL after 5 s doubling to 60 s (reset once a frame paints; first retry waits 5 s) | after 3 consecutive open failures the coordinator re-POSTs the same quality immediately, then 5 s doubling to 60 s (reset once playing), for tiles and pinned windows alike | the FFmpeg client retries its URL on its own, so it needs the re-POST to escape a deleted URL; macOS `RTSPClient` never retries a URL, so the first error is the failure signal. Tiles stay manual because every popover reopen, quality switch or Reconnect already POSTs a fresh URL |
 | Per-display panel size | per-profile **and** per-display | per-profile | multi-monitor display identity is less stable off macOS; revisit if needed |
+| Cameras tab with several sites | one section per site | one list, each row labelled with its site | the list's ▲/▼ reorder works on the whole profile order; sections would split it |
+| Site connection change | refetch after typing settles (800 ms debounce) | refetch when the field loses focus | fields commit on focus loss here, as for every other setting |
 
 ## Platform notes (Linux)
 
@@ -198,6 +229,41 @@ Nothing at the moment — the port is in sync with the macOS feature set.
   there, matching Windows.
 - Wayland ignores absolute window positioning: the popover anchor and pinned
   window restore degrade to compositor placement; X11 behaves.
+- **Hyprland / Omarchy: overlay mode** (`Platform/Hyprland.cs`, verified on
+  Hyprland 0.56 / Omarchy 2026-09-26). With `follow_mouse = 1` the pointer
+  crossing a tiled window on its way from the bar focuses that window, so the
+  focus-loss dismissal hid the panel before it could be clicked — and neither
+  the app nor Hyprland's event socket can tell hover focus from a click. When
+  `HYPRLAND_INSTANCE_SIGNATURE` is set, the panel is instead an overlay, the
+  way Omarchy presents 1Password:
+  - floats (X11 utility window type — no user window rule needed), centered on
+    the focused monitor below the bar, and takes keyboard focus via IPC
+    (Hyprland ignores X11 activation requests);
+  - no focus-loss dismissal; closes via tray icon, hotkey, Escape, a header ✕
+    shown only in this mode, SUPER+W, or switching workspace (`workspacev2`);
+  - Settings floats centered too; pinned camera windows float and are pinned
+    to all workspaces (macOS `canJoinAllSpaces` parity), titled with the camera
+    name so they can be told apart from the panel.
+  - popups (menus, dropdowns) render inside their window
+    (`X11PlatformOptions.OverlayPopups`): a separate popup window reaching
+    past the panel lost focus to the window beneath once the pointer crossed
+    onto it, which dismissed the menu and ended with Hyprland closing the panel.
+  - position: the panel reopens where it was last left (screen pixels, pulled
+    back onto its screen, centered if that monitor is gone).
+  - resizing: Hyprland ignores an XWayland client's `_NET_WM_MOVERESIZE`, so
+    the edge grips run the drag themselves — pointer from Hyprland's
+    `cursorpos`, frame applied as ordinary size/position requests (which it
+    honors for floating windows). SUPER + right-drag works too.
+  - global hotkey: Hyprland registers portal shortcuts but never assigns keys,
+    so the app writes the bind itself (`Platform/HyprlandShortcutConfig.cs`):
+    it owns `~/.config/hypr/quickprotect.lua` (`quickprotect.conf` for a
+    hyprlang config), rewritten on every hotkey change and binding the
+    recorded combo to `quickprotect:toggle-panel`; the user's `hyprland.lua`
+    gets one `pcall(dofile, …)` line (`source = …` in `hyprland.conf`), added
+    once. Hyprland reloads only when the file's content changed.
+  Omarchy's bar tucks new tray items behind its drawer chevron; pin the
+  `QuickProtect` item (tray settings, or `"pinned": ["QuickProtect"]` on the
+  `omarchy.tray` entry in `~/.config/omarchy/shell.json`) to keep it visible.
 - Global hotkey (implemented 2026-08-10, verified on Ubuntu 26.04 GNOME
   Wayland): `PortalGlobalHotkey` binds through the XDG Desktop Portal
   `org.freedesktop.portal.GlobalShortcuts` interface (GNOME 45+ and KDE

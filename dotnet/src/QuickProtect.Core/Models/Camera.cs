@@ -16,6 +16,14 @@ public sealed class Camera
     public string State { get; init; } = "UNKNOWN";
     public IReadOnlyList<Channel> Channels { get; init; } = Array.Empty<Channel>();
 
+    /// <summary>
+    /// Id of the <c>ControllerSite</c> this camera was fetched from, stamped by
+    /// the site's <c>ProtectService</c>. Camera ids are controller-generated
+    /// object ids, unique across consoles, so layouts, pins and per-camera
+    /// preferences keep keying on <see cref="Id"/> alone.
+    /// </summary>
+    public string SiteId { get; set; } = "";
+
     /// <summary>True if the camera supports physical pan/tilt/zoom (classic-API enrichment).</summary>
     public bool IsPtz { get; set; }
 

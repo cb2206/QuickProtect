@@ -75,9 +75,15 @@ public class VideoStreamClientTests
             using var client = new VideoStreamClient();
             var firstFrame = new TaskCompletionSource();
             client.FrameReady += () => firstFrame.TrySetResult();
+            // A keyframe-wait snapshot set before the stream paints is dropped
+            // by the first decoded frame, and refused once the stream plays.
+            Assert.True(client.SetPlaceholder(new byte[] { 0xFF, 0xD8 }));
             client.Start(url);
 
             await firstFrame.Task.WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.Null(client.PlaceholderImage);
+            Assert.False(client.SetPlaceholder(new byte[] { 0xFF, 0xD8 }));
+            Assert.Null(client.PlaceholderImage);
             var (w, h) = client.FrameSize;
             Assert.Equal(width, w);
             Assert.Equal(height, h);
@@ -98,6 +104,21 @@ public class VideoStreamClientTests
         {
             try { if (!server!.HasExited) server.Kill(); } catch { /* gone */ }
         }
+    }
+
+    [Fact]
+    public void Placeholder_is_shown_until_stop_and_announced_each_change()
+    {
+        using var client = new VideoStreamClient();
+        var changes = 0;
+        client.PlaceholderChanged += () => changes++;
+
+        Assert.True(client.SetPlaceholder(new byte[] { 1 }));
+        Assert.NotNull(client.PlaceholderImage);
+        client.Stop(); // the snapshot belonged to the session it bridged
+
+        Assert.Null(client.PlaceholderImage);
+        Assert.Equal(2, changes);
     }
 
     [Theory]

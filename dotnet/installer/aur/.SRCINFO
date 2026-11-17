@@ -1,0 +1,22 @@
+pkgbase = quickprotect-bin
+	pkgdesc = Live viewer for UniFi Protect cameras — grid, focus view, PTZ, snapshots, tray app
+	pkgver = 1.4
+	pkgrel = 1
+	url = https://github.com/cb2206/QuickProtect
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	license = LGPL-2.1-or-later
+	license = LGPL-3.0-or-later
+	license = OFL-1.1
+	optdepends = alsa-lib: audio playback
+	optdepends = xdg-desktop-portal: global hotkey support
+	provides = quickprotect
+	conflicts = quickprotect
+	options = !strip
+	source_x86_64 = https://github.com/cb2206/QuickProtect/releases/download/v1.4/QuickProtect-1.4-linux-x64.tar.gz
+	sha256sums_x86_64 = 3d780ccc538cf8b26403b376f73e8c7a66d31d751612f994dc33b421d6b3c7da
+	source_aarch64 = https://github.com/cb2206/QuickProtect/releases/download/v1.4/QuickProtect-1.4-linux-arm64.tar.gz
+	sha256sums_aarch64 = f21d898ba20a78056af27d740982b21338fe7d9424b66710704fb32dfde6b59e
+
+pkgname = quickprotect-bin

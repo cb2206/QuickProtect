@@ -150,6 +150,15 @@ final class ProtectServiceTests: XCTestCase {
         XCTAssertFalse(service.isLoading)
     }
 
+    /// A key pasted with a trailing newline/space must not read as a wrong key.
+    func testAPIKeyIsSentWithoutSurroundingWhitespace() async {
+        credentials.apiKey = "  test-api-key\n"
+        StubController.respond { _ in (200, Data("[]".utf8)) }
+        await service.fetchCameras(forced: true)
+        XCTAssertEqual(StubController.requests.first?.value(forHTTPHeaderField: "X-API-Key"), "test-api-key")
+        XCTAssertNil(service.errorMessage)
+    }
+
     func testFetchCamerasUsesConfiguredPort() async {
         credentials.ipAddress = "protect.local:8443"
         StubController.respond { _ in (200, Data("[]".utf8)) }
@@ -178,6 +187,18 @@ final class ProtectServiceTests: XCTestCase {
         XCTAssertEqual(service.errorMessage, ControllerErrors.apiKeyRejected,
                        "a catalog message, not the raw status and JSON body")
         XCTAssertFalse(service.isLoading)
+    }
+
+    func testFetchCamerasFromACameraWebServerAsksForTheConsoleAddress() async {
+        let page = Data(#"<?xml version="1.0" encoding="iso-8859-1"?><html><title>404 Not Found</title></html>"#.utf8)
+        StubController.respond { _ in (404, page) }
+        await service.fetchCameras(forced: true)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.notAConsole)
+
+        StubController.respond { _ in (200, Data("<html><body>Login</body></html>".utf8)) }
+        await service.fetchCameras(forced: true)
+        XCTAssertEqual(service.errorMessage, ControllerErrors.notAConsole,
+                       "an HTML page with 200 is a web UI, not the Integration API")
     }
 
     func testFetchCamerasWithoutAPIKeyFailsBeforeAnyRequest() async {
@@ -231,7 +252,22 @@ final class ProtectServiceTests: XCTestCase {
         StubController.respond { _ in (429, Data()) }
         let result = await service.createRtspStreamURL(for: Self.camera("cam1"), quality: "high")
         XCTAssertNil(result)
-        XCTAssertEqual(StubController.requests.count, 1, "429 must not multiply requests against the limiter")
+        // One retry of the same tier after the limiter window, never the other
+        // tiers: 429 must not multiply requests against the limiter.
+        XCTAssertEqual(StubController.requests.count, 2)
+        let tiers = StubController.requests.map { ($0.bodyJSON as? [String: [String]])?["qualities"]?.first }
+        XCTAssertEqual(tiers, ["high", "high"])
+    }
+
+    func testCreateStreamRetriesOnceAfter429() async {
+        StubController.respond { _ in
+            StubController.requests.count == 1
+                ? (429, Data())
+                : (200, Data(#"{"medium":"rtsps://192.168.1.10:7441/med"}"#.utf8))
+        }
+        let result = await service.createRtspStreamURL(for: Self.camera("cam1"), quality: "medium")
+        XCTAssertEqual(result?.quality, "medium")
+        XCTAssertEqual(StubController.requests.count, 2)
     }
 
     func testSecondaryLensQualityIsNeverSubstituted() async {

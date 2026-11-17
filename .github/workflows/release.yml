@@ -230,6 +230,28 @@ jobs:
           path: dotnet/dist/QuickProtect-Setup-*-win-x64.exe
           if-no-files-found: error
 
+  # The Microsoft Store package, kept as a workflow artifact only: it is the
+  # paid build, so it is never attached to the GitHub release, and the draft
+  # release does not wait for it. Download it from the run and upload it to
+  # Partner Center (which re-signs it; the package itself is unsigned).
+  windows-msix:
+    needs: test-dotnet
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+      - name: Build MSIX
+        run: powershell -File dotnet/scripts/package-msix.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-msix
+          path: dotnet/dist/QuickProtect-*-win-x64.msix
+          if-no-files-found: error
+          retention-days: 7
+
   linux-tarball:
     needs: test-dotnet
     strategy:

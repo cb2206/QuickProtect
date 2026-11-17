@@ -26,21 +26,26 @@ public class CameraTileStopTests
         try
         {
             var settings = new AppSettings(new JsonFilePreferences(Path.Combine(dir, "prefs.json")), new NoSecrets());
-            using var service = new ProtectService(settings,
-                new CertificateTrust(new JsonFilePreferences(Path.Combine(dir, "trust.json"))));
+            var trust = new CertificateTrust(new JsonFilePreferences(Path.Combine(dir, "trust.json")));
+            using var service = new ProtectHub(settings, site => new ProtectService(site, trust));
             using var client = new VideoStreamClient();
             var tile = new CameraTileViewModel(new Camera { Id = "cam1", Name = "Front", State = "CONNECTED" },
                 service, settings)
             {
                 Client = client,
-                StreamFailure = "Connection lost"
+                StreamFailure = "Connection lost",
+                IsLoading = true,
+                ShowsPlaceholder = true
             };
+            Assert.False(tile.ShowsCenterSpinner, "the snapshot's corner spinner replaces the bar");
 
             tile.Stop();
 
             Assert.Null(tile.Client);
             Assert.Null(tile.StreamFailure);
             Assert.False(tile.IsPlaying);
+            Assert.False(tile.ShowsPlaceholder);
+            Assert.False(tile.ShowsCenterSpinner);
         }
         finally
         {

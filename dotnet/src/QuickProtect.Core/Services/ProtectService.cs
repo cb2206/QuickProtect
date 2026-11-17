@@ -24,7 +24,7 @@ namespace QuickProtect.Core.Services;
 /// </summary>
 public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStreamAllocator
 {
-    private readonly AppSettings _settings;
+    private readonly ControllerSite _settings;
     private readonly CertificateTrust _trust;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -117,9 +117,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     private readonly HttpClient _integration;
     private readonly HttpClient _classic;
 
-    public ProtectService(AppSettings settings, CertificateTrust trust)
+    /// <param name="site">The console this service talks to; one service per site (see <see cref="ProtectHub"/>).</param>
+    public ProtectService(ControllerSite site, CertificateTrust trust)
     {
-        _settings = settings;
+        _settings = site;
         _trust = trust;
 
         _integration = new HttpClient(MakeHandler()) { Timeout = TimeSpan.FromSeconds(15) };
@@ -130,7 +131,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         _trust.Changed += RefreshCertificateChange;
         _settings.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(AppSettings.IpAddress)) RefreshCertificateChange();
+            if (e.PropertyName == nameof(ControllerSite.IpAddress)) RefreshCertificateChange();
         };
         RefreshCertificateChange();
     }
@@ -161,6 +162,16 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         };
         return handler;
     }
+
+    /// <summary>The <see cref="ControllerSite"/> id stamped on every camera this service returns.</summary>
+    public string SiteId => _settings.Id;
+
+    /// <summary>
+    /// The API key as sent: surrounding whitespace dropped — a key pasted from a
+    /// browser or password manager often carries a trailing newline, which the
+    /// console rejects with 401 just like a wrong key.
+    /// </summary>
+    private string ApiKeyHeader => _settings.ApiKey.Trim();
 
     /// <summary>The configured controller, normalised (host, optional port, pin identity).</summary>
     public ControllerAddress? ControllerAddress => ControllerAddress.Parse(_settings.IpAddress);
@@ -336,13 +347,15 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     {
         var url = MakeUrl("proxy/protect/integration/v1/cameras") ?? throw new UriFormatException("invalid URL");
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
-        req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
+        req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
         req.Headers.TryAddWithoutValidation("Accept", "application/json");
 
         using var resp = await _integration.SendAsync(req, ct).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!resp.IsSuccessStatusCode)
             throw new ApiException((int)resp.StatusCode, body);
+        if (ControllerErrors.LooksLikeHtml(body))
+            throw new NotJsonException(body);
 
         return ParseCameraList(body);
     }
@@ -422,7 +435,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
-            req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
+            req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
             req.Headers.TryAddWithoutValidation("Accept", "application/json");
             req.Content = new StringContent(
                 JsonSerializer.Serialize(new { qualities = new[] { quality } }), Encoding.UTF8, "application/json");
@@ -512,7 +525,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             try
             {
                 using var req = new HttpRequestMessage(HttpMethod.Delete, url);
-                req.Headers.TryAddWithoutValidation("X-API-Key", _settings.ApiKey);
+                req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
                 using var _ = await _integration.SendAsync(req).ConfigureAwait(false);
             }
             catch (Exception ex) { Log.Line($"[Stream] release failed: {ex.Message}"); }
@@ -613,6 +626,41 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         // and every login is audit-logged on the controller.
         if (!unauthorized || !await ClassicLoginAsync().ConfigureAwait(false)) return null;
         return (await RequestPackageSnapshotAsync(camera).ConfigureAwait(false)).bytes;
+    }
+
+    /// <summary>
+    /// A current JPEG of a camera's main lens (Integration API, API key). Bridges
+    /// the wait for a stream's first keyframe: the controller often starts a
+    /// fresh RTSP session just after a keyframe, so a tile sits a whole GOP
+    /// (2 s at 15 fps) before it can paint. One attempt, no retry — callers
+    /// only ask for tiles still dark after the panel-open burst, and a 429 here
+    /// must not cost the stream allocations their limiter budget.
+    /// </summary>
+    public async Task<byte[]?> FetchCameraSnapshotAsync(Camera camera)
+    {
+        var url = MakeUrl($"proxy/protect/integration/v1/cameras/{PathSegment(camera.Id)}/snapshot");
+        if (url == null) return null;
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.TryAddWithoutValidation("X-API-Key", ApiKeyHeader);
+            req.Headers.TryAddWithoutValidation("Accept", "image/jpeg");
+            using var resp = await _integration.SendAsync(req, cts.Token).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                Log.Line($"[Snapshot] camera snapshot HTTP {(int)resp.StatusCode} for {camera.Name}");
+                return null;
+            }
+            var bytes = await resp.Content.ReadAsByteArrayAsync(cts.Token).ConfigureAwait(false);
+            Log.Line($"[Snapshot] camera snapshot {bytes.Length} bytes for {camera.Name}");
+            return bytes.Length > 0 ? bytes : null;
+        }
+        catch (Exception ex)
+        {
+            Log.Line($"[Snapshot] camera snapshot request failed: {ex.Message}");
+            return null;
+        }
     }
 
     private async Task<(byte[]? bytes, bool unauthorized)> RequestPackageSnapshotAsync(Camera camera)
@@ -784,7 +832,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private void ApplySuccess(IReadOnlyList<Camera> cameras)
     {
-        Log.Line($"[API] applySuccess: {cameras.Count} cameras");
+        Log.Line($"[API] applySuccess ({ControllerAddress?.Host ?? "no address"}): {cameras.Count} cameras");
+        foreach (var cam in cameras) cam.SiteId = SiteId;
         Cameras = PreserveEnrichmentFlags(Cameras, cameras);
         IsLoading = false;
         ErrorMessage = null;
@@ -816,7 +865,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private void ApplyError(Exception ex)
     {
-        Log.Line($"[API] applyError: {ex.Message}");
+        Log.Line($"[API] applyError ({ControllerAddress?.Host ?? "no address"}): {ex.Message}");
         RefreshCertificateChange();
         // A catalog key the UI translates, not the (English-only) exception text.
         ErrorMessage = CertificateChange != null ? CertificateChangedMessage : ControllerErrors.Describe(ex);
@@ -826,7 +875,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     private bool Validate()
     {
         if (ControllerAddress is null) { ErrorMessage = "No IP address configured. Open Settings."; return false; }
-        if (string.IsNullOrEmpty(_settings.ApiKey)) { ErrorMessage = "No API key configured. Open Settings."; return false; }
+        if (string.IsNullOrEmpty(ApiKeyHeader)) { ErrorMessage = "No API key configured. Open Settings."; return false; }
         return true;
     }
 
@@ -840,7 +889,20 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     public sealed class ApiException : Exception
     {
         public int StatusCode { get; }
+        /// <summary>The controller's reply; for the debug log, never the UI.</summary>
+        public string Body { get; }
         public ApiException(int status, string body)
-            : base($"HTTP {status} – {(body.Length > 200 ? body[..200] : body)}") => StatusCode = status;
+            : base($"HTTP {status} – {(body.Length > 200 ? body[..200] : body)}")
+        {
+            StatusCode = status;
+            Body = body;
+        }
+    }
+
+    /// <summary>A 2xx reply that isn't JSON (an HTML page); the body is for the debug log.</summary>
+    public sealed class NotJsonException : Exception
+    {
+        public NotJsonException(string body)
+            : base($"non-JSON reply – {(body.Length > 200 ? body[..200] : body)}") { }
     }
 }

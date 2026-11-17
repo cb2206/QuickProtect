@@ -22,6 +22,7 @@ enum ControllerErrors {
     static let serverError = String(localized: "The controller reported an internal error. Try again later.")
     static let unexpectedResponse = String(localized: "The controller returned an unexpected response.")
     static let unreadableResponse = String(localized: "The controller sent a response QuickProtect couldn't read.")
+    static let notAConsole = String(localized: "This address doesn't look like a UniFi console. Enter the IP of your UniFi OS console (e.g. UDM, UNVR, Cloud Key), not a camera's.")
 
     static func describe(_ error: Error) -> String {
         switch error {
@@ -42,14 +43,23 @@ enum ControllerErrors {
             return invalidAddress
         case .notHTTP:
             return unexpectedResponse
-        case .http(let status, _):
+        case .notJSON:
+            return notAConsole
+        case .http(let status, let body):
             switch status {
             case 401, 403: return apiKeyRejected
+            case 404:      return notAConsole
             case 429:      return busy
             case 500...:   return serverError
-            default:       return unexpectedResponse
+            default:       return looksLikeHTML(body) ? notAConsole : unexpectedResponse
             }
         }
+    }
+
+    /// A web page instead of the Integration API's JSON — typically a camera's
+    /// own web server, reached because its IP was entered instead of the console's.
+    static func looksLikeHTML(_ body: String) -> Bool {
+        body.drop { $0.isWhitespace }.hasPrefix("<")
     }
 
     /// `nil` for codes with no better wording than Foundation's.

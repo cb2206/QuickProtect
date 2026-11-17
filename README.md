@@ -2,7 +2,7 @@
 
 If you find QuickProtect useful, consider donating: [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/cb2206)
 
-A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Protect controller — no browser or UniFi Protect app needed.
+A lightweight tray/menu-bar app for viewing live camera feeds from one or more UniFi Protect controllers — no browser or UniFi Protect app needed.
 
 <p>
   <a href="https://apps.apple.com/app/id6776899427"><img alt="Download QuickProtect on the App Store" src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" height="52"></a>
@@ -32,6 +32,8 @@ A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Prote
 ## Features
 
 - **Live camera grid** — every camera on your controller in a resizable panel, streamed over RTSP/RTSPS (H.264 and H.265)
+- **Multiple sites** — add several UniFi consoles (e.g. home and a second house) and mix their cameras in one grid and one layout profile; each tile shows a small site badge, and a site that's offline shows as a notice while the others keep streaming
+- **Quick start** — while a live stream waits for its first keyframe, its tile shows a fresh snapshot instead of staying dark, and reopening the panel keeps the grid on screen
 - **Focus view** — click a camera for a single-feed view with fullscreen, fit/fill, mute, and snapshots
 - **PTZ control** — pan, tilt, and zoom PTZ cameras with the keyboard or on-screen controls
 - **Pinned windows** — float individual cameras in always-on-top windows
@@ -40,7 +42,7 @@ A lightweight tray/menu-bar app for viewing live camera feeds from a UniFi Prote
 - **Secondary-lens picture-in-picture** — e.g. the package camera on doorbells
 - **Self-signed TLS support** — trust-on-first-use certificate pinning, no system-wide trust changes; if the controller's certificate changes, the app says so and lets you compare both keys before trusting the new one; credentials live in the OS keychain/secure store
 - **Multilingual** — English, German, French, Spanish, Dutch, Italian, and Brazilian Portuguese
-- **Quality of life** — first-run onboarding, launch at login, notify-only update checks, light/dark theming and accent colors
+- **Quality of life** — first-run onboarding, launch at login, notify-only update checks, light/dark theming and accent colors, and a floating overlay mode on Hyprland (Linux)
 
 The two implementations track each other feature-for-feature; the remaining platform differences are listed in [docs/PARITY.md](docs/PARITY.md).
 

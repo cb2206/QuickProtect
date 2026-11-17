@@ -169,14 +169,14 @@ public sealed class VideoSurface : Control
     }
 
     /// <summary>
-    /// Decoded placeholder for pre-first-frame rendering (the 2 fps package
-    /// lens waits many seconds for its first keyframe). Cached per byte-array
+    /// Decoded controller snapshot covering the wait for the session's first
+    /// frame (the client clears it when one decodes). Cached per byte-array
     /// instance so the JPEG is decoded once, not per render pass.
     /// </summary>
     private Bitmap? PlaceholderBitmap()
     {
         var src = Source;
-        if (src == null || src.HasFrame) return null;
+        if (src == null) return null;
         var bytes = src.PlaceholderImage;
         if (bytes == null) return null;
         if (!ReferenceEquals(bytes, _placeholderBytes))
@@ -202,9 +202,10 @@ public sealed class VideoSurface : Control
 
     public override void Render(DrawingContext context)
     {
-        // Live frames always win; the placeholder only covers the gap before
-        // the first decode.
-        Bitmap? bmp = _bitmap ?? PlaceholderBitmap();
+        // A placeholder exists only until the session's first decoded frame
+        // (the client clears it then), so it outranks the kept frame of an
+        // earlier session — that one may be hours old.
+        Bitmap? bmp = PlaceholderBitmap() ?? _bitmap;
         var bounds = Bounds;
         if (bmp == null || bounds.Width < 1 || bounds.Height < 1) return;
 

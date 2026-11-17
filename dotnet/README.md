@@ -50,7 +50,7 @@ dotnet/
   Directory.Build.props            # shared TFM/version
   src/
     QuickProtect.Core/             # portable domain layer (no UI, unit-tested)
-      Models/      Camera, StreamQuality, PtzMapping, PtzBurstTimer,
+      Models/      Camera (with SiteId), StreamQuality, PtzMapping, PtzBurstTimer,
                    SnapshotNaming, PinnedWindowGeometry
       Services/    ProtectService (dual UniFi API client), RtspTlsTunnel,
                    CertificateTrust (TOFU), ControllerErrors, ControllerRequestPolicy,
@@ -114,8 +114,12 @@ repo root.
 
 The app launches as a tray agent (no main window). Left-click the tray icon to
 open the camera grid; right-click for the menu. Open **Settings** to enter the
-controller IP and Integration API key. `--open-panel` opens the grid immediately
-(useful for testing).
+controller IP and Integration API key — created on the console under **UniFi
+Network → Integrations → Create New API Key** (the **?** beside the field shows
+the path). **Add Site** in Settings → Connection adds another console; cameras
+from all sites share the grid and layout profiles (see the macOS README's
+"More than one site"). `--open-panel` opens the grid immediately (useful for
+testing).
 
 Diagnostics: fatal errors land in `%APPDATA%\QuickProtect\crash.log`
 (`~/.config/QuickProtect/` on Linux), FFmpeg warnings/errors in `video.log`
@@ -127,6 +131,17 @@ through XWayland on an unscaled surface and takes its scale from the desktop's
 Electron apps follow. Set `AVALONIA_GLOBAL_SCALE_FACTOR` to override it, e.g. to
 get the fractional value behind an integer `GDK_SCALE`. The scale is read once
 at startup, so restart the agent after changing the desktop's scaling.
+
+Hyprland (e.g. Omarchy): when `HYPRLAND_INSTANCE_SIGNATURE` is set, the panel
+opens as a floating overlay centered below the bar instead of a tray popover,
+because a popover that hides on focus loss closes as soon as the pointer
+crosses another window. It stays open until you close it with the tray icon,
+the hotkey, Escape, the header's close button, SUPER+W or a workspace switch.
+It reopens where you left it and resizes from its edges. Hyprland never binds
+portal shortcuts, so the app writes the global hotkey to
+`~/.config/hypr/quickprotect.lua` (`.conf` for hyprlang configs) and adds one
+guarded line to your main config that loads it. Details are in `PARITY.md`
+under Platform notes (Linux).
 
 ## Packaging (Windows)
 
@@ -205,7 +220,8 @@ managed by Windows under Settings → Apps → Startup.
 The port is at feature parity with the macOS app for day-to-day use: tray shell,
 live camera grid, focus view with PTZ (d-pad + keyboard, quick-tap min-burst),
 pinned always-on-top windows, snapshots (folder or clipboard), secondary-lens
-PiP, layout profiles, onboarding, global hotkey, notify-only update checks,
+PiP, layout profiles, multiple sites (several consoles in one grid),
+onboarding, global hotkey, notify-only update checks,
 TOFU certificate pinning end-to-end (API + video), theming with accent colors,
 audio playback (WASAPI/ALSA), and 7-language localization.
 

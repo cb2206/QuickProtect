@@ -1,7 +1,9 @@
 import Foundation
 import AppKit
 
-/// Handles all communication with the UniFi Protect Integration API.
+/// Handles all communication with one console's UniFi Protect Integration
+/// API — one instance per `ControllerSite`, owned by `ProtectHub`, which
+/// merges them for the UI.
 /// Main-actor isolated: its published state feeds SwiftUI, and the network
 /// calls are `async` so awaiting URLSession never blocks the actor. Anything
 /// that must run off the actor (the TLS challenge, fire-and-forget releases)
@@ -23,14 +25,8 @@ final class ProtectService: NSObject, ObservableObject {
     /// first), so it survives restarts and can't be lost to a race; the grid
     /// shows a dedicated card while it is set.
     @Published private(set) var certificateChange: CertificateTrust.Change?
-    /// Set by AppDelegate when the popover opens/closes so cells can pause players.
-    @Published var isPopoverOpen = false
-    /// Remembers which camera was focused so it can be restored when the panel reopens.
-    var lastFocusedCameraId: String?
-    /// True while a camera is focused (single-camera view). Drives the popover
-    /// header swap so the camera's own top bar replaces the grid header.
-    @Published var isFocusMode = false
-
+    /// The `ControllerSite` id stamped on every camera this service returns.
+    let siteID: String
     private let settings: ProtectCredentialSource
     /// Extra `URLProtocol` classes registered on both sessions — tests install
     /// a stub controller here; the app passes none.
@@ -40,11 +36,12 @@ final class ProtectService: NSObject, ObservableObject {
     /// Where `certificateChange` is read from. Tests pass a scratch store.
     private let certificateStore: CertificateTrust.Store
 
-    /// `settings` defaults to the app's shared store; tests pass their own so
-    /// the service never reads UserDefaults or the Keychain.
-    init(settings: ProtectCredentialSource = AppSettings.shared, urlProtocolClasses: [AnyClass] = [],
+    /// `settings` is the site's credentials; tests pass plain values so the
+    /// service never reads UserDefaults or the Keychain.
+    init(settings: ProtectCredentialSource, siteID: String = "", urlProtocolClasses: [AnyClass] = [],
          certificateStore: CertificateTrust.Store = CertificateTrust.Store()) {
         self.settings = settings
+        self.siteID = siteID
         self.urlProtocolClasses = urlProtocolClasses
         self.certificateStore = certificateStore
         super.init()
@@ -76,6 +73,11 @@ final class ProtectService: NSObject, ObservableObject {
         errorMessage = nil
         Task { await fetchCameras(forced: true) }
     }
+
+    /// The API key as sent: surrounding whitespace dropped, since a key pasted
+    /// from a browser or password manager often carries a trailing newline or
+    /// space, which the console rejects as 401 like a wrong key.
+    var apiKeyHeader: String { settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// The configured controller, normalised (host, optional port, pin identity).
     var controllerAddress: ControllerAddress? { ControllerAddress.parse(settings.ipAddress) }
@@ -287,7 +289,7 @@ final class ProtectService: NSObject, ObservableObject {
             throw APIError.invalidURL
         }
         var request = URLRequest(url: url, timeoutInterval: 10)
-        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await tlsSession.data(for: request)
@@ -295,6 +297,8 @@ final class ProtectService: NSObject, ObservableObject {
         guard (200...299).contains(http.statusCode) else {
             throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
         }
+        let text = String(data: data, encoding: .utf8) ?? ""
+        if ControllerErrors.looksLikeHTML(text) { throw APIError.notJSON(text) }
 
         // Integration API wraps the array: { "data": [...] }
         struct Wrapped: Decodable { let data: [Camera] }
@@ -406,7 +410,17 @@ final class ProtectService: NSObject, ObservableObject {
         let owner: StreamAllocationLedger.Owner = pinned ? .pinned : .popover
 
         allocations.beginCreate(key)
-        let (outcome, allocated) = await postRtspStream(for: camera, quality: quality)
+        let first = await postRtspStream(for: camera, quality: quality)
+        var (outcome, allocated) = (first.outcome, first.allocated)
+        // The panel-open burst (camera list, one POST per tile, placeholder
+        // snapshots) can brush the controller's 10 req/s limit. A tile whose
+        // POST loses that race would show "Stream unavailable", so retry the
+        // same tier once after the limiter window — never the ladder.
+        if first.rateLimited, await Self.waitOutRateLimitWindow() {
+            RTSPClient.log("[Stream] retrying \(quality) for \(camera.name) after 429")
+            let retry = await postRtspStream(for: camera, quality: quality)
+            (outcome, allocated) = (retry.outcome, retry.allocated)
+        }
         // Every exit of the POST lands here, so the in-flight mark always ends.
         // A release that arrived meanwhile was held back; it is due now if the
         // POST failed and nobody else holds the allocation.
@@ -426,15 +440,15 @@ final class ProtectService: NSObject, ObservableObject {
 
     /// The POST itself. `allocated` is true when the controller answered with
     /// a URL for `quality`, i.e. an allocation now exists server-side.
-    private func postRtspStream(for camera: Camera,
-                                quality: String) async -> (outcome: StreamRequestOutcome, allocated: Bool) {
+    private func postRtspStream(for camera: Camera, quality: String) async
+        -> (outcome: StreamRequestOutcome, allocated: Bool, rateLimited: Bool) {
         guard let url = makeURL(
             path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(camera.id))/rtsps-stream"
-        ) else { RTSPClient.log("[Stream] makeURL failed"); return (.failed, false) }
+        ) else { RTSPClient.log("[Stream] makeURL failed"); return (.failed, false, false) }
 
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.httpMethod = "POST"
-        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try? JSONSerialization.data(
@@ -443,23 +457,34 @@ final class ProtectService: NSObject, ObservableObject {
 
         guard let (data, resp) = try? await tlsSession.data(for: request) else {
             RTSPClient.log("[Stream] HTTP request failed (no response)")
-            return (.failed, false)
+            return (.failed, false, false)
         }
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         guard status == 200 else {
             RTSPClient.log("[Stream] HTTP \(status): \(String(data: data, encoding: .utf8) ?? "")")
             return (ControllerRequestPolicy.abortsQualityLadder(httpStatus: status)
-                ? .failed : .qualityUnavailable, false)
+                ? .failed : .qualityUnavailable, false, status == 429)
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rtspsString = json[quality] as? String else { return (.qualityUnavailable, false) }
+              let rtspsString = json[quality] as? String else { return (.qualityUnavailable, false, false) }
 
         let playable = toPlayableURL(rtspsString)
         RTSPClient.log("[Stream] Created \(quality) for \(camera.name): \(playable.map(RTSPClient.redactedDescription(of:)) ?? "nil")")
         // An unusable URL still allocated server-side: keep it owned so cleanup frees it.
-        guard let playable else { return (.qualityUnavailable, true) }
-        return (.success(playable), true)
+        guard let playable else { return (.qualityUnavailable, true, false) }
+        return (.success(playable), true, false)
+    }
+
+    /// Sleeps past the controller's 1-second limiter window. False when the
+    /// requester went away meanwhile (task cancelled) — then don't retry.
+    private static func waitOutRateLimitWindow() async -> Bool {
+        do {
+            try await Task.sleep(nanoseconds: 1_100_000_000)
+            return true
+        } catch {
+            return false
+        }
     }
 
     // MARK: - RTSP stream cleanup
@@ -523,7 +548,7 @@ final class ProtectService: NSObject, ObservableObject {
 
         var request = URLRequest(url: url, timeoutInterval: 5)
         request.httpMethod = "DELETE"
-        request.setValue(settings.apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
 
         RTSPClient.log("[Stream] DELETE \(quality) for camera \(cameraId)")
         releaseGroup.enter()
@@ -767,6 +792,43 @@ final class ProtectService: NSObject, ObservableObject {
         return (image, false)
     }
 
+    // MARK: - Camera snapshot (Integration API)
+
+    /// Fetches a current JPEG of a camera's main lens. Bridges the wait for a
+    /// stream's first keyframe: the controller often starts a fresh RTSP
+    /// session just after a keyframe, so a tile sits for a whole GOP (2 s at
+    /// 15 fps) before it can paint. One attempt, no retry — the caller only
+    /// asks for tiles still dark after the panel-open burst, and a 429 here
+    /// must not cost the stream requests their limiter budget.
+    func fetchCameraSnapshot(for camera: Camera) async -> CGImage? {
+        guard let url = makeURL(
+            path: "proxy/protect/integration/v1/cameras/\(Self.pathSegment(camera.id))/snapshot"
+        ) else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 5)
+        request.setValue(apiKeyHeader, forHTTPHeaderField: "X-API-Key")
+        request.setValue("image/jpeg", forHTTPHeaderField: "Accept")
+        let data: Data
+        let status: Int
+        do {
+            let (body, resp) = try await tlsSession.data(for: request)
+            status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            data = body
+        } catch {
+            RTSPClient.log("[Snapshot] camera snapshot request failed: \(error.localizedDescription)")
+            return nil
+        }
+        guard (200...299).contains(status) else {
+            RTSPClient.log("[Snapshot] camera snapshot HTTP \(status) for \(camera.name)")
+            return nil
+        }
+        guard let image = NSBitmapImageRep(data: data)?.cgImage else {
+            RTSPClient.log("[Snapshot] camera snapshot undecodable (\(data.count) bytes)")
+            return nil
+        }
+        RTSPClient.log("[Snapshot] camera snapshot \(image.width)x\(image.height) for \(camera.name)")
+        return image
+    }
+
     // MARK: - PTZ control (classic API — continuous velocity moves)
 
     /// Commanded velocity per axis on the controller's ±1000 scale. One
@@ -907,12 +969,17 @@ final class ProtectService: NSObject, ObservableObject {
     // MARK: - Private helpers
 
     private func applySuccess(_ cameras: [Camera]) async {
-        RTSPClient.log("[API] applySuccess: \(cameras.count) cameras")
+        RTSPClient.log("[API] applySuccess (\(controllerAddress?.host ?? "no address")): \(cameras.count) cameras")
         await MainActor.run {
             // Integration-API payloads carry no PTZ flags; keep what the
             // classic-API enrichment already established (it may be throttled
             // and not run again for minutes).
-            self.cameras = Camera.preservingEnrichmentFlags(from: self.cameras, into: cameras)
+            let stamped = cameras.map { cam -> Camera in
+                var c = cam
+                c.siteID = self.siteID
+                return c
+            }
+            self.cameras = Camera.preservingEnrichmentFlags(from: self.cameras, into: stamped)
             self.isLoading = false
             self.errorMessage = nil
         }
@@ -941,7 +1008,7 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     private func applyErrorMessage(_ message: String, logging error: Error) async {
-        RTSPClient.log("[API] applyError: \(Self.logDescription(of: error))")
+        RTSPClient.log("[API] applyError (\(controllerAddress?.host ?? "no address")): \(Self.logDescription(of: error))")
         await MainActor.run {
             self.errorMessage = message
             self.isLoading = false
@@ -952,6 +1019,7 @@ final class ProtectService: NSObject, ObservableObject {
     /// a failed request (the UI only gets the catalog message).
     private nonisolated static func logDescription(of error: Error) -> String {
         if case APIError.http(let status, let body) = error { return "HTTP \(status) – \(body.prefix(200))" }
+        if case APIError.notJSON(let body) = error { return "non-JSON reply – \(body.prefix(200))" }
         return String(describing: error)
     }
 
@@ -973,7 +1041,7 @@ final class ProtectService: NSObject, ObservableObject {
         let problem: String?
         if settings.ipAddress.isEmpty {
             problem = String(localized: "No IP address configured. Open Settings.")
-        } else if settings.apiKey.isEmpty {
+        } else if apiKeyHeader.isEmpty {
             problem = String(localized: "No API key configured. Open Settings.")
         } else {
             problem = nil
@@ -1012,6 +1080,8 @@ final class ProtectService: NSObject, ObservableObject {
         case notHTTP
         /// Status and body; the body is for the debug log, never the UI.
         case http(Int, String)
+        /// A 2xx reply that isn't JSON (an HTML page); the body is for the debug log.
+        case notJSON(String)
 
         var errorDescription: String? { ControllerErrors.describe(self) }
     }
@@ -1057,8 +1127,8 @@ final class PinningSessionDelegate: NSObject, URLSessionDelegate, @unchecked Sen
     }
 }
 
-/// The credentials `ProtectService` needs — the subset of `AppSettings` it
-/// reads, so tests can hand it plain values.
+/// The credentials `ProtectService` needs — what a `ControllerSite` holds,
+/// so tests can hand it plain values.
 @MainActor
 protocol ProtectCredentialSource: AnyObject {
     var ipAddress: String { get }
@@ -1066,5 +1136,3 @@ protocol ProtectCredentialSource: AnyObject {
     var username: String { get }
     var password: String { get }
 }
-
-extension AppSettings: ProtectCredentialSource {}
