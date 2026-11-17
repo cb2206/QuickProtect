@@ -250,6 +250,7 @@ jobs:
           name: windows-msix
           path: dotnet/dist/QuickProtect-*-win-x64.msix
           if-no-files-found: error
+          retention-days: 7
 
   linux-tarball:
     needs: test-dotnet
