@@ -64,20 +64,20 @@ public class SitesTests
         var prefs = new InMemoryPreferences();
         var secrets = new InMemorySecretStore();
         var settings = new AppSettings(prefs, secrets);
-        settings.Sites[0].ApiKey = "inca-key";
-        var added = settings.AddSite("BC285");
+        settings.Sites[0].ApiKey = "home-key";
+        var added = settings.AddSite("Cabin");
         added.IpAddress = "10.1.1.1";
         added.ApiKey = "bc-key";
 
         Assert.True(settings.HasMultipleSites);
         Assert.Equal("bc-key", secrets.Get($"unifi.apiKey.{added.Id}"));
-        Assert.Equal("inca-key", secrets.Get("unifi.apiKey"));
+        Assert.Equal("home-key", secrets.Get("unifi.apiKey"));
         Assert.DoesNotContain(added.Id, settings.SeededSiteIds());
 
         var reloaded = new AppSettings(prefs, secrets);
         Assert.Equal(new[] { ControllerSite.LegacyId, added.Id }, reloaded.Sites.Select(s => s.Id));
         var again = reloaded.Site(added.Id)!;
-        Assert.Equal("BC285", again.DisplayName);
+        Assert.Equal("Cabin", again.DisplayName);
         Assert.Equal("10.1.1.1", again.IpAddress);
         Assert.Equal("bc-key", again.ApiKey);
     }
@@ -110,10 +110,10 @@ public class SitesTests
         site.IpAddress = "10.0.0.1";
         site.IpAddress = "10.0.0.1";   // re-applied on focus loss: not a change
         site.ApiKey = "k";
-        site.Name = "Inca";
+        site.Name = "Home";
         site.Username = "admin";
         Assert.Equal(2, changes);
-        Assert.Equal("Inca", site.DisplayName);
+        Assert.Equal("Home", site.DisplayName);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class SitesTests
         var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore());
         var other = settings.CreateProfile("Driveway only"); // switches to it
         settings.SwitchProfile(AppSettings.DefaultProfileId);
-        var added = settings.AddSite("BC285");
+        var added = settings.AddSite("Cabin");
 
         Assert.True(settings.SeedSiteCamerasIfNeeded(added.Id, new[] { "bc1", "bc2" }));
         Assert.False(settings.IsHidden("bc1"));
@@ -132,56 +132,56 @@ public class SitesTests
 
         Assert.False(settings.SeedSiteCamerasIfNeeded(added.Id, new[] { "bc3" }));
         Assert.False(settings.IsHidden("bc3"));
-        Assert.False(settings.SeedSiteCamerasIfNeeded(ControllerSite.LegacyId, new[] { "inca1" }));
+        Assert.False(settings.SeedSiteCamerasIfNeeded(ControllerSite.LegacyId, new[] { "home1" }));
         Assert.False(settings.SeedSiteCamerasIfNeeded(added.Id, Array.Empty<string>()));
     }
 
     // MARK: - Hub
 
-    private static (ProtectHub Hub, AppSettings Settings, ControllerSite Inca, ControllerSite Bc) NewHub(
-        string incaAddress, string bcAddress)
+    private static (ProtectHub Hub, AppSettings Settings, ControllerSite Home, ControllerSite Bc) NewHub(
+        string homeAddress, string bcAddress)
     {
         var settings = new AppSettings(new InMemoryPreferences(), new InMemorySecretStore());
-        var inca = settings.Sites[0];
-        inca.Name = "Inca";
-        inca.IpAddress = incaAddress;
-        inca.ApiKey = "inca-key";
-        var bc = settings.AddSite("BC285");
+        var home = settings.Sites[0];
+        home.Name = "Home";
+        home.IpAddress = homeAddress;
+        home.ApiKey = "home-key";
+        var bc = settings.AddSite("Cabin");
         bc.IpAddress = bcAddress;
         bc.ApiKey = "bc-key";
         var trust = new CertificateTrust(new InMemoryPreferences());
-        return (new ProtectHub(settings, site => new ProtectService(site, trust)), settings, inca, bc);
+        return (new ProtectHub(settings, site => new ProtectService(site, trust)), settings, home, bc);
     }
 
     [Fact]
     public async Task Hub_merges_both_sites_and_routes_by_camera()
     {
-        await using var incaConsole = new FakeController(CameraList("i1", "i2"));
+        await using var homeConsole = new FakeController(CameraList("i1", "i2"));
         await using var bcConsole = new FakeController(CameraList("b1"));
-        var (hub, _, inca, bc) = NewHub(incaConsole.Address, bcConsole.Address);
+        var (hub, _, home, bc) = NewHub(homeConsole.Address, bcConsole.Address);
         using var _ = hub;
 
         await hub.FetchCamerasAsync(forced: true);
 
         Assert.Equal(new[] { "i1", "i2", "b1" }, hub.Cameras.Select(c => c.Id));
-        Assert.Equal(new[] { inca.Id, inca.Id, bc.Id }, hub.Cameras.Select(c => c.SiteId));
+        Assert.Equal(new[] { home.Id, home.Id, bc.Id }, hub.Cameras.Select(c => c.SiteId));
         Assert.Empty(hub.SiteIssues);
         Assert.Equal(bc.Id, hub.ServiceForCameraId("b1")?.SiteId);
-        Assert.Equal("BC285", hub.SiteBadge(hub.Cameras[2]));
+        Assert.Equal("Cabin", hub.SiteBadge(hub.Cameras[2]));
         Assert.Equal(bcConsole.Address, hub.ControllerAddressFor(hub.Cameras[2])?.Authority);
-        Assert.Contains(incaConsole.Heads, h => h.Contains("X-API-Key: inca-key"));
+        Assert.Contains(homeConsole.Heads, h => h.Contains("X-API-Key: home-key"));
         Assert.Contains(bcConsole.Heads, h => h.Contains("X-API-Key: bc-key"));
-        Assert.DoesNotContain(bcConsole.Heads, h => h.Contains("inca-key"));
+        Assert.DoesNotContain(bcConsole.Heads, h => h.Contains("home-key"));
     }
 
     [Fact]
     public async Task First_fetch_of_an_added_site_seeds_the_profiles()
     {
-        await using var incaConsole = new FakeController(CameraList("i1"));
+        await using var homeConsole = new FakeController(CameraList("i1"));
         await using var bcConsole = new FakeController(CameraList("b1"));
-        var (hub, settings, _, _) = NewHub(incaConsole.Address, bcConsole.Address);
+        var (hub, settings, _, _) = NewHub(homeConsole.Address, bcConsole.Address);
         using var _ = hub;
-        var other = settings.CreateProfile("Inca only");
+        var other = settings.CreateProfile("Home only");
         settings.SwitchProfile(AppSettings.DefaultProfileId);
 
         await hub.FetchCamerasAsync(forced: true);
@@ -193,11 +193,26 @@ public class SitesTests
     }
 
     [Fact]
+    public async Task Adding_the_same_console_twice_does_not_hide_its_cameras_elsewhere()
+    {
+        await using var console = new FakeController(CameraList("i1"));
+        var (hub, settings, _, _) = NewHub(console.Address, console.Address);
+        using var _ = hub;
+        var other = settings.CreateProfile("Home only");
+        settings.SwitchProfile(AppSettings.DefaultProfileId);
+
+        await hub.FetchCamerasAsync(forced: true);
+
+        settings.SwitchProfile(other);
+        Assert.False(settings.IsHidden("i1"), "the first site owns i1; the duplicate must not seed it");
+    }
+
+    [Fact]
     public async Task A_failing_site_is_an_issue_while_the_other_keeps_its_cameras()
     {
-        await using var incaConsole = new FakeController(CameraList("i1"));
+        await using var homeConsole = new FakeController(CameraList("i1"));
         await using var bcConsole = new FakeController("""{"error":"Unauthorized"}""", "401 Unauthorized");
-        var (hub, _, _, bc) = NewHub(incaConsole.Address, bcConsole.Address);
+        var (hub, _, _, bc) = NewHub(homeConsole.Address, bcConsole.Address);
         using var _ = hub;
 
         await hub.FetchCamerasAsync(forced: true);
@@ -205,7 +220,7 @@ public class SitesTests
         Assert.Equal(new[] { "i1" }, hub.Cameras.Select(c => c.Id));
         var issue = Assert.Single(hub.SiteIssues);
         Assert.Equal(bc.Id, issue.SiteId);
-        Assert.Equal("BC285", issue.SiteName);
+        Assert.Equal("Cabin", issue.SiteName);
         Assert.Equal(ControllerErrors.ApiKeyRejected, issue.Message);
         Assert.False(issue.IsCertificateChange);
         Assert.Null(hub.BlockingCertificateChange);
@@ -214,9 +229,9 @@ public class SitesTests
     [Fact]
     public async Task Removing_a_site_drops_its_cameras_and_announces_it()
     {
-        await using var incaConsole = new FakeController(CameraList("i1"));
+        await using var homeConsole = new FakeController(CameraList("i1"));
         await using var bcConsole = new FakeController(CameraList("b1"));
-        var (hub, settings, _, bc) = NewHub(incaConsole.Address, bcConsole.Address);
+        var (hub, settings, _, bc) = NewHub(homeConsole.Address, bcConsole.Address);
         using var _ = hub;
         await hub.FetchCamerasAsync(forced: true);
         var removed = new List<string>();
@@ -244,10 +259,10 @@ public class SitesTests
     [Fact]
     public void Tunnel_pins_each_stream_under_its_own_site()
     {
-        var (hub, _, _, _) = NewHub("10.0.1.1", "protect.bc285.lan:8443");
+        var (hub, _, _, _) = NewHub("10.0.1.1", "protect.example.lan:8443");
         using var _ = hub;
         Assert.Equal("10.0.1.1", hub.PinKeyFor("10.0.1.1"));
-        Assert.Equal("protect.bc285.lan", hub.PinKeyFor("PROTECT.bc285.lan"));
+        Assert.Equal("protect.example.lan", hub.PinKeyFor("PROTECT.example.lan"));
         Assert.Equal("192.0.2.9", hub.PinKeyFor("192.0.2.9"));
     }
 

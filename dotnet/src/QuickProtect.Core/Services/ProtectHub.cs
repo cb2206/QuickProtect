@@ -207,6 +207,7 @@ public sealed class ProtectHub : INotifyPropertyChanged, IStreamAllocator, IDisp
         var changed = new List<string>();
         var toSeed = new List<(string site, List<string> ids)>();
         CertificateChange? pending = null;
+        var seedingDeferred = false;
         lock (_gate)
         {
             var merged = new List<Camera>();
@@ -233,8 +234,12 @@ public sealed class ProtectHub : INotifyPropertyChanged, IStreamAllocator, IDisp
                 }
                 foreach (var cam in cameras)
                     if (seen.Add(cam.Id)) merged.Add(cam);
-                if (cameras.Count > 0) toSeed.Add((site.Id, cameras.Select(c => c.Id).ToList()));
+                // Only the cameras this site owns: the same console added twice
+                // must not hide the first site's cameras in the other profiles.
+                var owned = cameras.Where(c => map[c.Id] == site.Id).Select(c => c.Id).ToList();
+                if (owned.Count > 0) toSeed.Add((site.Id, owned));
             }
+            seedingDeferred = anyLoading;
             _siteForCamera = map;
             if (!SameCameras(merged, _cameras)) { _cameras = merged; changed.Add(nameof(Cameras)); }
             if (_isLoading != anyLoading) { _isLoading = anyLoading; changed.Add(nameof(IsLoading)); }
@@ -247,7 +252,10 @@ public sealed class ProtectHub : INotifyPropertyChanged, IStreamAllocator, IDisp
             }
         }
         // Outside the lock: seeding writes preferences and raises settings events.
-        foreach (var (site, ids) in toSeed) _settings.SeedSiteCamerasIfNeeded(site, ids);
+        // Only once every site has finished loading, so camera ownership is
+        // settled (the next completion recomputes again).
+        if (!seedingDeferred)
+            foreach (var (site, ids) in toSeed) _settings.SeedSiteCamerasIfNeeded(site, ids);
         foreach (var name in changed) Raise(name);
         // Pinned windows and Settings follow any site's certificate state.
         Raise(nameof(PendingCertificateChange));

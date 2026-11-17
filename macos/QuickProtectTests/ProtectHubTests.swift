@@ -36,14 +36,14 @@ final class ProtectHubTests: XCTestCase {
         }
     }
 
-    /// Two configured sites — Inca (10.0.0.1) and BC285 (10.0.0.2) — and a
+    /// Two configured sites — Home (10.0.0.1) and Cabin (10.0.0.2) — and a
     /// hub whose services talk to the stub with a scratch pin store.
-    private func makeHub() throws -> (ProtectHub, inca: ControllerSite, bc: ControllerSite) {
-        let inca = settings.sites[0]
-        inca.name = "Inca"
-        inca.ipAddress = "10.0.0.1"
-        inca.apiKey = "inca-key"
-        let bc = settings.addSite(name: "BC285")
+    private func makeHub() throws -> (ProtectHub, home: ControllerSite, bc: ControllerSite) {
+        let home = settings.sites[0]
+        home.name = "Home"
+        home.ipAddress = "10.0.0.1"
+        home.apiKey = "home-key"
+        let bc = settings.addSite(name: "Cabin")
         bc.ipAddress = "10.0.0.2"
         bc.apiKey = "bc-key"
         let pins = CertificateTrust.Store(defaults: try XCTUnwrap(UserDefaults(suiteName: pinSuite)))
@@ -51,7 +51,7 @@ final class ProtectHubTests: XCTestCase {
             ProtectService(settings: site, siteID: site.id, urlProtocolClasses: [HubStub.self],
                            certificateStore: pins)
         }
-        return (hub, inca, bc)
+        return (hub, home, bc)
     }
 
     private static func list(_ ids: String...) -> HubStub.Reply {
@@ -60,13 +60,13 @@ final class ProtectHubTests: XCTestCase {
     }
 
     func testRefreshWithCamerasOnScreenKeepsTheGrid() async throws {
-        let (hub, inca, bc) = try makeHub()
+        let (hub, home, bc) = try makeHub()
         HubStub.replies = ["10.0.0.1": Self.list("i1"), "10.0.0.2": Self.list("b1")]
         await hub.fetchCameras(forced: true)
 
         // Every site refetching at once (each panel open) must not replace the
         // live tiles with the loading card.
-        hub.service(forSite: inca.id)?.isLoading = true
+        hub.service(forSite: home.id)?.isLoading = true
         hub.service(forSite: bc.id)?.isLoading = true
         hub.recompute()
 
@@ -75,32 +75,32 @@ final class ProtectHubTests: XCTestCase {
     }
 
     func testFirstLoadWithoutCamerasShowsLoading() async throws {
-        let (hub, inca, _) = try makeHub()
-        hub.service(forSite: inca.id)?.isLoading = true
+        let (hub, home, _) = try makeHub()
+        hub.service(forSite: home.id)?.isLoading = true
         hub.recompute()
 
         XCTAssertEqual(hub.gridState, .loading)
     }
 
     func testMergesBothSitesAndStampsEachCameraWithItsSite() async throws {
-        let (hub, inca, bc) = try makeHub()
+        let (hub, home, bc) = try makeHub()
         HubStub.replies = ["10.0.0.1": Self.list("i1", "i2"), "10.0.0.2": Self.list("b1")]
 
         await hub.fetchCameras(forced: true)
 
         XCTAssertEqual(hub.cameras.map(\.id), ["i1", "i2", "b1"])
-        XCTAssertEqual(hub.cameras.map(\.siteID), [inca.id, inca.id, bc.id])
+        XCTAssertEqual(hub.cameras.map(\.siteID), [home.id, home.id, bc.id])
         XCTAssertEqual(hub.gridState, .cameras)
         XCTAssertTrue(hub.siteIssues.isEmpty)
         XCTAssertEqual(hub.service(forCameraID: "b1")?.siteID, bc.id)
-        XCTAssertEqual(hub.siteBadge(for: hub.cameras[2]), "BC285")
+        XCTAssertEqual(hub.siteBadge(for: hub.cameras[2]), "Cabin")
         XCTAssertEqual(Set(HubStub.requests.compactMap { $0.value(forHTTPHeaderField: "X-API-Key") }),
-                       ["inca-key", "bc-key"], "each console gets its own key")
+                       ["home-key", "bc-key"], "each console gets its own key")
     }
 
     /// A first fetch of the added site hides its cameras in other profiles.
     func testFirstFetchOfAnAddedSiteSeedsTheProfiles() async throws {
-        let other = settings.createProfile(named: "Inca only")
+        let other = settings.createProfile(named: "Home only")
         settings.switchProfile(to: AppSettings.defaultProfileID)
         let (hub, _, _) = try makeHub()
         HubStub.replies = ["10.0.0.1": Self.list("i1"), "10.0.0.2": Self.list("b1")]
@@ -113,6 +113,21 @@ final class ProtectHubTests: XCTestCase {
         XCTAssertFalse(settings.isHidden("i1"), "the migrated site was already seeded")
     }
 
+    /// The same console added as a second site must not hide the first
+    /// site's cameras in the other profiles.
+    func testAddingTheSameConsoleTwiceDoesNotHideItsCamerasElsewhere() async throws {
+        let other = settings.createProfile(named: "Home only")
+        settings.switchProfile(to: AppSettings.defaultProfileID)
+        let (hub, _, bc) = try makeHub()
+        bc.ipAddress = "10.0.0.1"
+        HubStub.replies = ["10.0.0.1": Self.list("i1")]
+
+        await hub.fetchCameras(forced: true)
+
+        settings.switchProfile(to: other)
+        XCTAssertFalse(settings.isHidden("i1"))
+    }
+
     func testAFailingSiteBecomesAnIssueWhileTheOtherKeepsStreaming() async throws {
         let (hub, _, bc) = try makeHub()
         HubStub.replies = ["10.0.0.1": Self.list("i1"), "10.0.0.2": .status(401)]
@@ -122,7 +137,7 @@ final class ProtectHubTests: XCTestCase {
         XCTAssertEqual(hub.cameras.map(\.id), ["i1"])
         XCTAssertEqual(hub.gridState, .cameras)
         XCTAssertEqual(hub.siteIssues.map(\.siteID), [bc.id])
-        XCTAssertEqual(hub.siteIssues.first?.siteName, "BC285")
+        XCTAssertEqual(hub.siteIssues.first?.siteName, "Cabin")
         XCTAssertEqual(hub.siteIssues.first?.message, ControllerErrors.apiKeyRejected)
     }
 
@@ -132,7 +147,7 @@ final class ProtectHubTests: XCTestCase {
 
         await hub.fetchCameras(forced: true)
 
-        let expected = "Inca: \(ControllerErrors.apiKeyRejected)\nBC285: \(ControllerErrors.apiKeyRejected)"
+        let expected = "Home: \(ControllerErrors.apiKeyRejected)\nCabin: \(ControllerErrors.apiKeyRejected)"
         XCTAssertEqual(hub.gridState, .error(expected))
     }
 
