@@ -48,6 +48,21 @@ public sealed class HyprlandShortcutConfigTests : IDisposable
     public void LuaIncludePathIsEscaped()
         => Assert.Equal(@"/home/a\\b/\""q\""/x.lua", HyprlandShortcutConfig.LuaString(@"/home/a\b/""q""/x.lua"));
 
+    /// <summary>A path that needs escaping (any Windows path) must still be recognised as already included.</summary>
+    [Fact]
+    public void EscapedIncludeIsWrittenOnce()
+    {
+        var dir = Path.Combine(_dir, "a\\b");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "hyprland.lua"), "");
+        HyprlandShortcutConfig.Write(dir, KeyP, AltShift);
+        var main = File.ReadAllText(Path.Combine(dir, "hyprland.lua"));
+
+        Assert.False(HyprlandShortcutConfig.Write(dir, KeyP, AltShift));
+        Assert.Equal(main, File.ReadAllText(Path.Combine(dir, "hyprland.lua")));
+        Assert.Contains("a\\\\b", main);
+    }
+
     [Fact]
     public void LuaConfigGetsTheManagedFileAndOneGuardedInclude()
     {
@@ -60,7 +75,7 @@ public sealed class HyprlandShortcutConfigTests : IDisposable
         Assert.Equal(HyprlandShortcutConfig.LuaFile(KeyP, AltShift), File.ReadAllText(managed));
         var main = File.ReadAllText(Main("hyprland.lua"));
         Assert.StartsWith(original, main);
-        Assert.Contains($"pcall(dofile, \"{managed}\")", main);
+        Assert.Contains($"pcall(dofile, \"{HyprlandShortcutConfig.LuaString(managed)}\")", main);
     }
 
     /// <summary>Unchanged settings on every launch must not reload Hyprland or grow the config.</summary>

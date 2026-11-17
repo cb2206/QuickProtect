@@ -72,7 +72,7 @@ internal static class HyprlandShortcutConfig
 
         var include = isLua ? $"pcall(dofile, \"{LuaString(managed)}\")" : $"source = {managed}";
         var mainText = File.ReadAllText(main);
-        if (!mainText.Contains(managed, StringComparison.Ordinal))
+        if (!mainText.Contains(include, StringComparison.Ordinal))
         {
             var separator = mainText.Length == 0 || mainText.EndsWith('\n') ? "" : "\n";
             var comment = isLua ? "--" : "#";
