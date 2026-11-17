@@ -70,7 +70,7 @@ internal static class HyprlandShortcutConfig
             changed = true;
         }
 
-        var include = isLua ? $"pcall(dofile, \"{managed}\")" : $"source = {managed}";
+        var include = isLua ? $"pcall(dofile, \"{LuaString(managed)}\")" : $"source = {managed}";
         var mainText = File.ReadAllText(main);
         if (!mainText.Contains(managed, StringComparison.Ordinal))
         {
@@ -83,6 +83,10 @@ internal static class HyprlandShortcutConfig
         if (changed) Log.Line($"[Hotkey] Hyprland bind written to {managed}");
         return changed;
     }
+
+    /// <summary>Escapes a path for a double-quoted Lua string literal.</summary>
+    internal static string LuaString(string value)
+        => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
 
     internal static string LuaFile(int? keyCode, int? modifiers)
     {

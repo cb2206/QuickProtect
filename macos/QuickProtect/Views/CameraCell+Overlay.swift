@@ -238,7 +238,7 @@ extension CameraCell {
         .padding(8)
     }
 
-    /// "Front Door · BC285" in the focus header while several sites exist.
+    /// "Front Door · Cabin" in the focus header while several sites exist.
     var focusTitle: String {
         guard let site = service.siteBadge(for: camera) else { return camera.name }
         return "\(camera.name) · \(site)"

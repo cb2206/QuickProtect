@@ -14,7 +14,7 @@ final class ControllerSite: ObservableObject, Identifiable {
     /// a UUID string for every site added later.
     let id: String
 
-    /// User-facing label shown on tiles, menus and Settings ("Inca", "BC285").
+    /// User-facing label shown on tiles, menus and Settings ("Home", "Cabin").
     @Published var name: String {
         didSet { if name != oldValue { onListChange?() } }
     }

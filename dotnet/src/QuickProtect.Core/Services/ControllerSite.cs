@@ -48,7 +48,7 @@ public sealed class ControllerSite : INotifyPropertyChanged
     public string Id { get; }
 
     private string _name;
-    /// <summary>User-facing label shown on tiles, menus and Settings ("Inca", "BC285").</summary>
+    /// <summary>User-facing label shown on tiles, menus and Settings ("Home", "Cabin").</summary>
     public string Name
     {
         get => _name;

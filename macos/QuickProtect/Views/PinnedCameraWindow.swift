@@ -211,7 +211,7 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
             .sink { [weak self] changed in self?.certificateChanged(changed) }
     }
 
-    /// "Front Door · BC285" while several sites are configured.
+    /// "Front Door · Cabin" while several sites are configured.
     private var displayName: String {
         guard AppSettings.shared.hasMultipleSites,
               let site = AppSettings.shared.site(id: siteID) else { return camera.name }

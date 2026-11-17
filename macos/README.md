@@ -71,7 +71,7 @@ Download the latest DMG from [GitHub Releases](https://github.com/cb2206/QuickPr
 
 ### More than one site
 
-Settings → **Connection** lists your sites. Click **Add Site**, give it a name (shown on its tiles, e.g. "BC285"), and enter that console's address and its own API key — every console issues its own keys, so one console's key doesn't work on another. The fields below the list (and the **PTZ** tab) edit the selected site.
+Settings → **Connection** lists your sites. Click **Add Site**, give it a name (shown on its tiles, e.g. "Cabin"), and enter that console's address and its own API key — every console issues its own keys, so one console's key doesn't work on another. The fields below the list (and the **PTZ** tab) edit the selected site.
 
 - Cameras from all sites share the grid, the layout profiles, pinned windows and per-camera settings.
 - A newly added site's cameras appear in the profile you're in when they first load; your other profiles get them hidden, so curated layouts don't grow. Add them there from a tile's right-click **Add Camera** menu.

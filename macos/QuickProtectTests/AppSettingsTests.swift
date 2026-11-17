@@ -134,8 +134,8 @@ final class AppSettingsTests: XCTestCase {
 
     func testAddedSiteStoresItsSecretsUnderItsOwnAccounts() throws {
         let s = makeSettings()
-        s.sites[0].apiKey = "inca-key"
-        let added = s.addSite(name: "BC285")
+        s.sites[0].apiKey = "home-key"
+        let added = s.addSite(name: "Cabin")
         added.ipAddress = "10.2.0.1"
         added.apiKey = "bc-key"
         added.password = "bc-pw"
@@ -143,14 +143,14 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(s.hasMultipleSites)
         XCTAssertEqual(secrets.values["\(AppSettings.Keys.apiKey).\(added.id)"], "bc-key")
         XCTAssertEqual(secrets.values["\(AppSettings.Keys.password).\(added.id)"], "bc-pw")
-        XCTAssertEqual(secrets.values[AppSettings.Keys.apiKey], "inca-key", "the first site's key is untouched")
+        XCTAssertEqual(secrets.values[AppSettings.Keys.apiKey], "home-key", "the first site's key is untouched")
         XCTAssertFalse(s.seededSiteIDs.contains(added.id))
 
         let reloaded = makeSettings()
         XCTAssertEqual(reloaded.sites.map(\.id), [ControllerSite.legacyID, added.id])
         let again = try XCTUnwrap(reloaded.site(id: added.id))
-        XCTAssertEqual(again.name, "BC285")
-        XCTAssertEqual(again.displayName, "BC285")
+        XCTAssertEqual(again.name, "Cabin")
+        XCTAssertEqual(again.displayName, "Cabin")
         XCTAssertEqual(again.ipAddress, "10.2.0.1")
         XCTAssertEqual(again.apiKey, "bc-key")
     }
@@ -172,8 +172,8 @@ final class AppSettingsTests: XCTestCase {
         let site = makeSettings().sites[0]
         site.ipAddress = "10.0.1.1"
         XCTAssertEqual(site.displayName, "10.0.1.1")
-        site.name = "  Inca "
-        XCTAssertEqual(site.displayName, "Inca")
+        site.name = "  Home "
+        XCTAssertEqual(site.displayName, "Home")
     }
 
     /// A newly added site's cameras stay visible in the active profile only;
@@ -182,7 +182,7 @@ final class AppSettingsTests: XCTestCase {
         let s = makeSettings()
         let other = s.createProfile(named: "Driveway only")   // switches to it
         s.switchProfile(to: AppSettings.defaultProfileID)
-        let added = s.addSite(name: "BC285")
+        let added = s.addSite(name: "Cabin")
 
         XCTAssertTrue(s.seedSiteCamerasIfNeeded(siteID: added.id, cameraIDs: ["bc1", "bc2"]))
         XCTAssertFalse(s.isHidden("bc1"), "visible in the active profile")
@@ -192,8 +192,8 @@ final class AppSettingsTests: XCTestCase {
 
         XCTAssertFalse(s.seedSiteCamerasIfNeeded(siteID: added.id, cameraIDs: ["bc3"]))
         XCTAssertFalse(s.isHidden("bc3"), "later cameras behave like any new camera")
-        XCTAssertFalse(s.seedSiteCamerasIfNeeded(siteID: ControllerSite.legacyID, cameraIDs: ["inca1"]))
-        XCTAssertFalse(s.isHidden("inca1"))
+        XCTAssertFalse(s.seedSiteCamerasIfNeeded(siteID: ControllerSite.legacyID, cameraIDs: ["home1"]))
+        XCTAssertFalse(s.isHidden("home1"))
     }
 
     func testSeedingWaitsForTheFirstNonEmptyCameraList() {

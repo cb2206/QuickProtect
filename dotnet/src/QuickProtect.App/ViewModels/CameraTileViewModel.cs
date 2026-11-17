@@ -265,7 +265,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     public bool HasSiteBadge => SiteBadge != null;
 
-    /// <summary>"Front Door · BC285" in the focus header and pinned windows while several sites exist.</summary>
+    /// <summary>"Front Door · Cabin" in the focus header and pinned windows while several sites exist.</summary>
     public string DisplayTitle => SiteBadge is { } site ? $"{Name} · {site}" : Name;
 
     partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayTitle));
