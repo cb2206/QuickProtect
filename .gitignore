@@ -7,9 +7,6 @@
 !.claude/settings.json
 !.claude/hooks/
 
-# graphify knowledge graph (machine-specific, regenerate with `graphify update .`)
-graphify-out/
-
 # --- macos/ (Swift app) ---
 # Xcode project (regenerate with `xcodegen generate` in macos/)
 *.xcodeproj/
