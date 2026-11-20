@@ -135,7 +135,10 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   against a scripted one (`ScriptedController`/`FakeProtectConsole`, linked
   into the App tests too). `MainViewModelTests` and `SettingsViewModelTests`
   (Settings, Layout, Onboarding) run the view models against a real
-  `ProtectHub` on that console. Still untested: the bitrate readout's timer
+  `ProtectHub` on that console; their tile stream start/stop assertions only
+  bite where the FFmpeg natives are loaded (without them a tile never
+  starts, so the main `test` CI job checks the no-video path). Still
+  untested: the bitrate readout's timer
   (no platform dispatcher headless; its samples are), pinned windows'
   view-model paths, and the views themselves.
 - Held-back dependencies (see the ignore list in `.github/dependabot.yml`):

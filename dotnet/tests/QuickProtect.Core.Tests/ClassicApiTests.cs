@@ -136,7 +136,7 @@ public class ClassicLoginAndPtzTests
     }
 
     [Fact]
-    public async Task An_expired_session_logs_in_again_on_the_next_command()
+    public async Task A_move_on_an_expired_session_logs_in_again_and_is_resent()
     {
         var moves = 0;
         await using var console = new FakeProtectConsole
@@ -150,18 +150,37 @@ public class ClassicLoginAndPtzTests
         using var disposeService = service;
         Assert.True(await service.ClassicLoginAsync());
 
+        // One press, no further input: the pan must still reach the camera.
         service.PtzSetAxes("cam1", pan: 1);
-        await WaitUntil(service, () => !service.IsClassicLoggedIn);
-
-        service.PtzSetAxes("cam1", tilt: 1);
         var sent = await console.Controller.WaitFor(Move("cam1"), count: 2);
 
         Assert.Equal(2, console.Controller.To(Login).Count);
         Assert.Equal("TOKEN=tok-1", sent[0].Header("Cookie"));
         Assert.Equal("TOKEN=tok-2", sent[1].Header("Cookie"));
         Assert.Equal("csrf-2", sent[1].Header("X-CSRF-Token"));
-        Assert.Equal((1000, 1000, 0), Velocities(sent[1]));
+        Assert.Equal((1000, 0, 0), Velocities(sent[1]));
         Assert.True(service.IsClassicLoggedIn);
+    }
+
+    [Fact]
+    public async Task A_move_rejected_again_after_the_fresh_login_is_not_retried_further()
+    {
+        await using var console = new FakeProtectConsole
+        {
+            Override = r => r.Route == Move("cam1") ? new FakeResponse(401, "") : null
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        service.PtzSetAxes("cam1", pan: 1);
+        await console.Controller.WaitFor(Move("cam1"), count: 2);
+        await WaitUntil(service, () => !service.IsClassicLoggedIn);
+        // Give a runaway retry loop time to show itself.
+        await Task.Delay(300);
+
+        Assert.Equal(2, console.Controller.To(Move("cam1")).Count);
+        Assert.Equal(2, console.Controller.To(Login).Count);
     }
 
     [Fact]
@@ -337,7 +356,7 @@ public class PtzEnrichmentCredentialChangeTests
         await service.FetchCamerasAsync();
 
         var passwords = console.Controller.To(Login)
-            .Select(l => JsonDocument.Parse(l.Body).RootElement.GetProperty("password").GetString());
+            .Select(l => JsonBodies.PropertyOf(l.Body, "password"));
         Assert.Equal(new[] { "old", "new" }, passwords);
     }
 }
@@ -468,7 +487,23 @@ public class ControllerHttpErrorTests
 
         Assert.Equal(("rtsps://10.0.0.1:7441/abc123", "medium"), result);
         var requested = console.Controller.To(CreateStream("cam1"))
-            .Select(r => JsonDocument.Parse(r.Body).RootElement.GetProperty("qualities")[0].GetString());
+            .Select(r => JsonBodies.FirstOf(r.Body, "qualities"));
         Assert.Equal(new[] { "high", "medium" }, requested);
+    }
+}
+
+/// <summary>Reads one value from a recorded JSON request body, disposing the document.</summary>
+internal static class JsonBodies
+{
+    public static string? PropertyOf(string json, string name)
+    {
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty(name).GetString();
+    }
+
+    public static string? FirstOf(string json, string arrayName)
+    {
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty(arrayName)[0].GetString();
     }
 }

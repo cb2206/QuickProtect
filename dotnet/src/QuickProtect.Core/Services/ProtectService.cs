@@ -790,7 +790,13 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         }
     }
 
-    private async Task SendMoveAsync(string cameraId, (double x, double y, double z) v)
+    /// <summary>
+    /// Sends one continuous move. An expired session (401) logs in again and
+    /// resends this move once: the velocity is already recorded as sent, so
+    /// without the resend a held direction would stay lost until the input
+    /// changed. Package snapshots recover the same way.
+    /// </summary>
+    private async Task SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry = false)
     {
         var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(cameraId)}/move");
         if (url == null) return;
@@ -807,6 +813,8 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             {
                 IsClassicLoggedIn = false;
                 SetCreds(null, null);
+                if (!isRetry && await ClassicLoginAsync().ConfigureAwait(false))
+                    await SendMoveAsync(cameraId, v, isRetry: true).ConfigureAwait(false);
             }
         }
         catch (Exception ex) { Log.Line($"[PTZ] sendMove failed: {ex.Message}"); }

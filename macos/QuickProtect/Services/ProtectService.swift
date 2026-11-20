@@ -922,7 +922,11 @@ final class ProtectService: NSObject, ObservableObject {
         }
     }
 
-    private func sendMove(cameraId: String, body: [String: Any]) async {
+    /// Sends one continuous move. An expired session (401) logs in again and
+    /// resends this move once: the velocity is already recorded as sent, so
+    /// without the resend a held direction would stay lost until the input
+    /// changed. Package snapshots recover the same way.
+    private func sendMove(cameraId: String, body: [String: Any], isRetry: Bool = false) async {
         guard let url = makeURL(
             path: "proxy/protect/api/cameras/\(Self.pathSegment(cameraId))/move"
         ) else { return }
@@ -947,6 +951,9 @@ final class ProtectService: NSObject, ObservableObject {
             await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil
+            if !isRetry, await classicLogin() {
+                await sendMove(cameraId: cameraId, body: body, isRetry: true)
+            }
         }
     }
 

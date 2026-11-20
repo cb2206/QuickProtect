@@ -91,6 +91,12 @@ internal sealed class ScriptedController : IAsyncDisposable
             TcpClient client;
             try { client = await _listener.AcceptTcpClientAsync(_stop.Token); }
             catch (OperationCanceledException) { return; }
+            // Disposal can stop the listener between the loop check and the
+            // accept call, which surfaces as one of these instead.
+            catch (Exception ex) when (_stop.IsCancellationRequested
+                                       && ex is InvalidOperationException or ObjectDisposedException
+                                           or System.Net.Sockets.SocketException)
+            { return; }
             _ = Task.Run(() => AnswerAsync(client));
         }
     }
