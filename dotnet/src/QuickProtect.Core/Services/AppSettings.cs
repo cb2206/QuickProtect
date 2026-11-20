@@ -31,6 +31,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         _secrets = secrets;
         _streamKeepAliveSeconds = ClampStreamKeepAlive(_prefs.GetInt(Keys.StreamKeepAliveSeconds) ?? StreamKeepAliveDefault);
         _pauseDecodeWhileClosed = _prefs.GetBool(Keys.PauseDecodeWhileClosed) ?? true;
+        _keepPanelOpen = _prefs.GetBool(Keys.KeepPanelOpen) ?? false;
         _defaultStreamQuality = StreamQualityExtensions.FromRawValue(_prefs.GetString(Keys.DefaultStreamQuality)) ?? StreamQuality.Auto;
         _appearance = (AppearanceMode)(_prefs.GetInt(Keys.Appearance) ?? 0);
         _accentColorHex = _prefs.GetString(Keys.AccentColorHex) ?? "0a84ff";
@@ -207,6 +208,18 @@ public sealed class AppSettings : INotifyPropertyChanged
         set { _pauseDecodeWhileClosed = value; _prefs.SetBool(Keys.PauseDecodeWhileClosed, value); Raise(); }
     }
 
+    private bool _keepPanelOpen;
+    /// <summary>Whether the camera panel stays open until closed explicitly (its ✕, the
+    /// tray icon, the hotkey, Escape) instead of hiding when focus moves elsewhere. A kept-open
+    /// panel stays on top of other windows and reopens where it was left
+    /// (<see cref="PanelPosition"/>). Hyprland's overlay mode behaves this way regardless.
+    /// Default off; macOS <c>keepPanelOpen</c>.</summary>
+    public bool KeepPanelOpen
+    {
+        get => _keepPanelOpen;
+        set { _keepPanelOpen = value; _prefs.SetBool(Keys.KeepPanelOpen, value); Raise(); }
+    }
+
     // MARK: - Appearance / behavior
 
     public enum AppearanceMode { Auto = 0, Light = 1, Dark = 2 }
@@ -301,7 +314,8 @@ public sealed class AppSettings : INotifyPropertyChanged
 
     /// <summary>
     /// Where the user last left the camera panel, in screen pixels — used where
-    /// the panel is a movable overlay rather than anchored to the tray (Hyprland).
+    /// the panel is a movable window rather than anchored to the tray (Hyprland's
+    /// overlay mode, or <see cref="KeepPanelOpen"/>).
     /// </summary>
     public (int X, int Y)? PanelPosition()
     {
@@ -664,6 +678,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         // note). Old preference files may still carry the key; it's ignored.
         public const string StreamKeepAliveSeconds = "unifi.streamKeepAliveSeconds";
         public const string PauseDecodeWhileClosed = "unifi.pauseDecodeWhileClosed";
+        public const string KeepPanelOpen = "unifi.keepPanelOpen";
         public const string HiddenCameras = "unifi.hiddenCameras";
         public const string Profiles = "unifi.profiles";
         public const string ProfileLayout = "unifi.profileLayout";

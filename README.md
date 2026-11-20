@@ -37,6 +37,7 @@ A lightweight tray/menu-bar app for viewing live camera feeds from one or more U
 - **Focus view** — click a camera for a single-feed view with fullscreen, fit/fill, mute, and snapshots
 - **PTZ control** — pan, tilt, and zoom PTZ cameras with the keyboard or on-screen controls
 - **Pinned windows** — float individual cameras in always-on-top windows
+- **Keep the panel open** — optionally the camera panel stays up as a movable window on top of the others, until you close it, instead of closing when you click elsewhere
 - **Layout profiles** — per-profile camera visibility, size, and order (per-display on macOS)
 - **Global hotkey** — open the camera panel from anywhere
 - **Secondary-lens picture-in-picture** — e.g. the package camera on doorbells

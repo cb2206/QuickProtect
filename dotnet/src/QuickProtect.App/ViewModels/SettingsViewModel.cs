@@ -131,6 +131,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     public string UpdateBannerText
         => string.Format(Localization.Loc.Get("A new version ({0}) is available."), UpdateVersion);
     [ObservableProperty] private bool _showFocusOverlayControls;
+
+    /// <summary>"Keep the panel open" (issue #1). Hidden on Hyprland, whose
+    /// overlay mode already keeps the panel up until it is closed.</summary>
+    [ObservableProperty] private bool _keepPanelOpen;
+    public bool KeepPanelOpenRowVisible { get; } = !Platform.Hyprland.IsRunning;
     [ObservableProperty] private int _accentIndex;
     [ObservableProperty] private int _appearanceIndex; // 0 auto, 1 light, 2 dark
 
@@ -264,6 +269,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _defaultQualityIndex = (int)settings.DefaultStreamQuality;
         _languageIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.LanguageOverride));
         _showFocusOverlayControls = settings.ShowFocusOverlayControls;
+        _keepPanelOpen = settings.KeepPanelOpen;
         _accentIndex = Math.Max(0, Array.IndexOf(AccentHexes, settings.AccentColorHex));
         _appearanceIndex = (int)settings.Appearance;
         _snapshotDestinationIndex = (int)settings.SnapshotDest;
@@ -419,6 +425,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnPasswordChanged(string value) { if (_loadingSite) return; SelectedSite.Password = value; RefreshBadge(); }
 
     partial void OnShowFocusOverlayControlsChanged(bool value) => _settings.ShowFocusOverlayControls = value;
+    partial void OnKeepPanelOpenChanged(bool value) => _settings.KeepPanelOpen = value;
 
     // App subscribes to AppSettings.Appearance and updates RequestedThemeVariant live.
     partial void OnAppearanceIndexChanged(int value)

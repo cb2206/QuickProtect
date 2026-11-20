@@ -464,6 +464,21 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void Keep_panel_open_defaults_off_and_persists()
+    {
+        var prefs = new InMemoryPreferences();
+        var s = new AppSettings(prefs, new InMemorySecretStore());
+        Assert.False(s.KeepPanelOpen);
+        var raised = new List<string?>();
+        s.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        s.KeepPanelOpen = true;
+        Assert.Contains(nameof(AppSettings.KeepPanelOpen), raised);
+        // Same key as macOS, read back by a fresh instance.
+        Assert.True(prefs.GetBool("unifi.keepPanelOpen"));
+        Assert.True(new AppSettings(prefs, new InMemorySecretStore()).KeepPanelOpen);
+    }
+
+    [Fact]
     public void Legacy_plaintext_secret_migrates_into_secret_store()
     {
         var prefs = new InMemoryPreferences();

@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Sites whose address or API key changed since the last debounced refetch.
     private var pendingConnectionChanges: Set<String> = []
     private var appearanceSubscription: AnyCancellable?
+    private var keepPanelOpenSubscription: AnyCancellable?
     /// Pending deferred stream teardown while the keep-alive grace period runs
     /// (see `scheduleStreamTeardown`). Cancelled when the panel reopens in time.
     private var streamTeardownWork: DispatchWorkItem?
@@ -60,6 +61,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         appearanceSubscription = AppSettings.shared.$appearance
             .removeDuplicates()
             .sink { NSApp.appearance = $0.nsAppearance }
+        // "Keep the panel open" applies to an open panel at once. @Published
+        // emits before storing, so the closure works from the emitted value.
+        keepPanelOpenSubscription = AppSettings.shared.$keepPanelOpen
+            .removeDuplicates()
+            .dropFirst()
+            .sink { [weak self] keepOpen in self?.applyKeepPanelOpen(keepOpen) }
         setupStatusBar()
         setupGlobalHotkey()
         // Observers are delivered on the main queue (`queue: .main`), which the
@@ -263,7 +270,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showContextMenu() {
-        closePanel()
+        // A kept-open panel is meant to stay up; the menu opens above it.
+        if !AppSettings.shared.keepPanelOpen { closePanel() }
 
         let menu = NSMenu()
 
@@ -307,7 +315,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             let hostingController = NSHostingController(rootView: content.environment(\.appState, appState))
 
-            let p = NSPanel(
+            let p = DragMovablePanel(
                 contentRect: NSRect(origin: .zero, size: size),
                 styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
                 backing: .buffered,
@@ -316,7 +324,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             p.titlebarAppearsTransparent = true
             p.titleVisibility = .hidden
             p.isMovableByWindowBackground = false
-            p.level = .popUpMenu
+            p.level = PanelPlacement.level(keepOpen: AppSettings.shared.keepPanelOpen)
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             p.isOpaque = false
             p.backgroundColor = NSColor(white: 0.07, alpha: 0.98)
@@ -330,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let size = savedPanelSize()
         panel?.setContentSize(size)
 
-        positionPanelBelowStatusItem()
+        placePanel()
 
         service.isPopoverOpen = true
         // A sheet still attached from a previous presentation is hosted in a
@@ -342,6 +350,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         panel?.makeKeyAndOrderFront(nil)
 
+        updateDismissalMonitors(keepOpen: AppSettings.shared.keepPanelOpen)
+
+        Task { await service.fetchCameras() }
+    }
+
+    /// Installs the popover-style dismissals (click elsewhere, app switch), or
+    /// removes them while the panel is kept open.
+    private func updateDismissalMonitors(keepOpen: Bool) {
+        guard !keepOpen else {
+            removeDismissalMonitors()
+            return
+        }
         // Close on outside click — but not on the status-bar button itself,
         // which toggles through handleStatusBarClick (see below).
         if clickMonitor == nil {
@@ -365,8 +385,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 MainActor.assumeIsolated { self?.closePanel() }
             }
         }
+    }
 
-        Task { await service.fetchCameras() }
+    private func removeDismissalMonitors() {
+        if let monitor = clickMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickMonitor = nil
+        }
+        if let observer = appSwitchObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appSwitchObserver = nil
+        }
+    }
+
+    /// Switches an open panel between popover and kept-open behavior.
+    private func applyKeepPanelOpen(_ keepOpen: Bool) {
+        guard let panel, panel.isVisible else { return }
+        let level = PanelPlacement.level(keepOpen: keepOpen)
+        // In fullscreen the level is .screenSaver until exit restores this.
+        if isInTrueFullscreen { savedPanelLevel = level } else { panel.level = level }
+        updateDismissalMonitors(keepOpen: keepOpen)
+        if keepOpen, !isInTrueFullscreen { AppSettings.shared.panelOrigin = panel.frame.origin }
+    }
+
+    /// A kept-open panel reopens where it was left (pulled back onto a display
+    /// that still exists); otherwise it anchors under the status item.
+    private func placePanel() {
+        guard let panel else { return }
+        if AppSettings.shared.keepPanelOpen, let saved = AppSettings.shared.panelOrigin,
+           let origin = PanelPlacement.restoredOrigin(saved: saved, size: panel.frame.size,
+                                                      visibleFrames: NSScreen.screens.map(\.visibleFrame)) {
+            panel.setFrameOrigin(origin)
+        } else {
+            positionPanelBelowStatusItem()
+        }
     }
 
     /// True while the pointer sits on the status-bar button.
@@ -402,8 +454,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel, panel.isVisible, !isInTrueFullscreen else { return }
         if let size = AppSettings.shared.panelSize() {
             guard size != panel.frame.size else { return }
-            panel.setContentSize(size)
-            positionPanelBelowStatusItem()
+            if AppSettings.shared.keepPanelOpen {
+                // Moved by the user: grow and shrink from the top-left corner.
+                let top = panel.frame.maxY
+                panel.setContentSize(size)
+                panel.setFrameTopLeftPoint(NSPoint(x: panel.frame.minX, y: top))
+            } else {
+                panel.setContentSize(size)
+                positionPanelBelowStatusItem()
+            }
         } else {
             AppSettings.shared.setPanelSize(panel.frame.size)
         }
@@ -433,14 +492,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // showPanel().
         panel?.contentViewController = nil
         panel = nil
-        if let monitor = clickMonitor {
-            NSEvent.removeMonitor(monitor)
-            clickMonitor = nil
-        }
-        if let observer = appSwitchObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(observer)
-            appSwitchObserver = nil
-        }
+        removeDismissalMonitors()
     }
 
     // MARK: - Stream keep-alive
@@ -500,6 +552,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         AppSettings.shared.setPanelSize(win.frame.size)
     }
 
+    func windowDidMove(_ notification: Notification) {
+        guard let win = notification.object as? NSPanel, win === panel, win.isVisible,
+              !isInTrueFullscreen, AppSettings.shared.keepPanelOpen else { return }
+        AppSettings.shared.panelOrigin = win.frame.origin
+    }
+
     func windowWillClose(_ notification: Notification) {
         if let win = notification.object as? NSPanel, win === panel {
             closePanel()
@@ -541,7 +599,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         // Restore original panel style
         panel.styleMask = [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView]
-        panel.level = savedPanelLevel ?? .floating
+        panel.level = savedPanelLevel ?? PanelPlacement.level(keepOpen: AppSettings.shared.keepPanelOpen)
         panel.hasShadow = true
         if let frame = savedPanelFrame {
             Self.animatePanelFrame(panel, to: frame)

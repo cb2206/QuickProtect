@@ -63,6 +63,30 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(pauseDecodeWhileClosed, forKey: Keys.pauseDecodeWhileClosed) }
     }
 
+    /// Whether the camera panel stays open until closed explicitly (✕, the
+    /// menu-bar icon, the hotkey) instead of closing on a click elsewhere or
+    /// an app switch. A kept-open panel floats above other windows, moves by
+    /// its header and reopens where it was left (`panelOrigin`). Default off.
+    @Published var keepPanelOpen: Bool {
+        didSet { defaults.set(keepPanelOpen, forKey: Keys.keepPanelOpen) }
+    }
+
+    /// Bottom-left corner (screen coordinates) where a kept-open panel was last
+    /// left; nil until it has been shown once in that mode.
+    var panelOrigin: NSPoint? {
+        get {
+            guard let xy = defaults.array(forKey: Keys.panelOrigin) as? [Double], xy.count == 2 else { return nil }
+            return NSPoint(x: xy[0], y: xy[1])
+        }
+        set {
+            if let p = newValue {
+                defaults.set([Double(p.x), Double(p.y)], forKey: Keys.panelOrigin)
+            } else {
+                defaults.removeObject(forKey: Keys.panelOrigin)
+            }
+        }
+    }
+
     /// Security-scoped bookmark to the folder where snapshots are saved.
     /// Used when `snapshotDestination` is `.folder`. The sandbox requires a
     /// bookmark to regain write access to a user-chosen folder across launches.
@@ -192,6 +216,8 @@ final class AppSettings: ObservableObject {
         static let appStorePromoShown = "unifi.appStorePromoShown"
         static let streamKeepAliveSeconds = "unifi.streamKeepAliveSeconds"
         static let pauseDecodeWhileClosed = "unifi.pauseDecodeWhileClosed"
+        static let keepPanelOpen = "unifi.keepPanelOpen"
+        static let panelOrigin = "unifi.panelOrigin"
         static let lastPromotedUpdateVersion = "unifi.lastPromotedUpdateVersion"
     }
 
@@ -237,6 +263,7 @@ final class AppSettings: ObservableObject {
         pauseDecodeWhileClosed = pauseDecode != nil
             ? defaults.bool(forKey: Keys.pauseDecodeWhileClosed)
             : true
+        keepPanelOpen = defaults.bool(forKey: Keys.keepPanelOpen)
         activeProfileID = defaults.string(forKey: Keys.activeProfileID) ?? Self.defaultProfileID
         migrateLayoutProfilesIfNeeded()
         sites = loadSites()

@@ -36,6 +36,21 @@ extension SettingsView {
                 }
             }
 
+            AuroraSettingsSection(String(localized: "Camera panel")) {
+                AuroraSettingsRow(
+                    String(localized: "Keep the panel open"),
+                    // The catalog key is the full English sentence.
+                    // swiftlint:disable:next line_length
+                    hint: String(localized: "Clicking elsewhere no longer closes it. It stays on top of other windows, moves by its header, and reopens where you left it. Close it with ✕, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it's open."),
+                    isLast: true,
+                    labelExpands: true
+                ) {
+                    Toggle("", isOn: $settings.keepPanelOpen)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+            }
+
             AuroraSettingsSection(String(localized: "Focus view")) {
                 AuroraSettingsRow(
                     String(localized: "Show overlay controls"),

@@ -220,7 +220,7 @@ managed by Windows under Settings → Apps → Startup.
 
 The port is at feature parity with the macOS app for day-to-day use: tray shell,
 live camera grid, focus view with PTZ (d-pad + keyboard, quick-tap min-burst),
-pinned always-on-top windows, snapshots (folder or clipboard), secondary-lens
+pinned always-on-top windows, a keep-the-panel-open option, snapshots (folder or clipboard), secondary-lens
 PiP, layout profiles, multiple sites (several consoles in one grid),
 onboarding, global hotkey, notify-only update checks,
 TOFU certificate pinning end-to-end (API + video), theming with accent colors,

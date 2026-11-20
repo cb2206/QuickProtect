@@ -188,6 +188,21 @@ port (`dotnet/`).
   PTZ login, credential "?" help (flyout on click, tooltip on hover), and a
   duplicate-console check on Test Connection.
 
+- **Keep the panel open** (issue #1) — Settings → General → Camera panel,
+  `keepPanelOpen` / `KeepPanelOpen` (same `unifi.keepPanelOpen` key). The
+  popover dismissals stop (macOS: the global click monitor and the app-switch
+  observer; here: `Deactivated` and the Windows foreground hook, checked per
+  event so the switch applies to an open panel); the header gets the ✕ and
+  doubles as a drag handle (macOS: `WindowDragArea` + `DragMovablePanel`, the
+  pinned windows' drag); the panel reopens where it was left, pulled back onto
+  a screen that still exists (`PanelPlacement.restoredOrigin` /
+  `MainWindow.RestorablePosition`). On top: macOS lowers the level from
+  `.popUpMenu` to `.floating` (a long-lived window shouldn't cover other apps'
+  menus; pinned windows stay above it at `.popUpMenu + 1`); here `Topmost`.
+  Hyprland's overlay mode already behaves this way, so the row is hidden there.
+  Streams keep running for as long as the panel is open, which the setting's
+  hint says.
+
 ## Pending (macOS ahead)
 
 Nothing at the moment — the port is in sync with the macOS feature set.

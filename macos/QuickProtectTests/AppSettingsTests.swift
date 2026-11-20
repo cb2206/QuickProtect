@@ -43,6 +43,21 @@ final class AppSettingsTests: XCTestCase {
         AppSettings(defaults: defaults, secrets: secrets)
     }
 
+    // MARK: - Keep the panel open
+
+    func testKeepPanelOpenDefaultsOffAndPersists() {
+        let s = makeSettings()
+        XCTAssertFalse(s.keepPanelOpen)
+        XCTAssertNil(s.panelOrigin)
+        s.keepPanelOpen = true
+        s.panelOrigin = NSPoint(x: 120.5, y: 340)
+        let reloaded = makeSettings()
+        XCTAssertTrue(reloaded.keepPanelOpen)
+        XCTAssertEqual(reloaded.panelOrigin, NSPoint(x: 120.5, y: 340))
+        reloaded.panelOrigin = nil
+        XCTAssertNil(makeSettings().panelOrigin)
+    }
+
     // MARK: - Connection change notifications
 
     /// AppDelegate tears streams down from a site's connection publisher and

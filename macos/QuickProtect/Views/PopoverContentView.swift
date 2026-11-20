@@ -56,6 +56,9 @@ struct PopoverContentView: View {
             ZStack {
                 VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
                 palette.chrome
+                // A kept-open panel is a movable window: drag it by the header's
+                // empty space (the controls above win the hit test).
+                if settings.keepPanelOpen { WindowDragArea() }
             }
         )
     }
@@ -99,6 +102,13 @@ struct PopoverContentView: View {
 
             HeaderIconButton(systemName: "power", help: String(localized: "Quit QuickProtect")) {
                 NSApp.terminate(nil)
+            }
+
+            // Kept open, clicking elsewhere no longer dismisses the panel.
+            if settings.keepPanelOpen {
+                HeaderIconButton(systemName: "xmark", help: String(localized: "Dismiss")) {
+                    NotificationCenter.default.post(name: .closeCameraPanel, object: nil)
+                }
             }
         }
     }

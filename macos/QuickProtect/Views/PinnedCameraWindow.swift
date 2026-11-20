@@ -159,7 +159,7 @@ final class PinnedCameraController: NSObject, NSWindowDelegate {
         let frame = Self.initialFrame(saved: saved, aspect: aspect, cascadeIndex: cascadeIndex)
         self.restoredSavedFrame = saved != nil
 
-        let panel = PinnedPanel(
+        let panel = DragMovablePanel(
             contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel, .resizable],
             backing: .buffered,
@@ -671,39 +671,6 @@ struct PinnedCameraView: View {
             if gen == toastGen { withAnimation(.easeInOut(duration: 0.3)) { toast = nil } }
         }
     }
-}
-
-// MARK: - Window drag
-
-/// Borderless panel that moves when dragged by its video. The move starts here,
-/// before the event reaches SwiftUI: `isMovableByWindowBackground` gets no
-/// background drags through the hosting view on macOS 27, and a view's own
-/// `mouseDown` isn't reliable either — the hosting view swallowed about a
-/// third of the clicks that hit-tested to `WindowDragNSView`.
-private final class PinnedPanel: NSPanel {
-    override func sendEvent(_ event: NSEvent) {
-        if event.type == .leftMouseDown, let content = contentView,
-           content.hitTest(content.convert(event.locationInWindow, from: nil)) is WindowDragNSView {
-            performDrag(with: event)
-            return
-        }
-        super.sendEvent(event)
-    }
-}
-
-/// Marks where a drag moves the window: everywhere over the video that the
-/// controls and the resize grip don't cover (they sit above it and win the
-/// hit test).
-private struct WindowDragArea: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { WindowDragNSView() }
-    func updateNSView(_ nsView: NSView, context: Context) {}
-}
-
-private final class WindowDragNSView: NSView {
-    // `PinnedPanel` starts the drag; don't let AppKit start a second one.
-    override var mouseDownCanMoveWindow: Bool { false }
-    // The pinned panel is non-activating; accept the first click without focus.
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 // MARK: - Resize grip
