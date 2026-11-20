@@ -61,6 +61,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string StreamCountLabel
         => Localization.Loc.Get("%lld streams").Replace("%lld", StreamCount.ToString());
 
+    /// <summary>
+    /// "· 4.2 Mbps" after the stream count: the download rate of all streams,
+    /// refreshed once a second while the panel is shown; empty until the second
+    /// sample (macOS: the same readout in the header pill).
+    /// </summary>
+    [ObservableProperty] private string _bitrateLabel = "";
+
+    private readonly BitrateMeter _bitrateMeter = new();
+    private readonly System.Diagnostics.Stopwatch _bitrateClock = System.Diagnostics.Stopwatch.StartNew();
+    private DispatcherTimer? _bitrateTimer;
+
+    /// <summary>Starts the header's bitrate readout (panel shown).</summary>
+    public void StartBitrateUpdates()
+    {
+        _bitrateMeter.Reset();
+        BitrateLabel = "";
+        SampleBitrate();
+        _bitrateTimer ??= new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
+            (_, _) => SampleBitrate());
+        _bitrateTimer.Start();
+    }
+
+    /// <summary>Stops the readout (panel hidden): nobody sees it.</summary>
+    public void StopBitrateUpdates() => _bitrateTimer?.Stop();
+
+    private void SampleBitrate()
+    {
+        var bps = _bitrateMeter.Sample(StreamTraffic.TotalBytes, _bitrateClock.Elapsed);
+        if (bps is { } rate)
+            BitrateLabel = "· " + BitrateMeter.Format(rate, System.Globalization.CultureInfo.CurrentUICulture);
+    }
+
     // In-panel layout-profile switcher (mirrors the macOS popover header menu).
     public ObservableCollection<string> ProfileNames { get; } = new();
     [ObservableProperty] private int _selectedProfileIndex;
@@ -492,6 +524,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _bitrateTimer?.Stop();
         _service.PropertyChanged -= OnServiceChanged;
         _settings.PropertyChanged -= OnSettingsChanged;
         var pip = SecondaryTile;

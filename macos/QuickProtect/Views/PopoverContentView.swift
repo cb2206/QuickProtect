@@ -7,6 +7,10 @@ struct PopoverContentView: View {
     @ObservedObject private var settings = AppSettings.shared
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchQuery: String = ""
+    /// Download rate of all streams, refreshed once a second while the panel
+    /// is open; nil until the second sample.
+    @State private var bitrate: String?
+    @State private var bitrateMeter = BitrateMeter()
     let openSettings: () -> Void
 
     private var palette: AuroraTokens.Palette { AuroraTokens.palette(for: colorScheme) }
@@ -52,6 +56,7 @@ struct PopoverContentView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 42)
+        .task { await sampleBitrate() }
         .background(
             ZStack {
                 VisualEffectBackground(material: .hudWindow, blending: .withinWindow)
@@ -113,6 +118,22 @@ struct PopoverContentView: View {
         }
     }
 
+    /// Samples `StreamTraffic` once a second for as long as the header exists
+    /// (the panel's content is rebuilt on every open, so this ends on close).
+    private func sampleBitrate() async {
+        bitrateMeter = BitrateMeter()
+        while !Task.isCancelled {
+            let rate = bitrateMeter.sample(totalBytes: StreamTraffic.shared.totalBytes,
+                                           at: ProcessInfo.processInfo.systemUptime)
+            bitrate = rate.map { BitrateMeter.format(bitsPerSecond: $0) }
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return  // cancelled: the header went away
+            }
+        }
+    }
+
     private var visibleCount: Int {
         let visible = settings.visibleCameras(service.cameras).filter { $0.isOnline }
         return visible.count
@@ -127,10 +148,10 @@ struct PopoverContentView: View {
         return HStack(spacing: 6) {
             Circle().fill(AuroraTokens.statusGreenDark)
                 .frame(width: 5, height: 5)
-            // TODO: expose bitrate from ProtectHub; design shows "· 4.2 Mbps" too
             Group {
                 if showsWord {
                     Text("\(visibleCount) streams")
+                    if let bitrate { Text(verbatim: "· \(bitrate)") }
                 } else {
                     Text(verbatim: "\(visibleCount)")
                 }

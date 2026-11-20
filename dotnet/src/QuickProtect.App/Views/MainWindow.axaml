@@ -35,6 +35,9 @@
               <Ellipse Width="6" Height="6" Fill="{DynamicResource QpStatusGreen}" VerticalAlignment="Center" />
               <TextBlock Text="{Binding StreamCountLabel}"
                          Foreground="{DynamicResource QpStatusGreenText}" FontSize="11" />
+              <TextBlock Text="{Binding BitrateLabel}"
+                         IsVisible="{Binding BitrateLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         Foreground="{DynamicResource QpStatusGreenText}" FontSize="11" />
             </StackPanel>
           </Border>
           <!-- Layout-profile switcher + save-current-view-as-profile -->

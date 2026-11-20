@@ -306,9 +306,11 @@ public partial class MainWindow : Window
                 }
                 else if (!KeepsOpen || !RestoreSavedPosition()) PositionNearTray();
                 vm.StartAll();
+                vm.StartBitrateUpdates();
             }
             else
             {
+                vm.StopBitrateUpdates();
                 QuickProtect.Core.Services.AppSettings.Shared.SetPanelSize(Width, Height);
                 if (KeepsOpen && WindowState == WindowState.Normal)
                     QuickProtect.Core.Services.AppSettings.Shared.SetPanelPosition(Position.X, Position.Y);

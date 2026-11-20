@@ -490,3 +490,53 @@ public class AppSettingsTests
         Assert.Null(prefs.GetString("unifi.apiKey")); // old copy cleared
     }
 }
+
+public class BitrateMeterTests
+{
+    [Fact]
+    public void First_sample_has_no_rate_then_rates_follow_the_byte_delta()
+    {
+        var m = new BitrateMeter();
+        Assert.Null(m.Sample(1_000, TimeSpan.FromSeconds(10)));
+        // 500 kB in 2 s = 2 Mbit/s.
+        Assert.Equal(2_000_000, m.Sample(501_000, TimeSpan.FromSeconds(12)));
+    }
+
+    [Fact]
+    public void Stalled_clock_or_shrinking_total_gives_no_rate()
+    {
+        var m = new BitrateMeter();
+        m.Sample(1_000, TimeSpan.FromSeconds(1));
+        Assert.Null(m.Sample(2_000, TimeSpan.FromSeconds(1)));
+        Assert.Null(m.Sample(10, TimeSpan.FromSeconds(2)));
+        Assert.NotNull(m.Sample(20, TimeSpan.FromSeconds(3)));
+    }
+
+    [Fact]
+    public void Reset_drops_the_previous_sample()
+    {
+        var m = new BitrateMeter();
+        m.Sample(0, TimeSpan.FromSeconds(1));
+        m.Reset();
+        Assert.Null(m.Sample(1_000_000, TimeSpan.FromSeconds(2)));
+    }
+
+    [Theory]
+    [InlineData(0, "en", "0 kbps")]
+    [InlineData(850_400, "en", "850 kbps")]
+    [InlineData(999_499, "en", "999 kbps")]
+    [InlineData(999_500, "en", "1.0 Mbps")]
+    [InlineData(4_240_000, "en", "4.2 Mbps")]
+    [InlineData(4_240_000, "de", "4,2 Mbps")]
+    [InlineData(12_000_000, "fr", "12,0 Mbps")]
+    public void Format_switches_units_and_uses_the_culture_decimal_separator(double bps, string culture, string expected)
+        => Assert.Equal(expected, BitrateMeter.Format(bps, new System.Globalization.CultureInfo(culture)));
+
+    [Fact]
+    public void Stream_traffic_accumulates()
+    {
+        var before = StreamTraffic.TotalBytes;
+        StreamTraffic.Add(1234);
+        Assert.True(StreamTraffic.TotalBytes - before >= 1234);
+    }
+}

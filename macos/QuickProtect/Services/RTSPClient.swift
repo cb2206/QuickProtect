@@ -498,6 +498,7 @@ final class RTSPClient: ObservableObject, @unchecked Sendable {
             guard let self, conn === self.connection else { return }
             // Already on self.queue (NWConnection dispatches callbacks there)
             if let bytes = data, !bytes.isEmpty {
+                StreamTraffic.shared.add(bytes.count)
                 self.buffer.append(contentsOf: bytes)
                 guard self.bufferCount <= self.maxControlBuffer else {
                     self.failConnection("RTSP buffer exceeded \(self.maxControlBuffer) bytes")
