@@ -141,6 +141,13 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   untested: the bitrate readout's timer
   (no platform dispatcher headless; its samples are), pinned windows'
   view-model paths, and the views themselves.
+- PTZ (both apps): moves are serialized and deduplicated against what the
+  camera last accepted; a 401 re-logs in and resends once, a failed stop is
+  retried once. Still open: logins aren't coalesced (enrichment, package
+  snapshots and PTZ can each log in, and a failing one clears a session
+  another just made), a failed login isn't backed off (every press tries
+  again), and the macOS PTZ path has no tests (the .NET ones are in
+  `ClassicApiTests`).
 - Held-back dependencies (see the ignore list in `.github/dependabot.yml`):
   **NAudio 3** obsoletes `WasapiOut` and makes `BufferDuration` read-only, so
   `Video/AudioSink.cs` needs a port to `WasapiPlayerBuilder`, verified by
