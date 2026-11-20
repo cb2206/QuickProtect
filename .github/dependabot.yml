@@ -46,6 +46,10 @@ updates:
       # reference in QuickProtect.App overrides it for Avalonia's tray and
       # portal code too. Move it only together with an Avalonia bump.
       - dependency-name: "Tmds.DBus.Protocol"
+      # Its major version tracks the .NET release; move it with the target
+      # framework (net10.0), not on its own.
+      - dependency-name: "System.Security.Cryptography.ProtectedData"
+        update-types: ["version-update:semver-major"]
       # The bindings must match the bundled FFmpeg natives' major version;
       # they move with the pinned BtbN build in dotnet/scripts/get-ffmpeg.*.
       - dependency-name: "FFmpeg.AutoGen*"

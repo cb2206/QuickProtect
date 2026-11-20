@@ -273,12 +273,36 @@ jobs:
           path: dotnet/dist/QuickProtect-*-${{ matrix.rid }}.tar.gz
           if-no-files-found: error
 
-  # The only job that writes to the repository, and only for a tag push. A
-  # manual run still downloads the artifacts and writes the checksums, so a
-  # dry run exercises the download layout the release globs depend on; only
-  # the release creation is tag-gated.
-  draft-release:
+  # Collects the four release assets and checksums them. Read-only, and it
+  # runs on manual dry runs too, so a dry run exercises the download layout
+  # the release globs depend on.
+  checksums:
     needs: [macos-dmg, windows-installer, linux-tarball]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          # The release assets only; the Store MSIX (windows-msix) never comes near a release.
+          pattern: "{macos-dmg,windows-installer,linux-tarball-*}"
+          merge-multiple: true
+      - name: Checksums
+        # `shell: bash` adds pipefail, so a glob that matches nothing fails here.
+        shell: bash
+        run: |
+          sha256sum QuickProtect-*.dmg QuickProtect-Setup-*.exe QuickProtect-*.tar.gz | tee SHA256SUMS
+          # The four release assets, each exactly once.
+          [ "$(wc -l < SHA256SUMS)" -eq 4 ] || { echo "::error::expected 4 release assets"; exit 1; }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sha256sums
+          path: SHA256SUMS
+          if-no-files-found: error
+
+  # The only job that writes to the repository, and only for a tag push.
+  draft-release:
+    if: github.ref_type == 'tag'
+    needs: checksums
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -286,15 +310,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          pattern: "{macos-dmg,windows-installer,linux-tarball-*,sha256sums}"
           merge-multiple: true
-      - name: Checksums
-        run: |
-          sha256sum QuickProtect-*.dmg QuickProtect-Setup-*.exe QuickProtect-*.tar.gz | tee SHA256SUMS
-          # All four release assets, each exactly once (a glob that matched
-          # nothing would have failed sha256sum above).
-          [ "$(wc -l < SHA256SUMS)" -eq 4 ] || { echo "::error::expected 4 release assets"; exit 1; }
+      - name: Verify checksums
+        shell: bash
+        run: sha256sum -c SHA256SUMS
       - name: Create draft release
-        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
