@@ -39,6 +39,11 @@ gh workflow run release.yml --ref dev
 
 ## Developer ID signing and notarization for the DMG
 
+**Not used, on purpose.** The free GitHub DMG stays ad-hoc signed so that
+Gatekeeper's first-run warning nudges people toward the signed, auto-updating
+App Store build. Leave the secrets below unset; this section documents the
+switch only in case that decision is ever reversed.
+
 The `macos-dmg` job has two modes, selected by whether the secrets below
 exist. With no secrets it ad-hoc signs the app (the current GitHub build).
 With all five secrets it signs the app with a Developer ID Application
