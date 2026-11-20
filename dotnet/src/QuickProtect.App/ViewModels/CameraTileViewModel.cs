@@ -341,6 +341,13 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
 
     // MARK: - Stream lifecycle (shared clients via the coordinator)
 
+    /// <summary>
+    /// The coordinator tiles acquire their shared clients from: the app's.
+    /// Tests without a running <see cref="App"/> substitute one whose clients
+    /// never reach FFmpeg.
+    /// </summary>
+    internal static Func<VideoStreamCoordinator> Streams { get; set; } = static () => App.Instance.Streams;
+
     /// <summary>Resolve the effective quality for the current view state and start playback.</summary>
     public Task StartAsync()
     {
@@ -361,7 +368,7 @@ public sealed partial class CameraTileViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         }
 
-        var handle = App.Instance.Streams.Acquire(Camera, quality, lens: _fixedQuality, pinned: _pinned);
+        var handle = Streams().Acquire(Camera, quality, lens: _fixedQuality, pinned: _pinned);
         _handle = handle;
         SubscribeClient(handle.Client);
         Client = handle.Client;

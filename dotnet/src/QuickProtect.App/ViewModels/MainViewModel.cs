@@ -86,7 +86,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Stops the readout (panel hidden): nobody sees it.</summary>
     public void StopBitrateUpdates() => _bitrateTimer?.Stop();
 
-    private void SampleBitrate()
+    /// <summary>One readout update (the timer's tick; tests call it directly, as no platform timer runs there).</summary>
+    internal void SampleBitrate()
     {
         var bps = _bitrateMeter.Sample(StreamTraffic.TotalBytes, _bitrateClock.Elapsed);
         if (bps is { } rate)

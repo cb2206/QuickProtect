@@ -130,9 +130,14 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   and client (with live-decode smoke tests), tile stop, the focus header
   layout, Settings' certificate section, catalog coverage and the Linux
   platform glue; `ConnectionChangeTests` drives `ProtectService` against a
-  local fake controller. The view models beyond those, and most of
-  `ProtectService`'s classic-API (PTZ) paths, are still only covered
-  indirectly.
+  local fake controller, and `ClassicApiTests` drives its classic-API paths
+  (login/session, PTZ moves, enrichment and its throttle, HTTP errors)
+  against a scripted one (`ScriptedController`/`FakeProtectConsole`, linked
+  into the App tests too). `MainViewModelTests` and `SettingsViewModelTests`
+  (Settings, Layout, Onboarding) run the view models against a real
+  `ProtectHub` on that console. Still untested: the bitrate readout's timer
+  (no platform dispatcher headless; its samples are), pinned windows'
+  view-model paths, and the views themselves.
 - Held-back dependencies (see the ignore list in `.github/dependabot.yml`):
   **NAudio 3** obsoletes `WasapiOut` and makes `BufferDuration` read-only, so
   `Video/AudioSink.cs` needs a port to `WasapiPlayerBuilder`, verified by

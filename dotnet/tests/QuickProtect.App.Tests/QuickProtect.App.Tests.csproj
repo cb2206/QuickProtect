@@ -19,4 +19,12 @@
     <ProjectReference Include="..\..\src\QuickProtect.App\QuickProtect.App.csproj" />
   </ItemGroup>
 
+  <!-- The Core tests' scripted controller and in-memory stores, so the view
+       models can be driven against a real ProtectHub. -->
+  <ItemGroup>
+    <Compile Include="..\QuickProtect.Core.Tests\ScriptedController.cs" Link="Shared\ScriptedController.cs" />
+    <Compile Include="..\QuickProtect.Core.Tests\FakeProtectConsole.cs" Link="Shared\FakeProtectConsole.cs" />
+    <Compile Include="..\QuickProtect.Core.Tests\TestDoubles.cs" Link="Shared\TestDoubles.cs" />
+  </ItemGroup>
+
 </Project>
