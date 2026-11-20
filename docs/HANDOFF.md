@@ -109,7 +109,10 @@ scripts/package-linux.sh [--rid <rid>]         # → dist/QuickProtect-<v>-<linu
 ```
 
 Every published build carries `LICENSE` and `THIRD-PARTY-NOTICES.txt` (FFmpeg
-LGPL-2.1, FFmpeg.AutoGen LGPL-3.0, Avalonia/NAudio/Toolkit MIT, Inter OFL).
+LGPL-2.1, FFmpeg.AutoGen LGPL-3.0, Avalonia/SkiaSharp/HarfBuzzSharp/NAudio/
+Toolkit/Tmds.DBus MIT, Inter OFL, Skia and ANGLE BSD-3-Clause, HarfBuzz "Old
+MIT"). The file lists versions: compare it with
+`src/QuickProtect.App/packages.lock.json` after any package bump.
 Bumping FFmpeg means updating the pinned tag + checksums in both
 `get-ffmpeg.*` scripts, the FFmpeg.AutoGen package, and the notices file.
 
