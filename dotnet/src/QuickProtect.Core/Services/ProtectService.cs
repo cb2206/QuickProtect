@@ -741,9 +741,13 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     /// <summary>The velocity the camera last accepted, or null when unknown (a
     /// send failed): then the next command goes out even if it looks unchanged.</summary>
     private (double x, double y, double z)? _ptzLastSent = (0, 0, 0);
-    /// <summary>A failed stop is retried once after this long: with nothing
-    /// following it, the camera would otherwise keep moving.</summary>
-    internal static TimeSpan PtzStopRetryDelay = TimeSpan.FromSeconds(1);
+    /// <summary>The camera <see cref="_ptzDesired"/> and <see cref="_ptzLastSent"/> belong to.</summary>
+    private string? _ptzCamera;
+    /// <summary>Commands enqueued so far; a running command knows whether a newer one waits behind it.</summary>
+    private long _ptzEnqueued;
+    /// <summary>A failed command with nothing queued behind it is retried once
+    /// after this long: a lost release would otherwise leave the camera moving.</summary>
+    public static readonly TimeSpan PtzRetryDelay = TimeSpan.FromSeconds(1);
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
 
@@ -773,6 +777,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         lock (_ptzLock)
         {
             var previous = _ptzChain;
+            var generation = ++_ptzEnqueued;
             _ptzChain = Task.Run(async () =>
             {
                 await previous.ConfigureAwait(false);
@@ -780,27 +785,41 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                 (double x, double y, double z) next;
                 lock (_ptzLock)
                 {
+                    // Another camera: what this one has been told is unknown.
+                    if (_ptzCamera != cameraId)
+                    {
+                        _ptzCamera = cameraId;
+                        _ptzDesired = (0, 0, 0);
+                        _ptzLastSent = null;
+                    }
                     _ptzDesired = mutate(_ptzDesired);
                     next = _ptzDesired;
                     if (next == _ptzLastSent) return;
                 }
-                if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
+                var sent = await DeliverMoveAsync(cameraId, next, isRetry: false).ConfigureAwait(false);
+                // Retry once, but only when nothing newer is queued: a queued
+                // command goes out anyway (the camera's state is now unknown),
+                // and waiting here would only delay it.
+                if (!sent && Interlocked.Read(ref _ptzEnqueued) == generation)
                 {
-                    ReportPtzLoginFailure();
-                    // Whatever this command was, it didn't reach the camera.
-                    lock (_ptzLock) _ptzLastSent = null;
-                    return;
-                }
-                var sent = await SendMoveAsync(cameraId, next).ConfigureAwait(false);
-                // The chain is serial, so nothing has changed the intent meanwhile.
-                if (!sent && next == (0, 0, 0))
-                {
-                    await Task.Delay(PtzStopRetryDelay).ConfigureAwait(false);
-                    sent = await SendMoveAsync(cameraId, next).ConfigureAwait(false);
+                    await Task.Delay(PtzRetryDelay).ConfigureAwait(false);
+                    if (Interlocked.Read(ref _ptzEnqueued) == generation)
+                        sent = await DeliverMoveAsync(cameraId, next, isRetry: true).ConfigureAwait(false);
                 }
                 lock (_ptzLock) _ptzLastSent = sent ? next : null;
             });
         }
+    }
+
+    /// <summary>One attempt: log in if the session is gone, then send.</summary>
+    private async Task<bool> DeliverMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry)
+    {
+        if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
+        {
+            ReportPtzLoginFailure();
+            return false;
+        }
+        return await SendMoveAsync(cameraId, v, isRetry).ConfigureAwait(false);
     }
 
     private void ReportPtzLoginFailure()
@@ -814,11 +833,11 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     /// <summary>
     /// Sends one continuous move; true when the controller accepted it. An
-    /// expired session (401) logs in again and resends this move once, so a
-    /// held direction isn't lost until the input changes; a failed re-login
-    /// shows the PTZ toast. A 403 is a missing PTZ permission, not an expired
-    /// session: logging in again would only repeat (and audit-log) the login
-    /// on every key press.
+    /// expired session (401) logs in again and resends this move once, unless
+    /// this already is a retry, so a held direction isn't lost until the input
+    /// changes; a failed re-login shows the PTZ toast. A 403 is a missing PTZ
+    /// permission, not an expired session: logging in again would only repeat
+    /// (and audit-log) the login on every key press.
     /// </summary>
     private async Task<bool> SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry = false)
     {

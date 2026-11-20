@@ -163,7 +163,7 @@ public class ClassicLoginAndPtzTests
     }
 
     [Fact]
-    public async Task A_move_rejected_again_after_the_fresh_login_is_not_retried_further()
+    public async Task A_move_the_controller_keeps_rejecting_is_tried_a_bounded_number_of_times()
     {
         await using var console = new FakeProtectConsole
         {
@@ -174,13 +174,14 @@ public class ClassicLoginAndPtzTests
         Assert.True(await service.ClassicLoginAsync());
 
         service.PtzSetAxes("cam1", pan: 1);
-        await console.Controller.WaitFor(Move("cam1"), count: 2);
-        await WaitUntil(service, () => !service.IsClassicLoggedIn);
+        // Send, resend after a re-login, then the one delayed retry (whose
+        // 401 gets no further re-login).
+        await console.Controller.WaitFor(Move("cam1"), count: 3);
         // Give a runaway retry loop time to show itself.
-        await Task.Delay(300);
+        await Task.Delay(PtzSettle);
 
-        Assert.Equal(2, console.Controller.To(Move("cam1")).Count);
-        Assert.Equal(2, console.Controller.To(Login).Count);
+        Assert.Equal(3, console.Controller.To(Move("cam1")).Count);
+        Assert.Equal(3, console.Controller.To(Login).Count);
     }
 
     [Fact]
@@ -212,6 +213,38 @@ public class ClassicLoginAndPtzTests
     }
 
     [Fact]
+    public async Task A_stop_whose_login_fails_is_retried_on_its_own()
+    {
+        var loginsFail = false;
+        var moves = 0;
+        await using var console = new FakeProtectConsole
+        {
+            Override = r =>
+                r.Route == Login && Volatile.Read(ref loginsFail) ? new FakeResponse(401, "")
+                // The tilt press finds the session expired (and the re-login fails).
+                : r.Route == Move("cam1") && Interlocked.Increment(ref moves) == 2 ? new FakeResponse(401, "")
+                : null
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        service.PtzSetAxes("cam1", pan: 1);
+        await console.Controller.WaitFor(Move("cam1"), count: 1);
+        Volatile.Write(ref loginsFail, true);
+        service.PtzSetAxes("cam1", tilt: 1);
+        await WaitUntil(service, () => service.PtzErrorMessage != null);
+
+        // The camera is still panning; the stop's own login fails, then the
+        // console recovers before the retry and nothing else is pressed.
+        service.PtzStopAll("cam1");
+        await Task.Delay(200);
+        Volatile.Write(ref loginsFail, false);
+
+        await WaitForLastMove(console, (0, 0, 0));
+    }
+
+    [Fact]
     public async Task Held_axes_survive_a_failed_command()
     {
         var moves = 0;
@@ -231,9 +264,9 @@ public class ClassicLoginAndPtzTests
         service.PtzSetAxes("cam1", tilt: 1);
         await console.Controller.WaitFor(Move("cam1"), count: 2);
         service.PtzSetAxes("cam1", zoom: 1);
-        var sent = await console.Controller.WaitFor(Move("cam1"), count: 3);
 
-        Assert.Equal((1000, 1000, 1000), Velocities(sent[2]));
+        // Pan is still held: the zoom press keeps it (and the failed tilt).
+        await WaitForLastMove(console, (1000, 1000, 1000));
     }
 
     [Fact]
@@ -284,10 +317,35 @@ public class ClassicLoginAndPtzTests
         Volatile.Write(ref loginsFail, false);
         service.PtzSetAxes("cam1", pan: 0);
         service.PtzSetAxes("cam1", pan: 1);
-        var sent = await console.Controller.WaitFor(Move("cam1"), count: 3);
-        // The release's stop goes out too (the camera's state was unknown),
-        // then the press.
-        Assert.Equal(new[] { (1000, 0, 0), (0, 0, 0), (1000, 0, 0) }, sent.Select(Velocities));
+        var last = await WaitForLastMove(console, (1000, 0, 0));
+        Assert.NotEqual("TOKEN=tok-1", last.Header("Cookie"));
+        Assert.True(service.IsClassicLoggedIn);
+    }
+
+    /// <summary>Longer than <see cref="ProtectService.PtzRetryDelay"/>, so any retry has happened.</summary>
+    private static readonly int PtzSettle = (int)ProtectService.PtzRetryDelay.TotalMilliseconds + 500;
+
+    /// <summary>
+    /// Waits until the controller's latest move carries <paramref name="expected"/>
+    /// and nothing follows it for the retry delay (the PTZ state has settled).
+    /// </summary>
+    private static async Task<FakeRequest> WaitForLastMove(FakeProtectConsole console, (int, int, int) expected)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (DateTime.UtcNow < deadline)
+        {
+            var moves = console.Controller.To(Move("cam1"));
+            if (moves.Count > 0 && Velocities(moves[^1]) == expected)
+            {
+                await Task.Delay(PtzSettle);
+                var after = console.Controller.To(Move("cam1"));
+                if (after.Count == moves.Count) return after[^1];
+                continue;
+            }
+            await Task.Delay(25);
+        }
+        var all = console.Controller.To(Move("cam1")).Select(Velocities);
+        throw new Xunit.Sdk.XunitException($"last move never settled on {expected}; moves: {string.Join(" ", all)}");
     }
 
     [Fact]

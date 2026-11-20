@@ -849,9 +849,14 @@ final class ProtectService: NSObject, ObservableObject {
     /// The velocity the camera last accepted, or nil when unknown (a send
     /// failed): then the next command goes out even if it looks unchanged.
     private var ptzLastSent: PtzVelocity? = PtzVelocity()
-    /// A failed stop is retried once after this long: with nothing following
-    /// it, the camera would otherwise keep moving.
-    private static let ptzStopRetryDelay: UInt64 = 1_000_000_000
+    /// The camera `ptzDesired` and `ptzLastSent` belong to.
+    private var ptzCamera: String?
+    /// Commands enqueued so far; a running command knows whether a newer one
+    /// waits behind it.
+    private var ptzEnqueued = 0
+    /// A failed command with nothing queued behind it is retried once after
+    /// this long: a lost release would otherwise leave the camera moving.
+    private static let ptzRetryDelay: UInt64 = 1_000_000_000
     private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
     /// Serializes move commands so they reach the controller in call order
     /// (an earlier send may still be waiting on login or a tap's minimum burst).
@@ -903,39 +908,54 @@ final class ProtectService: NSObject, ObservableObject {
     private func enqueuePtzSend(cameraId: String, delay: TimeInterval,
                                 mutate: @escaping (inout PtzVelocity) -> Void) {
         let previous = ptzSendChain
+        ptzEnqueued += 1
+        let generation = ptzEnqueued
         ptzSendChain = Task {
             await previous?.value
             if delay > 0 {
                 // Only ends early on cancellation, which this chain never does.
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
+            // Another camera: what this one has been told is unknown.
+            if ptzCamera != cameraId {
+                ptzCamera = cameraId
+                ptzDesired = PtzVelocity()
+                ptzLastSent = nil
+            }
             mutate(&ptzDesired)
             let state = ptzDesired
             guard state != ptzLastSent else { return }
-            if !isClassicLoggedIn {
-                guard await classicLogin() else {
-                    await reportPtzLoginFailure()
-                    // Whatever this command was, it didn't reach the camera.
-                    ptzLastSent = nil
-                    return
-                }
-            }
             let body: [String: Any] = [
                 "type": "continuous",
                 "payload": ["x": Int(state.x), "y": Int(state.y), "z": Int(state.z)]
             ]
-            var sent = await sendMove(cameraId: cameraId, body: body)
-            // The chain is serial, so nothing has changed the intent meanwhile.
-            if !sent, state == PtzVelocity() {
+            var sent = await deliverMove(cameraId: cameraId, body: body, isRetry: false)
+            // Retry once, but only when nothing newer is queued: a queued
+            // command goes out anyway (the camera's state is now unknown), and
+            // waiting here would only delay it.
+            if !sent, ptzEnqueued == generation {
                 do {
-                    try await Task.sleep(nanoseconds: Self.ptzStopRetryDelay)
-                    sent = await sendMove(cameraId: cameraId, body: body)
+                    try await Task.sleep(nanoseconds: Self.ptzRetryDelay)
+                    if ptzEnqueued == generation {
+                        sent = await deliverMove(cameraId: cameraId, body: body, isRetry: true)
+                    }
                 } catch {
-                    RTSPClient.log("[PTZ] stop retry cancelled; camera state unknown")
+                    RTSPClient.log("[PTZ] move retry cancelled; camera state unknown")
                 }
             }
             ptzLastSent = sent ? state : nil
         }
+    }
+
+    /// One attempt: log in if the session is gone, then send.
+    private func deliverMove(cameraId: String, body: [String: Any], isRetry: Bool) async -> Bool {
+        if !isClassicLoggedIn {
+            guard await classicLogin() else {
+                await reportPtzLoginFailure()
+                return false
+            }
+        }
+        return await sendMove(cameraId: cameraId, body: body, isRetry: isRetry)
     }
 
     private func reportPtzLoginFailure() async {
@@ -947,9 +967,9 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     /// Sends one continuous move; true when the controller accepted it. An
-    /// expired session (401) logs in again and resends this move once, so a
-    /// held direction isn't lost until the input changes; a failed re-login
-    /// shows the PTZ toast. A 403 is a missing PTZ permission, not an expired
+    /// expired session (401) logs in again and resends this move once, unless
+    /// this already is a retry, so a held direction isn't lost until the input
+    /// changes; a failed re-login shows the PTZ toast. A 403 is a missing PTZ permission, not an expired
     /// session: logging in again would only repeat (and audit-log) the login
     /// on every key press.
     @discardableResult
