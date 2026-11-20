@@ -735,7 +735,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private const double PtzVelocityScale = 1000.0;
     private readonly object _ptzLock = new();
-    private (double x, double y, double z) _ptzDesired;
+    /// <summary>The velocity the camera was last told, or null when unknown: a
+    /// send that failed, so the next command is sent even if it looks unchanged
+    /// (a lost stop would otherwise leave the camera moving).</summary>
+    private (double x, double y, double z)? _ptzDesired = (0, 0, 0);
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
 
@@ -771,35 +774,43 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                 if (delay > TimeSpan.Zero) await Task.Delay(delay).ConfigureAwait(false);
                 if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
                 {
-                    Log.Line("[PTZ] login failed — PTZ unavailable");
-                    RefreshCertificateChange();
-                    PtzErrorMessage = CertificateChange != null
-                        ? CertificateChangedMessage
-                        : "PTZ unavailable — check the username and password in Settings.";
+                    ReportPtzLoginFailure();
+                    // Whatever this command was, it didn't reach the camera.
+                    lock (_ptzLock) _ptzDesired = null;
                     return;
                 }
                 (double x, double y, double z) next;
                 lock (_ptzLock)
                 {
-                    next = mutate(_ptzDesired);
+                    next = mutate(_ptzDesired ?? (0, 0, 0));
                     if (next == _ptzDesired) return;
                     _ptzDesired = next;
                 }
-                await SendMoveAsync(cameraId, next).ConfigureAwait(false);
+                if (!await SendMoveAsync(cameraId, next).ConfigureAwait(false))
+                    lock (_ptzLock) _ptzDesired = null;
             });
         }
     }
 
+    private void ReportPtzLoginFailure()
+    {
+        Log.Line("[PTZ] login failed — PTZ unavailable");
+        RefreshCertificateChange();
+        PtzErrorMessage = CertificateChange != null
+            ? CertificateChangedMessage
+            : "PTZ unavailable — check the username and password in Settings.";
+    }
+
     /// <summary>
-    /// Sends one continuous move. An expired session (401) logs in again and
-    /// resends this move once: the velocity is already recorded as sent, so
-    /// without the resend a held direction would stay lost until the input
-    /// changed. Package snapshots recover the same way.
+    /// Sends one continuous move; true when the controller accepted it. An
+    /// expired session (401/403, as for package snapshots) logs in again and
+    /// resends this move once, so a held direction isn't lost until the input
+    /// changes. A failed re-login shows the PTZ toast.
     /// </summary>
-    private async Task SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry = false)
+    private async Task<bool> SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry = false)
     {
         var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(cameraId)}/move");
-        if (url == null) return;
+        if (url == null) return false;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
@@ -809,15 +820,23 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
             using var resp = await _classic.SendAsync(req).ConfigureAwait(false);
             Log.Line($"[PTZ] sendMove HTTP {(int)resp.StatusCode}");
-            if (resp.StatusCode == HttpStatusCode.Unauthorized)
+            if (resp.IsSuccessStatusCode) return true;
+            if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
                 IsClassicLoggedIn = false;
                 SetCreds(null, null);
-                if (!isRetry && await ClassicLoginAsync().ConfigureAwait(false))
-                    await SendMoveAsync(cameraId, v, isRetry: true).ConfigureAwait(false);
+                if (isRetry) return false;
+                if (await ClassicLoginAsync().ConfigureAwait(false))
+                    return await SendMoveAsync(cameraId, v, isRetry: true).ConfigureAwait(false);
+                ReportPtzLoginFailure();
             }
+            return false;
         }
-        catch (Exception ex) { Log.Line($"[PTZ] sendMove failed: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            Log.Line($"[PTZ] sendMove failed: {ex.Message}");
+            return false;
+        }
     }
 
     // MARK: - Helpers

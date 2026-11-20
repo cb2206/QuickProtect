@@ -843,7 +843,10 @@ final class ProtectService: NSObject, ObservableObject {
 
     private enum PtzAxis: Hashable { case pan, tilt, zoom }
 
-    private var ptzDesired = PtzVelocity()
+    /// The velocity the camera was last told, or nil when unknown: a send that
+    /// failed, so the next command is sent even if it looks unchanged (a lost
+    /// stop would otherwise leave the camera moving).
+    private var ptzDesired: PtzVelocity? = PtzVelocity()
     private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
     /// Serializes move commands so they reach the controller in call order
     /// (an earlier send may still be waiting on login or a tap's minimum burst).
@@ -903,33 +906,41 @@ final class ProtectService: NSObject, ObservableObject {
             }
             if !isClassicLoggedIn {
                 guard await classicLogin() else {
-                    await MainActor.run { self.refreshCertificateChange() }
-                    let message = certificateChange != nil
-                        ? Self.certificateChangedMessage
-                        : String(localized: "PTZ unavailable — check the username and password in Settings.")
-                    await MainActor.run { self.ptzErrorMessage = message }
+                    await reportPtzLoginFailure()
+                    // Whatever this command was, it didn't reach the camera.
+                    ptzDesired = nil
                     return
                 }
             }
-            var state = ptzDesired
+            var state = ptzDesired ?? PtzVelocity()
             mutate(&state)
             guard state != ptzDesired else { return }
             ptzDesired = state
-            await sendMove(cameraId: cameraId, body: [
+            let sent = await sendMove(cameraId: cameraId, body: [
                 "type": "continuous",
                 "payload": ["x": Int(state.x), "y": Int(state.y), "z": Int(state.z)]
             ])
+            if !sent { ptzDesired = nil }
         }
     }
 
-    /// Sends one continuous move. An expired session (401) logs in again and
-    /// resends this move once: the velocity is already recorded as sent, so
-    /// without the resend a held direction would stay lost until the input
-    /// changed. Package snapshots recover the same way.
-    private func sendMove(cameraId: String, body: [String: Any], isRetry: Bool = false) async {
+    private func reportPtzLoginFailure() async {
+        await MainActor.run { self.refreshCertificateChange() }
+        let message = certificateChange != nil
+            ? Self.certificateChangedMessage
+            : String(localized: "PTZ unavailable — check the username and password in Settings.")
+        await MainActor.run { self.ptzErrorMessage = message }
+    }
+
+    /// Sends one continuous move; true when the controller accepted it. An
+    /// expired session (401/403, as for package snapshots) logs in again and
+    /// resends this move once, so a held direction isn't lost until the input
+    /// changes. A failed re-login shows the PTZ toast.
+    @discardableResult
+    private func sendMove(cameraId: String, body: [String: Any], isRetry: Bool = false) async -> Bool {
         guard let url = makeURL(
             path: "proxy/protect/api/cameras/\(Self.pathSegment(cameraId))/move"
-        ) else { return }
+        ) else { return false }
 
         var request = URLRequest(url: url, timeoutInterval: 5)
         request.httpMethod = "POST"
@@ -947,14 +958,18 @@ final class ProtectService: NSObject, ObservableObject {
         let status = (result?.1 as? HTTPURLResponse)?.statusCode ?? -1
         let respBody = result.flatMap { String(data: $0.0, encoding: .utf8) } ?? "nil"
         RTSPClient.log("[PTZ] sendMove HTTP \(status): \(respBody.prefix(200))")
-        if status == 401 {
+        if (200..<300).contains(status) { return true }
+        if status == 401 || status == 403 {
             await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil
-            if !isRetry, await classicLogin() {
-                await sendMove(cameraId: cameraId, body: body, isRetry: true)
+            if isRetry { return false }
+            if await classicLogin() {
+                return await sendMove(cameraId: cameraId, body: body, isRetry: true)
             }
+            await reportPtzLoginFailure()
         }
+        return false
     }
 
     /// Updates the observed login flag on the main actor (SwiftUI requirement).

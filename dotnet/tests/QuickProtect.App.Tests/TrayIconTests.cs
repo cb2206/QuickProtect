@@ -20,4 +20,19 @@ public class TrayIconTests
             App.AttachTrayIcon(app, icon);
             Assert.Contains(icon, TrayIcon.GetIcons(app) ?? []);
         });
+
+    [Fact]
+    public void A_second_tray_icon_joins_the_existing_collection()
+        => UiThread.Run(() =>
+        {
+            var app = new Application();
+            var first = new TrayIcon();
+            var second = new TrayIcon();
+            App.AttachTrayIcon(app, first);
+            var icons = TrayIcon.GetIcons(app);
+            App.AttachTrayIcon(app, second);
+            // Same collection, both icons: existing ones aren't detached and re-attached.
+            Assert.Same(icons, TrayIcon.GetIcons(app));
+            Assert.Equal(new[] { first, second }, TrayIcon.GetIcons(app));
+        });
 }

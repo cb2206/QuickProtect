@@ -184,6 +184,64 @@ public class ClassicLoginAndPtzTests
     }
 
     [Fact]
+    public async Task A_failed_stop_is_not_remembered_so_the_next_stop_is_sent()
+    {
+        var moves = 0;
+        await using var console = new FakeProtectConsole
+        {
+            // The release's stop hits a server error; the controller then recovers.
+            Override = r => r.Route == Move("cam1") && Interlocked.Increment(ref moves) == 2
+                ? new FakeResponse(500, "")
+                : null
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        service.PtzSetAxes("cam1", pan: 1);
+        await console.Controller.WaitFor(Move("cam1"), count: 1);
+        service.PtzSetAxes("cam1", pan: 0);
+        await console.Controller.WaitFor(Move("cam1"), count: 2);
+        // Looks unchanged (pan 0 again), but the camera never got the stop.
+        service.PtzStopAll("cam1");
+        var sent = await console.Controller.WaitFor(Move("cam1"), count: 3);
+
+        Assert.Equal((0, 0, 0), Velocities(sent[2]));
+    }
+
+    [Fact]
+    public async Task A_failed_relogin_during_a_move_shows_the_ptz_toast_and_the_next_press_is_sent()
+    {
+        var loginsFail = false;
+        var moves = 0;
+        await using var console = new FakeProtectConsole
+        {
+            Override = r =>
+                r.Route == Login && Volatile.Read(ref loginsFail) ? new FakeResponse(401, "")
+                : r.Route == Move("cam1") && Interlocked.Increment(ref moves) == 1 ? new FakeResponse(401, "")
+                : null
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        Volatile.Write(ref loginsFail, true);
+        service.PtzSetAxes("cam1", pan: 1);
+        await WaitUntil(service, () => service.PtzErrorMessage != null);
+        Assert.Equal("PTZ unavailable — check the username and password in Settings.", service.PtzErrorMessage);
+
+        // Credentials work again: pressing the same direction must not be
+        // dropped as a duplicate of the move that never arrived.
+        Volatile.Write(ref loginsFail, false);
+        service.PtzSetAxes("cam1", pan: 0);
+        service.PtzSetAxes("cam1", pan: 1);
+        var sent = await console.Controller.WaitFor(Move("cam1"), count: 3);
+        // The release's stop goes out too (the camera's state was unknown),
+        // then the press.
+        Assert.Equal(new[] { (1000, 0, 0), (0, 0, 0), (1000, 0, 0) }, sent.Select(Velocities));
+    }
+
+    [Fact]
     public async Task A_package_snapshot_on_an_expired_session_logs_in_once_and_retries()
     {
         var snapshots = 0;

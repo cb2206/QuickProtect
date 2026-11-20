@@ -414,6 +414,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func applyKeepPanelOpen(_ keepOpen: Bool) {
         updateSettingsWindowLevel(keepOpen: keepOpen)
         guard let panel, panel.isVisible else { return }
+        // Back to popover mode while Settings is up: the popover would sit
+        // above Settings (where the toggle was just flipped), and clicks in
+        // our own windows never dismiss it. Close it, as openSettings does.
+        if !keepOpen, settingsWindow?.isVisible == true {
+            closePanel()
+            return
+        }
         let level = PanelPlacement.level(keepOpen: keepOpen)
         // In fullscreen the level is .screenSaver until exit restores this.
         if isInTrueFullscreen { savedPanelLevel = level } else { panel.level = level }
@@ -739,7 +746,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func openSettings() {
         // A kept-open panel stays up; Settings opens above it (see below).
         let keepOpen = AppSettings.shared.keepPanelOpen
-        if !keepOpen { closePanel() }
+        if !keepOpen {
+            closePanel()
+        } else if isInTrueFullscreen {
+            // Settings can't come above a fullscreen panel (.screenSaver).
+            exitPanelFullscreen()
+        }
         if settingsWindow == nil {
             let view = SettingsView(service: service, updateChecker: updateChecker)
             let win = NSWindow(contentViewController: NSHostingController(rootView: view))

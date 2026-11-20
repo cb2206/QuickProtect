@@ -283,6 +283,17 @@ public partial class MainWindow : Window
                 return true;
             }
         }
+        // Near the edge between screens of different scaling the center can
+        // miss every screen; fall back to the one holding the saved corner.
+        if (Screens.All.FirstOrDefault(s => s.WorkingArea.Contains(point)) is { } home)
+        {
+            var size = new PixelSize((int)Math.Round(Width * home.Scaling), (int)Math.Round(Height * home.Scaling));
+            var area = home.WorkingArea;
+            Position = new PixelPoint(
+                Math.Clamp(point.X, area.X, Math.Max(area.X, area.Right - size.Width)),
+                Math.Clamp(point.Y, area.Y, Math.Max(area.Y, area.Bottom - size.Height)));
+            return true;
+        }
         return false;
     }
 
