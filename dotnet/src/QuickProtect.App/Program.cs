@@ -41,8 +41,11 @@ internal static class Program
         try
         {
             // Before any Avalonia code runs: the X11 backend reads its scaling
-            // variables once, while the platform initializes.
-            if (OperatingSystem.IsLinux()) Platform.LinuxDisplayScaling.Apply();
+            // variables once, while the platform initializes. The native Wayland
+            // backend (opt-in) gets the compositor's own, fractional scale.
+            if (Platform.NativeWayland.IsRequested)
+                Log.Line($"[Platform] {Platform.NativeWayland.OptInVariable}=1: trying the native Wayland backend");
+            else if (OperatingSystem.IsLinux()) Platform.LinuxDisplayScaling.Apply();
 
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
@@ -66,6 +69,14 @@ internal static class Program
     }
 
     public static AppBuilder BuildAvaloniaApp()
+    {
+        var builder = BuildX11OrDefaultApp();
+        return Platform.NativeWayland.IsRequested
+            ? builder.UseWaylandWithFallback().With(new WaylandPlatformOptions { AppId = Platform.NativeWayland.AppId })
+            : builder;
+    }
+
+    private static AppBuilder BuildX11OrDefaultApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             // Hyprland: menus and dropdowns drawn inside their window instead of

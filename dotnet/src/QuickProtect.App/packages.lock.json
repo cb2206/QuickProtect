@@ -45,6 +45,17 @@
           "Avalonia": "12.1.6"
         }
       },
+      "Avalonia.Wayland": {
+        "type": "Direct",
+        "requested": "[12.1.6, )",
+        "resolved": "12.1.6",
+        "contentHash": "0rje2E0lNqomlKMAn5QPxjKzdl2rDsuRIJxArxonhmCcqSntIJ8A0HY71DqTwBLqiGksdCeXUGlo6bG0dzTUZA==",
+        "dependencies": {
+          "Avalonia": "12.1.6",
+          "Avalonia.FreeDesktop": "12.1.6",
+          "NWayland": "0.11.0"
+        }
+      },
       "CommunityToolkit.Mvvm": {
         "type": "Direct",
         "requested": "[8.4.2, )",
@@ -205,6 +216,11 @@
         "type": "Transitive",
         "resolved": "0.11.6",
         "contentHash": "NdNWGDiZ6eS/Mf/9+QHR91cj1K7Hy+PX9yrHI/zM7xFYuj9IWT2uxtB6sCHjrnxAeLV9fut1R6zHDUGKX6f9lQ=="
+      },
+      "NWayland": {
+        "type": "Transitive",
+        "resolved": "0.11.0",
+        "contentHash": "sTqw0WWcFd/UsF9JoWDn76+2CrCMrNZgR9jgTCqx2WTaSc/UmQ0pgo9Cbn/CRoEyXv+lIHhMygzFexv5p9ve8g=="
       },
       "SkiaSharp": {
         "type": "Transitive",
