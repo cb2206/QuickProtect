@@ -735,18 +735,17 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private const double PtzVelocityScale = 1000.0;
     private readonly object _ptzLock = new();
-    /// <summary>What the user's held keys and buttons ask for. Always updated,
-    /// even when a command can't be sent, so a held axis survives a failure.</summary>
-    private (double x, double y, double z) _ptzDesired;
-    /// <summary>The velocity the camera last accepted, or null when unknown (a
-    /// send failed): then the next command goes out even if it looks unchanged.</summary>
-    private (double x, double y, double z)? _ptzLastSent = (0, 0, 0);
-    /// <summary>The camera <see cref="_ptzDesired"/> and <see cref="_ptzLastSent"/> belong to.</summary>
-    private string? _ptzCamera;
-    /// <summary>Commands enqueued so far; a running command knows whether a newer one waits behind it.</summary>
-    private long _ptzEnqueued;
-    /// <summary>A failed command with nothing queued behind it is retried once
-    /// after this long: a lost release would otherwise leave the camera moving.</summary>
+    /// <summary>Per camera: what the user's held keys and buttons ask for.
+    /// Always updated, even when a command can't be sent, so a held axis
+    /// survives a failure. Absent means at rest.</summary>
+    private readonly Dictionary<string, (double x, double y, double z)> _ptzDesired = new();
+    /// <summary>Per camera: the velocity it last accepted. Absent means known at
+    /// rest (never moved), null means unknown after a failed send — then the
+    /// next command goes out even if it looks unchanged.</summary>
+    private readonly Dictionary<string, (double x, double y, double z)?> _ptzLastSent = new();
+    /// <summary>A failed command is retried once after this long, as its own
+    /// entry in the chain (a lost release would otherwise leave the camera
+    /// moving); a newer command that already delivered makes it a no-op.</summary>
     public static readonly TimeSpan PtzRetryDelay = TimeSpan.FromSeconds(1);
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
@@ -756,7 +755,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         // A quick tap should still produce meaningful travel: when an axis is
         // released early, postpone its stop until the minimum burst is up.
         var delay = _ptzBurst.Update(pan, tilt, zoom, DateTime.UtcNow);
-        EnqueuePtz(cameraId, delay, state =>
+        EnqueuePtz(cameraId, delay, isRetry: false, state =>
         {
             if (pan is { } p) state.x = p * PtzVelocityScale;
             if (tilt is { } t) state.y = t * PtzVelocityScale;
@@ -768,16 +767,15 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     public void PtzStopAll(string cameraId)
     {
         _ptzBurst.Reset();
-        EnqueuePtz(cameraId, TimeSpan.Zero, _ => (0, 0, 0));
+        EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: false, _ => (0, 0, 0));
     }
 
-    private void EnqueuePtz(string cameraId, TimeSpan delay,
+    private void EnqueuePtz(string cameraId, TimeSpan delay, bool isRetry,
                             Func<(double x, double y, double z), (double x, double y, double z)> mutate)
     {
         lock (_ptzLock)
         {
             var previous = _ptzChain;
-            var generation = ++_ptzEnqueued;
             _ptzChain = Task.Run(async () =>
             {
                 await previous.ConfigureAwait(false);
@@ -785,28 +783,20 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                 (double x, double y, double z) next;
                 lock (_ptzLock)
                 {
-                    // Another camera: what this one has been told is unknown.
-                    if (_ptzCamera != cameraId)
-                    {
-                        _ptzCamera = cameraId;
-                        _ptzDesired = (0, 0, 0);
-                        _ptzLastSent = null;
-                    }
-                    _ptzDesired = mutate(_ptzDesired);
-                    next = _ptzDesired;
-                    if (next == _ptzLastSent) return;
+                    next = mutate(_ptzDesired.GetValueOrDefault(cameraId));
+                    _ptzDesired[cameraId] = next;
+                    var known = _ptzLastSent.TryGetValue(cameraId, out var last) ? last : (0, 0, 0);
+                    if (next == known) return;
                 }
-                var sent = await DeliverMoveAsync(cameraId, next, isRetry: false).ConfigureAwait(false);
-                // Retry once, but only when nothing newer is queued: a queued
-                // command goes out anyway (the camera's state is now unknown),
-                // and waiting here would only delay it.
-                if (!sent && Interlocked.Read(ref _ptzEnqueued) == generation)
-                {
-                    await Task.Delay(PtzRetryDelay).ConfigureAwait(false);
-                    if (Interlocked.Read(ref _ptzEnqueued) == generation)
-                        sent = await DeliverMoveAsync(cameraId, next, isRetry: true).ConfigureAwait(false);
-                }
-                lock (_ptzLock) _ptzLastSent = sent ? next : null;
+                var sent = await DeliverMoveAsync(cameraId, next, isRetry).ConfigureAwait(false);
+                lock (_ptzLock) _ptzLastSent[cameraId] = sent ? next : null;
+                // One retry, queued behind whatever comes next; it re-sends the
+                // camera's then-current intent only if that still isn't known
+                // to have arrived.
+                if (!sent && !isRetry)
+                    _ = Task.Delay(PtzRetryDelay).ContinueWith(
+                        _ => EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: true, state => state),
+                        TaskScheduler.Default);
             });
         }
     }

@@ -235,13 +235,55 @@ public class ClassicLoginAndPtzTests
         service.PtzSetAxes("cam1", tilt: 1);
         await WaitUntil(service, () => service.PtzErrorMessage != null);
 
-        // The camera is still panning; the stop's own login fails, then the
-        // console recovers before the retry and nothing else is pressed.
+        // The camera is still panning. The stop's own login fails too...
+        var loginsBeforeStop = console.Controller.To(Login).Count;
         service.PtzStopAll("cam1");
-        await Task.Delay(200);
+        await console.Controller.WaitFor(Login, count: loginsBeforeStop + 1);
+        Assert.DoesNotContain(console.Controller.To(Move("cam1")), m => Velocities(m) == (0, 0, 0));
+        // ...then the console recovers, and with nothing else pressed the stop arrives.
         Volatile.Write(ref loginsFail, false);
+        await WaitForLastMove(console, (0, 0, 0));
+    }
+
+    [Fact]
+    public async Task A_stop_for_another_camera_does_not_abandon_a_failed_one()
+    {
+        var moves = 0;
+        await using var console = new FakeProtectConsole
+        {
+            // cam1's stop hits a server error.
+            Override = r => r.Route == Move("cam1") && Interlocked.Increment(ref moves) == 2
+                ? new FakeResponse(500, "")
+                : null
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        service.PtzSetAxes("cam1", pan: 1);
+        await console.Controller.WaitFor(Move("cam1"), count: 1);
+        service.PtzStopAll("cam1");
+        service.PtzStopAll("cam2");
 
         await WaitForLastMove(console, (0, 0, 0));
+        // cam2 never moved: its stop is a no-op.
+        Assert.Empty(console.Controller.To(Move("cam2")));
+    }
+
+    [Fact]
+    public async Task Stopping_a_camera_that_never_moved_sends_nothing()
+    {
+        await using var console = new FakeProtectConsole();
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+
+        // Focus exit calls this for every camera.
+        service.PtzStopAll("cam1");
+        await Task.Delay(PtzSettle);
+
+        Assert.Empty(console.Controller.To(Move("cam1")));
+        Assert.Empty(console.Controller.To(Login));
+        Assert.Null(service.PtzErrorMessage);
     }
 
     [Fact]

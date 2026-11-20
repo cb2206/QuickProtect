@@ -843,19 +843,18 @@ final class ProtectService: NSObject, ObservableObject {
 
     private enum PtzAxis: Hashable { case pan, tilt, zoom }
 
-    /// What the user's held keys and buttons ask for. Always updated, even when
-    /// a command can't be sent, so a held axis survives a failure.
-    private var ptzDesired = PtzVelocity()
-    /// The velocity the camera last accepted, or nil when unknown (a send
-    /// failed): then the next command goes out even if it looks unchanged.
-    private var ptzLastSent: PtzVelocity? = PtzVelocity()
-    /// The camera `ptzDesired` and `ptzLastSent` belong to.
-    private var ptzCamera: String?
-    /// Commands enqueued so far; a running command knows whether a newer one
-    /// waits behind it.
-    private var ptzEnqueued = 0
-    /// A failed command with nothing queued behind it is retried once after
-    /// this long: a lost release would otherwise leave the camera moving.
+    /// Per camera: what the user's held keys and buttons ask for. Always
+    /// updated, even when a command can't be sent, so a held axis survives a
+    /// failure. Absent means at rest.
+    private var ptzDesired: [String: PtzVelocity] = [:]
+    /// Per camera: the velocity it last accepted. Absent means known at rest
+    /// (never moved); a camera in `ptzUnknown` had a send fail, so its next
+    /// command goes out even if it looks unchanged.
+    private var ptzLastSent: [String: PtzVelocity] = [:]
+    private var ptzUnknown: Set<String> = []
+    /// A failed command is retried once after this long, as its own entry in
+    /// the chain (a lost release would otherwise leave the camera moving); a
+    /// newer command that already delivered makes it a no-op.
     private static let ptzRetryDelay: UInt64 = 1_000_000_000
     private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
     /// Serializes move commands so they reach the controller in call order
@@ -902,48 +901,51 @@ final class ProtectService: NSObject, ObservableObject {
         enqueuePtzSend(cameraId: cameraId, delay: 0) { $0 = PtzVelocity() }
     }
 
-    /// Applies `mutate` to the desired velocities and sends the resulting
-    /// continuous-move command. Commands are chained so they reach the
-    /// controller in call order; `delay` postpones the send within the chain.
-    private func enqueuePtzSend(cameraId: String, delay: TimeInterval,
+    /// Applies `mutate` to the camera's desired velocities and sends the
+    /// resulting continuous-move command. Commands are chained so they reach
+    /// the controller in call order; `delay` postpones the send within the
+    /// chain. A failed command queues one retry (`isRetry`) a second later.
+    private func enqueuePtzSend(cameraId: String, delay: TimeInterval, isRetry: Bool = false,
                                 mutate: @escaping (inout PtzVelocity) -> Void) {
         let previous = ptzSendChain
-        ptzEnqueued += 1
-        let generation = ptzEnqueued
         ptzSendChain = Task {
             await previous?.value
             if delay > 0 {
                 // Only ends early on cancellation, which this chain never does.
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
-            // Another camera: what this one has been told is unknown.
-            if ptzCamera != cameraId {
-                ptzCamera = cameraId
-                ptzDesired = PtzVelocity()
-                ptzLastSent = nil
-            }
-            mutate(&ptzDesired)
-            let state = ptzDesired
-            guard state != ptzLastSent else { return }
+            var state = ptzDesired[cameraId] ?? PtzVelocity()
+            mutate(&state)
+            ptzDesired[cameraId] = state
+            let known = ptzUnknown.contains(cameraId) ? nil : (ptzLastSent[cameraId] ?? PtzVelocity())
+            guard state != known else { return }
             let body: [String: Any] = [
                 "type": "continuous",
                 "payload": ["x": Int(state.x), "y": Int(state.y), "z": Int(state.z)]
             ]
-            var sent = await deliverMove(cameraId: cameraId, body: body, isRetry: false)
-            // Retry once, but only when nothing newer is queued: a queued
-            // command goes out anyway (the camera's state is now unknown), and
-            // waiting here would only delay it.
-            if !sent, ptzEnqueued == generation {
-                do {
-                    try await Task.sleep(nanoseconds: Self.ptzRetryDelay)
-                    if ptzEnqueued == generation {
-                        sent = await deliverMove(cameraId: cameraId, body: body, isRetry: true)
-                    }
-                } catch {
-                    RTSPClient.log("[PTZ] move retry cancelled; camera state unknown")
-                }
+            let sent = await deliverMove(cameraId: cameraId, body: body, isRetry: isRetry)
+            if sent {
+                ptzLastSent[cameraId] = state
+                ptzUnknown.remove(cameraId)
+            } else {
+                ptzUnknown.insert(cameraId)
+                // One retry, queued behind whatever comes next; it re-sends the
+                // camera's then-current intent only if that still isn't known
+                // to have arrived.
+                if !isRetry { schedulePtzRetry(cameraId: cameraId) }
             }
-            ptzLastSent = sent ? state : nil
+        }
+    }
+
+    private func schedulePtzRetry(cameraId: String) {
+        Task {
+            do {
+                try await Task.sleep(nanoseconds: Self.ptzRetryDelay)
+            } catch {
+                RTSPClient.log("[PTZ] move retry cancelled; camera state unknown")
+                return
+            }
+            enqueuePtzSend(cameraId: cameraId, delay: 0, isRetry: true) { _ in }
         }
     }
 
