@@ -19,20 +19,20 @@ NOTICES.txt); it is copied into every published build by the App project.
    next to the QuickProtect executable, unmodified, from the "lgpl-shared"
    builds published by the BtbN FFmpeg-Builds project:
 
-     Build:    ffmpeg n9.0.1-11-ge47273f4d9 (FFmpeg release/9.0 branch,
-               commit e47273f4d9), LGPL configuration
-     Release:  https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-08-31-13-27
-     Assets:   ffmpeg-n9.0.1-11-ge47273f4d9-win64-lgpl-shared-9.0.zip
-                 sha256 83a824f0729a69d143c9865125bb86988a11dd388325f0033711045522068aa0
-               ffmpeg-n9.0.1-11-ge47273f4d9-winarm64-lgpl-shared-9.0.zip
-                 sha256 e6a65bd651db8817a7e76382a82db0fa28da45c6a0b512f1f65078d3d48cdfff
-               ffmpeg-n9.0.1-11-ge47273f4d9-linux64-lgpl-shared-9.0.tar.xz
-                 sha256 ec8dc218c3495af574be2c894de74c5f3f1f1b86cc8a95739d220b88887024fa
-               ffmpeg-n9.0.1-11-ge47273f4d9-linuxarm64-lgpl-shared-9.0.tar.xz
-                 sha256 c663f93322183c99d2b954969d11a287582ff69e39bde50d018b18ece27589cf
+     Build:    ffmpeg n9.0.2-39-g7adfbe40dc (FFmpeg release/9.0 branch,
+               commit 7adfbe40dc), LGPL configuration
+     Release:  https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-10-31-12-59
+     Assets:   ffmpeg-n9.0.2-39-g7adfbe40dc-win64-lgpl-shared-9.0.zip
+                 sha256 e907b01fa4783913151237e37df2a10fa97d99a1598a021bf59d4ae62ffed4c0
+               ffmpeg-n9.0.2-39-g7adfbe40dc-winarm64-lgpl-shared-9.0.zip
+                 sha256 68664c6af3dc41384f983d5f6d33eb8cc7540eaced8c8d02fb0dd34ffbcdbbf6
+               ffmpeg-n9.0.2-39-g7adfbe40dc-linux64-lgpl-shared-9.0.tar.xz
+                 sha256 5a58e2dffad4835ee3418939f2676d6898489f8e047299f5f62ee0da3f8dd5dc
+               ffmpeg-n9.0.2-39-g7adfbe40dc-linuxarm64-lgpl-shared-9.0.tar.xz
+                 sha256 4ef690828b307aaf9df28cc05744ca41f8107841a06566db1544380f3d3a5499
 
    Source code: FFmpeg's source for this build is available from
-   https://github.com/FFmpeg/FFmpeg/tree/e47273f4d9 (and https://ffmpeg.org);
+   https://github.com/FFmpeg/FFmpeg/tree/7adfbe40dc (and https://ffmpeg.org);
    the build scripts and the exact configuration are in
    https://github.com/BtbN/FFmpeg-Builds. Because the libraries are separate
    shared objects, you may replace them with your own build of a compatible

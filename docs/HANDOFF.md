@@ -116,7 +116,7 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
 ## Open follow-ups
 
 - The FFmpeg pin is a BtbN end-of-month snapshot of the n9.0 branch
-  (`autobuild-2026-08-31-13-27`, libavcodec 63) with FFmpeg.AutoGen 9.0.1.1.
+  (`autobuild-2026-10-31-12-59`, libavcodec 63) with FFmpeg.AutoGen 9.0.1.1.
   Bump both together every few months (tag + four checksums in
   `scripts/get-ffmpeg.*`, the package versions, THIRD-PARTY-NOTICES.txt) and
   run `dotnet test tests/QuickProtect.App.Tests` with an `ffmpeg` binary on
