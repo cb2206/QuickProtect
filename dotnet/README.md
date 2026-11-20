@@ -125,8 +125,9 @@ Diagnostics: fatal errors land in `%APPDATA%\QuickProtect\crash.log`
 (`~/.config/QuickProtect/` on Linux), FFmpeg warnings/errors in `video.log`
 next to it.
 
-Display scaling on Wayland: Avalonia (12.x here) has no Wayland backend, so the app runs
-through XWayland on an unscaled surface and takes its scale from the desktop's
+Display scaling on Wayland: Avalonia 12's Wayland backend is an experimental
+opt-in package (`Avalonia.Wayland`) that this build does not use (evaluation:
+issue #4), so the app runs through XWayland on an unscaled surface and takes its scale from the desktop's
 `GDK_SCALE` (see `Platform/LinuxDisplayScaling.cs`) — the same signal GTK and
 Electron apps follow. Set `AVALONIA_GLOBAL_SCALE_FACTOR` to override it, e.g. to
 get the fractional value behind an integer `GDK_SCALE`. The scale is read once
