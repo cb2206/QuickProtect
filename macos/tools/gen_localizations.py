@@ -1474,13 +1474,13 @@ for _k, (_de, _fr, _es, _nl, _it, _pt) in _sites.items():
 _panel = {
     "Camera panel": ("Kamera-Panel", "Panneau des caméras", "Panel de cámaras", "Camerapaneel", "Pannello telecamere", "Painel de câmeras"),
     "Keep the panel open": ("Panel geöffnet lassen", "Garder le panneau ouvert", "Mantener el panel abierto", "Paneel open houden", "Mantieni aperto il pannello", "Manter o painel aberto"),
-    "Clicking elsewhere no longer closes it. It stays on top of other windows and reopens where you left it. Close it with ✕, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it's open.":
-        ("Ein Klick daneben schließt es nicht mehr. Es bleibt über anderen Fenstern und öffnet sich dort wieder, wo du es gelassen hast. Schließe es mit ✕, dem QuickProtect-Symbol oder dem Tastenkürzel. Seine Kameras streamen weiter, solange es offen ist.",
-         "Un clic ailleurs ne le ferme plus. Il reste au-dessus des autres fenêtres et se rouvre là où vous l'avez laissé. Fermez-le avec ✕, l'icône QuickProtect ou le raccourci clavier. Ses caméras continuent de diffuser tant qu'il est ouvert.",
-         "Hacer clic fuera ya no lo cierra. Se mantiene sobre las demás ventanas y se vuelve a abrir donde lo dejaste. Ciérralo con ✕, el icono de QuickProtect o el atajo de teclado. Sus cámaras siguen transmitiendo mientras está abierto.",
-         "Ergens anders klikken sluit het niet meer. Het blijft boven andere vensters en opent weer waar je het liet. Sluit het met ✕, het QuickProtect-pictogram of de sneltoets. De camera's blijven streamen zolang het open is.",
-         "Un clic altrove non lo chiude più. Resta sopra le altre finestre e si riapre dove l'hai lasciato. Chiudilo con ✕, l'icona di QuickProtect o la scorciatoia da tastiera. Le sue telecamere continuano a trasmettere finché è aperto.",
-         "Clicar fora não o fecha mais. Ele fica acima das outras janelas e reabre onde você o deixou. Feche-o com ✕, o ícone do QuickProtect ou o atalho de teclado. As câmeras continuam transmitindo enquanto ele estiver aberto."),
+    "Clicking elsewhere no longer closes it. It stays on top of other windows and reopens where you left it. Close it with its close button, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it's open.":
+        ("Ein Klick daneben schließt es nicht mehr. Es bleibt über anderen Fenstern und öffnet sich dort wieder, wo du es gelassen hast. Schließe es mit seiner Schließen-Taste, dem QuickProtect-Symbol oder dem Tastenkürzel. Seine Kameras streamen weiter, solange es offen ist.",
+         "Un clic ailleurs ne le ferme plus. Il reste au-dessus des autres fenêtres et se rouvre là où vous l'avez laissé. Fermez-le avec son bouton de fermeture, l'icône QuickProtect ou le raccourci clavier. Ses caméras continuent de diffuser tant qu'il est ouvert.",
+         "Hacer clic fuera ya no lo cierra. Se mantiene sobre las demás ventanas y se vuelve a abrir donde lo dejaste. Ciérralo con su botón de cerrar, el icono de QuickProtect o el atajo de teclado. Sus cámaras siguen transmitiendo mientras está abierto.",
+         "Ergens anders klikken sluit het niet meer. Het blijft boven andere vensters en opent weer waar je het liet. Sluit het met de sluitknop, het QuickProtect-pictogram of de sneltoets. De camera's blijven streamen zolang het open is.",
+         "Un clic altrove non lo chiude più. Resta sopra le altre finestre e si riapre dove l'hai lasciato. Chiudilo con il pulsante di chiusura, l'icona di QuickProtect o la scorciatoia da tastiera. Le sue telecamere continuano a trasmettere finché è aperto.",
+         "Clicar fora não o fecha mais. Ele fica acima das outras janelas e reabre onde você o deixou. Feche-o com o botão de fechar, o ícone do QuickProtect ou o atalho de teclado. As câmeras continuam transmitindo enquanto ele estiver aberto."),
 }
 for _k, (_de, _fr, _es, _nl, _it, _pt) in _panel.items():
     de[_k] = _de; fr[_k] = _fr; es[_k] = _es; nl[_k] = _nl; it[_k] = _it; pt_br[_k] = _pt

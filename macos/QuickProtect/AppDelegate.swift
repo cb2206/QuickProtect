@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var appSwitchObserver: NSObjectProtocol?
     private var savedPanelFrame: NSRect?
     private var savedPanelLevel: NSWindow.Level?
+    /// True while leaving fullscreen animates the panel back to its frame:
+    /// the intermediate frames are not the user's placement and aren't saved.
+    private var isRestoringPanelFrame = false
     /// State shared with the SwiftUI views (fullscreen flag, pinned windows).
     let appState = AppState()
     var isInTrueFullscreen: Bool { appState.isInTrueFullscreen }
@@ -351,6 +354,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel?.makeKeyAndOrderFront(nil)
 
         updateDismissalMonitors(keepOpen: AppSettings.shared.keepPanelOpen)
+        updateSettingsWindowLevel()
 
         Task { await service.fetchCameras() }
     }
@@ -398,8 +402,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    /// Settings sits at the kept-open panel's level while that panel is up, so
+    /// ordering it front puts it above the panel; otherwise it is an ordinary
+    /// window. Re-evaluated whenever the panel shows, closes or changes mode.
+    private func updateSettingsWindowLevel(keepOpen: Bool = AppSettings.shared.keepPanelOpen) {
+        let panelUp = panel?.isVisible == true && keepOpen
+        settingsWindow?.level = panelUp ? PanelPlacement.level(keepOpen: true) : .normal
+    }
+
     /// Switches an open panel between popover and kept-open behavior.
     private func applyKeepPanelOpen(_ keepOpen: Bool) {
+        updateSettingsWindowLevel(keepOpen: keepOpen)
         guard let panel, panel.isVisible else { return }
         let level = PanelPlacement.level(keepOpen: keepOpen)
         // In fullscreen the level is .screenSaver until exit restores this.
@@ -493,6 +506,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         appState.isInTrueFullscreen = false
         savedPanelFrame = nil
         savedPanelLevel = nil
+        isRestoringPanelFrame = false
+        updateSettingsWindowLevel()
     }
 
     // MARK: - Stream keep-alive
@@ -548,7 +563,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowDidResize(_ notification: Notification) {
-        guard let win = notification.object as? NSPanel, win === panel, !isInTrueFullscreen else { return }
+        guard let win = notification.object as? NSPanel, win === panel,
+              !isInTrueFullscreen, !isRestoringPanelFrame else { return }
         AppSettings.shared.setPanelSize(win.frame.size)
         // Resizing from the bottom edge moves the origin without a didMove.
         if win.isVisible, AppSettings.shared.keepPanelOpen {
@@ -558,7 +574,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func windowDidMove(_ notification: Notification) {
         guard let win = notification.object as? NSPanel, win === panel, win.isVisible,
-              !isInTrueFullscreen, AppSettings.shared.keepPanelOpen else { return }
+              !isInTrueFullscreen, !isRestoringPanelFrame, AppSettings.shared.keepPanelOpen else { return }
         AppSettings.shared.panelOrigin = win.frame.origin
     }
 
@@ -589,12 +605,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Resize the panel with a soft ease-out that approximates the SwiftUI
     /// `.spring` used for grid↔focus, so the focus→fullscreen step feels like a
     /// continuation of the same motion rather than a different animation engine.
-    private static func animatePanelFrame(_ panel: NSPanel, to frame: NSRect) {
-        NSAnimationContext.runAnimationGroup { ctx in
+    private static func animatePanelFrame(_ panel: NSPanel, to frame: NSRect,
+                                          completion: (() -> Void)? = nil) {
+        NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.42
             ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
             panel.animator().setFrame(frame, display: true)
-        }
+        }, completionHandler: completion)
     }
 
     private func exitPanelFullscreen() {
@@ -606,7 +623,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.level = savedPanelLevel ?? PanelPlacement.level(keepOpen: AppSettings.shared.keepPanelOpen)
         panel.hasShadow = true
         if let frame = savedPanelFrame {
-            Self.animatePanelFrame(panel, to: frame)
+            isRestoringPanelFrame = true
+            Self.animatePanelFrame(panel, to: frame) { [weak self] in
+                MainActor.assumeIsolated { self?.isRestoringPanelFrame = false }
+            }
         }
         savedPanelFrame = nil
     }
@@ -744,8 +764,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         NSApp.setActivationPolicy(.regular)
-        // At the kept-open panel's level, so ordering front puts it above.
-        settingsWindow?.level = keepOpen ? PanelPlacement.level(keepOpen: true) : .normal
+        updateSettingsWindowLevel()
         settingsWindow?.center()
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

@@ -165,7 +165,10 @@ public partial class App : Application
     /// <c>TrayIcon.Icons</c>, so merely constructing and holding it shows nothing.
     /// </summary>
     internal static void AttachTrayIcon(Application app, TrayIcon icon)
-        => TrayIcon.SetIcons(app, [.. TrayIcon.GetIcons(app) ?? [], icon]);
+    {
+        if (TrayIcon.GetIcons(app) is { } icons) icons.Add(icon);
+        else TrayIcon.SetIcons(app, [icon]);
+    }
 
     /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>
     private void StartShowPanelListener() =>

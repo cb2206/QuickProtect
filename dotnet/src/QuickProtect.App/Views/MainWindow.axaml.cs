@@ -271,15 +271,19 @@ public partial class MainWindow : Window
         if (WindowState == WindowState.FullScreen) return true;
         if (QuickProtect.Core.Services.AppSettings.Shared.PanelPosition() is not { } saved) return false;
         var point = new PixelPoint(saved.X, saved.Y);
-        // Sized in the pixels of the screen it lands on (mixed-DPI setups), and
+        // Each screen is tried with the panel sized in its own pixels (mixed-DPI
+        // setups): the one holding the panel's center wins, and the panel is
         // kept within that screen's working area, clear of the taskbar.
-        var scale = (Screens.All.FirstOrDefault(s => s.Bounds.Contains(point)) ?? Screens.Primary)?.Scaling
-                    ?? RenderScaling;
-        var size = new PixelSize((int)Math.Round(Width * scale), (int)Math.Round(Height * scale));
-        if (RestorablePosition(point, size, Screens.All.Select(s => s.WorkingArea)) is not { } restored)
-            return false;
-        Position = restored;
-        return true;
+        foreach (var screen in Screens.All)
+        {
+            var size = new PixelSize((int)Math.Round(Width * screen.Scaling), (int)Math.Round(Height * screen.Scaling));
+            if (RestorablePosition(point, size, [screen.WorkingArea]) is { } restored)
+            {
+                Position = restored;
+                return true;
+            }
+        }
+        return false;
     }
 
     private Avalonia.Threading.DispatcherTimer? _geometrySave;

@@ -198,7 +198,8 @@ port (`dotnet/`).
   reopens where it was left, pulled back onto a screen that still exists
   (`PanelPlacement.restoredOrigin` / `MainWindow.RestorablePosition`, here
   within the screen's working area); the spot is saved as it changes, not
-  only on close. On top: macOS lowers the level from `.popUpMenu` to
+  only on close (the Hyprland overlay keeps its own save-on-hide and
+  restores against the full screen bounds). On top: macOS lowers the level from `.popUpMenu` to
   `.floating` (a long-lived window shouldn't cover other apps' menus), pinned
   windows stay above it (`.popUpMenu + 1`), and Settings opens at the panel's
   level instead of closing it; here the panel is `Topmost` like the pinned
