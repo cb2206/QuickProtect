@@ -173,7 +173,7 @@
                   <Grid Classes="row" ColumnDefinitions="*,Auto">
                     <StackPanel Grid.Column="0" Spacing="2">
                       <TextBlock Text="{loc:Loc 'Keep the panel open'}" Classes="rowLabel" />
-                      <TextBlock Text="{loc:Loc 'Clicking elsewhere no longer closes it. It stays on top of other windows, moves by its header, and reopens where you left it. Close it with ✕, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it\'s open.'}"
+                      <TextBlock Text="{loc:Loc 'Clicking elsewhere no longer closes it. It stays on top of other windows and reopens where you left it. Close it with ✕, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it\'s open.'}"
                                  Classes="rowHint" />
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding KeepPanelOpen}"

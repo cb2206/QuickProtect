@@ -41,7 +41,7 @@ extension SettingsView {
                     String(localized: "Keep the panel open"),
                     // The catalog key is the full English sentence.
                     // swiftlint:disable:next line_length
-                    hint: String(localized: "Clicking elsewhere no longer closes it. It stays on top of other windows, moves by its header, and reopens where you left it. Close it with ✕, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it's open."),
+                    hint: String(localized: "Clicking elsewhere no longer closes it. It stays on top of other windows and reopens where you left it. Close it with ✕, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it's open."),
                     isLast: true,
                     labelExpands: true
                 ) {

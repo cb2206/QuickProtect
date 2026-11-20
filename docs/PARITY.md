@@ -192,16 +192,19 @@ port (`dotnet/`).
   `keepPanelOpen` / `KeepPanelOpen` (same `unifi.keepPanelOpen` key). The
   popover dismissals stop (macOS: the global click monitor and the app-switch
   observer; here: `Deactivated` and the Windows foreground hook, checked per
-  event so the switch applies to an open panel); the header gets the ✕ and
-  doubles as a drag handle (macOS: `WindowDragArea` + `DragMovablePanel`, the
-  pinned windows' drag); the panel reopens where it was left, pulled back onto
-  a screen that still exists (`PanelPlacement.restoredOrigin` /
-  `MainWindow.RestorablePosition`). On top: macOS lowers the level from
-  `.popUpMenu` to `.floating` (a long-lived window shouldn't cover other apps'
-  menus; pinned windows stay above it at `.popUpMenu + 1`); here `Topmost`.
-  Hyprland's overlay mode already behaves this way, so the row is hidden there.
-  Streams keep running for as long as the panel is open, which the setting's
-  hint says.
+  event so the switch applies to an open panel). Closing and moving: macOS
+  already has a title bar with the close button; here the header shows the ✕
+  (as in the Hyprland overlay) and is the drag handle as always. The panel
+  reopens where it was left, pulled back onto a screen that still exists
+  (`PanelPlacement.restoredOrigin` / `MainWindow.RestorablePosition`, here
+  within the screen's working area); the spot is saved as it changes, not
+  only on close. On top: macOS lowers the level from `.popUpMenu` to
+  `.floating` (a long-lived window shouldn't cover other apps' menus), pinned
+  windows stay above it (`.popUpMenu + 1`), and Settings opens at the panel's
+  level instead of closing it; here the panel is `Topmost` like the pinned
+  windows, so whichever was clicked last is in front. Hyprland's overlay mode
+  already behaves this way, so the row is hidden there. Streams keep running
+  for as long as the panel is open, which the setting's hint says.
 
 ## Pending (macOS ahead)
 

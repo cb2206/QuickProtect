@@ -24,6 +24,8 @@ public partial class MainWindow : Window
         // "Keep the panel open": no focus-loss dismissal, on top, ✕ in the
         // header. Applies at once when the setting changes.
         ApplyKeepOpen();
+        PositionChanged += (_, _) => ScheduleGeometrySave();
+        SizeChanged += (_, _) => ScheduleGeometrySave();
         QuickProtect.Core.Services.AppSettings.Shared.PropertyChanged += OnSettingChanged;
         Closed += (_, _) => QuickProtect.Core.Services.AppSettings.Shared.PropertyChanged -= OnSettingChanged;
         // Tile drag-reorder needs tunnel handlers: the footer Button swallows
@@ -267,13 +269,38 @@ public partial class MainWindow : Window
     private bool RestoreSavedPosition()
     {
         if (WindowState == WindowState.FullScreen) return true;
-        var size = new PixelSize((int)Math.Round(Width * RenderScaling), (int)Math.Round(Height * RenderScaling));
-        if (QuickProtect.Core.Services.AppSettings.Shared.PanelPosition() is not { } saved
-            || RestorablePosition(new PixelPoint(saved.X, saved.Y), size, Screens.All.Select(s => s.Bounds))
-                is not { } restored)
+        if (QuickProtect.Core.Services.AppSettings.Shared.PanelPosition() is not { } saved) return false;
+        var point = new PixelPoint(saved.X, saved.Y);
+        // Sized in the pixels of the screen it lands on (mixed-DPI setups), and
+        // kept within that screen's working area, clear of the taskbar.
+        var scale = (Screens.All.FirstOrDefault(s => s.Bounds.Contains(point)) ?? Screens.Primary)?.Scaling
+                    ?? RenderScaling;
+        var size = new PixelSize((int)Math.Round(Width * scale), (int)Math.Round(Height * scale));
+        if (RestorablePosition(point, size, Screens.All.Select(s => s.WorkingArea)) is not { } restored)
             return false;
         Position = restored;
         return true;
+    }
+
+    private Avalonia.Threading.DispatcherTimer? _geometrySave;
+
+    /// <summary>
+    /// A kept-open panel is rarely hidden, so its spot and size are saved as
+    /// they change (debounced), not only on hide — a logoff or crash keeps them.
+    /// </summary>
+    private void ScheduleGeometrySave()
+    {
+        if (!KeepsOpen || IsOverlay || !IsVisible || WindowState != WindowState.Normal) return;
+        _geometrySave ??= new Avalonia.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(500),
+            Avalonia.Threading.DispatcherPriority.Background, (_, _) =>
+            {
+                _geometrySave?.Stop();
+                if (!KeepsOpen || !IsVisible || WindowState != WindowState.Normal) return;
+                QuickProtect.Core.Services.AppSettings.Shared.SetPanelSize(Width, Height);
+                QuickProtect.Core.Services.AppSettings.Shared.SetPanelPosition(Position.X, Position.Y);
+            });
+        _geometrySave.Stop();
+        _geometrySave.Start();
     }
 
     private void Header_Close(object? sender, RoutedEventArgs e) => Hide();

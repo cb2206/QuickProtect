@@ -315,7 +315,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             let hostingController = NSHostingController(rootView: content.environment(\.appState, appState))
 
-            let p = DragMovablePanel(
+            let p = NSPanel(
                 contentRect: NSRect(origin: .zero, size: size),
                 styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
                 backing: .buffered,
@@ -454,15 +454,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel, panel.isVisible, !isInTrueFullscreen else { return }
         if let size = AppSettings.shared.panelSize() {
             guard size != panel.frame.size else { return }
-            if AppSettings.shared.keepPanelOpen {
-                // Moved by the user: grow and shrink from the top-left corner.
-                let top = panel.frame.maxY
-                panel.setContentSize(size)
-                panel.setFrameTopLeftPoint(NSPoint(x: panel.frame.minX, y: top))
-            } else {
-                panel.setContentSize(size)
-                positionPanelBelowStatusItem()
-            }
+            // setContentSize keeps the top-left corner, which is where a
+            // kept-open panel stays; a popover re-anchors under the status item.
+            panel.setContentSize(size)
+            if !AppSettings.shared.keepPanelOpen { positionPanelBelowStatusItem() }
         } else {
             AppSettings.shared.setPanelSize(panel.frame.size)
         }
@@ -493,6 +488,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel?.contentViewController = nil
         panel = nil
         removeDismissalMonitors()
+        // Closed while in true fullscreen (hotkey, status item): the next panel
+        // is built fresh, so the fullscreen state must not outlive this one.
+        appState.isInTrueFullscreen = false
+        savedPanelFrame = nil
+        savedPanelLevel = nil
     }
 
     // MARK: - Stream keep-alive
@@ -550,6 +550,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func windowDidResize(_ notification: Notification) {
         guard let win = notification.object as? NSPanel, win === panel, !isInTrueFullscreen else { return }
         AppSettings.shared.setPanelSize(win.frame.size)
+        // Resizing from the bottom edge moves the origin without a didMove.
+        if win.isVisible, AppSettings.shared.keepPanelOpen {
+            AppSettings.shared.panelOrigin = win.frame.origin
+        }
     }
 
     func windowDidMove(_ notification: Notification) {
@@ -713,7 +717,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - Settings window
 
     func openSettings() {
-        closePanel()
+        // A kept-open panel stays up; Settings opens above it (see below).
+        let keepOpen = AppSettings.shared.keepPanelOpen
+        if !keepOpen { closePanel() }
         if settingsWindow == nil {
             let view = SettingsView(service: service, updateChecker: updateChecker)
             let win = NSWindow(contentViewController: NSHostingController(rootView: view))
@@ -738,6 +744,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         NSApp.setActivationPolicy(.regular)
+        // At the kept-open panel's level, so ordering front puts it above.
+        settingsWindow?.level = keepOpen ? PanelPlacement.level(keepOpen: true) : .normal
         settingsWindow?.center()
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

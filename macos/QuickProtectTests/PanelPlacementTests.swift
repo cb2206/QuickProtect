@@ -9,9 +9,6 @@ final class PanelPlacementTests: XCTestCase {
     func testLevelFollowsKeepOpen() {
         XCTAssertEqual(PanelPlacement.level(keepOpen: false), .popUpMenu)
         XCTAssertEqual(PanelPlacement.level(keepOpen: true), .floating)
-        // Pinned windows (`.popUpMenu + 1`) must stay above the panel either way.
-        XCTAssertLessThan(PanelPlacement.level(keepOpen: true).rawValue, NSWindow.Level.popUpMenu.rawValue + 1)
-        XCTAssertLessThan(PanelPlacement.level(keepOpen: false).rawValue, NSWindow.Level.popUpMenu.rawValue + 1)
     }
 
     func testOriginOnScreenIsKept() {
