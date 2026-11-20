@@ -115,8 +115,15 @@ NOTICES.txt); it is copied into every published build by the App project.
    https://chromium.googlesource.com/angle/angle
 
 
+14. Avalonia.Wayland 12.1.6 and NWayland 0.11.0 (Linux, native Wayland
+    backend; only used with QUICKPROTECT_WAYLAND=1) — MIT License
+   ---------------------------------------------------------------------------
+   Copyright 2013-2026 © The AvaloniaUI Project. https://avaloniaui.net
+   NWayland: Copyright (c) Nikita Tsukanov. https://github.com/kekekeks/NWayland
+
+
 ===============================================================================
-MIT LICENSE (components 3, 5, 6, 7, 8, 9, 10)
+MIT LICENSE (components 3, 5, 6, 7, 8, 9, 10, 14)
 ===============================================================================
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
