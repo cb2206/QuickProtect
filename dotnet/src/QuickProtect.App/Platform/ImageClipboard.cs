@@ -6,8 +6,10 @@ using QuickProtect.Core.Services;
 namespace QuickProtect.App.Platform;
 
 /// <summary>
-/// Puts a PNG image file on the system clipboard. Avalonia 11 has no portable
-/// image-clipboard API, so each OS gets its own path:
+/// Puts a PNG image file on the system clipboard. Each OS gets its own path
+/// (Avalonia 12's <c>IClipboard.SetBitmapAsync</c> could replace these, but it
+/// is unverified against paste targets on Windows, X11 and Wayland, whereas
+/// these paths were checked by hand there):
 ///  • Windows — Win32 clipboard with CF_DIB (universally pasteable) plus the
 ///    registered "PNG" format (keeps transparency for apps that support it).
 ///  • Linux — shells out to wl-copy (Wayland) or xclip (X11), whichever exists.
