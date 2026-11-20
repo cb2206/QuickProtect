@@ -184,7 +184,7 @@ public class ClassicLoginAndPtzTests
     }
 
     [Fact]
-    public async Task A_failed_stop_is_not_remembered_so_the_next_stop_is_sent()
+    public async Task A_failed_stop_is_retried_once_on_its_own()
     {
         var moves = 0;
         await using var console = new FakeProtectConsole
@@ -200,13 +200,62 @@ public class ClassicLoginAndPtzTests
 
         service.PtzSetAxes("cam1", pan: 1);
         await console.Controller.WaitFor(Move("cam1"), count: 1);
+        // No further input after the release: the stop must still arrive.
         service.PtzSetAxes("cam1", pan: 0);
-        await console.Controller.WaitFor(Move("cam1"), count: 2);
-        // Looks unchanged (pan 0 again), but the camera never got the stop.
-        service.PtzStopAll("cam1");
         var sent = await console.Controller.WaitFor(Move("cam1"), count: 3);
 
-        Assert.Equal((0, 0, 0), Velocities(sent[2]));
+        Assert.Equal(new[] { (1000, 0, 0), (0, 0, 0), (0, 0, 0) }, sent.Select(Velocities));
+        // Delivered now: a further stop is a duplicate and isn't sent.
+        service.PtzStopAll("cam1");
+        await Task.Delay(300);
+        Assert.Equal(3, console.Controller.To(Move("cam1")).Count);
+    }
+
+    [Fact]
+    public async Task Held_axes_survive_a_failed_command()
+    {
+        var moves = 0;
+        await using var console = new FakeProtectConsole
+        {
+            // The tilt press fails; pan is still held.
+            Override = r => r.Route == Move("cam1") && Interlocked.Increment(ref moves) == 2
+                ? new FakeResponse(500, "")
+                : null
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        service.PtzSetAxes("cam1", pan: 1);
+        await console.Controller.WaitFor(Move("cam1"), count: 1);
+        service.PtzSetAxes("cam1", tilt: 1);
+        await console.Controller.WaitFor(Move("cam1"), count: 2);
+        service.PtzSetAxes("cam1", zoom: 1);
+        var sent = await console.Controller.WaitFor(Move("cam1"), count: 3);
+
+        Assert.Equal((1000, 1000, 1000), Velocities(sent[2]));
+    }
+
+    [Fact]
+    public async Task A_forbidden_move_does_not_log_in_again()
+    {
+        // An account without PTZ permission: every move is 403.
+        await using var console = new FakeProtectConsole
+        {
+            Override = r => r.Route == Move("cam1") ? new FakeResponse(403, "") : null
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        service.PtzSetAxes("cam1", pan: 1);
+        service.PtzSetAxes("cam1", pan: 0);
+        service.PtzSetAxes("cam1", tilt: 1);
+        // Press, release (+ its one stop retry), press.
+        await console.Controller.WaitFor(Move("cam1"), count: 4);
+
+        Assert.Single(console.Controller.To(Login));
+        Assert.True(service.IsClassicLoggedIn);
     }
 
     [Fact]

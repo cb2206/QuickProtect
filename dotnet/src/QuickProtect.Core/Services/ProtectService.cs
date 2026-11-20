@@ -735,10 +735,15 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private const double PtzVelocityScale = 1000.0;
     private readonly object _ptzLock = new();
-    /// <summary>The velocity the camera was last told, or null when unknown: a
-    /// send that failed, so the next command is sent even if it looks unchanged
-    /// (a lost stop would otherwise leave the camera moving).</summary>
-    private (double x, double y, double z)? _ptzDesired = (0, 0, 0);
+    /// <summary>What the user's held keys and buttons ask for. Always updated,
+    /// even when a command can't be sent, so a held axis survives a failure.</summary>
+    private (double x, double y, double z) _ptzDesired;
+    /// <summary>The velocity the camera last accepted, or null when unknown (a
+    /// send failed): then the next command goes out even if it looks unchanged.</summary>
+    private (double x, double y, double z)? _ptzLastSent = (0, 0, 0);
+    /// <summary>A failed stop is retried once after this long: with nothing
+    /// following it, the camera would otherwise keep moving.</summary>
+    internal static TimeSpan PtzStopRetryDelay = TimeSpan.FromSeconds(1);
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
 
@@ -772,22 +777,28 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             {
                 await previous.ConfigureAwait(false);
                 if (delay > TimeSpan.Zero) await Task.Delay(delay).ConfigureAwait(false);
+                (double x, double y, double z) next;
+                lock (_ptzLock)
+                {
+                    _ptzDesired = mutate(_ptzDesired);
+                    next = _ptzDesired;
+                    if (next == _ptzLastSent) return;
+                }
                 if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
                 {
                     ReportPtzLoginFailure();
                     // Whatever this command was, it didn't reach the camera.
-                    lock (_ptzLock) _ptzDesired = null;
+                    lock (_ptzLock) _ptzLastSent = null;
                     return;
                 }
-                (double x, double y, double z) next;
-                lock (_ptzLock)
+                var sent = await SendMoveAsync(cameraId, next).ConfigureAwait(false);
+                // The chain is serial, so nothing has changed the intent meanwhile.
+                if (!sent && next == (0, 0, 0))
                 {
-                    next = mutate(_ptzDesired ?? (0, 0, 0));
-                    if (next == _ptzDesired) return;
-                    _ptzDesired = next;
+                    await Task.Delay(PtzStopRetryDelay).ConfigureAwait(false);
+                    sent = await SendMoveAsync(cameraId, next).ConfigureAwait(false);
                 }
-                if (!await SendMoveAsync(cameraId, next).ConfigureAwait(false))
-                    lock (_ptzLock) _ptzDesired = null;
+                lock (_ptzLock) _ptzLastSent = sent ? next : null;
             });
         }
     }
@@ -803,9 +814,11 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     /// <summary>
     /// Sends one continuous move; true when the controller accepted it. An
-    /// expired session (401/403, as for package snapshots) logs in again and
-    /// resends this move once, so a held direction isn't lost until the input
-    /// changes. A failed re-login shows the PTZ toast.
+    /// expired session (401) logs in again and resends this move once, so a
+    /// held direction isn't lost until the input changes; a failed re-login
+    /// shows the PTZ toast. A 403 is a missing PTZ permission, not an expired
+    /// session: logging in again would only repeat (and audit-log) the login
+    /// on every key press.
     /// </summary>
     private async Task<bool> SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry = false)
     {
@@ -821,7 +834,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             using var resp = await _classic.SendAsync(req).ConfigureAwait(false);
             Log.Line($"[PTZ] sendMove HTTP {(int)resp.StatusCode}");
             if (resp.IsSuccessStatusCode) return true;
-            if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            if (resp.StatusCode == HttpStatusCode.Unauthorized)
             {
                 IsClassicLoggedIn = false;
                 SetCreds(null, null);

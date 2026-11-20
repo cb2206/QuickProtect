@@ -843,10 +843,15 @@ final class ProtectService: NSObject, ObservableObject {
 
     private enum PtzAxis: Hashable { case pan, tilt, zoom }
 
-    /// The velocity the camera was last told, or nil when unknown: a send that
-    /// failed, so the next command is sent even if it looks unchanged (a lost
-    /// stop would otherwise leave the camera moving).
-    private var ptzDesired: PtzVelocity? = PtzVelocity()
+    /// What the user's held keys and buttons ask for. Always updated, even when
+    /// a command can't be sent, so a held axis survives a failure.
+    private var ptzDesired = PtzVelocity()
+    /// The velocity the camera last accepted, or nil when unknown (a send
+    /// failed): then the next command goes out even if it looks unchanged.
+    private var ptzLastSent: PtzVelocity? = PtzVelocity()
+    /// A failed stop is retried once after this long: with nothing following
+    /// it, the camera would otherwise keep moving.
+    private static let ptzStopRetryDelay: UInt64 = 1_000_000_000
     private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
     /// Serializes move commands so they reach the controller in call order
     /// (an earlier send may still be waiting on login or a tap's minimum burst).
@@ -904,23 +909,32 @@ final class ProtectService: NSObject, ObservableObject {
                 // Only ends early on cancellation, which this chain never does.
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
+            mutate(&ptzDesired)
+            let state = ptzDesired
+            guard state != ptzLastSent else { return }
             if !isClassicLoggedIn {
                 guard await classicLogin() else {
                     await reportPtzLoginFailure()
                     // Whatever this command was, it didn't reach the camera.
-                    ptzDesired = nil
+                    ptzLastSent = nil
                     return
                 }
             }
-            var state = ptzDesired ?? PtzVelocity()
-            mutate(&state)
-            guard state != ptzDesired else { return }
-            ptzDesired = state
-            let sent = await sendMove(cameraId: cameraId, body: [
+            let body: [String: Any] = [
                 "type": "continuous",
                 "payload": ["x": Int(state.x), "y": Int(state.y), "z": Int(state.z)]
-            ])
-            if !sent { ptzDesired = nil }
+            ]
+            var sent = await sendMove(cameraId: cameraId, body: body)
+            // The chain is serial, so nothing has changed the intent meanwhile.
+            if !sent, state == PtzVelocity() {
+                do {
+                    try await Task.sleep(nanoseconds: Self.ptzStopRetryDelay)
+                    sent = await sendMove(cameraId: cameraId, body: body)
+                } catch {
+                    RTSPClient.log("[PTZ] stop retry cancelled; camera state unknown")
+                }
+            }
+            ptzLastSent = sent ? state : nil
         }
     }
 
@@ -933,9 +947,11 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     /// Sends one continuous move; true when the controller accepted it. An
-    /// expired session (401/403, as for package snapshots) logs in again and
-    /// resends this move once, so a held direction isn't lost until the input
-    /// changes. A failed re-login shows the PTZ toast.
+    /// expired session (401) logs in again and resends this move once, so a
+    /// held direction isn't lost until the input changes; a failed re-login
+    /// shows the PTZ toast. A 403 is a missing PTZ permission, not an expired
+    /// session: logging in again would only repeat (and audit-log) the login
+    /// on every key press.
     @discardableResult
     private func sendMove(cameraId: String, body: [String: Any], isRetry: Bool = false) async -> Bool {
         guard let url = makeURL(
@@ -959,7 +975,7 @@ final class ProtectService: NSObject, ObservableObject {
         let respBody = result.flatMap { String(data: $0.0, encoding: .utf8) } ?? "nil"
         RTSPClient.log("[PTZ] sendMove HTTP \(status): \(respBody.prefix(200))")
         if (200..<300).contains(status) { return true }
-        if status == 401 || status == 403 {
+        if status == 401 {
             await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil

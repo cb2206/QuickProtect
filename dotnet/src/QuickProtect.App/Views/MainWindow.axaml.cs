@@ -250,7 +250,8 @@ public partial class MainWindow : Window
     /// A saved panel position that still makes sense: the screen holding the
     /// panel's center, with the panel pulled fully onto it (a monitor may have
     /// shrunk or moved since). Null when the center lands on no screen at all —
-    /// that monitor is gone, so the caller centers the panel instead.
+    /// that monitor is gone: the Hyprland overlay then centers the panel, the
+    /// kept-open panel falls back to the screen holding its saved corner.
     /// </summary>
     internal static PixelPoint? RestorablePosition(PixelPoint saved, PixelSize size, IEnumerable<PixelRect> screens)
     {
