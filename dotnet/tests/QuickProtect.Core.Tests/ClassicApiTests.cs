@@ -246,6 +246,39 @@ public class ClassicLoginAndPtzTests
     }
 
     [Fact]
+    public async Task A_stop_failing_late_in_an_outage_is_retried_after_it()
+    {
+        var failing = false;
+        var stopsDelivered = 0;
+        await using var console = new FakeProtectConsole
+        {
+            Override = r =>
+            {
+                if (r.Route != Move("cam1")) return null;
+                if (Volatile.Read(ref failing)) return new FakeResponse(500, "");
+                if (Velocities(r) == (0, 0, 0)) Interlocked.Increment(ref stopsDelivered);
+                return null;
+            }
+        };
+        var (service, _) = console.NewService();
+        using var disposeService = service;
+        Assert.True(await service.ClassicLoginAsync());
+
+        service.PtzSetAxes("cam1", pan: 1);
+        await console.Controller.WaitFor(Move("cam1"), count: 1);
+        // A 1.3 s outage: the tilt press fails at its start, the stop near its end.
+        Volatile.Write(ref failing, true);
+        service.PtzSetAxes("cam1", tilt: 1);
+        await Task.Delay(900);
+        service.PtzStopAll("cam1");
+        await Task.Delay(400);
+        Volatile.Write(ref failing, false);
+
+        await WaitForLastMove(console, (0, 0, 0));
+        Assert.Equal(1, Volatile.Read(ref stopsDelivered));
+    }
+
+    [Fact]
     public async Task A_stop_for_another_camera_does_not_abandon_a_failed_one()
     {
         var moves = 0;

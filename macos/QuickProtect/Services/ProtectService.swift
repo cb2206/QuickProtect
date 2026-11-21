@@ -855,10 +855,13 @@ final class ProtectService: NSObject, ObservableObject {
     /// A failed command is retried once after this long, as its own entry in
     /// the chain (a lost release would otherwise leave the camera moving); a
     /// newer command that already delivered makes it a no-op.
-    private static let ptzRetryDelay: UInt64 = 1_000_000_000
-    /// Cameras with a retry scheduled: one at a time per camera, so a failing
-    /// controller sees one extra request per burst, not one per key.
-    private var ptzRetryPending: Set<String> = []
+    private static let ptzRetryDelay: TimeInterval = 1
+    /// Per camera with a retry scheduled: when it is due. One timer per camera,
+    /// so a failing controller sees one extra request per burst, not one per
+    /// key; every failure pushes the due time out, so the retry always comes a
+    /// full delay after the latest failure (a stop failing late in a burst
+    /// still gets its chance once the controller recovers).
+    private var ptzRetryDue: [String: Date] = [:]
     private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
     /// Serializes move commands so they reach the controller in call order
     /// (an earlier send may still be waiting on login or a tap's minimum burst).
@@ -917,7 +920,14 @@ final class ProtectService: NSObject, ObservableObject {
                 // Only ends early on cancellation, which this chain never does.
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
-            if isRetry { ptzRetryPending.remove(cameraId) }
+            if isRetry {
+                // A failure since this retry was armed moved its due time.
+                if let due = ptzRetryDue[cameraId], due > Date() {
+                    schedulePtzRetry(cameraId: cameraId)
+                    return
+                }
+                ptzRetryDue[cameraId] = nil
+            }
             var state = ptzDesired[cameraId] ?? PtzVelocity()
             mutate(&state)
             ptzDesired[cameraId] = state
@@ -936,21 +946,28 @@ final class ProtectService: NSObject, ObservableObject {
                 // One retry, queued behind whatever comes next; it re-sends the
                 // camera's then-current intent only if that still isn't known
                 // to have arrived. A retry doesn't schedule another.
-                if !isRetry, ptzRetryPending.insert(cameraId).inserted {
-                    schedulePtzRetry(cameraId: cameraId)
+                if !isRetry {
+                    let startTimer = ptzRetryDue[cameraId] == nil
+                    ptzRetryDue[cameraId] = Date().addingTimeInterval(Self.ptzRetryDelay)
+                    if startTimer { schedulePtzRetry(cameraId: cameraId) }
                 }
             }
         }
     }
 
+    /// Waits until the camera's retry is due (it can move while waiting), then
+    /// queues the retry entry.
     private func schedulePtzRetry(cameraId: String) {
         Task {
-            do {
-                try await Task.sleep(nanoseconds: Self.ptzRetryDelay)
-            } catch {
-                RTSPClient.log("[PTZ] move retry cancelled; camera state unknown")
-                ptzRetryPending.remove(cameraId)
-                return
+            while let due = ptzRetryDue[cameraId], due > Date() {
+                do {
+                    let seconds = max(0, due.timeIntervalSinceNow)
+                    try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                } catch {
+                    RTSPClient.log("[PTZ] move retry cancelled; camera state unknown")
+                    ptzRetryDue[cameraId] = nil
+                    return
+                }
             }
             enqueuePtzSend(cameraId: cameraId, delay: 0, isRetry: true) { _ in }
         }

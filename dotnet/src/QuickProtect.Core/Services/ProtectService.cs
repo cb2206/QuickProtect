@@ -747,9 +747,12 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     /// entry in the chain (a lost release would otherwise leave the camera
     /// moving); a newer command that already delivered makes it a no-op.</summary>
     public static readonly TimeSpan PtzRetryDelay = TimeSpan.FromSeconds(1);
-    /// <summary>Cameras with a retry scheduled: one at a time per camera, so a
-    /// failing controller sees one extra request per burst, not one per key.</summary>
-    private readonly HashSet<string> _ptzRetryPending = new();
+    /// <summary>Per camera with a retry scheduled: when it is due. One timer per
+    /// camera, so a failing controller sees one extra request per burst, not
+    /// one per key; every failure pushes the due time out, so the retry always
+    /// comes a full delay after the latest failure (a stop failing late in a
+    /// burst still gets its chance once the controller recovers).</summary>
+    private readonly Dictionary<string, DateTime> _ptzRetryDue = new();
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
 
@@ -786,28 +789,53 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                 (double x, double y, double z) next;
                 lock (_ptzLock)
                 {
-                    if (isRetry) _ptzRetryPending.Remove(cameraId);
+                    if (isRetry)
+                    {
+                        // A failure since this retry was armed moved its due time.
+                        if (_ptzRetryDue.TryGetValue(cameraId, out var due) && due > DateTime.UtcNow)
+                        {
+                            _ = RunPtzRetryTimerAsync(cameraId);
+                            return;
+                        }
+                        _ptzRetryDue.Remove(cameraId);
+                    }
                     next = mutate(_ptzDesired.GetValueOrDefault(cameraId));
                     _ptzDesired[cameraId] = next;
                     var known = _ptzLastSent.TryGetValue(cameraId, out var last) ? last : (0, 0, 0);
                     if (next == known) return;
                 }
                 var sent = await DeliverMoveAsync(cameraId, next).ConfigureAwait(false);
-                bool scheduleRetry;
+                var startTimer = false;
                 lock (_ptzLock)
                 {
                     _ptzLastSent[cameraId] = sent ? next : null;
                     // One retry, queued behind whatever comes next; it re-sends
                     // the camera's then-current intent only if that still isn't
                     // known to have arrived. A retry doesn't schedule another.
-                    scheduleRetry = !sent && !isRetry && _ptzRetryPending.Add(cameraId);
+                    if (!sent && !isRetry)
+                    {
+                        startTimer = !_ptzRetryDue.ContainsKey(cameraId);
+                        _ptzRetryDue[cameraId] = DateTime.UtcNow + PtzRetryDelay;
+                    }
                 }
-                if (scheduleRetry)
-                    _ = Task.Delay(PtzRetryDelay).ContinueWith(
-                        _ => EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: true, state => state),
-                        TaskScheduler.Default);
+                if (startTimer) _ = RunPtzRetryTimerAsync(cameraId);
             });
         }
+    }
+
+    /// <summary>Waits until the camera's retry is due (it can move while
+    /// waiting), then queues the retry entry.</summary>
+    private async Task RunPtzRetryTimerAsync(string cameraId)
+    {
+        while (true)
+        {
+            TimeSpan wait;
+            lock (_ptzLock)
+                wait = _ptzRetryDue.TryGetValue(cameraId, out var due) ? due - DateTime.UtcNow : TimeSpan.Zero;
+            if (wait <= TimeSpan.Zero) break;
+            await Task.Delay(wait).ConfigureAwait(false);
+        }
+        EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: true, state => state);
     }
 
     /// <summary>One attempt: log in if the session is gone, then send.</summary>
