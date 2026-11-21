@@ -861,7 +861,9 @@ final class ProtectService: NSObject, ObservableObject {
     /// key; every failure pushes the due time out, so the retry always comes a
     /// full delay after the latest failure (a stop failing late in a burst
     /// still gets its chance once the controller recovers).
-    private var ptzRetryDue: [String: Date] = [:]
+    /// Values are `systemUptime` seconds (monotonic), so a wall-clock step
+    /// can't stall a retry.
+    private var ptzRetryDue: [String: TimeInterval] = [:]
     private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
     /// Serializes move commands so they reach the controller in call order
     /// (an earlier send may still be waiting on login or a tap's minimum burst).
@@ -922,7 +924,7 @@ final class ProtectService: NSObject, ObservableObject {
             }
             if isRetry {
                 // A failure since this retry was armed moved its due time.
-                if let due = ptzRetryDue[cameraId], due > Date() {
+                if let due = ptzRetryDue[cameraId], due > ProcessInfo.processInfo.systemUptime {
                     schedulePtzRetry(cameraId: cameraId)
                     return
                 }
@@ -948,7 +950,7 @@ final class ProtectService: NSObject, ObservableObject {
                 // to have arrived. A retry doesn't schedule another.
                 if !isRetry {
                     let startTimer = ptzRetryDue[cameraId] == nil
-                    ptzRetryDue[cameraId] = Date().addingTimeInterval(Self.ptzRetryDelay)
+                    ptzRetryDue[cameraId] = ProcessInfo.processInfo.systemUptime + Self.ptzRetryDelay
                     if startTimer { schedulePtzRetry(cameraId: cameraId) }
                 }
             }
@@ -959,9 +961,9 @@ final class ProtectService: NSObject, ObservableObject {
     /// queues the retry entry.
     private func schedulePtzRetry(cameraId: String) {
         Task {
-            while let due = ptzRetryDue[cameraId], due > Date() {
+            while let due = ptzRetryDue[cameraId], due > ProcessInfo.processInfo.systemUptime {
                 do {
-                    let seconds = max(0, due.timeIntervalSinceNow)
+                    let seconds = max(0, due - ProcessInfo.processInfo.systemUptime)
                     try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 } catch {
                     RTSPClient.log("[PTZ] move retry cancelled; camera state unknown")

@@ -751,8 +751,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     /// camera, so a failing controller sees one extra request per burst, not
     /// one per key; every failure pushes the due time out, so the retry always
     /// comes a full delay after the latest failure (a stop failing late in a
-    /// burst still gets its chance once the controller recovers).</summary>
-    private readonly Dictionary<string, DateTime> _ptzRetryDue = new();
+    /// burst still gets its chance once the controller recovers).
+    /// Monotonic milliseconds (<see cref="Environment.TickCount64"/>), so a
+    /// wall-clock step can't stall a retry.</summary>
+    private readonly Dictionary<string, long> _ptzRetryDue = new();
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
 
@@ -792,7 +794,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                     if (isRetry)
                     {
                         // A failure since this retry was armed moved its due time.
-                        if (_ptzRetryDue.TryGetValue(cameraId, out var due) && due > DateTime.UtcNow)
+                        if (_ptzRetryDue.TryGetValue(cameraId, out var due) && due > Environment.TickCount64)
                         {
                             _ = RunPtzRetryTimerAsync(cameraId);
                             return;
@@ -815,7 +817,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                     if (!sent && !isRetry)
                     {
                         startTimer = !_ptzRetryDue.ContainsKey(cameraId);
-                        _ptzRetryDue[cameraId] = DateTime.UtcNow + PtzRetryDelay;
+                        _ptzRetryDue[cameraId] = Environment.TickCount64 + (long)PtzRetryDelay.TotalMilliseconds;
                     }
                 }
                 if (startTimer) _ = RunPtzRetryTimerAsync(cameraId);
@@ -829,11 +831,11 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     {
         while (true)
         {
-            TimeSpan wait;
+            long waitMs;
             lock (_ptzLock)
-                wait = _ptzRetryDue.TryGetValue(cameraId, out var due) ? due - DateTime.UtcNow : TimeSpan.Zero;
-            if (wait <= TimeSpan.Zero) break;
-            await Task.Delay(wait).ConfigureAwait(false);
+                waitMs = _ptzRetryDue.TryGetValue(cameraId, out var due) ? due - Environment.TickCount64 : 0;
+            if (waitMs <= 0) break;
+            await Task.Delay(TimeSpan.FromMilliseconds(waitMs)).ConfigureAwait(false);
         }
         EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: true, state => state);
     }
