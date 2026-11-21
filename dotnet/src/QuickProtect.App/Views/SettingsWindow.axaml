@@ -166,6 +166,23 @@
               </Border>
             </StackPanel>
 
+            <StackPanel Spacing="6" IsVisible="{Binding KeepPanelOpenRowVisible}">
+              <TextBlock Text="{loc:Loc 'Camera panel'}" Classes="cardCaption" />
+              <Border Classes="card">
+                <StackPanel>
+                  <Grid Classes="row" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc 'Keep the panel open'}" Classes="rowLabel" />
+                      <TextBlock Text="{loc:Loc 'Clicking elsewhere no longer closes it. It stays on top of other windows and reopens where you left it. Close it with its close button, the QuickProtect icon or the keyboard shortcut. Its cameras keep streaming while it\'s open.'}"
+                                 Classes="rowHint" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding KeepPanelOpen}"
+                                  OnContent="{x:Null}" OffContent="{x:Null}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
             <StackPanel Spacing="6">
               <TextBlock Text="{loc:Loc 'Focus view'}" Classes="cardCaption" />
               <Border Classes="card">

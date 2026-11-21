@@ -2,19 +2,54 @@
 # Everything else that is pinned by hand (FFmpeg natives, XcodeGen, SwiftLint,
 # Inno Setup, the Windows SDK build tools) is bumped deliberately with its
 # checksum — see the comments next to each pin.
+#
+# PRs target `dev`, where work happens; `main` only receives merges from it.
+#
+# NuGet PRs that touch src/ projects fail CI with NU1004: Dependabot rewrites
+# the changed project's packages.lock.json but not the lock files of the
+# projects referencing it (the test projects, the App for a Core bump). Fix on
+# the PR branch with `dotnet restore dotnet/QuickProtect.sln --force-evaluate`
+# (no -r: the lock files carry all RIDs) and commit the lock-file diff.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
     labels: [dependencies]
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: nuget
     directory: /dotnet
+    target-branch: dev
     schedule:
       interval: weekly
     labels: [dependencies]
     groups:
       avalonia:
         patterns: ["Avalonia*"]
+      test:
+        patterns: ["Microsoft.NET.Test.Sdk", "xunit*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # NAudio 3 obsoletes WasapiOut (an error under TreatWarningsAsErrors)
+      # and makes BufferedWaveProvider.BufferDuration read-only. Porting
+      # Video/AudioSink.cs to WasapiPlayerBuilder needs a listening test on a
+      # Windows machine; do it deliberately, not from a Dependabot PR.
+      - dependency-name: "NAudio*"
+        update-types: ["version-update:semver-major"]
+      # Avalonia.FreeDesktop pins its own Tmds.DBus.Protocol, and the explicit
+      # reference in QuickProtect.App overrides it for Avalonia's tray and
+      # portal code too. Move it only together with an Avalonia bump.
+      - dependency-name: "Tmds.DBus.Protocol"
+      # Its major version tracks the .NET release; move it with the target
+      # framework (net10.0), not on its own.
+      - dependency-name: "System.Security.Cryptography.ProtectedData"
+        update-types: ["version-update:semver-major"]
+      # The bindings must match the bundled FFmpeg natives' major version;
+      # they move with the pinned BtbN build in dotnet/scripts/get-ffmpeg.*.
+      - dependency-name: "FFmpeg.AutoGen*"

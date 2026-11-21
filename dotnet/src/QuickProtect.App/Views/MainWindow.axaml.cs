@@ -20,11 +20,14 @@ public partial class MainWindow : Window
         Icon = ApertureIcon.Create(64);
         // Hyprland: a floating overlay instead of a focus-dismissed popover
         // (see Platform/Hyprland.cs for why focus loss can't be trusted there).
-        if (IsOverlay)
-        {
-            Hyprland.FloatWindow(this);
-            CloseButton.IsVisible = true;
-        }
+        if (IsOverlay) Hyprland.FloatWindow(this);
+        // "Keep the panel open": no focus-loss dismissal, on top, ✕ in the
+        // header. Applies at once when the setting changes.
+        ApplyKeepOpen();
+        PositionChanged += (_, _) => ScheduleGeometrySave();
+        SizeChanged += (_, _) => ScheduleGeometrySave();
+        QuickProtect.Core.Services.AppSettings.Shared.PropertyChanged += OnSettingChanged;
+        Closed += (_, _) => QuickProtect.Core.Services.AppSettings.Shared.PropertyChanged -= OnSettingChanged;
         // Tile drag-reorder needs tunnel handlers: the footer Button swallows
         // bubbled pointer events before they reach the tile.
         AddHandler(PointerPressedEvent, Tile_DragPressed, RoutingStrategies.Tunnel);
@@ -62,7 +65,8 @@ public partial class MainWindow : Window
         // Popover behavior: clicking anywhere else dismisses the panel, like the
         // macOS tray popover. Focus moving to one of our own windows or popups
         // (dropdowns, Settings) doesn't count as "outside". --no-dismiss keeps
-        // the panel up for automated UI testing.
+        // the panel up for automated UI testing; so does "Keep the panel open",
+        // checked per event because it can change while the panel is up.
         if (IsOverlay)
         {
             // Switching workspace leaves the overlay behind, out of sight with
@@ -78,7 +82,7 @@ public partial class MainWindow : Window
         {
             Deactivated += (_, _) =>
             {
-                if (!ForegroundBelongsToThisProcess()) AutoHide();
+                if (!KeepsOpen && !ForegroundBelongsToThisProcess()) AutoHide();
             };
             // Deactivated alone misses every click outside made while the panel
             // isn't the active window: after Settings or a pinned window took
@@ -90,6 +94,32 @@ public partial class MainWindow : Window
 
     /// <summary>Hyprland overlay mode; fixed for the process's lifetime.</summary>
     private static bool IsOverlay => Hyprland.IsRunning;
+
+    /// <summary>
+    /// The panel stays up until closed explicitly: Hyprland's overlay mode, or
+    /// the "Keep the panel open" setting (macOS <c>keepPanelOpen</c>).
+    /// </summary>
+    private static bool KeepsOpen => IsOverlay || QuickProtect.Core.Services.AppSettings.Shared.KeepPanelOpen;
+
+    private void OnSettingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(QuickProtect.Core.Services.AppSettings.KeepPanelOpen)) return;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            ApplyKeepOpen();
+            // Turned on while open: remember the current spot as the panel's own.
+            if (KeepsOpen && IsVisible && WindowState == WindowState.Normal)
+                QuickProtect.Core.Services.AppSettings.Shared.SetPanelPosition(Position.X, Position.Y);
+        });
+    }
+
+    private void ApplyKeepOpen()
+    {
+        CloseButton.IsVisible = KeepsOpen;
+        // Above other windows like a pinned camera. The Hyprland overlay floats
+        // through its window type instead.
+        Topmost = !IsOverlay && KeepsOpen;
+    }
 
     private IDisposable? _hyprlandEvents;
 
@@ -108,7 +138,7 @@ public partial class MainWindow : Window
         _foregroundChanged = (_, _, hwnd, _, _, _, _) =>
         {
             _ = GetWindowThreadProcessId(hwnd, out var pid);
-            if (pid != Environment.ProcessId) AutoHide();
+            if (!KeepsOpen && pid != Environment.ProcessId) AutoHide();
         };
         // Out-of-context: delivered through this (UI) thread's message loop.
         var hook = SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero,
@@ -220,7 +250,8 @@ public partial class MainWindow : Window
     /// A saved panel position that still makes sense: the screen holding the
     /// panel's center, with the panel pulled fully onto it (a monitor may have
     /// shrunk or moved since). Null when the center lands on no screen at all —
-    /// that monitor is gone, so the caller centers the panel instead.
+    /// that monitor is gone: the Hyprland overlay then centers the panel, the
+    /// kept-open panel falls back to the screen holding its saved corner.
     /// </summary>
     internal static PixelPoint? RestorablePosition(PixelPoint saved, PixelSize size, IEnumerable<PixelRect> screens)
     {
@@ -233,6 +264,59 @@ public partial class MainWindow : Window
                 Math.Clamp(saved.Y, b.Y, Math.Max(b.Y, b.Bottom - size.Height)));
         }
         return null;
+    }
+
+    /// <summary>A kept-open panel reopens where it was left, if that is still on a screen.</summary>
+    private bool RestoreSavedPosition()
+    {
+        if (WindowState == WindowState.FullScreen) return true;
+        if (QuickProtect.Core.Services.AppSettings.Shared.PanelPosition() is not { } saved) return false;
+        var point = new PixelPoint(saved.X, saved.Y);
+        // Each screen is tried with the panel sized in its own pixels (mixed-DPI
+        // setups): the one holding the panel's center wins, and the panel is
+        // kept within that screen's working area, clear of the taskbar.
+        foreach (var screen in Screens.All)
+        {
+            var size = new PixelSize((int)Math.Round(Width * screen.Scaling), (int)Math.Round(Height * screen.Scaling));
+            if (RestorablePosition(point, size, [screen.WorkingArea]) is { } restored)
+            {
+                Position = restored;
+                return true;
+            }
+        }
+        // Near the edge between screens of different scaling the center can
+        // miss every screen; fall back to the one holding the saved corner.
+        if (Screens.All.FirstOrDefault(s => s.WorkingArea.Contains(point)) is { } home)
+        {
+            var size = new PixelSize((int)Math.Round(Width * home.Scaling), (int)Math.Round(Height * home.Scaling));
+            var area = home.WorkingArea;
+            Position = new PixelPoint(
+                Math.Clamp(point.X, area.X, Math.Max(area.X, area.Right - size.Width)),
+                Math.Clamp(point.Y, area.Y, Math.Max(area.Y, area.Bottom - size.Height)));
+            return true;
+        }
+        return false;
+    }
+
+    private Avalonia.Threading.DispatcherTimer? _geometrySave;
+
+    /// <summary>
+    /// A kept-open panel is rarely hidden, so its spot and size are saved as
+    /// they change (debounced), not only on hide — a logoff or crash keeps them.
+    /// </summary>
+    private void ScheduleGeometrySave()
+    {
+        if (!KeepsOpen || IsOverlay || !IsVisible || WindowState != WindowState.Normal) return;
+        _geometrySave ??= new Avalonia.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(500),
+            Avalonia.Threading.DispatcherPriority.Background, (_, _) =>
+            {
+                _geometrySave?.Stop();
+                if (!KeepsOpen || !IsVisible || WindowState != WindowState.Normal) return;
+                QuickProtect.Core.Services.AppSettings.Shared.SetPanelSize(Width, Height);
+                QuickProtect.Core.Services.AppSettings.Shared.SetPanelPosition(Position.X, Position.Y);
+            });
+        _geometrySave.Stop();
+        _geometrySave.Start();
     }
 
     private void Header_Close(object? sender, RoutedEventArgs e) => Hide();
@@ -263,13 +347,15 @@ public partial class MainWindow : Window
                     PositionAsOverlay();
                     FocusOnceMapped();
                 }
-                else PositionNearTray();
+                else if (!KeepsOpen || !RestoreSavedPosition()) PositionNearTray();
                 vm.StartAll();
+                vm.StartBitrateUpdates();
             }
             else
             {
+                vm.StopBitrateUpdates();
                 QuickProtect.Core.Services.AppSettings.Shared.SetPanelSize(Width, Height);
-                if (IsOverlay && WindowState == WindowState.Normal)
+                if (KeepsOpen && WindowState == WindowState.Normal)
                     QuickProtect.Core.Services.AppSettings.Shared.SetPanelPosition(Position.X, Position.Y);
                 App.Instance.PanelClosed(vm);
             }

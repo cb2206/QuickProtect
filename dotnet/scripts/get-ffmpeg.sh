@@ -22,8 +22,8 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 native_root="$root/native/ffmpeg"
 
-release_tag="autobuild-2026-08-31-13-27"
-build_id="n9.0.1-11-ge47273f4d9"
+release_tag="autobuild-2026-10-31-12-59"
+build_id="n9.0.2-39-g7adfbe40dc"
 
 asset_for() {
     case "$1" in
@@ -37,10 +37,10 @@ asset_for() {
 
 sha256_for() {
     case "$1" in
-        linux-x64)   echo "ec8dc218c3495af574be2c894de74c5f3f1f1b86cc8a95739d220b88887024fa" ;;
-        linux-arm64) echo "c663f93322183c99d2b954969d11a287582ff69e39bde50d018b18ece27589cf" ;;
-        win-x64)     echo "83a824f0729a69d143c9865125bb86988a11dd388325f0033711045522068aa0" ;;
-        win-arm64)   echo "e6a65bd651db8817a7e76382a82db0fa28da45c6a0b512f1f65078d3d48cdfff" ;;
+        linux-x64)   echo "5a58e2dffad4835ee3418939f2676d6898489f8e047299f5f62ee0da3f8dd5dc" ;;
+        linux-arm64) echo "4ef690828b307aaf9df28cc05744ca41f8107841a06566db1544380f3d3a5499" ;;
+        win-x64)     echo "e907b01fa4783913151237e37df2a10fa97d99a1598a021bf59d4ae62ffed4c0" ;;
+        win-arm64)   echo "68664c6af3dc41384f983d5f6d33eb8cc7540eaced8c8d02fb0dd34ffbcdbbf6" ;;
         *)           echo "" ;;
     esac
 }

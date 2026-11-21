@@ -155,6 +155,19 @@ public partial class App : Application
         };
         // Left-click opens the camera panel (right-click shows the menu natively).
         _tray.Clicked += (_, _) => ToggleMainWindow();
+        AttachTrayIcon(this, _tray);
+    }
+
+    /// <summary>
+    /// Registers <paramref name="icon"/> with the application. Since Avalonia
+    /// 12.1.3 a <see cref="TrayIcon"/> is only a managed object until then: the
+    /// native icon is created when it joins the Application's
+    /// <c>TrayIcon.Icons</c>, so merely constructing and holding it shows nothing.
+    /// </summary>
+    internal static void AttachTrayIcon(Application app, TrayIcon icon)
+    {
+        if (TrayIcon.GetIcons(app) is { } icons) icons.Add(icon);
+        else TrayIcon.SetIcons(app, [icon]);
     }
 
     /// <summary>Waits for the single-instance "show panel" signal from duplicate launches.</summary>

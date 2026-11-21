@@ -735,7 +735,26 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
     private const double PtzVelocityScale = 1000.0;
     private readonly object _ptzLock = new();
-    private (double x, double y, double z) _ptzDesired;
+    /// <summary>Per camera: what the user's held keys and buttons ask for.
+    /// Always updated, even when a command can't be sent, so a held axis
+    /// survives a failure. Absent means at rest.</summary>
+    private readonly Dictionary<string, (double x, double y, double z)> _ptzDesired = new();
+    /// <summary>Per camera: the velocity it last accepted. Absent means known at
+    /// rest (never moved), null means unknown after a failed send — then the
+    /// next command goes out even if it looks unchanged.</summary>
+    private readonly Dictionary<string, (double x, double y, double z)?> _ptzLastSent = new();
+    /// <summary>A failed command is retried once after this long, as its own
+    /// entry in the chain (a lost release would otherwise leave the camera
+    /// moving); a newer command that already delivered makes it a no-op.</summary>
+    public static readonly TimeSpan PtzRetryDelay = TimeSpan.FromSeconds(1);
+    /// <summary>Per camera with a retry scheduled: when it is due. One timer per
+    /// camera, so a failing controller sees one extra request per burst, not
+    /// one per key; every failure pushes the due time out, so the retry always
+    /// comes a full delay after the latest failure (a stop failing late in a
+    /// burst still gets its chance once the controller recovers).
+    /// Monotonic milliseconds (<see cref="Environment.TickCount64"/>), so a
+    /// wall-clock step can't stall a retry.</summary>
+    private readonly Dictionary<string, long> _ptzRetryDue = new();
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
 
@@ -744,7 +763,7 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
         // A quick tap should still produce meaningful travel: when an axis is
         // released early, postpone its stop until the minimum burst is up.
         var delay = _ptzBurst.Update(pan, tilt, zoom, DateTime.UtcNow);
-        EnqueuePtz(cameraId, delay, state =>
+        EnqueuePtz(cameraId, delay, isRetry: false, state =>
         {
             if (pan is { } p) state.x = p * PtzVelocityScale;
             if (tilt is { } t) state.y = t * PtzVelocityScale;
@@ -756,10 +775,10 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     public void PtzStopAll(string cameraId)
     {
         _ptzBurst.Reset();
-        EnqueuePtz(cameraId, TimeSpan.Zero, _ => (0, 0, 0));
+        EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: false, _ => (0, 0, 0));
     }
 
-    private void EnqueuePtz(string cameraId, TimeSpan delay,
+    private void EnqueuePtz(string cameraId, TimeSpan delay, bool isRetry,
                             Func<(double x, double y, double z), (double x, double y, double z)> mutate)
     {
         lock (_ptzLock)
@@ -769,31 +788,90 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             {
                 await previous.ConfigureAwait(false);
                 if (delay > TimeSpan.Zero) await Task.Delay(delay).ConfigureAwait(false);
-                if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
-                {
-                    Log.Line("[PTZ] login failed — PTZ unavailable");
-                    RefreshCertificateChange();
-                    PtzErrorMessage = CertificateChange != null
-                        ? CertificateChangedMessage
-                        : "PTZ unavailable — check the username and password in Settings.";
-                    return;
-                }
                 (double x, double y, double z) next;
                 lock (_ptzLock)
                 {
-                    next = mutate(_ptzDesired);
-                    if (next == _ptzDesired) return;
-                    _ptzDesired = next;
+                    if (isRetry)
+                    {
+                        // A failure since this retry was armed moved its due time.
+                        if (_ptzRetryDue.TryGetValue(cameraId, out var due) && due > Environment.TickCount64)
+                        {
+                            _ = RunPtzRetryTimerAsync(cameraId);
+                            return;
+                        }
+                        _ptzRetryDue.Remove(cameraId);
+                    }
+                    next = mutate(_ptzDesired.GetValueOrDefault(cameraId));
+                    _ptzDesired[cameraId] = next;
+                    var known = _ptzLastSent.TryGetValue(cameraId, out var last) ? last : (0, 0, 0);
+                    if (next == known) return;
                 }
-                await SendMoveAsync(cameraId, next).ConfigureAwait(false);
+                var sent = await DeliverMoveAsync(cameraId, next).ConfigureAwait(false);
+                var startTimer = false;
+                lock (_ptzLock)
+                {
+                    _ptzLastSent[cameraId] = sent ? next : null;
+                    // One retry, queued behind whatever comes next; it re-sends
+                    // the camera's then-current intent only if that still isn't
+                    // known to have arrived. A retry doesn't schedule another.
+                    if (!sent && !isRetry)
+                    {
+                        startTimer = !_ptzRetryDue.ContainsKey(cameraId);
+                        _ptzRetryDue[cameraId] = Environment.TickCount64 + (long)PtzRetryDelay.TotalMilliseconds;
+                    }
+                }
+                if (startTimer) _ = RunPtzRetryTimerAsync(cameraId);
             });
         }
     }
 
-    private async Task SendMoveAsync(string cameraId, (double x, double y, double z) v)
+    /// <summary>Waits until the camera's retry is due (it can move while
+    /// waiting), then queues the retry entry.</summary>
+    private async Task RunPtzRetryTimerAsync(string cameraId)
+    {
+        while (true)
+        {
+            long waitMs;
+            lock (_ptzLock)
+                waitMs = _ptzRetryDue.TryGetValue(cameraId, out var due) ? due - Environment.TickCount64 : 0;
+            if (waitMs <= 0) break;
+            await Task.Delay(TimeSpan.FromMilliseconds(waitMs)).ConfigureAwait(false);
+        }
+        EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: true, state => state);
+    }
+
+    /// <summary>One attempt: log in if the session is gone, then send.</summary>
+    private async Task<bool> DeliverMoveAsync(string cameraId, (double x, double y, double z) v)
+    {
+        if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
+        {
+            ReportPtzLoginFailure();
+            return false;
+        }
+        return await SendMoveAsync(cameraId, v).ConfigureAwait(false);
+    }
+
+    private void ReportPtzLoginFailure()
+    {
+        Log.Line("[PTZ] login failed — PTZ unavailable");
+        RefreshCertificateChange();
+        PtzErrorMessage = CertificateChange != null
+            ? CertificateChangedMessage
+            : "PTZ unavailable — check the username and password in Settings.";
+    }
+
+    /// <summary>
+    /// Sends one continuous move; true when the controller accepted it. An
+    /// expired session (401) logs in again and resends this move once, unless
+    /// this already is that resend, so a held direction isn't lost until the input
+    /// changes; a failed re-login shows the PTZ toast. A 403 is a missing PTZ
+    /// permission, not an expired session: logging in again would only repeat
+    /// (and audit-log) the login on every key press.
+    /// </summary>
+    private async Task<bool> SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isResend = false)
     {
         var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(cameraId)}/move");
-        if (url == null) return;
+        if (url == null) return false;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
@@ -803,13 +881,23 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
 
             using var resp = await _classic.SendAsync(req).ConfigureAwait(false);
             Log.Line($"[PTZ] sendMove HTTP {(int)resp.StatusCode}");
+            if (resp.IsSuccessStatusCode) return true;
             if (resp.StatusCode == HttpStatusCode.Unauthorized)
             {
                 IsClassicLoggedIn = false;
                 SetCreds(null, null);
+                if (isResend) return false;
+                if (await ClassicLoginAsync().ConfigureAwait(false))
+                    return await SendMoveAsync(cameraId, v, isResend: true).ConfigureAwait(false);
+                ReportPtzLoginFailure();
             }
+            return false;
         }
-        catch (Exception ex) { Log.Line($"[PTZ] sendMove failed: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            Log.Line($"[PTZ] sendMove failed: {ex.Message}");
+            return false;
+        }
     }
 
     // MARK: - Helpers

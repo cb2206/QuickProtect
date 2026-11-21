@@ -19,7 +19,9 @@ Feature parity with the macOS app is complete; the intentional differences and
 the per-platform caveats (GNOME tray click behaviour, Wayland window placement,
 portal-owned global hotkeys, the Hyprland overlay mode) are in `PARITY.md`.
 1.5 adds multiple sites (several consoles in one grid) and snapshot
-placeholders for tiles waiting on their first keyframe.
+placeholders for tiles waiting on their first keyframe. On `dev` for the next
+release: "Keep the panel open" (issue #1) and the header's bitrate readout,
+on both apps.
 
 ## Architecture: the video engine (don't regress these)
 
@@ -109,14 +111,17 @@ scripts/package-linux.sh [--rid <rid>]         # → dist/QuickProtect-<v>-<linu
 ```
 
 Every published build carries `LICENSE` and `THIRD-PARTY-NOTICES.txt` (FFmpeg
-LGPL-2.1, FFmpeg.AutoGen LGPL-3.0, Avalonia/NAudio/Toolkit MIT, Inter OFL).
+LGPL-2.1, FFmpeg.AutoGen LGPL-3.0, Avalonia/SkiaSharp/HarfBuzzSharp/NAudio/
+Toolkit/Tmds.DBus MIT, Inter OFL, Skia and ANGLE BSD-3-Clause, HarfBuzz "Old
+MIT"). The file lists versions: compare it with
+`src/QuickProtect.App/packages.lock.json` after any package bump.
 Bumping FFmpeg means updating the pinned tag + checksums in both
 `get-ffmpeg.*` scripts, the FFmpeg.AutoGen package, and the notices file.
 
 ## Open follow-ups
 
 - The FFmpeg pin is a BtbN end-of-month snapshot of the n9.0 branch
-  (`autobuild-2026-08-31-13-27`, libavcodec 63) with FFmpeg.AutoGen 9.0.1.1.
+  (`autobuild-2026-10-31-12-59`, libavcodec 63) with FFmpeg.AutoGen 9.0.1.1.
   Bump both together every few months (tag + four checksums in
   `scripts/get-ffmpeg.*`, the package versions, THIRD-PARTY-NOTICES.txt) and
   run `dotnet test tests/QuickProtect.App.Tests` with an `ffmpeg` binary on
@@ -125,6 +130,45 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   and client (with live-decode smoke tests), tile stop, the focus header
   layout, Settings' certificate section, catalog coverage and the Linux
   platform glue; `ConnectionChangeTests` drives `ProtectService` against a
-  local fake controller. The view models beyond those, and most of
-  `ProtectService`'s classic-API (PTZ) paths, are still only covered
-  indirectly.
+  local fake controller, and `ClassicApiTests` drives its classic-API paths
+  (login/session, PTZ moves, enrichment and its throttle, HTTP errors)
+  against a scripted one (`ScriptedController`/`FakeProtectConsole`, linked
+  into the App tests too). `MainViewModelTests` and `SettingsViewModelTests`
+  (Settings, Layout, Onboarding) run the view models against a real
+  `ProtectHub` on that console; their tile stream start/stop assertions only
+  bite where the FFmpeg natives are loaded (without them a tile never
+  starts, so the main `test` CI job checks the no-video path). Still
+  untested: the bitrate readout's timer
+  (no platform dispatcher headless; its samples are), pinned windows'
+  view-model paths, and the views themselves.
+- PTZ (both apps): moves are serialized and deduplicated against what the
+  camera last accepted; a 401 re-logs in and resends once, a failed stop is
+  retried once. Still open: logins aren't coalesced (enrichment, package
+  snapshots and PTZ can each log in, and a failing one clears a session
+  another just made), a failed login isn't backed off (every press tries
+  again), and the macOS PTZ path has no tests (the .NET ones are in
+  `ClassicApiTests`).
+- Held-back dependencies (see the ignore list in `.github/dependabot.yml`):
+  **NAudio 3** obsoletes `WasapiOut` and makes `BufferDuration` read-only, so
+  `Video/AudioSink.cs` needs a port to `WasapiPlayerBuilder`, verified by
+  listening on a Windows machine. **Tmds.DBus.Protocol** stays at the version
+  Avalonia.FreeDesktop asks for (0.94.1 as of Avalonia 12.1.6): the explicit
+  reference overrides Avalonia's own D-Bus use (tray, portals) too.
+- Dependabot NuGet PRs fail CI with NU1004 when they touch a `src/` project:
+  regenerate every lock file on the PR branch with
+  `dotnet restore QuickProtect.sln --force-evaluate` (no `-r`) and commit.
+- Native Wayland (issue #4): branch `spike/avalonia-wayland` adds
+  `Avalonia.Wayland` behind `QUICKPROTECT_WAYLAND=1` with
+  `UseWaylandWithFallback()`. Untested on Linux; the checklist in the issue
+  (tray, pinned-window placement, portal hotkey, fractional scaling, video
+  throughput) decides whether it moves to `dev`. Hyprland's overlay mode is
+  X11-specific and would need its own Wayland path.
+- Next release notes: the "What's New" blocks in `docs/APP_STORE_LISTINGS.md`
+  still carry 1.5's text (fastlane's metadata lane uploads them at any time,
+  so they change only when the next version is submitted). Add "Keep the
+  panel open" and the bitrate readout then, in all seven languages, for both
+  stores.
+- AUR: `quickprotect-bin` is prepared (`installer/aur/`, at 1.5) but not yet
+  pushed to the AUR; that needs the maintainer's AUR account and SSH key.
+- `ubuntu-latest` is moving to a newer Ubuntu image; afterwards re-measure
+  the Linux payload's glibc floor (Platform notes in PARITY.md say 2.27).

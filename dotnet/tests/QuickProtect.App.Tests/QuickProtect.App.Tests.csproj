@@ -10,13 +10,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\QuickProtect.App\QuickProtect.App.csproj" />
+  </ItemGroup>
+
+  <!-- The Core tests' scripted controller and in-memory stores, so the view
+       models can be driven against a real ProtectHub. -->
+  <ItemGroup>
+    <Compile Include="..\QuickProtect.Core.Tests\ScriptedController.cs" Link="Shared\ScriptedController.cs" />
+    <Compile Include="..\QuickProtect.Core.Tests\FakeProtectConsole.cs" Link="Shared\FakeProtectConsole.cs" />
+    <Compile Include="..\QuickProtect.Core.Tests\TestDoubles.cs" Link="Shared\TestDoubles.cs" />
   </ItemGroup>
 
 </Project>

@@ -205,11 +205,12 @@ public sealed class RtspTlsTunnel : IDisposable
             Cleanup();
             return;
         }
-        StartPump("QP-Tunnel-up", localStream, tls, Cleanup);
-        StartPump("QP-Tunnel-down", tls, localStream, Cleanup);
+        StartPump("QP-Tunnel-up", localStream, tls, Cleanup, countsTraffic: false);
+        // Downstream is the video: counted for the header's bitrate readout.
+        StartPump("QP-Tunnel-down", tls, localStream, Cleanup, countsTraffic: true);
     }
 
-    private static void StartPump(string name, Stream from, Stream to, Action onDone)
+    private static void StartPump(string name, Stream from, Stream to, Action onDone, bool countsTraffic)
     {
         var thread = new Thread(() =>
         {
@@ -218,7 +219,10 @@ public sealed class RtspTlsTunnel : IDisposable
             {
                 int n;
                 while ((n = from.Read(buf, 0, buf.Length)) > 0)
+                {
+                    if (countsTraffic) StreamTraffic.Add(n);
                     to.Write(buf, 0, n);
+                }
             }
             catch { /* connection torn down — expected on either side closing */ }
             finally { onDone(); }
