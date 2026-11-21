@@ -174,14 +174,14 @@ public class ClassicLoginAndPtzTests
         Assert.True(await service.ClassicLoginAsync());
 
         service.PtzSetAxes("cam1", pan: 1);
-        // Send, resend after a re-login, then the one delayed retry (whose
-        // 401 gets no further re-login).
-        await console.Controller.WaitFor(Move("cam1"), count: 3);
+        // Send, resend after a re-login; one delayed retry, which logs in again
+        // and gets its own single resend (a console restart can 401 it too).
+        await console.Controller.WaitFor(Move("cam1"), count: 4);
         // Give a runaway retry loop time to show itself.
         await Task.Delay(PtzSettle);
 
-        Assert.Equal(3, console.Controller.To(Move("cam1")).Count);
-        Assert.Equal(3, console.Controller.To(Login).Count);
+        Assert.Equal(4, console.Controller.To(Move("cam1")).Count);
+        Assert.Equal(4, console.Controller.To(Login).Count);
     }
 
     [Fact]
@@ -265,7 +265,9 @@ public class ClassicLoginAndPtzTests
         service.PtzStopAll("cam1");
         service.PtzStopAll("cam2");
 
-        await WaitForLastMove(console, (0, 0, 0));
+        // The failed stop, then its retry.
+        var sent = await console.Controller.WaitFor(Move("cam1"), count: 3);
+        Assert.Equal(new[] { (1000, 0, 0), (0, 0, 0), (0, 0, 0) }, sent.Select(Velocities));
         // cam2 never moved: its stop is a no-op.
         Assert.Empty(console.Controller.To(Move("cam2")));
     }
@@ -326,8 +328,11 @@ public class ClassicLoginAndPtzTests
         service.PtzSetAxes("cam1", pan: 1);
         service.PtzSetAxes("cam1", pan: 0);
         service.PtzSetAxes("cam1", tilt: 1);
-        // Press, release (+ its one stop retry), press.
+        // Press, release, press, and one retry for the camera (retries are
+        // coalesced per camera while one is pending).
         await console.Controller.WaitFor(Move("cam1"), count: 4);
+        await Task.Delay(PtzSettle);
+        Assert.Equal(4, console.Controller.To(Move("cam1")).Count);
 
         Assert.Single(console.Controller.To(Login));
         Assert.True(service.IsClassicLoggedIn);

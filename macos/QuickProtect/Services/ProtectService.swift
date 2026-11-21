@@ -856,6 +856,9 @@ final class ProtectService: NSObject, ObservableObject {
     /// the chain (a lost release would otherwise leave the camera moving); a
     /// newer command that already delivered makes it a no-op.
     private static let ptzRetryDelay: UInt64 = 1_000_000_000
+    /// Cameras with a retry scheduled: one at a time per camera, so a failing
+    /// controller sees one extra request per burst, not one per key.
+    private var ptzRetryPending: Set<String> = []
     private var ptzAxisStartedAt: [PtzAxis: Date] = [:]
     /// Serializes move commands so they reach the controller in call order
     /// (an earlier send may still be waiting on login or a tap's minimum burst).
@@ -914,6 +917,7 @@ final class ProtectService: NSObject, ObservableObject {
                 // Only ends early on cancellation, which this chain never does.
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
+            if isRetry { ptzRetryPending.remove(cameraId) }
             var state = ptzDesired[cameraId] ?? PtzVelocity()
             mutate(&state)
             ptzDesired[cameraId] = state
@@ -923,7 +927,7 @@ final class ProtectService: NSObject, ObservableObject {
                 "type": "continuous",
                 "payload": ["x": Int(state.x), "y": Int(state.y), "z": Int(state.z)]
             ]
-            let sent = await deliverMove(cameraId: cameraId, body: body, isRetry: isRetry)
+            let sent = await deliverMove(cameraId: cameraId, body: body)
             if sent {
                 ptzLastSent[cameraId] = state
                 ptzUnknown.remove(cameraId)
@@ -931,8 +935,10 @@ final class ProtectService: NSObject, ObservableObject {
                 ptzUnknown.insert(cameraId)
                 // One retry, queued behind whatever comes next; it re-sends the
                 // camera's then-current intent only if that still isn't known
-                // to have arrived.
-                if !isRetry { schedulePtzRetry(cameraId: cameraId) }
+                // to have arrived. A retry doesn't schedule another.
+                if !isRetry, ptzRetryPending.insert(cameraId).inserted {
+                    schedulePtzRetry(cameraId: cameraId)
+                }
             }
         }
     }
@@ -943,6 +949,7 @@ final class ProtectService: NSObject, ObservableObject {
                 try await Task.sleep(nanoseconds: Self.ptzRetryDelay)
             } catch {
                 RTSPClient.log("[PTZ] move retry cancelled; camera state unknown")
+                ptzRetryPending.remove(cameraId)
                 return
             }
             enqueuePtzSend(cameraId: cameraId, delay: 0, isRetry: true) { _ in }
@@ -950,14 +957,14 @@ final class ProtectService: NSObject, ObservableObject {
     }
 
     /// One attempt: log in if the session is gone, then send.
-    private func deliverMove(cameraId: String, body: [String: Any], isRetry: Bool) async -> Bool {
+    private func deliverMove(cameraId: String, body: [String: Any]) async -> Bool {
         if !isClassicLoggedIn {
             guard await classicLogin() else {
                 await reportPtzLoginFailure()
                 return false
             }
         }
-        return await sendMove(cameraId: cameraId, body: body, isRetry: isRetry)
+        return await sendMove(cameraId: cameraId, body: body)
     }
 
     private func reportPtzLoginFailure() async {
@@ -970,12 +977,12 @@ final class ProtectService: NSObject, ObservableObject {
 
     /// Sends one continuous move; true when the controller accepted it. An
     /// expired session (401) logs in again and resends this move once, unless
-    /// this already is a retry, so a held direction isn't lost until the input
+    /// this already is that resend, so a held direction isn't lost until the input
     /// changes; a failed re-login shows the PTZ toast. A 403 is a missing PTZ permission, not an expired
     /// session: logging in again would only repeat (and audit-log) the login
     /// on every key press.
     @discardableResult
-    private func sendMove(cameraId: String, body: [String: Any], isRetry: Bool = false) async -> Bool {
+    private func sendMove(cameraId: String, body: [String: Any], isResend: Bool = false) async -> Bool {
         guard let url = makeURL(
             path: "proxy/protect/api/cameras/\(Self.pathSegment(cameraId))/move"
         ) else { return false }
@@ -1001,9 +1008,9 @@ final class ProtectService: NSObject, ObservableObject {
             await setClassicLoggedIn(false)
             csrfToken = nil
             tokenCookie = nil
-            if isRetry { return false }
+            if isResend { return false }
             if await classicLogin() {
-                return await sendMove(cameraId: cameraId, body: body, isRetry: true)
+                return await sendMove(cameraId: cameraId, body: body, isResend: true)
             }
             await reportPtzLoginFailure()
         }

@@ -747,6 +747,9 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     /// entry in the chain (a lost release would otherwise leave the camera
     /// moving); a newer command that already delivered makes it a no-op.</summary>
     public static readonly TimeSpan PtzRetryDelay = TimeSpan.FromSeconds(1);
+    /// <summary>Cameras with a retry scheduled: one at a time per camera, so a
+    /// failing controller sees one extra request per burst, not one per key.</summary>
+    private readonly HashSet<string> _ptzRetryPending = new();
     private Task _ptzChain = Task.CompletedTask;
     private readonly PtzBurstTimer _ptzBurst = new();
 
@@ -783,17 +786,23 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
                 (double x, double y, double z) next;
                 lock (_ptzLock)
                 {
+                    if (isRetry) _ptzRetryPending.Remove(cameraId);
                     next = mutate(_ptzDesired.GetValueOrDefault(cameraId));
                     _ptzDesired[cameraId] = next;
                     var known = _ptzLastSent.TryGetValue(cameraId, out var last) ? last : (0, 0, 0);
                     if (next == known) return;
                 }
-                var sent = await DeliverMoveAsync(cameraId, next, isRetry).ConfigureAwait(false);
-                lock (_ptzLock) _ptzLastSent[cameraId] = sent ? next : null;
-                // One retry, queued behind whatever comes next; it re-sends the
-                // camera's then-current intent only if that still isn't known
-                // to have arrived.
-                if (!sent && !isRetry)
+                var sent = await DeliverMoveAsync(cameraId, next).ConfigureAwait(false);
+                bool scheduleRetry;
+                lock (_ptzLock)
+                {
+                    _ptzLastSent[cameraId] = sent ? next : null;
+                    // One retry, queued behind whatever comes next; it re-sends
+                    // the camera's then-current intent only if that still isn't
+                    // known to have arrived. A retry doesn't schedule another.
+                    scheduleRetry = !sent && !isRetry && _ptzRetryPending.Add(cameraId);
+                }
+                if (scheduleRetry)
                     _ = Task.Delay(PtzRetryDelay).ContinueWith(
                         _ => EnqueuePtz(cameraId, TimeSpan.Zero, isRetry: true, state => state),
                         TaskScheduler.Default);
@@ -802,14 +811,14 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     }
 
     /// <summary>One attempt: log in if the session is gone, then send.</summary>
-    private async Task<bool> DeliverMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry)
+    private async Task<bool> DeliverMoveAsync(string cameraId, (double x, double y, double z) v)
     {
         if (!IsClassicLoggedIn && !await ClassicLoginAsync().ConfigureAwait(false))
         {
             ReportPtzLoginFailure();
             return false;
         }
-        return await SendMoveAsync(cameraId, v, isRetry).ConfigureAwait(false);
+        return await SendMoveAsync(cameraId, v).ConfigureAwait(false);
     }
 
     private void ReportPtzLoginFailure()
@@ -824,12 +833,12 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
     /// <summary>
     /// Sends one continuous move; true when the controller accepted it. An
     /// expired session (401) logs in again and resends this move once, unless
-    /// this already is a retry, so a held direction isn't lost until the input
+    /// this already is that resend, so a held direction isn't lost until the input
     /// changes; a failed re-login shows the PTZ toast. A 403 is a missing PTZ
     /// permission, not an expired session: logging in again would only repeat
     /// (and audit-log) the login on every key press.
     /// </summary>
-    private async Task<bool> SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isRetry = false)
+    private async Task<bool> SendMoveAsync(string cameraId, (double x, double y, double z) v, bool isResend = false)
     {
         var url = MakeUrl($"proxy/protect/api/cameras/{PathSegment(cameraId)}/move");
         if (url == null) return false;
@@ -847,9 +856,9 @@ public sealed class ProtectService : INotifyPropertyChanged, IDisposable, IStrea
             {
                 IsClassicLoggedIn = false;
                 SetCreds(null, null);
-                if (isRetry) return false;
+                if (isResend) return false;
                 if (await ClassicLoginAsync().ConfigureAwait(false))
-                    return await SendMoveAsync(cameraId, v, isRetry: true).ConfigureAwait(false);
+                    return await SendMoveAsync(cameraId, v, isResend: true).ConfigureAwait(false);
                 ReportPtzLoginFailure();
             }
             return false;
