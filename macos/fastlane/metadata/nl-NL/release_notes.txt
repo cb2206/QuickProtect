@@ -1,3 +1,3 @@
 • Paneel open houden: een nieuwe optie onder Algemeen. Het camerapaneel blijft open als je ergens anders klikt, zweeft boven andere vensters, opent weer waar je het liet en de camera's blijven streamen. Sluit het met de sluitknop, het menubalksymbool of de sneltoets.
 • De kop van het paneel toont de huidige videobitrate naast het aantal streams.
-• Een PTZ-stop die de console niet bereikt, wordt nu opnieuw verstuurd, zodat een camera na een verloren opdracht niet blijft bewegen.
+• Een PTZ-opdracht die de console niet bereikt, wordt nu een seconde later opnieuw verstuurd, zodat een camera na één verloren stop niet meer blijft bewegen.

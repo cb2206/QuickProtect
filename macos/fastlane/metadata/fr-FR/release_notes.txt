@@ -1,3 +1,3 @@
 • Garder le panneau ouvert : une nouvelle option dans Général. Le panneau des caméras reste ouvert quand vous cliquez ailleurs, flotte au-dessus des autres fenêtres, se rouvre là où vous l'avez laissé et ses caméras continuent de diffuser. Fermez-le avec son bouton de fermeture, l'icône de la barre des menus ou le raccourci clavier.
 • L'en-tête du panneau affiche le débit vidéo actuel à côté du nombre de flux.
-• Un arrêt PTZ qui n'atteint pas la console est désormais renvoyé : une caméra ne continue plus de bouger après une commande perdue.
+• Une commande PTZ qui n'atteint pas la console est désormais renvoyée une seconde plus tard : un seul arrêt perdu ne laisse plus une caméra en mouvement.

@@ -1,3 +1,3 @@
 • Keep the panel open: a new option under General. The camera panel stays open when you click elsewhere, floats above other windows, reopens where you left it and keeps its cameras streaming. Close it with its close button, the menu bar icon or the keyboard shortcut.
 • The panel header shows the current video bitrate next to the stream count.
-• A PTZ stop that doesn't reach the console is now sent again, so a camera no longer keeps moving after a lost command.
+• A PTZ command that doesn't reach the console is now sent again a second later, so a single lost stop no longer leaves a camera moving.

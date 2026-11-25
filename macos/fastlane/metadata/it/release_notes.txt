@@ -1,3 +1,3 @@
 • Mantieni aperto il pannello: una nuova opzione in Generale. Il pannello telecamere resta aperto quando fai clic altrove, rimane sopra le altre finestre, si riapre dove l'avevi lasciato e le sue telecamere continuano a trasmettere. Chiudilo con il pulsante di chiusura, l'icona nella barra dei menu o la scorciatoia da tastiera.
 • L'intestazione del pannello mostra il bitrate video attuale accanto al numero di stream.
-• Uno stop PTZ che non raggiunge la console ora viene inviato di nuovo, così una telecamera non continua più a muoversi dopo un comando perso.
+• Un comando PTZ che non raggiunge la console ora viene inviato di nuovo un secondo dopo, così un singolo stop perso non lascia più una telecamera in movimento.

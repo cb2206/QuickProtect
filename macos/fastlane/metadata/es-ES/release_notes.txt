@@ -1,3 +1,3 @@
 • Mantener el panel abierto: una nueva opción en General. El panel de cámaras sigue abierto cuando haces clic en otro sitio, flota sobre las demás ventanas, se vuelve a abrir donde lo dejaste y sus cámaras siguen transmitiendo. Ciérralo con su botón de cerrar, el icono de la barra de menús o el atajo de teclado.
 • La cabecera del panel muestra la tasa de bits de vídeo actual junto al número de streams.
-• Una orden de parada PTZ que no llega a la consola ahora se vuelve a enviar, así que una cámara ya no sigue moviéndose tras una orden perdida.
+• Una orden PTZ que no llega a la consola ahora se vuelve a enviar un segundo después, así que una sola orden de parada perdida ya no deja una cámara en movimiento.

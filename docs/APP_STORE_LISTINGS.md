@@ -85,7 +85,7 @@ QuickProtect is an independent app and is not affiliated with or endorsed by Ubi
 ```
 • Keep the panel open: a new option under General. The camera panel stays open when you click elsewhere, floats above other windows, reopens where you left it and keeps its cameras streaming. Close it with its close button, the menu bar icon or the keyboard shortcut.
 • The panel header shows the current video bitrate next to the stream count.
-• A PTZ stop that doesn't reach the console is now sent again, so a camera no longer keeps moving after a lost command.
+• A PTZ command that doesn't reach the console is now sent again a second later, so a single lost stop no longer leaves a camera moving.
 ```
 
 ---
@@ -142,9 +142,9 @@ QuickProtect ist eine unabhängige App und steht in keiner Verbindung zu Ubiquit
 
 **What's New**
 ```
-• Panel geöffnet lassen: eine neue Option unter „Allgemein“. Das Kamera-Panel bleibt offen, wenn du woanders klickst, schwebt über anderen Fenstern, öffnet sich dort wieder, wo du es verlassen hast, und seine Kameras streamen weiter. Schließe es mit seinem Schließen-Knopf, dem Menüleistensymbol oder dem Tastenkürzel.
+• Panel geöffnet lassen: eine neue Option unter „Allgemein“. Das Kamera-Panel bleibt offen, wenn du woanders klickst, schwebt über anderen Fenstern, öffnet sich dort wieder, wo du es verlassen hast, und seine Kameras streamen weiter. Schließe es mit seiner Schließen-Taste, dem Menüleistensymbol oder dem Tastenkürzel.
 • Die Kopfzeile des Panels zeigt neben der Zahl der Streams die aktuelle Video-Bitrate.
-• Ein PTZ-Stopp, der die Konsole nicht erreicht, wird jetzt erneut gesendet, sodass sich eine Kamera nach einem verlorenen Befehl nicht weiterbewegt.
+• Ein PTZ-Befehl, der die Konsole nicht erreicht, wird jetzt eine Sekunde später erneut gesendet, sodass sich eine Kamera nach einem einzelnen verlorenen Stopp nicht mehr weiterbewegt.
 ```
 
 ---
@@ -203,7 +203,7 @@ QuickProtect est une app indépendante, non affiliée à Ubiquiti Inc. ni approu
 ```
 • Garder le panneau ouvert : une nouvelle option dans Général. Le panneau des caméras reste ouvert quand vous cliquez ailleurs, flotte au-dessus des autres fenêtres, se rouvre là où vous l'avez laissé et ses caméras continuent de diffuser. Fermez-le avec son bouton de fermeture, l'icône de la barre des menus ou le raccourci clavier.
 • L'en-tête du panneau affiche le débit vidéo actuel à côté du nombre de flux.
-• Un arrêt PTZ qui n'atteint pas la console est désormais renvoyé : une caméra ne continue plus de bouger après une commande perdue.
+• Une commande PTZ qui n'atteint pas la console est désormais renvoyée une seconde plus tard : un seul arrêt perdu ne laisse plus une caméra en mouvement.
 ```
 
 ---
@@ -262,7 +262,7 @@ QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni res
 ```
 • Mantener el panel abierto: una nueva opción en General. El panel de cámaras sigue abierto cuando haces clic en otro sitio, flota sobre las demás ventanas, se vuelve a abrir donde lo dejaste y sus cámaras siguen transmitiendo. Ciérralo con su botón de cerrar, el icono de la barra de menús o el atajo de teclado.
 • La cabecera del panel muestra la tasa de bits de vídeo actual junto al número de streams.
-• Una orden de parada PTZ que no llega a la consola ahora se vuelve a enviar, así que una cámara ya no sigue moviéndose tras una orden perdida.
+• Una orden PTZ que no llega a la consola ahora se vuelve a enviar un segundo después, así que una sola orden de parada perdida ya no deja una cámara en movimiento.
 ```
 
 ---
@@ -321,7 +321,7 @@ QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd d
 ```
 • Paneel open houden: een nieuwe optie onder Algemeen. Het camerapaneel blijft open als je ergens anders klikt, zweeft boven andere vensters, opent weer waar je het liet en de camera's blijven streamen. Sluit het met de sluitknop, het menubalksymbool of de sneltoets.
 • De kop van het paneel toont de huidige videobitrate naast het aantal streams.
-• Een PTZ-stop die de console niet bereikt, wordt nu opnieuw verstuurd, zodat een camera na een verloren opdracht niet blijft bewegen.
+• Een PTZ-opdracht die de console niet bereikt, wordt nu een seconde later opnieuw verstuurd, zodat een camera na één verloren stop niet meer blijft bewegen.
 ```
 
 ---
@@ -380,7 +380,7 @@ QuickProtect è un'app indipendente e non è affiliata a Ubiquiti Inc. né appro
 ```
 • Mantieni aperto il pannello: una nuova opzione in Generale. Il pannello telecamere resta aperto quando fai clic altrove, rimane sopra le altre finestre, si riapre dove l'avevi lasciato e le sue telecamere continuano a trasmettere. Chiudilo con il pulsante di chiusura, l'icona nella barra dei menu o la scorciatoia da tastiera.
 • L'intestazione del pannello mostra il bitrate video attuale accanto al numero di stream.
-• Uno stop PTZ che non raggiunge la console ora viene inviato di nuovo, così una telecamera non continua più a muoversi dopo un comando perso.
+• Un comando PTZ che non raggiunge la console ora viene inviato di nuovo un secondo dopo, così un singolo stop perso non lascia più una telecamera in movimento.
 ```
 
 ---
@@ -439,7 +439,7 @@ O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiq
 ```
 • Manter o painel aberto: uma nova opção em Geral. O painel de câmeras continua aberto quando você clica em outro lugar, fica acima das outras janelas, reabre onde você o deixou e as câmeras continuam transmitindo. Feche-o com o botão de fechar, o ícone da barra de menus ou o atalho de teclado.
 • O cabeçalho do painel mostra a taxa de bits de vídeo atual ao lado do número de streams.
-• Uma parada PTZ que não chega ao console agora é enviada de novo, então uma câmera não continua mais se movendo depois de um comando perdido.
+• Um comando PTZ que não chega ao console agora é enviado de novo um segundo depois, então um único comando de parada perdido não deixa mais uma câmera em movimento.
 ```
 
 ---
@@ -559,7 +559,7 @@ PTZ
 ```
 • Keep the panel open: a new option under General. The camera panel stays open when you click elsewhere, stays on top of other windows, reopens where you left it and keeps its cameras streaming. Close it with its ✕ button, the tray icon or the keyboard shortcut.
 • The panel header shows the current video bitrate next to the stream count.
-• A PTZ stop that doesn't reach the console is now sent again, so a camera no longer keeps moving after a lost command.
+• A PTZ command that doesn't reach the console is now sent again a second later, so a single lost stop no longer leaves a camera moving.
 ```
 
 ---
@@ -620,7 +620,7 @@ PTZ
 ```
 • Panel geöffnet lassen: eine neue Option unter „Allgemein“. Das Kamera-Panel bleibt offen, wenn du woanders klickst, bleibt über anderen Fenstern, öffnet sich dort wieder, wo du es verlassen hast, und seine Kameras streamen weiter. Schließe es mit seinem ✕, dem Taskleistensymbol oder dem Tastenkürzel.
 • Die Kopfzeile des Panels zeigt neben der Zahl der Streams die aktuelle Video-Bitrate.
-• Ein PTZ-Stopp, der die Konsole nicht erreicht, wird jetzt erneut gesendet, sodass sich eine Kamera nach einem verlorenen Befehl nicht weiterbewegt.
+• Ein PTZ-Befehl, der die Konsole nicht erreicht, wird jetzt eine Sekunde später erneut gesendet, sodass sich eine Kamera nach einem einzelnen verlorenen Stopp nicht mehr weiterbewegt.
 ```
 
 ---
@@ -681,7 +681,7 @@ PTZ
 ```
 • Garder le panneau ouvert : une nouvelle option dans Général. Le panneau des caméras reste ouvert quand vous cliquez ailleurs, reste au premier plan, se rouvre là où vous l'avez laissé et ses caméras continuent de diffuser. Fermez-le avec son bouton ✕, l'icône de la zone de notification ou le raccourci clavier.
 • L'en-tête du panneau affiche le débit vidéo actuel à côté du nombre de flux.
-• Un arrêt PTZ qui n'atteint pas la console est désormais renvoyé : une caméra ne continue plus de bouger après une commande perdue.
+• Une commande PTZ qui n'atteint pas la console est désormais renvoyée une seconde plus tard : un seul arrêt perdu ne laisse plus une caméra en mouvement.
 ```
 
 ---
@@ -742,7 +742,7 @@ PTZ
 ```
 • Mantener el panel abierto: una nueva opción en General. El panel de cámaras sigue abierto cuando haces clic en otro sitio, se queda en primer plano, se vuelve a abrir donde lo dejaste y sus cámaras siguen transmitiendo. Ciérralo con su botón ✕, el icono de la bandeja o el atajo de teclado.
 • La cabecera del panel muestra la tasa de bits de vídeo actual junto al número de streams.
-• Una orden de parada PTZ que no llega a la consola ahora se vuelve a enviar, así que una cámara ya no sigue moviéndose tras una orden perdida.
+• Una orden PTZ que no llega a la consola ahora se vuelve a enviar un segundo después, así que una sola orden de parada perdida ya no deja una cámara en movimiento.
 ```
 
 ---
@@ -803,7 +803,7 @@ PTZ
 ```
 • Paneel open houden: een nieuwe optie onder Algemeen. Het camerapaneel blijft open als je ergens anders klikt, blijft op de voorgrond, opent weer waar je het liet en de camera's blijven streamen. Sluit het met de ✕-knop, het systeemvakpictogram of de sneltoets.
 • De kop van het paneel toont de huidige videobitrate naast het aantal streams.
-• Een PTZ-stop die de console niet bereikt, wordt nu opnieuw verstuurd, zodat een camera na een verloren opdracht niet blijft bewegen.
+• Een PTZ-opdracht die de console niet bereikt, wordt nu een seconde later opnieuw verstuurd, zodat een camera na één verloren stop niet meer blijft bewegen.
 ```
 
 ---
@@ -864,7 +864,7 @@ PTZ
 ```
 • Mantieni aperto il pannello: una nuova opzione in Generale. Il pannello telecamere resta aperto quando fai clic altrove, rimane in primo piano, si riapre dove l'avevi lasciato e le sue telecamere continuano a trasmettere. Chiudilo con il pulsante ✕, l'icona nell'area di notifica o la scorciatoia da tastiera.
 • L'intestazione del pannello mostra il bitrate video attuale accanto al numero di stream.
-• Uno stop PTZ che non raggiunge la console ora viene inviato di nuovo, così una telecamera non continua più a muoversi dopo un comando perso.
+• Un comando PTZ che non raggiunge la console ora viene inviato di nuovo un secondo dopo, così un singolo stop perso non lascia più una telecamera in movimento.
 ```
 
 ---
@@ -925,5 +925,5 @@ PTZ
 ```
 • Manter o painel aberto: uma nova opção em Geral. O painel de câmeras continua aberto quando você clica em outro lugar, fica em primeiro plano, reabre onde você o deixou e as câmeras continuam transmitindo. Feche-o com o botão ✕, o ícone da bandeja ou o atalho de teclado.
 • O cabeçalho do painel mostra a taxa de bits de vídeo atual ao lado do número de streams.
-• Uma parada PTZ que não chega ao console agora é enviada de novo, então uma câmera não continua mais se movendo depois de um comando perdido.
+• Um comando PTZ que não chega ao console agora é enviado de novo um segundo depois, então um único comando de parada perdido não deixa mais uma câmera em movimento.
 ```

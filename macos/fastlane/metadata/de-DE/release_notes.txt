@@ -1,3 +1,3 @@
-• Panel geöffnet lassen: eine neue Option unter „Allgemein“. Das Kamera-Panel bleibt offen, wenn du woanders klickst, schwebt über anderen Fenstern, öffnet sich dort wieder, wo du es verlassen hast, und seine Kameras streamen weiter. Schließe es mit seinem Schließen-Knopf, dem Menüleistensymbol oder dem Tastenkürzel.
+• Panel geöffnet lassen: eine neue Option unter „Allgemein“. Das Kamera-Panel bleibt offen, wenn du woanders klickst, schwebt über anderen Fenstern, öffnet sich dort wieder, wo du es verlassen hast, und seine Kameras streamen weiter. Schließe es mit seiner Schließen-Taste, dem Menüleistensymbol oder dem Tastenkürzel.
 • Die Kopfzeile des Panels zeigt neben der Zahl der Streams die aktuelle Video-Bitrate.
-• Ein PTZ-Stopp, der die Konsole nicht erreicht, wird jetzt erneut gesendet, sodass sich eine Kamera nach einem verlorenen Befehl nicht weiterbewegt.
+• Ein PTZ-Befehl, der die Konsole nicht erreicht, wird jetzt eine Sekunde später erneut gesendet, sodass sich eine Kamera nach einem einzelnen verlorenen Stopp nicht mehr weiterbewegt.

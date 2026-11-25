@@ -151,9 +151,10 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
 - Held-back dependencies (see the ignore list in `.github/dependabot.yml`):
   **NAudio 3** obsoletes `WasapiOut`, so `Video/AudioSink.cs` needs a port
   to `WasapiPlayerBuilder`, verified by listening on a Windows machine (2.4
-  already made `BufferDuration` constructor-only; `AudioSink` passes it there). **Tmds.DBus.Protocol** stays at the version
-  Avalonia.FreeDesktop asks for (0.94.1 as of Avalonia 12.1.6): the explicit
-  reference overrides Avalonia's own D-Bus use (tray, portals) too.
+  already made `BufferDuration` constructor-only; `AudioSink` passes it
+  there). **Tmds.DBus.Protocol** stays at the version Avalonia.FreeDesktop
+  asks for (0.94.1 as of Avalonia 12.1.6): the explicit reference overrides
+  Avalonia's own D-Bus use (tray, portals) too.
 - Dependabot NuGet PRs fail CI with NU1004 when they touch a `src/` project:
   regenerate every lock file on the PR branch with
   `dotnet restore QuickProtect.sln --force-evaluate` (no `-r`) and commit.

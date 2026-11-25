@@ -36,10 +36,9 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
     ignore:
-      # NAudio 3 obsoletes WasapiOut (an error under TreatWarningsAsErrors)
-      # and makes BufferedWaveProvider.BufferDuration read-only. Porting
-      # Video/AudioSink.cs to WasapiPlayerBuilder needs a listening test on a
-      # Windows machine; do it deliberately, not from a Dependabot PR.
+      # NAudio 3 obsoletes WasapiOut (an error under TreatWarningsAsErrors).
+      # Porting Video/AudioSink.cs to WasapiPlayerBuilder needs a listening
+      # test on a Windows machine; do it deliberately, not from a Dependabot PR.
       - dependency-name: "NAudio*"
         update-types: ["version-update:semver-major"]
       # Avalonia.FreeDesktop pins its own Tmds.DBus.Protocol, and the explicit
