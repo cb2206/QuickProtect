@@ -1,6 +1,6 @@
 pkgbase = quickprotect-bin
 	pkgdesc = Live viewer for UniFi Protect cameras — grid, focus view, PTZ, snapshots, tray app
-	pkgver = 1.5
+	pkgver = 1.6
 	pkgrel = 1
 	url = https://github.com/cb2206/QuickProtect
 	arch = x86_64
@@ -16,9 +16,9 @@ pkgbase = quickprotect-bin
 	provides = quickprotect
 	conflicts = quickprotect
 	options = !strip
-	source_x86_64 = https://github.com/cb2206/QuickProtect/releases/download/v1.5/QuickProtect-1.5-linux-x64.tar.gz
-	sha256sums_x86_64 = 59731dfec9f4e52459112ed8179ed6c159801d9e04a18bcb75635a59650b9a22
-	source_aarch64 = https://github.com/cb2206/QuickProtect/releases/download/v1.5/QuickProtect-1.5-linux-arm64.tar.gz
-	sha256sums_aarch64 = 2cb63e95cf4f1d5a9efd2bf352828b8e0a1a1c713182196935212af29e723758
+	source_x86_64 = https://github.com/cb2206/QuickProtect/releases/download/v1.6/QuickProtect-1.6-linux-x64.tar.gz
+	sha256sums_x86_64 = 5d6e90f5c2b3bec93096a6eaa70c0c2727e9a54acadff5ce72e234f382893140
+	source_aarch64 = https://github.com/cb2206/QuickProtect/releases/download/v1.6/QuickProtect-1.6-linux-arm64.tar.gz
+	sha256sums_aarch64 = 2cbe9d3e1741c4f0a5f947ef35f03cfb72a12eda9680dd40431cebe6137c83b2
 
 pkgname = quickprotect-bin

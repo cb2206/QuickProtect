@@ -168,7 +168,7 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   languages, both stores) and in `macos/fastlane/metadata/`. Before 1.6 the
   tray icon (Avalonia 12.1.6 needs it attached to the application) was checked
   by hand on Windows and on Omarchy (Hyprland).
-- AUR: `quickprotect-bin` is prepared (`installer/aur/`, at 1.5) but not yet
+- AUR: `quickprotect-bin` is prepared (`installer/aur/`, at 1.6) but not yet
   pushed to the AUR; that needs the maintainer's AUR account and SSH key.
 - `ubuntu-latest` is moving to a newer Ubuntu image; afterwards re-measure
   the Linux payload's glibc floor (Platform notes in PARITY.md say 2.27).

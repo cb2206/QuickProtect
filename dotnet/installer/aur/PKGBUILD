@@ -10,7 +10,7 @@
 # without it), the global hotkey uses the XDG Desktop Portal.
 
 pkgname=quickprotect-bin
-pkgver=1.5
+pkgver=1.6
 pkgrel=1
 pkgdesc="Live viewer for UniFi Protect cameras — grid, focus view, PTZ, snapshots, tray app"
 arch=('x86_64' 'aarch64')
@@ -27,8 +27,8 @@ optdepends=('alsa-lib: audio playback'
 options=('!strip')
 source_x86_64=("$url/releases/download/v$pkgver/QuickProtect-$pkgver-linux-x64.tar.gz")
 source_aarch64=("$url/releases/download/v$pkgver/QuickProtect-$pkgver-linux-arm64.tar.gz")
-sha256sums_x86_64=('59731dfec9f4e52459112ed8179ed6c159801d9e04a18bcb75635a59650b9a22')
-sha256sums_aarch64=('2cb63e95cf4f1d5a9efd2bf352828b8e0a1a1c713182196935212af29e723758')
+sha256sums_x86_64=('5d6e90f5c2b3bec93096a6eaa70c0c2727e9a54acadff5ce72e234f382893140')
+sha256sums_aarch64=('2cbe9d3e1741c4f0a5f947ef35f03cfb72a12eda9680dd40431cebe6137c83b2')
 
 package() {
     local rid=linux-x64
