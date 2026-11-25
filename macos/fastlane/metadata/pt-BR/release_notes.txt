@@ -1,6 +1,3 @@
-• Vários sites: adicione vários consoles UniFi (por exemplo, sua casa e uma segunda casa) e veja todas as câmeras deles em uma única grade e um único perfil de layout. Cada bloco mostra seu site, e um site offline aparece como aviso enquanto os outros continuam transmitindo.
-• Enquanto uma transmissão ao vivo inicia, o bloco mostra um instantâneo recente em vez de ficar escuro.
-• Ao reabrir o painel de câmeras, a grade continua na tela em vez de recarregar cada transmissão.
-• O "?" ao lado dos campos da chave de API e da conta PTZ mostra onde criá-las no seu console.
-• Se você inserir o endereço de uma câmera em vez do seu console UniFi, o QuickProtect agora avisa.
-• Chaves de API coladas com espaço ou quebra de linha no final agora funcionam.
+• Manter o painel aberto: uma nova opção em Geral. O painel de câmeras continua aberto quando você clica em outro lugar, fica acima das outras janelas, reabre onde você o deixou e as câmeras continuam transmitindo. Feche-o com o botão de fechar, o ícone da barra de menus ou o atalho de teclado.
+• O cabeçalho do painel mostra a taxa de bits de vídeo atual ao lado do número de streams.
+• Uma parada PTZ que não chega ao console agora é enviada de novo, então uma câmera não continua mais se movendo depois de um comando perdido.

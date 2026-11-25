@@ -1,6 +1,3 @@
-• More than one site: add several UniFi consoles (for example home and a second house) and see all their cameras in one grid and one layout profile. Each tile shows its site, and a site that's offline shows a notice while the others keep streaming.
-• While a live stream starts, its tile shows a recent snapshot instead of staying dark.
-• Reopening the camera panel keeps the grid on screen instead of reloading every stream.
-• The ? next to the API key and PTZ account fields shows where to create them on your console.
-• If you enter a camera's address instead of your UniFi console's, QuickProtect now tells you.
-• API keys pasted with a trailing space or line break now work.
+• Keep the panel open: a new option under General. The camera panel stays open when you click elsewhere, floats above other windows, reopens where you left it and keeps its cameras streaming. Close it with its close button, the menu bar icon or the keyboard shortcut.
+• The panel header shows the current video bitrate next to the stream count.
+• A PTZ stop that doesn't reach the console is now sent again, so a camera no longer keeps moving after a lost command.

@@ -83,12 +83,9 @@ QuickProtect is an independent app and is not affiliated with or endorsed by Ubi
 
 **What's New**
 ```
-• More than one site: add several UniFi consoles (for example home and a second house) and see all their cameras in one grid and one layout profile. Each tile shows its site, and a site that's offline shows a notice while the others keep streaming.
-• While a live stream starts, its tile shows a recent snapshot instead of staying dark.
-• Reopening the camera panel keeps the grid on screen instead of reloading every stream.
-• The ? next to the API key and PTZ account fields shows where to create them on your console.
-• If you enter a camera's address instead of your UniFi console's, QuickProtect now tells you.
-• API keys pasted with a trailing space or line break now work.
+• Keep the panel open: a new option under General. The camera panel stays open when you click elsewhere, floats above other windows, reopens where you left it and keeps its cameras streaming. Close it with its close button, the menu bar icon or the keyboard shortcut.
+• The panel header shows the current video bitrate next to the stream count.
+• A PTZ stop that doesn't reach the console is now sent again, so a camera no longer keeps moving after a lost command.
 ```
 
 ---
@@ -145,12 +142,9 @@ QuickProtect ist eine unabhängige App und steht in keiner Verbindung zu Ubiquit
 
 **What's New**
 ```
-• Mehrere Standorte: Füge mehrere UniFi-Konsolen hinzu (etwa zu Hause und in einem zweiten Haus) und sieh alle ihre Kameras in einem Raster und einem Layoutprofil. Jede Kachel zeigt ihren Standort, und ein Standort, der offline ist, erscheint als Hinweis, während die anderen weiterstreamen.
-• Während ein Livestream startet, zeigt seine Kachel einen aktuellen Schnappschuss, statt dunkel zu bleiben.
-• Beim erneuten Öffnen der Kameraübersicht bleibt das Raster stehen, statt jeden Stream neu zu laden.
-• Das „?“ neben den Feldern für API-Schlüssel und PTZ-Konto zeigt, wo du sie auf deiner Konsole anlegst.
-• Gibst du statt der Adresse deiner UniFi-Konsole die einer Kamera ein, sagt QuickProtect dir das jetzt.
-• API-Schlüssel, die mit einem Leerzeichen oder Zeilenumbruch am Ende eingefügt wurden, funktionieren jetzt.
+• Panel geöffnet lassen: eine neue Option unter „Allgemein“. Das Kamera-Panel bleibt offen, wenn du woanders klickst, schwebt über anderen Fenstern, öffnet sich dort wieder, wo du es verlassen hast, und seine Kameras streamen weiter. Schließe es mit seinem Schließen-Knopf, dem Menüleistensymbol oder dem Tastenkürzel.
+• Die Kopfzeile des Panels zeigt neben der Zahl der Streams die aktuelle Video-Bitrate.
+• Ein PTZ-Stopp, der die Konsole nicht erreicht, wird jetzt erneut gesendet, sodass sich eine Kamera nach einem verlorenen Befehl nicht weiterbewegt.
 ```
 
 ---
@@ -207,12 +201,9 @@ QuickProtect est une app indépendante, non affiliée à Ubiquiti Inc. ni approu
 
 **What's New**
 ```
-• Plusieurs sites : ajoutez plusieurs consoles UniFi (par exemple la maison et une résidence secondaire) et retrouvez toutes leurs caméras dans une seule grille et un seul profil de disposition. Chaque vignette indique son site, et un site hors ligne s'affiche sous forme d'avis pendant que les autres continuent de diffuser.
-• Pendant le démarrage d'un flux en direct, sa vignette affiche un instantané récent au lieu de rester noire.
-• Rouvrir le panneau des caméras conserve la grille à l'écran au lieu de recharger chaque flux.
-• Le « ? » à côté des champs de la clé API et du compte PTZ indique où les créer sur votre console.
-• Si vous saisissez l'adresse d'une caméra au lieu de celle de votre console UniFi, QuickProtect vous le signale désormais.
-• Les clés API collées avec une espace ou un saut de ligne final fonctionnent désormais.
+• Garder le panneau ouvert : une nouvelle option dans Général. Le panneau des caméras reste ouvert quand vous cliquez ailleurs, flotte au-dessus des autres fenêtres, se rouvre là où vous l'avez laissé et ses caméras continuent de diffuser. Fermez-le avec son bouton de fermeture, l'icône de la barre des menus ou le raccourci clavier.
+• L'en-tête du panneau affiche le débit vidéo actuel à côté du nombre de flux.
+• Un arrêt PTZ qui n'atteint pas la console est désormais renvoyé : une caméra ne continue plus de bouger après une commande perdue.
 ```
 
 ---
@@ -269,12 +260,9 @@ QuickProtect es una app independiente y no está afiliada a Ubiquiti Inc. ni res
 
 **What's New**
 ```
-• Varios sitios: añade varias consolas UniFi (por ejemplo, tu casa y una segunda vivienda) y ve todas sus cámaras en una sola cuadrícula y un solo perfil de diseño. Cada mosaico muestra su sitio, y un sitio sin conexión aparece como aviso mientras los demás siguen transmitiendo.
-• Mientras arranca una transmisión en directo, su mosaico muestra una instantánea reciente en lugar de quedarse oscuro.
-• Al volver a abrir el panel de cámaras, la cuadrícula se mantiene en pantalla en lugar de recargar cada transmisión.
-• El «?» junto a los campos de la clave API y la cuenta PTZ indica dónde crearlas en tu consola.
-• Si introduces la dirección de una cámara en lugar de la de tu consola UniFi, QuickProtect ahora te lo indica.
-• Las claves API pegadas con un espacio o un salto de línea al final ya funcionan.
+• Mantener el panel abierto: una nueva opción en General. El panel de cámaras sigue abierto cuando haces clic en otro sitio, flota sobre las demás ventanas, se vuelve a abrir donde lo dejaste y sus cámaras siguen transmitiendo. Ciérralo con su botón de cerrar, el icono de la barra de menús o el atajo de teclado.
+• La cabecera del panel muestra la tasa de bits de vídeo actual junto al número de streams.
+• Una orden de parada PTZ que no llega a la consola ahora se vuelve a enviar, así que una cámara ya no sigue moviéndose tras una orden perdida.
 ```
 
 ---
@@ -331,12 +319,9 @@ QuickProtect is een onafhankelijke app en is niet verbonden met of goedgekeurd d
 
 **What's New**
 ```
-• Meerdere locaties: voeg meerdere UniFi-consoles toe (bijvoorbeeld thuis en een tweede huis) en zie al hun camera's in één raster en één indelingsprofiel. Elke tegel toont zijn locatie, en een locatie die offline is verschijnt als melding terwijl de andere gewoon doorstreamen.
-• Terwijl een livestream start, toont de tegel een recente momentopname in plaats van donker te blijven.
-• Als je het camerapaneel opnieuw opent, blijft het raster staan in plaats van elke stream opnieuw te laden.
-• Het ‘?’ naast de velden voor de API-sleutel en het PTZ-account laat zien waar je ze op je console aanmaakt.
-• Voer je het adres van een camera in in plaats van dat van je UniFi-console, dan meldt QuickProtect dat nu.
-• API-sleutels die met een spatie of regeleinde aan het eind zijn geplakt, werken nu.
+• Paneel open houden: een nieuwe optie onder Algemeen. Het camerapaneel blijft open als je ergens anders klikt, zweeft boven andere vensters, opent weer waar je het liet en de camera's blijven streamen. Sluit het met de sluitknop, het menubalksymbool of de sneltoets.
+• De kop van het paneel toont de huidige videobitrate naast het aantal streams.
+• Een PTZ-stop die de console niet bereikt, wordt nu opnieuw verstuurd, zodat een camera na een verloren opdracht niet blijft bewegen.
 ```
 
 ---
@@ -393,12 +378,9 @@ QuickProtect è un'app indipendente e non è affiliata a Ubiquiti Inc. né appro
 
 **What's New**
 ```
-• Più siti: aggiungi più console UniFi (per esempio casa e una seconda casa) e vedi tutte le loro telecamere in un'unica griglia e un unico profilo di layout. Ogni riquadro mostra il suo sito, e un sito offline appare come avviso mentre gli altri continuano a trasmettere.
-• Mentre un flusso live si avvia, il suo riquadro mostra un'istantanea recente invece di restare scuro.
-• Riaprendo il pannello delle telecamere, la griglia resta sullo schermo invece di ricaricare ogni flusso.
-• Il «?» accanto ai campi della chiave API e dell'account PTZ indica dove crearli sulla tua console.
-• Se inserisci l'indirizzo di una telecamera invece di quello della tua console UniFi, ora QuickProtect te lo segnala.
-• Le chiavi API incollate con uno spazio o un a capo finale ora funzionano.
+• Mantieni aperto il pannello: una nuova opzione in Generale. Il pannello telecamere resta aperto quando fai clic altrove, rimane sopra le altre finestre, si riapre dove l'avevi lasciato e le sue telecamere continuano a trasmettere. Chiudilo con il pulsante di chiusura, l'icona nella barra dei menu o la scorciatoia da tastiera.
+• L'intestazione del pannello mostra il bitrate video attuale accanto al numero di stream.
+• Uno stop PTZ che non raggiunge la console ora viene inviato di nuovo, così una telecamera non continua più a muoversi dopo un comando perso.
 ```
 
 ---
@@ -455,12 +437,9 @@ O QuickProtect é um app independente e não é afiliado nem endossado pela Ubiq
 
 **What's New**
 ```
-• Vários sites: adicione vários consoles UniFi (por exemplo, sua casa e uma segunda casa) e veja todas as câmeras deles em uma única grade e um único perfil de layout. Cada bloco mostra seu site, e um site offline aparece como aviso enquanto os outros continuam transmitindo.
-• Enquanto uma transmissão ao vivo inicia, o bloco mostra um instantâneo recente em vez de ficar escuro.
-• Ao reabrir o painel de câmeras, a grade continua na tela em vez de recarregar cada transmissão.
-• O "?" ao lado dos campos da chave de API e da conta PTZ mostra onde criá-las no seu console.
-• Se você inserir o endereço de uma câmera em vez do seu console UniFi, o QuickProtect agora avisa.
-• Chaves de API coladas com espaço ou quebra de linha no final agora funcionam.
+• Manter o painel aberto: uma nova opção em Geral. O painel de câmeras continua aberto quando você clica em outro lugar, fica acima das outras janelas, reabre onde você o deixou e as câmeras continuam transmitindo. Feche-o com o botão de fechar, o ícone da barra de menus ou o atalho de teclado.
+• O cabeçalho do painel mostra a taxa de bits de vídeo atual ao lado do número de streams.
+• Uma parada PTZ que não chega ao console agora é enviada de novo, então uma câmera não continua mais se movendo depois de um comando perdido.
 ```
 
 ---
@@ -578,10 +557,9 @@ PTZ
 
 **What's New**
 ```
-• More than one site: add several UniFi consoles (for example home and a second house) and see all their cameras in one grid and one layout profile. Each tile shows its site, and a site that's offline shows a notice while the others keep streaming.
-• While a live stream starts, its tile shows a recent snapshot instead of staying dark.
-• The ? next to the API key and PTZ account fields shows where to create them on your console.
-• If you enter a camera's address instead of your UniFi console's, QuickProtect now tells you.
+• Keep the panel open: a new option under General. The camera panel stays open when you click elsewhere, stays on top of other windows, reopens where you left it and keeps its cameras streaming. Close it with its ✕ button, the tray icon or the keyboard shortcut.
+• The panel header shows the current video bitrate next to the stream count.
+• A PTZ stop that doesn't reach the console is now sent again, so a camera no longer keeps moving after a lost command.
 ```
 
 ---
@@ -640,10 +618,9 @@ PTZ
 
 **What's New**
 ```
-• Mehrere Standorte: Füge mehrere UniFi-Konsolen hinzu (etwa zu Hause und in einem zweiten Haus) und sieh alle ihre Kameras in einem Raster und einem Layoutprofil. Jede Kachel zeigt ihren Standort, und ein Standort, der offline ist, erscheint als Hinweis, während die anderen weiterstreamen.
-• Während ein Livestream startet, zeigt seine Kachel einen aktuellen Schnappschuss, statt dunkel zu bleiben.
-• Das „?“ neben den Feldern für API-Schlüssel und PTZ-Konto zeigt, wo du sie auf deiner Konsole anlegst.
-• Gibst du statt der Adresse deiner UniFi-Konsole die einer Kamera ein, sagt QuickProtect dir das jetzt.
+• Panel geöffnet lassen: eine neue Option unter „Allgemein“. Das Kamera-Panel bleibt offen, wenn du woanders klickst, bleibt über anderen Fenstern, öffnet sich dort wieder, wo du es verlassen hast, und seine Kameras streamen weiter. Schließe es mit seinem ✕, dem Taskleistensymbol oder dem Tastenkürzel.
+• Die Kopfzeile des Panels zeigt neben der Zahl der Streams die aktuelle Video-Bitrate.
+• Ein PTZ-Stopp, der die Konsole nicht erreicht, wird jetzt erneut gesendet, sodass sich eine Kamera nach einem verlorenen Befehl nicht weiterbewegt.
 ```
 
 ---
@@ -702,10 +679,9 @@ PTZ
 
 **What's New**
 ```
-• Plusieurs sites : ajoutez plusieurs consoles UniFi (par exemple la maison et une résidence secondaire) et retrouvez toutes leurs caméras dans une seule grille et un seul profil de disposition. Chaque vignette indique son site, et un site hors ligne s'affiche sous forme d'avis pendant que les autres continuent de diffuser.
-• Pendant le démarrage d'un flux en direct, sa vignette affiche un instantané récent au lieu de rester noire.
-• Le « ? » à côté des champs de la clé API et du compte PTZ indique où les créer sur votre console.
-• Si vous saisissez l'adresse d'une caméra au lieu de celle de votre console UniFi, QuickProtect vous le signale désormais.
+• Garder le panneau ouvert : une nouvelle option dans Général. Le panneau des caméras reste ouvert quand vous cliquez ailleurs, reste au premier plan, se rouvre là où vous l'avez laissé et ses caméras continuent de diffuser. Fermez-le avec son bouton ✕, l'icône de la zone de notification ou le raccourci clavier.
+• L'en-tête du panneau affiche le débit vidéo actuel à côté du nombre de flux.
+• Un arrêt PTZ qui n'atteint pas la console est désormais renvoyé : une caméra ne continue plus de bouger après une commande perdue.
 ```
 
 ---
@@ -764,10 +740,9 @@ PTZ
 
 **What's New**
 ```
-• Varios sitios: añade varias consolas UniFi (por ejemplo, tu casa y una segunda vivienda) y ve todas sus cámaras en una sola cuadrícula y un solo perfil de diseño. Cada mosaico muestra su sitio, y un sitio sin conexión aparece como aviso mientras los demás siguen transmitiendo.
-• Mientras arranca una transmisión en directo, su mosaico muestra una instantánea reciente en lugar de quedarse oscuro.
-• El «?» junto a los campos de la clave API y la cuenta PTZ indica dónde crearlas en tu consola.
-• Si introduces la dirección de una cámara en lugar de la de tu consola UniFi, QuickProtect ahora te lo indica.
+• Mantener el panel abierto: una nueva opción en General. El panel de cámaras sigue abierto cuando haces clic en otro sitio, se queda en primer plano, se vuelve a abrir donde lo dejaste y sus cámaras siguen transmitiendo. Ciérralo con su botón ✕, el icono de la bandeja o el atajo de teclado.
+• La cabecera del panel muestra la tasa de bits de vídeo actual junto al número de streams.
+• Una orden de parada PTZ que no llega a la consola ahora se vuelve a enviar, así que una cámara ya no sigue moviéndose tras una orden perdida.
 ```
 
 ---
@@ -826,10 +801,9 @@ PTZ
 
 **What's New**
 ```
-• Meerdere locaties: voeg meerdere UniFi-consoles toe (bijvoorbeeld thuis en een tweede huis) en zie al hun camera's in één raster en één indelingsprofiel. Elke tegel toont zijn locatie, en een locatie die offline is verschijnt als melding terwijl de andere gewoon doorstreamen.
-• Terwijl een livestream start, toont de tegel een recente momentopname in plaats van donker te blijven.
-• Het ‘?’ naast de velden voor de API-sleutel en het PTZ-account laat zien waar je ze op je console aanmaakt.
-• Voer je het adres van een camera in in plaats van dat van je UniFi-console, dan meldt QuickProtect dat nu.
+• Paneel open houden: een nieuwe optie onder Algemeen. Het camerapaneel blijft open als je ergens anders klikt, blijft op de voorgrond, opent weer waar je het liet en de camera's blijven streamen. Sluit het met de ✕-knop, het systeemvakpictogram of de sneltoets.
+• De kop van het paneel toont de huidige videobitrate naast het aantal streams.
+• Een PTZ-stop die de console niet bereikt, wordt nu opnieuw verstuurd, zodat een camera na een verloren opdracht niet blijft bewegen.
 ```
 
 ---
@@ -888,10 +862,9 @@ PTZ
 
 **What's New**
 ```
-• Più siti: aggiungi più console UniFi (per esempio casa e una seconda casa) e vedi tutte le loro telecamere in un'unica griglia e un unico profilo di layout. Ogni riquadro mostra il suo sito, e un sito offline appare come avviso mentre gli altri continuano a trasmettere.
-• Mentre un flusso live si avvia, il suo riquadro mostra un'istantanea recente invece di restare scuro.
-• Il «?» accanto ai campi della chiave API e dell'account PTZ indica dove crearli sulla tua console.
-• Se inserisci l'indirizzo di una telecamera invece di quello della tua console UniFi, ora QuickProtect te lo segnala.
+• Mantieni aperto il pannello: una nuova opzione in Generale. Il pannello telecamere resta aperto quando fai clic altrove, rimane in primo piano, si riapre dove l'avevi lasciato e le sue telecamere continuano a trasmettere. Chiudilo con il pulsante ✕, l'icona nell'area di notifica o la scorciatoia da tastiera.
+• L'intestazione del pannello mostra il bitrate video attuale accanto al numero di stream.
+• Uno stop PTZ che non raggiunge la console ora viene inviato di nuovo, così una telecamera non continua più a muoversi dopo un comando perso.
 ```
 
 ---
@@ -950,8 +923,7 @@ PTZ
 
 **What's New**
 ```
-• Vários sites: adicione vários consoles UniFi (por exemplo, sua casa e uma segunda casa) e veja todas as câmeras deles em uma única grade e um único perfil de layout. Cada bloco mostra seu site, e um site offline aparece como aviso enquanto os outros continuam transmitindo.
-• Enquanto uma transmissão ao vivo inicia, o bloco mostra um instantâneo recente em vez de ficar escuro.
-• O "?" ao lado dos campos da chave de API e da conta PTZ mostra onde criá-las no seu console.
-• Se você inserir o endereço de uma câmera em vez do seu console UniFi, o QuickProtect agora avisa.
+• Manter o painel aberto: uma nova opção em Geral. O painel de câmeras continua aberto quando você clica em outro lugar, fica em primeiro plano, reabre onde você o deixou e as câmeras continuam transmitindo. Feche-o com o botão ✕, o ícone da bandeja ou o atalho de teclado.
+• O cabeçalho do painel mostra a taxa de bits de vídeo atual ao lado do número de streams.
+• Uma parada PTZ que não chega ao console agora é enviada de novo, então uma câmera não continua mais se movendo depois de um comando perdido.
 ```

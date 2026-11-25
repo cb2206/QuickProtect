@@ -1,6 +1,3 @@
-• Varios sitios: añade varias consolas UniFi (por ejemplo, tu casa y una segunda vivienda) y ve todas sus cámaras en una sola cuadrícula y un solo perfil de diseño. Cada mosaico muestra su sitio, y un sitio sin conexión aparece como aviso mientras los demás siguen transmitiendo.
-• Mientras arranca una transmisión en directo, su mosaico muestra una instantánea reciente en lugar de quedarse oscuro.
-• Al volver a abrir el panel de cámaras, la cuadrícula se mantiene en pantalla en lugar de recargar cada transmisión.
-• El «?» junto a los campos de la clave API y la cuenta PTZ indica dónde crearlas en tu consola.
-• Si introduces la dirección de una cámara en lugar de la de tu consola UniFi, QuickProtect ahora te lo indica.
-• Las claves API pegadas con un espacio o un salto de línea al final ya funcionan.
+• Mantener el panel abierto: una nueva opción en General. El panel de cámaras sigue abierto cuando haces clic en otro sitio, flota sobre las demás ventanas, se vuelve a abrir donde lo dejaste y sus cámaras siguen transmitiendo. Ciérralo con su botón de cerrar, el icono de la barra de menús o el atajo de teclado.
+• La cabecera del panel muestra la tasa de bits de vídeo actual junto al número de streams.
+• Una orden de parada PTZ que no llega a la consola ahora se vuelve a enviar, así que una cámara ya no sigue moviéndose tras una orden perdida.
