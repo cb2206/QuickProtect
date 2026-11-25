@@ -55,10 +55,11 @@ public static class AudioSink
 
         public WasapiAudioSink(int sampleRate, int channels)
         {
-            _buffer = new BufferedWaveProvider(new WaveFormat(sampleRate, 16, channels))
+            // Live view: cap latency and drop rather than lag behind. NAudio
+            // 2.4+ takes the buffer length only in the constructor.
+            _buffer = new BufferedWaveProvider(new WaveFormat(sampleRate, 16, channels),
+                TimeSpan.FromMilliseconds(800))
             {
-                // Live view: cap latency and drop rather than lag behind.
-                BufferDuration = TimeSpan.FromMilliseconds(800),
                 DiscardOnBufferOverflow = true,
             };
             _output = new WasapiOut(AudioClientShareMode.Shared, 100);

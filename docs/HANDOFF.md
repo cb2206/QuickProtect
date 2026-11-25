@@ -19,9 +19,9 @@ Feature parity with the macOS app is complete; the intentional differences and
 the per-platform caveats (GNOME tray click behaviour, Wayland window placement,
 portal-owned global hotkeys, the Hyprland overlay mode) are in `PARITY.md`.
 1.5 adds multiple sites (several consoles in one grid) and snapshot
-placeholders for tiles waiting on their first keyframe. On `dev` for the next
-release: "Keep the panel open" (issue #1) and the header's bitrate readout,
-on both apps.
+placeholders for tiles waiting on their first keyframe. 1.6 adds "Keep the
+panel open" (issue #1), the header's bitrate readout and a retry for PTZ
+commands that fail, on both apps.
 
 ## Architecture: the video engine (don't regress these)
 
@@ -149,11 +149,12 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   again), and the macOS PTZ path has no tests (the .NET ones are in
   `ClassicApiTests`).
 - Held-back dependencies (see the ignore list in `.github/dependabot.yml`):
-  **NAudio 3** obsoletes `WasapiOut` and makes `BufferDuration` read-only, so
-  `Video/AudioSink.cs` needs a port to `WasapiPlayerBuilder`, verified by
-  listening on a Windows machine. **Tmds.DBus.Protocol** stays at the version
-  Avalonia.FreeDesktop asks for (0.94.1 as of Avalonia 12.1.6): the explicit
-  reference overrides Avalonia's own D-Bus use (tray, portals) too.
+  **NAudio 3** obsoletes `WasapiOut`, so `Video/AudioSink.cs` needs a port
+  to `WasapiPlayerBuilder`, verified by listening on a Windows machine (2.4
+  already made `BufferDuration` constructor-only; `AudioSink` passes it
+  there). **Tmds.DBus.Protocol** stays at the version Avalonia.FreeDesktop
+  asks for (0.94.1 as of Avalonia 12.1.6): the explicit reference overrides
+  Avalonia's own D-Bus use (tray, portals) too.
 - Dependabot NuGet PRs fail CI with NU1004 when they touch a `src/` project:
   regenerate every lock file on the PR branch with
   `dotnet restore QuickProtect.sln --force-evaluate` (no `-r`) and commit.
@@ -163,11 +164,10 @@ Bumping FFmpeg means updating the pinned tag + checksums in both
   (tray, pinned-window placement, portal hotkey, fractional scaling, video
   throughput) decides whether it moves to `dev`. Hyprland's overlay mode is
   X11-specific and would need its own Wayland path.
-- Next release notes: the "What's New" blocks in `docs/APP_STORE_LISTINGS.md`
-  still carry 1.5's text (fastlane's metadata lane uploads them at any time,
-  so they change only when the next version is submitted). Add "Keep the
-  panel open" and the bitrate readout then, in all seven languages, for both
-  stores.
+- 1.6's "What's New" text is in `docs/APP_STORE_LISTINGS.md` (all seven
+  languages, both stores) and in `macos/fastlane/metadata/`. Before 1.6 the
+  tray icon (Avalonia 12.1.6 needs it attached to the application) was checked
+  by hand on Windows and on Omarchy (Hyprland).
 - AUR: `quickprotect-bin` is prepared (`installer/aur/`, at 1.5) but not yet
   pushed to the AUR; that needs the maintainer's AUR account and SSH key.
 - `ubuntu-latest` is moving to a newer Ubuntu image; afterwards re-measure

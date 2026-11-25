@@ -68,7 +68,7 @@ NOTICES.txt); it is copied into every published build by the App project.
    Copyright © .NET Foundation and Contributors.
 
 
-6. NAudio.Core and NAudio.Wasapi 2.2.1 — MIT License
+6. NAudio.Core and NAudio.Wasapi 2.4.0 — MIT License
    ---------------------------------------------------------------------------
    Copyright © Mark Heath. https://github.com/naudio/NAudio
 
@@ -78,7 +78,7 @@ NOTICES.txt); it is copied into every published build by the App project.
    Copyright (c) Tom Deseyn. https://github.com/tmds/Tmds.DBus
 
 
-8. System.Security.Cryptography.ProtectedData 10.0.12 and the .NET runtime
+8. System.Security.Cryptography.ProtectedData 10.0.15 and the .NET runtime
    — MIT License
    ---------------------------------------------------------------------------
    Copyright (c) .NET Foundation and Contributors. https://github.com/dotnet
